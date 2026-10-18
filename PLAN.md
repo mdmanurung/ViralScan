@@ -36,18 +36,27 @@ completion.
   (reference low-complexity counters once), B23 (blocked programme calls), B04 (local
   CSR column view) and B06 (row-blocked dense reduction) implemented byte-identical and
   qualified together (C00, component level). Combined vs baseline `file_manifest`
-  identical (148 artifacts), **4,948 tests pass at the branch tip** (19 skipped, 138 deselected,
-  `c00/pytest-full-final.log`; the 2 governance-pin failures seen mid-session are re-pinned in
-  follow-up commits), ruff/mypy clean. Benefit in one session on a loaded host: B24 gate ~0.36x time;
+  identical (148 artifacts), ruff/mypy clean. Benefit in one session on a loaded host: B24 gate ~0.36x time;
   B06 0.09-0.42x isolated RSS on wide inputs, time neutral; B23 sparse-negative 0.20x traced
-  peak, time inconclusive; B04 time inconclusive, +4 MB view cost. Not done: real
+  peak, time inconclusive; B04 time inconclusive, +4 MB view cost. **Rebased onto `main`**
+  (`6910c2d`; the original base was 188 files behind) and landed there: one real source conflict in
+  `build_reference.py` (AUD3-05 x B24), the tracker/governance conflicts, and both governance
+  digests recomputed at the merged bytes (`6c8cb96`, `f852214`). That rebase surfaced a
+  **merge-induced defect**: `main`'s Q123 positive-cell count indexed the layer that B05/B07/B20's
+  budget-gated view had rebound to a narrow span, which raised `IndexError` on any real run (the
+  reference puts host genes first, so viral genes always trail) — fixed in `5d7de93`, with the
+  frozen evidence oracles re-pinned onto `main` in `b6bec78` (user-approved; nothing loosened).
+  Rebased-tip suite **5,512 passed, 41 skipped, 139 deselected, 6 failed**; the six are the
+  pre-existing, environmental `test_release_static.py` failures that also fail on a pure
+  `origin/main` checkout. Not done: real
   dustmasker/`kb ref`/R integration, a second timing session, whole-run measurement,
-  remaining cards. Not pushed; no PR. Tracker and evidence:
+  remaining cards. Tracker and evidence:
   `docs/plans/2026-10-17-remaining-performance-candidates.md`,
   `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`.
-  **Next up:** user review of the branch; a quiet-host second timing session; land wave 1. B08 is
+  **Next up:** review of the PR; a quiet-host second timing session; land wave 1. B08 is
   deferred on its gate and B10 plus wave 2 (B25, B27, B18) are in flight in the
-  `20261018-112322-wave2-g00` packet, on `codex/perf-wave2-b25-b27-b18`.
+  `20261018-112322-wave2-g00` packet, on `codex/perf-wave2-b25-b27-b18`; that session must re-check
+  B18's oracle against `main`'s post-merge `molecule_verdict.py` before trusting it.
 
 - [x] `PERF-DOC-01` (2026-10-18, same branch): reconcile the tracker and wave-1 plan against the
   receipts — header status, the stale "G00/G01/G02/C00 not started" bullet, the certified final

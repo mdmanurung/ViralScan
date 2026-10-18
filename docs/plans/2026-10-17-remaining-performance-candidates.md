@@ -1042,13 +1042,16 @@ documentation-only task. The first-wave receipts remain unchanged.
   process; B06 memory yes, time neutral; B23 memory yes for sparse-negative, time inconclusive;
   B04 time inconclusive and +4 MB view cost. No ratio products, no whole-pipeline claim.
   Packet: `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`.
-  **Final tip suite (added at the `PERF-DOC-01` reconciliation):** after the two governance
-  re-pins, the suite at the branch tip is **4,948 passed, 19 skipped, 138 deselected, exit 0**
+  **Pre-rebase tip suite (added at the `PERF-DOC-01` reconciliation):** after the two governance
+  re-pins, the suite at the then-tip of the *pre-rebase* branch was **4,948 passed, 19 skipped,
+  138 deselected, exit 0**
   (`c00/pytest-full-final.log`, 843.7 s, sha256
   `05477922db7a5cad626ce68f5628c9c3e8e9eac859dc4ba3b55c48e04288eb78`), with the JUnit receipt in
   `pytest-full-final.log.xml`. The `4,946 passed / 2 failed` numbers above describe the
   pre-re-pin combined state; both failures were stale governance pins on `build_reference.py`
-  and are resolved by `5ea27cd` and `faf5667`.
+  and are resolved by `6c8cb96` and `f852214` (the re-pin commits as rebased onto `main`;
+  the pre-rebase SHAs `5ea27cd`/`faf5667` no longer exist in this history). That tip was replaced
+  by the rebase onto `main`; the rebased tip's numbers are in the last entry of this log.
 
 - 2026-10-18 (reconciliation pass, `PERF-DOC-01`) — Corrected this tracker against the evidence
   receipts. No code, golden, comparator, oracle or gate verdict was changed, and no card was newly
@@ -1066,3 +1069,54 @@ documentation-only task. The first-wave receipts remain unchanged.
   branch owns them and must rebase onto this commit. Unchanged by design: G02 stays partial (one
   loaded-host session, component fixtures, no whole-run measurement), B08.2/B08.3 stay unchecked
   behind the failed gate, and every wave-1 benefit statement stays component-level.
+
+- 2026-10-18 — **Rebase of wave 1 onto `main` (`6910c2d`), and the merge fix it forced.** The
+  branch's original base was 188 files behind. The rebase took one real source conflict in
+  `build_reference.py` (AUD3-05's near-duplicate screen × B24's split helpers; the resolution keeps
+  AUD3-05's signature and screen call and delegates to B24's helpers in AUD3-05's order — structure
+  → screen → low-complexity) plus four tracker/governance conflicts. Both governance digests were
+  recomputed at the merged bytes, not side-picked: `build_reference.py` →
+  `88934e091793fe48a7dffcd8b8f1f3315eaeeaf50bfd52ab840263d42ed66c9a` pinned at `6c8cb96`, and the
+  `claims/registry.json` inventory row →
+  `3a2a0b1620013e918d8a87087e0715f04a07d470e54337e5f69a6b337b18d39e` pinned at `f852214`. The
+  pre-rebase tip is preserved locally as `codex/perf-wave1-prerebase` (`dec9885`).
+
+  The rebase also surfaced a **merge-induced defect**, which is why the branch was not landed as
+  rebased. `main`'s Q123 per-virus positive-cell count (`329b3dc`) indexes the layer that
+  B05/B07/B20's budget-gated view had already rebound to a narrow column span, and it used an
+  absolute position for it. Each feature was correct on its own branch; combined they disagree
+  about the index space. It is reachable in production: `detection.py` groups every viral gene
+  present and `build_reference.py` concatenates the host GTF first, so viral genes are always a
+  trailing block. A 2,040-column matrix (2,000 host + 40 viral) raised
+  `IndexError: index (2019) out of range` where `main` returns a complete frame. Every existing
+  grid missed it because its fixtures use leading genes, where the view coincides with the
+  absolute indices. Fixed in `5d7de93`: resolve the index through `gene_positions` (the mapping the
+  sibling per-gene access already uses) and accumulate the mask per integer column through
+  `_gene_vector`, which keeps the cache budget's no-submatrix promise and needs no test edit.
+  Verified: 90/90 exact against main's implementation over the method × layout × dtype grid, and
+  identical on the production-shaped input and on the non-leading layouts that previously raised.
+
+  The frozen evidence oracle was re-based in `b6bec78` (user-approved). The two
+  `tests/fixtures/performance_original.py` blocks that `main` changed are re-pinned to `main`'s own
+  source; the other six stay byte-identical to `5e551c9`; both re-based blocks match `main`'s
+  blocks byte-for-byte; and minimality was proved by reverse-swapping the two blocks and recovering
+  the original file byte-for-byte. No assertion, comparator, tolerance or gate verdict changed, and
+  nothing was derived from the optimized code.
+
+  **Rebased tip suite: 5,512 passed, 41 skipped, 139 deselected, 6 failed** (541.3 s,
+  `c00/pytest-full-rebased.log`, sha256
+  `90151e142d1404de69a4a22a630a059ce48d273471573cc24c80b119f15ed22d`). The six failures are
+  `tests/test_release_static.py::test_weekly_audit_keeps_exit_code_and_log[*]`, pre-existing and
+  environmental: the same six fail on a pure `origin/main` checkout because the test shells out to
+  `python`, which is not on `PATH` here (`bash: line 3: python: command not found`). For contrast,
+  the rebased tip *before* the two fixes was 98 failed / 5,420 passed — 92 of them the fixture
+  vintage recorded below, plus these same six.
+
+  Note for the wave-2 session (B25/B27/B18): `main` changed `molecule_verdict.py` by +108 lines of
+  behavioural code (EVID-UMI-01/Q137 and AUD3-04: `matched_bases`, `_read_rank`,
+  `deduplicate_competitive_alignments`). B18's frozen oracle is pinned at `faf5667`, which predates
+  all of it, and the line numbers that card cites (`:61,96,101,153`) have shifted; re-check the
+  oracle target against the post-merge file before trusting it — the same class of issue this entry
+  records for B24.
+
+  Tags: PERF-EXEC-02, PERF-DOC-01, rebase, byte-identity, LOCK-01, wave-2

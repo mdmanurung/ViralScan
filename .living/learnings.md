@@ -1977,3 +1977,33 @@ Tags: ci, anndata, argparse, macos
 **Resolution**: never use pattern-based kills on a shared account; address the exact PID. The incident is recorded here so a session whose run vanished in that window can attribute it instead of re-debugging.
 
 **Tags**: hpc, shared-account, process-safety
+### [2026-10-18] A rebase can fuse two independently-correct features into a crash, and an exactness grid only covers the index spaces its fixtures encode
+
+**Category**: gotcha
+
+**What happened**: On the wave-1 rebase onto main, wave-1's budget-gated column view (layers
+rebound to a view over `selected`, per-gene access remapped through `gene_positions`) and main's
+Q123 per-virus positive-cell count (`unique[:, idx]` with `idx` built from
+`adata.var_names.get_loc`, i.e. absolute) landed in the same loop. Each was correct on its own
+branch. Combined, the absolute index was applied to the narrow view. Every exactness fixture —
+the 90-case method x layout x dtype grid and the frozen-oracle suite — used leading genes
+(`g0..g3`), where `selected` coincides with the absolute indices, so a standalone comparison
+against main's own implementation reported 90/90 byte-identical and the merge looked clean.
+
+**Why it matters**: Two green-looking signals ("all tests pass", "N/N identical to main") were both
+true while the merged code raised `IndexError` on the real layout. `build_reference.py`
+concatenates the host GTF first, so viral genes are always a trailing column block (2,000 host +
+40 viral columns reproduced it, and the real call site groups every viral gene). The failure has
+two shapes: an index outside the view crashes loudly, but a non-identity `selected` whose width
+exceeds the absolute index reads the wrong column silently. Perf work that rebases onto a moving
+main is structurally exposed, because the optimization changes *which object* a later feature's
+index refers to.
+
+**Resolution**: Probe the index space, not only the values: include a fixture whose referenced
+columns are a trailing (or interior) block, and compare against main's implementation on it before
+trusting a rebase. Fixed by resolving the index through the same `gene_positions` mapping the
+sibling access uses and accumulating the mask per integer column.
+
+**Tags**: rebase, byte-identical, fixture-blindspot, index-space, performance, evidence, multimapping
+
+**mitigation_type**: ambient-awareness
