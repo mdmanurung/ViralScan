@@ -477,19 +477,41 @@ refactor is needed to achieve the proposed gain. Do not bundle parser redesign h
 **Reach:** `chemistry.py:sample_r1`, `match_rates`, `detect`, `classify`, `resolve`;
 chemistry preflight callers. Keep the separate full-list preflight API unchanged.
 
-- [ ] B27.1 — Profile many samples and candidate lists, counting repeated barcode
+- [x] B27.1 — Profile many samples and candidate lists, counting repeated barcode
   lengths and preparation cost versus actual whitelist I/O. Freeze duplicate entries,
   `-1` suffix stripping, blank/short first lines, gzipped lists, empty/short reads,
   tied rates, label order and unreadable paths.
+  **Evidence (2026-10-18):** `...followups/20261018-112322-wave2-g00/cards/b27/`
+  (`profile_b271_s1.json`, `profile_b271_s4.json`, `contract_b271.json`). Real bundled
+  on-lists (10xv2 0.74 M, 10xv3 6.79 M, 10xv4 7.37 M lines) plus a `-w` list, 100 k
+  reads/sample: preparation is 1.24 % (1 sample) / 2.23 % (4 samples) of the call and
+  streaming is 97.8–98.8 %; 10xv2/3/4 all infer `cb_len` 16, so the repeated-length
+  count is maximal (one distinct length for four labels). Frozen: duplicates count
+  twice (rate 1.5), `-1` stripped, blank first line → `cb_len` 0, short first line
+  truncates reads, short reads excluded from counts, gzip opened by suffix, empty
+  reads → 0.0, ties keep the first label in insertion order, label order preserved,
+  `FileNotFoundError`/`IsADirectoryError` carry the path.
 - [ ] B27.2 — Try per-invocation reuse of sampled barcode Counters by inferred
   barcode length, retaining separate original per-label whitelist scans and ordered
   integer hit accumulation. Bound cache memory; build lazily at the original access
   point. Do not deduplicate whitelist lines: duplicates currently contribute more
   than once. Do not retain million-entry Python whitelist sets or cache across calls.
-- [ ] B27.3 — Run `test_chemistry.py`, `test_chemistry_check.py`,
+  **Not implemented — negative (2026-10-18).** Tried as a prototype (identical rates,
+  measured 0.990 ×/0.985 × the baseline call): the removable preparation is only
+  0.91 %/1.66 % of the preflight, below G02's 10 %, because list I/O dominates. The
+  cost side also fails the card's stop condition in the worst case: with four distinct
+  inferred lengths the cache retains every label's counters at once and traced peak is
+  **1.95 ×** the baseline (168.2 MB vs 86.2 MB). No source edit. Evidence:
+  `cards/b27/decision.md`, `feasibility.md`, `worstcase_b271.json`.
+- [x] B27.3 — Run `test_chemistry.py`, `test_chemistry_check.py`,
   `test_whitelist_preflight.py`; compare exact rate floats, detections, warnings,
   requested-chemistry errors and output text. Measure complete preflight, worst-case
   distinct lengths and memory; if I/O dominates, record a negative result.
+  **Evidence (2026-10-18):** 53 passed (`pytest_b273.log`) with `chemistry.py`
+  unchanged. Complete preflight 11.73 s (1 sample) / 25.05 s (4 samples), essentially
+  all whitelist I/O; worst case for distinct lengths and its memory cost is in
+  `worstcase_b271.json`; the change-vs-baseline comparison was made against the
+  prototype, and "if I/O dominates, record a negative result" is the outcome.
 
 **Stop:** benefit is below G02 or cache memory exceeds the agreed baseline budget.
 Already cached native-tool discovery is not new work to optimize.
