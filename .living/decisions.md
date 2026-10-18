@@ -2009,3 +2009,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - B27 negative, no source edit: the chemistry preflight is whitelist I/O (97.8–98.8 %), so reusing the sampled-barcode Counters by inferred barcode length removes at most 1.66 % (G02 needs 10 %), and with four distinct lengths the cache peak is 1.95× the baseline. Any real win must cut list I/O (~15 M lines per check), which is a separate design question.
 - Component claims only (merge-step peak 7.96×–63.68× lower, byte-identical); no whole-pipeline claim until C00-wave2.
 - Tags: performance, scope, validation
+
+### [2026-10-18] Wave-2 B18: fused molecule reducer shipped together with a streaming writer
+
+- Decision: implement B18 (the last wave-2 card) as one change — fused one-pass `_parse_molecules` (seen-usable-QNAME set + per-molecule maxima) plus writers that stream rows from the retained molecules. Both halves are needed: the fused parse alone is 0.968x frozen at 1 read/molecule because the seen set overlaps the molecules, and a writer that still materializes rows measures 0.970x there.
+- Stop conditions hold: exact bytes/order/summary/errors/partial files on 21 frozen cases and 8 stub-`samtools` `write_from_bam` arms (`exact_b182.json`); peak reduced to 0.728/0.641/0.571/0.526x frozen at 1/2/4/8 reads per molecule and 0.468x at 1 M reads; wall 1.034x/0.936x (no tracemalloc).
+- Rejected the temp-file spooling option (gzip `FNAME` embeds the output file name, so a `.tmp` name changes bytes and exposes a partial file) and the disk-backed ordered state (not needed). `_Molecule(slots=True)` (a further ~25 % off the 8-rpm peak) is left as a wave-3 pointer, not done here.
+- Merged with `faf5667`-based branch `codex/perf-wave2-b25-b27-b18`; commit only, no push, no PR. Component claim only; the combined claim waits for C00-wave2.
+- Tags: performance, memory, scope
