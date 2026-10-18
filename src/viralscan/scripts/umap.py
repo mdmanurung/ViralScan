@@ -159,19 +159,34 @@ def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000, random_sta
     nbrs = NearestNeighbors(n_neighbors=k).fit(coords)
     distances, indices = nbrs.kneighbors(coords)
 
-    counts = []
-    for i in viral_cells:
-        neighbor_idx = indices[i][1:]
-        counts.append(np.mean(labels[neighbor_idx]))
+    binary_labels = (
+        type(labels) is np.ndarray
+        and labels.ndim == 1
+        and len(labels) == len(coords)
+        and labels.dtype.kind in "biu"
+        and np.all((labels == 0) | (labels == 1))
+    )
+    if binary_labels:
+        # Binary sums are exact; keep the original outer mean and random draws.
+        neighbors = indices[viral_cells, 1:]
+        counts = np.mean(labels[neighbors], axis=1)
+    else:
+        counts = []
+        for i in viral_cells:
+            neighbor_idx = indices[i][1:]
+            counts.append(np.mean(labels[neighbor_idx]))
     observed = np.mean(counts)
 
     permuted = []
     for _ in range(n_permutations):
         shuffled = rng.permutation(labels)
-        counts_perm = []
-        for i in viral_cells:
-            neighbor_idx = indices[i][1:]
-            counts_perm.append(np.mean(shuffled[neighbor_idx]))
+        if binary_labels:
+            counts_perm = np.mean(shuffled[neighbors], axis=1)
+        else:
+            counts_perm = []
+            for i in viral_cells:
+                neighbor_idx = indices[i][1:]
+                counts_perm.append(np.mean(shuffled[neighbor_idx]))
         permuted.append(np.mean(counts_perm))
 
     expected = np.mean(permuted)
