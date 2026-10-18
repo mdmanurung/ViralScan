@@ -37,6 +37,7 @@ Output
 
 import csv
 import gzip
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -111,6 +112,7 @@ def filter_pairs(
     # ponytail: one core, about 80 us per pair (1.15 core-h per 50 M pairs);
     # an ordered multiprocessing imap over chunks if wall time matters.
     cb_len, umi_len = cb_umi_geometry(technology)
+    cached_classify = lru_cache(maxsize=256)(classify)
     reasons = REASONS if mode == "artefact" else ("r2_short_after_trim",)
     counts = dict.fromkeys(("input", "retained", *reasons), 0)
     if mode == "tso-trim":
@@ -142,7 +144,11 @@ def filter_pairs(
                 reason, out_rec2 = trim_tso(rec2)
                 kept = "tso_trimmed" if out_rec2 is not rec2 else "untouched"
             else:
-                reason = classify(rec1[1].rstrip(), rec2[1].rstrip(), cb_len + umi_len)
+                r1, r2 = rec1[1].rstrip(), rec2[1].rstrip()
+                prefix = r1[: cb_len + umi_len]
+                # Bound both entry count and retained sequence length on diverse/long reads.
+                classifier = cached_classify if len(prefix) + len(r2) <= 512 else classify
+                reason = classifier(prefix, r2, cb_len + umi_len)
             if reason:
                 counts[reason] += 1
                 writer.writerow([read_id, "removed", reason])
