@@ -430,20 +430,43 @@ validation requires a separate explicit behavior decision; this plan does not gr
 **Reach:** `menu.py:_materialize_reference_input`; `scripts/build_reference.py`:
 `_fasta_records`, `prepare_reference_inputs`, header/GTF readers; NCBI merge is B28.
 
-- [ ] B25.1 — Measure overlapping raw-byte/text/list/record allocations and choose
+- [x] B25.1 — Measure overlapping raw-byte/text/list/record allocations and choose
   the dominant adapter. Freeze CR/LF/CRLF and trailing-newline runs, blank inputs,
   descriptions, lowercase, Unicode text errors, malformed GTF and duplicate IDs.
   Note that `read_text().splitlines()` recognizes separators beyond a newline iterator.
-- [ ] B25.2 — First replace whole-byte concatenation with bounded copying that
+  **Evidence (2026-10-18):** `...followups/20261018-112322-wave2-g00/cards/b25/`
+  (`allocations_b251.json`, `contract_b251.json`). Size sweep: whole-byte concat peaks at
+  3.0× the largest input (48 MB for 16 MB files, unbounded) while a bounded form is flat at
+  2.01 MB; `_fasta_records` 1.73×, GTF reader 3.16×, header reader 2.22× of their inputs.
+  Dominant adapter = the whole-byte concatenation (only unbounded term, byte-contract-only
+  replacement). Frozen: 15 edge inputs × 10 combinations byte-identical, trailing runs 0–8,
+  chunk-boundary runs, `IndexError` on a bare `>`, `UnicodeDecodeError`, malformed-GTF
+  `ValueError`, duplicate IDs, and the eight `splitlines()`-only separators.
+- [x] B25.2 — First replace whole-byte concatenation with bounded copying that
   buffers/discards only trailing CR/LF, emitting exactly one LF after each nonempty
   stripped input. Then separately assess streaming headers/GTF with original text
   splitting rules. Preserve uppercase/wrapping/record order and validation-before-
   write boundaries; spool before publication where required. Keep public list-return
   APIs until their callers have a separately qualified streaming implementation.
-- [ ] B25.3 — Run build-reference, reference-manifest, reference-pipeline-aud15 and
+  **Evidence (2026-10-18):** implemented in `menu._materialize_reference_input` (per-file
+  streaming, trailing CR/LF holdback, `_REFERENCE_COPY_CHUNK`). Headers/GTF assessed and
+  **deferred**: a streamed header reader reproduces values exactly (incl. all eight extra
+  separators) and cuts peak 29×, but chunked incremental UTF-8 decoding reports
+  `UnicodeDecodeError` relative to the failing chunk (chunk-size-dependent messages), so
+  keeping the failure contract needs a hand-built error; list-return APIs stay. Evidence:
+  `assessment_b252.json`, `cards/b25/feasibility.md`.
+- [x] B25.3 — Run build-reference, reference-manifest, reference-pipeline-aud15 and
   CLI tests; compare raw prepared/merged FASTA/GTF and manifest bytes, exception and
   partial-output behavior. Benchmark large synthetic host text and small panels,
   reporting isolated peak RSS, spool footprint and total preparation time.
+  **Evidence (2026-10-18):** 284 passed / 3 skipped / 1 deselected
+  (`pytest_b253.log`) plus 1324 passed governance+wave-1 (`pytest_b253_governance_wave1.log`;
+  no re-pin needed — `menu.py` is not digest-pinned). `exact_b253.json`: 5/5 identical
+  (multi-file merges, single-file bypass, empty-argument errors, missing-later-input partial
+  output, `prepare_reference_inputs` prepared FASTA + manifest with timestamps excluded).
+  `memory_b253.json`: traced peak 2.01 MB flat vs 16/64/128 MB baseline → 7.96×/31.84×/63.68×
+  lower, byte-identical, wall ratio ~0.5. Oracle detection power: `mutation_b252.json`
+  (4/4 distinguishable mutants caught; one mutant byte-equivalent by construction).
 
 **Stop:** newline semantics or failure side effects differ, or a sequence-storage
 refactor is needed to achieve the proposed gain. Do not bundle parser redesign here.
