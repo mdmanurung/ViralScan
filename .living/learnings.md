@@ -2066,3 +2066,15 @@ drift at source.
 **Resolution**: shipped the fused parse *with* the streaming writer in `molecule_verdict.py` (parse completes before the gzip is opened, so the parse-failure boundary and byte stream are unchanged; no temp file because gzip's `FNAME` header embeds the output file name). Evidence: `analysis/computational_bottlenecks_2026-10-17/followups/20261018-112322-wave2-g00/cards/b18/`. Mutant "writer materializes rows" is caught only by the 1-read-per-molecule memory guard, which is where the row list is a significant fraction.
 
 **Tags**: performance, memory, profiling, io
+
+### [2026-10-18] Perf wave 2 C00: two checkouts at different commits cannot be byte-compared without excusing the checkout sha
+
+**Category**: gotcha
+
+**What happened**: The wave-2 combined qualification compared a throwaway git checkout at the base commit against the branch tip and found 147 of 148 harness artifacts byte-identical, with `b24/prepare_reference_inputs.json` differing at exactly three JSON paths: `build_receipt.software_identity.git_commit` (`faf5667...` vs `6de5a65...`). Wave-1's C00 never hit this because its baseline was a distribution-installed copy (whose `kind` differed instead). The field is the one thing that *cannot* be equal between two commits, so a blanket "one file differs" would have been misleading in one direction and a blanket excuse in the other.
+
+**Why it matters**: an exactness gate has to distinguish "provenance" from "behaviour" mechanically, not by eyeballing the diff, or the excuse becomes the hole. The comparer therefore (a) walks both JSON documents and lists the differing paths, (b) only excuses paths matching a single declared suffix, and (c) requires the two documents to be equal *after* scrubbing that field — so a clock change, a reordered key set or a shifted array would still fail even if it landed in the same file.
+
+**Resolution**: `cards`-level receipts stay byte-exact; the combined receipt records the excused path and the scrub proof (`c00/exact_compare.json`, `C00_WAVE2_REPORT.md` section 1). Also worth knowing: the full suite at the tip passed 5,028 tests in 457.9 s, so a combined wave of two small cards is comfortably re-qualifiable in one session.
+
+**Tags**: performance, exactness, provenance, testing

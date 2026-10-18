@@ -2017,3 +2017,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Rejected the temp-file spooling option (gzip `FNAME` embeds the output file name, so a `.tmp` name changes bytes and exposes a partial file) and the disk-backed ordered state (not needed). `_Molecule(slots=True)` (a further ~25 % off the 8-rpm peak) is left as a wave-3 pointer, not done here.
 - Merged with `faf5667`-based branch `codex/perf-wave2-b25-b27-b18`; commit only, no push, no PR. Component claim only; the combined claim waits for C00-wave2.
 - Tags: performance, memory, scope
+
+### [2026-10-18] Wave-2 completion: C00-wave2 qualified, branch left unmerged for user review
+
+- Decision: close PERF wave-2 (B08/B10 gates, B25, B27, B18) with a combined qualification C00-wave2 and leave the branch `codex/perf-wave2-b25-b27-b18` unmerged, unpushed, no PR — the user decides, as in wave 1.
+- Evidence: 147/148 harness artifacts byte-identical against a `faf5667` git checkout (the 148th differs only in its own checkout `git_commit`, equal after scrubbing that field), tip A/A identical, B25/B18 card harnesses identical at the tip, 5,028 tests pass, ruff/mypy clean, governance pins consistent on both arms (no re-pin commit needed because neither changed module is pinned).
+- Claims stay component-level: B25 peak flat at 2.01 MB (7.96x/31.84x/63.68x lower at 8/32/64 MiB, 0.71-0.83x wall), B18 traced peak 0.47-0.73x (0.925x median wall over 7 pairs, 7/7 faster). Both in one loud window (load 11.5-19.1); no whole-run claim, and the quiet-host second timing session remains open.
+- Wave 3 candidates unchanged: B29, B17, the `_Molecule(slots=True)` follow-up (a further ~25 % off B18's high-rpm peak) and the B27 list-I/O question.
+- Tags: performance, scope, process
