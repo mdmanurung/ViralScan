@@ -199,33 +199,68 @@ class _Molecule:
     host_as: int | None = None
 
 
-def molecule_rows(sam_lines: Iterable[str], counted_reads: set[int]) -> Iterator[dict[str, object]]:
-    """One row per (cell, UMI) with its best host and virus score and a verdict."""
+def _parse_molecules(
+    sam_lines: Iterable[str], counted_reads: set[int]
+) -> dict[tuple[str, str], _Molecule]:
+    """One pass over the SAM: per-molecule state in first *usable* alignment order.
+
+    Fused replacement for ``best_scores`` plus a second pass over its per-read dict.
+    Only a seen-usable-QNAME set is retained per read (each read name counts once);
+    the score maxima are updated in stream order, and ``max`` being associative makes
+    the per-molecule result identical to taking each read's best before the max.
+    """
     molecules: dict[tuple[str, str], _Molecule] = {}
-    for qname, best in best_scores(sam_lines).items():
-        parts = qname.split("_")
+    seen: set[str] = set()
+    for line in sam_lines:
+        if not line or line.startswith("@"):
+            continue
+        fields = line.rstrip("\n").split("\t")
+        hit = side_score(fields)
+        if hit is None:
+            continue
+        qname = fields[0]
+        first = qname not in seen
+        if first:
+            seen.add(qname)
+        parts = qname.split("_", 2)
         if len(parts) < 3 or not parts[0] or not parts[1]:
             continue
-        mol = molecules.setdefault((parts[0], parts[1]), _Molecule())
-        mol.reads += 1
-        mol.counted = mol.counted or _read_number(qname) in counted_reads
-        if "virus" in best:
-            mol.virus_as = (
-                best["virus"] if mol.virus_as is None else max(mol.virus_as, best["virus"])
-            )
-        if "host" in best:
-            mol.host_as = best["host"] if mol.host_as is None else max(mol.host_as, best["host"])
+        key = (parts[0], parts[1])
+        mol = molecules.get(key)
+        if mol is None:
+            mol = _Molecule()
+            molecules[key] = mol
+        if first:
+            mol.reads += 1
+            mol.counted = mol.counted or _read_number(qname) in counted_reads
+        side, score = hit
+        if side == "virus":
+            mol.virus_as = score if mol.virus_as is None else max(mol.virus_as, score)
+        else:
+            mol.host_as = score if mol.host_as is None else max(mol.host_as, score)
+    return molecules
+
+
+def _row_of(cb: str, ub: str, mol: _Molecule) -> dict[str, object]:
+    return {
+        "cb": cb,
+        "ub": ub,
+        "reads": mol.reads,
+        "counted": mol.counted,
+        "virus_as": mol.virus_as,
+        "host_as": mol.host_as,
+        "verdict": verdict_of(mol.virus_as, mol.host_as),
+    }
+
+
+def _iter_rows(molecules: dict[tuple[str, str], _Molecule]) -> Iterator[dict[str, object]]:
     for (cb, ub), mol in molecules.items():
-        virus_as, host_as = mol.virus_as, mol.host_as
-        yield {
-            "cb": cb,
-            "ub": ub,
-            "reads": mol.reads,
-            "counted": mol.counted,
-            "virus_as": virus_as,
-            "host_as": host_as,
-            "verdict": verdict_of(virus_as, host_as),
-        }
+        yield _row_of(cb, ub, mol)
+
+
+def molecule_rows(sam_lines: Iterable[str], counted_reads: set[int]) -> Iterator[dict[str, object]]:
+    """One row per (cell, UMI) with its best host and virus score and a verdict."""
+    yield from _iter_rows(_parse_molecules(sam_lines, counted_reads))
 
 
 def counted_read_numbers(lineage_tsv_gz: str | Path) -> set[int]:
@@ -255,14 +290,19 @@ def summarise(rows: Iterable[dict[str, object]]) -> list[dict[str, object]]:
 def write_molecule_verdicts(
     sam_lines: Iterable[str], lineage_tsv_gz: str | Path, out_dir: Path
 ) -> list[dict[str, object]]:
-    """Write ``molecule_verdicts.tsv.gz`` and ``molecule_verdict_summary.tsv``; return the summary."""
-    rows = list(molecule_rows(sam_lines, counted_read_numbers(lineage_tsv_gz)))
+    """Write ``molecule_verdicts.tsv.gz`` and ``molecule_verdict_summary.tsv``; return the summary.
+
+    The SAM is parsed (and so validated) before the output file is opened, exactly as
+    before: a parse failure still creates no output. The rows are then written from the
+    retained molecules instead of a second in-memory list of row dicts.
+    """
+    molecules = _parse_molecules(sam_lines, counted_read_numbers(lineage_tsv_gz))
     fields = ["cb", "ub", "reads", "counted", "virus_as", "host_as", "verdict"]
     with gzip.open(out_dir / "molecule_verdicts.tsv.gz", "wt", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t", lineterminator="\n")
         writer.writeheader()
-        writer.writerows(rows)
-    summary = summarise(rows)
+        writer.writerows(_iter_rows(molecules))
+    summary = summarise(_iter_rows(molecules))
     with (out_dir / "molecule_verdict_summary.tsv").open("w", newline="") as handle:
         writer = csv.DictWriter(
             handle,

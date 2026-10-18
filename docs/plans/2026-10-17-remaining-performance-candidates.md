@@ -522,23 +522,55 @@ Already cached native-tool discovery is not new work to optimize.
 **Reach:** `molecule_verdict.py:best_scores`, `molecule_rows`,
 `write_molecule_verdicts`, `write_from_bam`; evidence/dossier consumers.
 
-- [ ] B18.1 — Profile read versus molecule cardinality. Freeze order based on the
+- [x] B18.1 — Profile read versus molecule cardinality. Freeze order based on the
   first **usable scored alignment**, not first raw QNAME occurrence. Include secondary
   hits, supplementary/unmapped-only reads, malformed names/AS tags, score ties,
   interleaved molecules and counted-read mappings.
-- [ ] B18.2 — Prototype a fused reducer: retain a seen-usable-QNAME structure for
+  **Evidence (2026-10-18):** `...followups/20261018-112322-wave2-g00/cards/b18/`
+  (`profile_b181.json`, `contract_b181.json`). The frozen two-phase shape holds
+  `{qname: {side: score}}` (184 B per unique usable read) across the whole
+  molecule-building pass: 300.3 B/read of per-read state at 200 k unique reads, and the
+  peak is `max(scores + molecules, molecules + rows)` — 625 B/read at 1 read per
+  molecule, 341 B/read at 8. Frozen (20 cases): secondary hits usable, supplementary/
+  unmapped-only leave no molecule, no-`AS` records unusable, malformed names create no
+  molecule, ties stay `tie`, order = first *usable* alignment, `reads` = unique usable
+  read names, `counted` follows `assigned_weight > 0` and is sticky, `ValueError` in
+  stream order, `FileNotFoundError` for the lineage before the SAM is touched, `KeyError`
+  without `assigned_weight`.
+- [x] B18.2 — Prototype a fused reducer: retain a seen-usable-QNAME structure for
   unique-read counts and per-molecule best-side state; update maxima in stream order.
   Preserve molecule insertion order and the public `best_scores` API. The old code
   parses the entire SAM before parsing molecule names; adversarial mixed faults must
   retain that exception precedence. If not feasible, keep a two-phase disk-backed
   ordered state representation or reject the refactor. Stream output only after
   matching the original parse-before-write boundary; keep gzip writer/header policy.
-- [ ] B18.3 — Run `test_molecule_verdict.py`, `test_dsr02_verdicts.py` and evidence
+  **Implemented (2026-10-18).** `_parse_molecules` (seen-QNAME set + `_Molecule` map,
+  maxima in stream order) with `_row_of`/`_iter_rows` and `molecule_rows` yielding
+  through them; the lineage read stays before the parse, and both writers parse before
+  opening the gzip and then stream rows from the molecules. Fused parse alone is a wash
+  at 1 read per molecule (0.968×, the seen set then overlaps the molecules), so the
+  streaming writer is the other half; materializing rows on the fused parse measures
+  0.970× there, i.e. that variant is the trade the stop condition forbids. Peak 0.728×
+  (1 read per molecule), 0.641×, 0.571×, 0.526× (8), 0.468× at 1 M reads; wall 1.034×
+  (2/5 trials faster) and 0.936× (5/5) in alternating best-of-5 trials without
+  tracemalloc. No temp file (gzip `FNAME` carries the output name, so spooling would
+  change bytes). Evidence: `cards/b18/{feasibility,decision}.md`, `diff.patch`,
+  `memory_b182.json`, `mutation_b182.json`.
+- [x] B18.3 — Run `test_molecule_verdict.py`, `test_dsr02_verdicts.py` and evidence
   tests; compare verdict gzip raw bytes, summary, errors and partial files. Benchmark
   high reads-per-molecule and all-unique reads, including disk/state overhead.
+  **Evidence (2026-10-18):** 246 passed (`pytest_b183.log`); full suite 5,028 passed /
+  19 skipped / 138 deselected (`pytest_full_b182.log`, wave-1 C00 recorded 4,948 + this
+  wave's 32 B25 and 48 B18 tests). `exact_b182.json`: 21 frozen cases × 6 comparisons
+  (rows, gzip payload, raw gzip bytes, summary record, summary file, file existence) and
+  8 `write_from_bam` arms through a stub `samtools` (success and non-zero exit) all
+  identical, no partial or `.tmp` file. `mutation_b182.json`: 11 non-equivalent mutants,
+  10 caught, 1 documented equivalent control. No disk state; the card's disk-backed
+  fallback was not needed.
 
 **Stop:** first-seen order, unique-read count, validation precedence or compression
 bytes change. This may reduce per-read dictionaries without making memory constant.
+Both hold: identity is exact (`exact_b182.json`) and the peak is reduced, not constant.
 
 ### B29 — Decode anellovirus BAM once for both existing statistics
 

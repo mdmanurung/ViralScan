@@ -2054,3 +2054,15 @@ drift at source.
 **Resolution**: B10 recorded no compliant fast path (`cards/b10/decision.md`), keeping the 37-run freeze as the disabled rule's regression net. B25 implemented only the byte-concatenation half (chunked copy with trailing CR/LF holdback; peak flat at two chunks instead of 2–3× the largest input, 63.7× lower at a 64 MB input, ~2× faster) and deferred streaming headers/GTF with measurements attached (`cards/b25/{feasibility,decision}.md`).
 
 **Tags**: performance, anndata, validation, io
+
+### [2026-10-18] Perf wave 2 B18: a fused reducer can be a wash on its own, and tracemalloc invents CPU regressions
+
+**Category**: gotcha
+
+**What happened**: B18's fused one-pass molecule reducer (seen-QNAME set + per-molecule maxima, replacing `best_scores`'s `{qname: {side: score}}`) removes 300 B/read of per-read dicts but holds the seen set at the same time as the molecules — while the frozen two-phase shape frees the per-read dicts before rows accumulate. Measured as `list(molecule_rows(...))` the prototype is 0.968x frozen at 1 read/molecule and 0.471x at 8: the fused parse alone merely swaps which structure peaks. Pairing it with a writer that streams rows from the molecules (instead of a materialized row list) is what removes the trade: 0.728x/0.641x/0.571x/0.526x at 1/2/4/8 reads per molecule, 0.468x at 1 M reads, versus 0.970x at 1 read/molecule for the fused parse *with* rows materialized. Separately, the first wall-clock numbers said 1.06-1.13x slower; without tracemalloc the same code is 1.034x (2/5 trials faster) and 0.936x (5/5 faster) — tracemalloc charges per allocation, so it systematically penalizes whichever arm allocates more per line.
+
+**Why it matters**: an optimization that only changes *which* container peaks has not reduced anything, and a peak-based gate must be driven through the production entry point, not through a convenience API that materializes results. Timing comparisons of allocation-heavy variants must run without tracemalloc enabled, or the measurement reports the profiler's overhead as the change's cost.
+
+**Resolution**: shipped the fused parse *with* the streaming writer in `molecule_verdict.py` (parse completes before the gzip is opened, so the parse-failure boundary and byte stream are unchanged; no temp file because gzip's `FNAME` header embeds the output file name). Evidence: `analysis/computational_bottlenecks_2026-10-17/followups/20261018-112322-wave2-g00/cards/b18/`. Mutant "writer materializes rows" is caught only by the 1-read-per-molecule memory guard, which is where the row list is a significant fraction.
+
+**Tags**: performance, memory, profiling, io
