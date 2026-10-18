@@ -917,14 +917,39 @@ def _count_unique_genes(t2g_path: str) -> int:
     return len(seen)
 
 
+#: Chunk size for streaming reference-input concatenation; peak memory is one
+#: chunk plus the trailing CR/LF run, independent of input size (PERF wave-2 B25).
+_REFERENCE_COPY_CHUNK = 1 << 20
+
+#: Separators discarded by ``bytes.rstrip(b"\r\n")`` in the byte contract above.
+_REFERENCE_COPY_TRAILING = (13, 10)
+
+
 def _materialize_reference_input(paths: list[str], destination: Path) -> str:
-    """Concatenate reference input files with one newline between files."""
+    """Concatenate reference input files with one newline between files.
+
+    PERF wave-2 B25: the concatenation is streamed in fixed-size chunks and only a
+    *trailing* run of CR/LF is held back, so peak memory is one chunk plus that run
+    instead of the whole file plus its stripped copy. The emitted bytes are
+    unchanged: every byte except each input's trailing CR/LF run, followed by
+    exactly one LF when the stripped content is non-empty.
+    """
     destination.parent.mkdir(parents=True, exist_ok=True)
     with open(destination, "wb") as out:
         for path in paths:
-            data = Path(path).read_bytes().rstrip(b"\r\n")
-            out.write(data)
-            if data:
+            wrote_content = False
+            trailing = b""  # the trailing CR/LF run seen so far, carried across chunks
+            with open(path, "rb") as src:
+                for chunk in iter(lambda: src.read(_REFERENCE_COPY_CHUNK), b""):
+                    merged = trailing + chunk
+                    end = len(merged)
+                    while end and merged[end - 1] in _REFERENCE_COPY_TRAILING:
+                        end -= 1
+                    if end:
+                        out.write(merged[:end])
+                        wrote_content = True
+                    trailing = merged[end:]
+            if wrote_content:
                 out.write(b"\n")
     return str(destination)
 

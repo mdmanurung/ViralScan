@@ -2042,3 +2042,15 @@ drift at source.
 **Tags**: mypy, numpy-stubs, CI-drift, lint, byte-identical, performance, annotation
 
 **mitigation_type**: ambient-awareness
+
+### [2026-10-18] Perf wave 2: an unused eager read is still the only validator, and `splitlines()` is not a newline iterator
+
+**Category**: gotcha
+
+**What happened**: Two wave-2 gates turned on validation semantics rather than arithmetic. (1) B10 — for the disabled UMAP rule the counts H5AD is read but never used except for one `uns["count_schema_version"]` lookup, so replacing `sc.read_h5ad` looked free; the read is in fact the only validator, and its failure surface spans h5py open errors, per-element anndata checks (`obs` group presence, dense X 2-D, layer shape, contents/row-count agreement) *and* anndata's encoding registry (`IORegistryError` on an unknown `encoding-version` on X/obs/uns), plus read-tolerated damage (deleted X/var/obsm groups, zeroed CSR `indptr`, duplicate `obs` index) that a replacement must keep tolerating. Driven through the unmodified `umap.run`, `uns_only` silently accepted 7 damaged inputs, `backed='r'` 3 (and reordered a two-fault report), a hand-rolled h5py validator 5, and `anndata.experimental.read_lazy` needs `xarray` and errored on valid input in the test env. (2) B25 — `read_text().splitlines()` splits on eight separators beyond newline iteration (`\v \f \x1c \x1d \x1e \x85 \u2028 \u2029`), and chunked incremental UTF-8 decoding reports `UnicodeDecodeError` positions *relative to the failing chunk*, so the same corrupt file yields chunk-size-dependent messages (file offset 12 reported as 12 for 64-byte chunks but 0 for 1- and 4-byte chunks).
+
+**Why it matters**: "the object is unused, so skip the read" is a validation change, not an optimization; a streaming text reader changes the failure contract unless it re-fabricates the codec's error with a global offset. What decides these gates is the *class* of failure (registry-level, element-level, contents-level), not the count of cases in a finite frozen matrix — so freeze the two-fault ordering cases too, they pin precedence.
+
+**Resolution**: B10 recorded no compliant fast path (`cards/b10/decision.md`), keeping the 37-run freeze as the disabled rule's regression net. B25 implemented only the byte-concatenation half (chunked copy with trailing CR/LF holdback; peak flat at two chunks instead of 2–3× the largest input, 63.7× lower at a 64 MB input, ~2× faster) and deferred streaming headers/GTF with measurements attached (`cards/b25/{feasibility,decision}.md`).
+
+**Tags**: performance, anndata, validation, io

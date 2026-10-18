@@ -1999,3 +1999,12 @@ This deliberately departs from the "prefer native viralscan commands" habit.
   index against wave-1's remapped view. Production reaches it because `build_reference.py`
   concatenates the host GTF first, so viral genes are a trailing column block.
 - Tags: performance, byte-identity, oracle-pinning, rebase, LOCK-01
+
+### [2026-10-18] Wave-2 perf gates: B08 deferred, B10 no compliant fast path, B25 concatenation only
+
+- Branch `codex/perf-wave2-b25-b27-b18` stacks on the wave-1 tip `faf5667`; commits in the worktree only, no push, no PR.
+- B08 deferred (failed gate G02): 9 alternating paired trials per fixture improve where the helper runs (paired reporting +7.3% e06, +3.8% many-virus-200x10; stats-only +6.2%/+5.7%) and the old paired regression is not reproduced, but the gain is below the 10% default with no memory reduction, and the external host-set path never calls the helper. No source edit.
+- B10 no compliant fast path: the disabled-mode eager read is the only validator of the counts H5AD; every practical bounded/lazy replacement silently accepts damaged input. B10.2/B10.3 stay unchecked, freeze retained as the disabled rule's regression net.
+- B25 implemented only the bounded reference-input concatenation in `menu.py` (byte-identical; `menu.py` is not digest-pinned, so no governance re-pin). Streaming headers/GTF deferred with the `UnicodeDecodeError`-position evidence: value semantics are reproducible and would cut peak 29×, but the failure contract is not.
+- Component claims only (merge-step peak 7.96×–63.68× lower, byte-identical); no whole-pipeline claim until C00-wave2.
+- Tags: performance, scope, validation
