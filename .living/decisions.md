@@ -1979,3 +1979,23 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Claims limited to component results: B24 gate time and B06 wide-input memory are the supported benefits; B23 time and B04 time are inconclusive; no whole-pipeline claim and no ratio products.
 - B23 got one non-card edit in C00 (a `None` pass-through) to keep CI mypy clean.
 - Tags: performance, scope
+
+### [2026-10-18] Wave-1 rebase onto main: budget-path merge fix, and an approved oracle re-pin
+
+- Decision (user, 2026-10-18): re-base the two `tests/fixtures/performance_original.py` blocks that
+  `main` changed (`MULTIMAP_EVIDENCE_COLUMNS`, `summarize_multimap_evidence`) onto `origin/main`
+  (post-Q123, pre-optimization). A captured-source oracle tracks the source it captures: when that
+  source changes under it, the oracle is re-pinned to the new source and the old provenance stays
+  in the header. It is not derived from the optimized code and no comparison is widened, so this is
+  distinct from the standing rule that oracles/goldens are never regenerated or loosened.
+  Minimality must be proved: reverse-swap the changed blocks and recover the original file
+  byte-for-byte, and show the re-based blocks match the new source byte-for-byte.
+- Decision (user, 2026-10-18): fix the merge-induced index-space defect in
+  `summarize_multimap_evidence` by resolving the per-virus index through `gene_positions` and
+  accumulating the mask per integer column (`_gene_vector`), rather than remapping alone and
+  re-scoping `test_evidence_cache_budget_falls_back_without_submatrix_allocation`. The
+  column-by-column form keeps the cache budget's no-submatrix promise and needs no test edit.
+- Why it was needed: each feature was correct alone; the rebase put `main`'s absolute-position
+  index against wave-1's remapped view. Production reaches it because `build_reference.py`
+  concatenates the host GTF first, so viral genes are a trailing column block.
+- Tags: performance, byte-identity, oracle-pinning, rebase, LOCK-01
