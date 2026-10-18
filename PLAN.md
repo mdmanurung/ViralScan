@@ -7502,3 +7502,15 @@ agents and stay `[~]`. Lint cleanup for VR-02 done in the port (E402/SIM115 `noq
   pseudocount, tier slack and EC handling are unchanged by decision.
   Pinned-inventory rows to re-pin: `v3-counting-contract-doc` (`docs/v3_counting_contract.md`) and
   `output-reference-doc` (`docs/output_reference.md`).
+
+
+- [x] `PERF-B16` (2026-10-19) — sequential anonymous SAM handoff accepted against
+  d056986. Native minimap2 finishes before unchanged samtools sort/index argv.
+  180 focused tests pass, including real child failures/full stderr/partial files;
+  actual minimap2 ENOSPC stops before sort and preserves old output. All retained
+  native BAM/BAI artifacts compare raw equal in A/A and A/B. Two independent
+  seven-pair sessions: median wall1.00805/1.00163x, sampled process+child RSS
+  0.51064/0.49989x; traced peak0.00242/0.00197x. Memory benefit only, no runtime
+  improvement claim. Temporary SAM disk28,626,864 bytes for100,000 fixture reads,
+  scaling with input. Instrumented stdout-hash timing attempts retained but excluded
+  from benefit claims. Fixed workers/search/scientific settings. C00 pending.

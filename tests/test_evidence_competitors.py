@@ -446,7 +446,7 @@ def test_align_reads_to_viral_minimap2_argv_is_pinned(monkeypatch, tmp_path):
     """P3-02: ``-ax sr`` alone is ``--secondary=no``; the flags must stay explicit."""
     calls = []
 
-    def fake_run(cmd, *, stdin=None, capture=False):
+    def fake_run(cmd, *, stdin=None, capture=False, stdin_file=None, stdout_file=None):
         calls.append(list(cmd))
         return b""
 
