@@ -1,4 +1,16 @@
-"""Frozen pre-optimization oracles from 5e551c9, captured original source.
+"""Frozen pre-optimization oracles, captured original source.
+
+The multimapping oracles are re-based to ``origin/main`` (post-Q123 "LOCK-01 D1/D2", 329b3dc),
+the pre-optimization baseline after the wave-1 rebase; the rest stay at 5e551c9. Per source:
+
+  multimapping.py  origin/main  sha256 076172803de664ceac8177d019d7c215a8b9fbdeae4a5aec239bfa049bace902
+  detection.py     5e551c9      sha256 6b3fc3f46817e9470106e9c85bd8f5841215ee4d32c922eff83178fce0e4cec2
+  umap.py          5e551c9      sha256 802d2c9d3ecb39f7cb485b8ca360ad09da6342d88ce312d93bd10faa7e0d6255
+
+Only ``MULTIMAP_EVIDENCE_COLUMNS`` and ``summarize_multimap_evidence`` differ from 5e551c9;
+the Q123 columns (``locus_id``, ``n_unique_positive_cells_called``) are carried here so the
+identity check is against the same feature set, not against the feature's absence. main's
+only other change under these oracles is a docstring in ``viral_neighbor_enrichment``.
 
 Helpers and schema are independent of the candidate. Full original sources and
 independent file goldens are retained in the execution packet.
@@ -13,7 +25,8 @@ from sklearn.neighbors import NearestNeighbors
 
 from viralscan.runconfig import RunConfig
 
-# Original file SHA-256: 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b
+# multimapping.py @ origin/main SHA-256: 076172803de664ceac8177d019d7c215a8b9fbdeae4a5aec239bfa049bace902
+# (5e551c9 was 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b)
 MULTIMAP_EVIDENCE_COLUMNS = [
     "virus_name",
     "gene_id",
@@ -26,21 +39,26 @@ MULTIMAP_EVIDENCE_COLUMNS = [
     "n_ambiguous_viral_cells",
     "multimap_method",
     "evidence_tier",
+    "locus_id",
+    "n_unique_positive_cells_called",
 ]
 
 
-# Original file SHA-256: 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b
+# multimapping.py @ origin/main SHA-256: 076172803de664ceac8177d019d7c215a8b9fbdeae4a5aec239bfa049bace902
+# (5e551c9 was 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b)
 def _empty_matrix(n_cells: int, n_genes: int) -> sparse.csr_matrix:
     return sparse.csr_matrix((n_cells, n_genes), dtype=float)
 
 
-# Original file SHA-256: 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b
+# multimapping.py @ origin/main SHA-256: 076172803de664ceac8177d019d7c215a8b9fbdeae4a5aec239bfa049bace902
+# (5e551c9 was 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b)
 def _sum_gene(matrix: Any, gene_idx: int) -> float:
     values = matrix[:, gene_idx]
     return float(values.sum())
 
 
-# Original file SHA-256: 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b
+# multimapping.py @ origin/main SHA-256: 076172803de664ceac8177d019d7c215a8b9fbdeae4a5aec239bfa049bace902
+# (5e551c9 was 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b)
 def _gene_vector(matrix: Any, gene_idx: int) -> Any:
     values = matrix[:, gene_idx]
     if sparse.issparse(values):
@@ -48,7 +66,8 @@ def _gene_vector(matrix: Any, gene_idx: int) -> Any:
     return np.asarray(values).reshape(-1)
 
 
-# Original file SHA-256: 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b
+# multimapping.py @ origin/main SHA-256: 076172803de664ceac8177d019d7c215a8b9fbdeae4a5aec239bfa049bace902
+# (5e551c9 was 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b)
 def _molecule_evidence_tier(
     unique_umi: float,
     corrected_umi: float,
@@ -109,13 +128,21 @@ def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000, random_sta
     return observed, expected, p_value
 
 
-# Original file SHA-256: 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b
+# multimapping.py @ origin/main SHA-256: 076172803de664ceac8177d019d7c215a8b9fbdeae4a5aec239bfa049bace902
+# (5e551c9 was 2b06374abcbee607b9a31023c50ccd15d5662e752e8cbcc809effa81aed67b1b)
 def summarize_multimap_evidence(
     adata: Any,
     group_by_virus: dict[str, list[str]],
     config: RunConfig,
+    called_mask: Any = None,
+    locus_by_gene: dict[str, str] | None = None,
 ) -> pd.DataFrame:
-    """Summarize unique and ambiguous viral evidence for each grouped gene."""
+    """Summarize unique and ambiguous viral evidence for each grouped gene.
+
+    ``locus_id`` is the gene's independent locus (``viral_loci``; empty when the run has no annotation).
+    ``n_unique_positive_cells_called`` is per virus, repeated on each of its rows: the number of called
+    barcodes (``called_mask``; None = every barcode) holding at least one unique-layer molecule at any gene
+    of the virus, the union and not the maximum over genes (LOCK-01 D2)."""
     if adata is None or not group_by_virus:
         return pd.DataFrame(columns=MULTIMAP_EVIDENCE_COLUMNS)
 
@@ -127,9 +154,20 @@ def summarize_multimap_evidence(
     host_viral_selected = adata.layers.get("counts_host_viral_selected", zero)
     upper = adata.layers.get("counts_viral_ambiguous_upper", corrected)
     method = str(config.multimap_method)
+    called = (
+        np.ones(n_cells, dtype=bool) if called_mask is None else np.asarray(called_mask, dtype=bool)
+    )
+    locus_by_gene = locus_by_gene or {}
 
     rows = []
     for virus, gene_ids in group_by_virus.items():
+        idx = [int(adata.var_names.get_loc(g)) for g in gene_ids if g in adata.var_names]
+        positive = (
+            np.asarray(unique[:, idx].sum(axis=1)).reshape(-1) > 0
+            if idx
+            else np.zeros(n_cells, bool)
+        )
+        n_positive = int((positive & called).sum())
         for gene_id in gene_ids:
             if gene_id not in adata.var_names:
                 continue
@@ -160,6 +198,8 @@ def summarize_multimap_evidence(
                         host_viral_umi,
                         selected_host_viral_umi,
                     ),
+                    "locus_id": locus_by_gene.get(gene_id, ""),
+                    "n_unique_positive_cells_called": n_positive,
                 }
             )
 
