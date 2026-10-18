@@ -254,6 +254,14 @@ port the kallisto translated-search tutorial with explicit attribution.
   unique 1.0232/1.0173x, long-read fallback 0.9944/0.9944x. Synthetic stage benefits;
   no production whole-run claim. Independent baseline d056986; C00 pending.
 
+- [x] `PERF-B28` (2026-10-19) — parse captured immutable GenBank text once for
+  CDS/noncoding groups, retaining CDS-first emission, ordinals and all independent
+  integrity reads. 96 focused tests pass (one network test deselected); full offline
+  stale-GTF preparation passes two seven-pair benefit sessions (0.8964/0.8863x wall).
+  Warm-cache control 1.0243/0.9697x. Raw output/cache tree signatures match; no network
+  requests. Mutable-path digest reuse rejected by a sidecar-mutation counterexample.
+  C00 pending; no remote-service or production whole-run performance claim.
+
 - [~] `PERF-EXEC-04` (2026-10-18, active user goal: finish the performance improvement
   plan and merge to main): remaining-card execution in `codex/perf-remaining-candidates`,
   frozen baseline `d056986` in `/tmp/viralscan-perf-remaining-baseline`. Start with B29
