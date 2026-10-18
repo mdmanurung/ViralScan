@@ -2,10 +2,10 @@
 
 Date: 2026-10-17; status reconciled 2026-10-18 (`PERF-DOC-01`). Project: ViralScan.
 Status: **wave 1 (B24, B23, B04, B06, plus B05/B07/B20) merged in PR #73;
-wave 2 (B25 and B18) implemented and qualified at component level, reconciled onto
-merged `main` (`5e05a27`) in `codex/perf-wave2-final`. B08 deferred on its benefit
-gate; B10 has no compliant fast path; B27 recorded a negative result. The remaining
-cards are not started. G01, G02 and C00 stay partial for their documented gaps.**
+wave 2 (B25 and B18) merged in PR #74 (`6e70eda`). B21 accepted at component
+and bounded downstream-cohort level; combined qualification pending. B08 deferred on its benefit
+gate; B10 has no compliant fast path; B27 recorded a negative result. Remaining-card execution uses frozen baseline `d056986` (tree identical to `6e70eda`).
+B09/B17/B29 prototypes are deferred at exactness gates; other cards remain under review. G01, G02 and C00 stay partial for their documented gaps.**
 
 This document turns the 27 unimplemented survey candidates into bounded work cards.
 It also records preservation requirements for the three completed candidates. A card
@@ -577,6 +577,11 @@ Both hold: identity is exact (`exact_b182.json`) and the peak is reduced, not co
 
 ### B29 — Decode anellovirus BAM once for both existing statistics
 
+**2026-10-18: deferred at early exactness gate.** a second samtools failure leaves no final tables/marker; eliminating it suppresses that failure.
+The scripted/reader probe is in `followups/20261018-remaining-candidates/cards/b29/`.
+Full fixture grids and performance runs stopped after rejection; edit/qualification
+steps stay unchecked. No production change.
+
 **Priority:** optional-stage I/O candidate; independent of B17.
 **Reach:** `scripts/anello_align.py:main`, `_alignments`;
 `anello_align.py:accession_metrics`, `virus_molecules`, `virus_summary` and writers.
@@ -600,6 +605,11 @@ Both hold: identity is exact (`exact_b182.json`) and the peak is reduced, not co
 original failure behavior changes. No STAR flags, filtering or index changes.
 
 ### B17 — Share evidence QC inputs with unchanged reducers
+
+**2026-10-18: deferred at early exactness gate.** removing repeated view/depth commands suppresses their independent failure.
+The scripted/reader probe is in `followups/20261018-remaining-candidates/cards/b17/`.
+Full fixture grids and performance runs stopped after rejection; edit/qualification
+steps stay unchecked. No production change.
 
 **Priority:** repeated BAM work; moderate implementation and native qualification.
 **Reach:** `evidence.py:alignment_qc_table`, `per_cell_alignment_qc`,
@@ -752,6 +762,11 @@ not stable, or fixed query/subject search results change. No cheaper incomplete 
 
 ### B09 — Read only necessary layers; preserve the persisted count schema
 
+**2026-10-18: deferred at early exactness gate.** backed reads accept an X encoding version that the eager reader rejects.
+The scripted/reader probe is in `followups/20261018-remaining-candidates/cards/b09/`.
+Full fixture grids and performance runs stopped after rejection; edit/qualification
+steps stay unchecked. No production change.
+
 **Priority:** large-memory opportunity; reader work only in this plan.
 **Reach:** `scripts/multimap.py:final_results` defines aliases; consumers include
 detection, UMAP, programmes, host response, validation and `menu._swap_multimap_layer`.
@@ -851,23 +866,30 @@ are lost, or compressed bytes change. Never disable the requested assignment fil
 
 ### B21 — Bound dense host-feature construction without changing the model
 
+**2026-10-18: accepted; C00 pending.** 103 strict + 435 caller tests pass. Two
+7-pair sessions: conversion wall ratios 0.617/0.625, traced peak 0.450; full
+ineligible cohort wall 0.623/0.626, traced peak 0.452. Cell/group/strata baseline A/A
+identical; 27/30 candidate artifacts raw identical, 3 provenance-only manifest
+differences verified as exact value spans. Receipt: `followups/20261018-remaining-candidates/cards/b21/decision.md`
+under the survey packet. No production whole-run claim.
+
 **Priority:** major memory opportunity; solver changes excluded.
 **Reach:** `scripts/hostresponse.py:_select_features`, `_run_cohort`, normalization,
 HVG selection and cell/group/differential/enrichment consumers; entrypoint contract.
 
-- [ ] B21.1 — Profile float64 dense intermediate versus final float32 storage and
+- [x] B21.1 — Profile float64 dense intermediate versus final float32 storage and
   ineligible-cohort overhead. Freeze raw/log-normalized sparse/dense inputs, duplicate
   coordinates, normalization mutations, feature order and the current full-matrix
   warning. Eligibility-first reordering currently also moves warning/error/network
   annotation behavior: inventory those effects before proposing a skip.
-- [ ] B21.2 — First fill a final C-order float32 array from bounded dense row blocks
+- [x] B21.2 — First fill a final C-order float32 array from bounded dense row blocks
   using the same **dense-then-cast** operation, avoiding a full float64 dense copy.
   Keep feature selection and solver input dtype/layout/order identical. For
   noncanonical sparse input retain the original path unless duplicate accumulation
   is proven identical. Do not cast sparse entries before duplicate summation, change
   to sparse solvers, move HVG learning outside training folds or reduce features.
   A lazy no-eligible-cohort path is a later separately qualified subchange.
-- [ ] B21.3 — Run hostresponse, groups/strata/baseline/null/symbol and entrypoint tests.
+- [x] B21.3 — Run hostresponse, groups/strata/baseline/null/symbol and entrypoint tests.
   Compare feature array bits, predictions/weights, folds, statuses, warnings and all
   CSV/JSON artifacts. Exercise depth matching, panel-in-fold and multiple strata.
   Measure conversion-stage and full-cohort peak RSS, setup transients and wall time.

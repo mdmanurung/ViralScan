@@ -246,6 +246,23 @@ port the kallisto translated-search tutorial with explicit attribution.
 
 **2026-10-12 (grill session 3, user-confirmed Q19-Q40):** two public-dataset tracks. *Track A, exploratory round 2 (`DSR-16`, new):* full rerun of every arm on a new pinned `main` commit, `cat42d` reference, the 22 frozen round-1 chemistry JSONs, arms `combined_off`, `combined_artefact`, `twostep` (new DEF-05 cell calling; compare with round-1 `twostep_v2`); public development set plus COVID x213/x216 and SFL x223 reported separately; `ERR13027122` (HTO/ADT) and `GSM4682312` (no barcode read) dropped as n/a; agents submit under `dsr_round2/GUARD.md` (resources only), throttle `%4` combined / `%2` two-step; `SENS-07` per-dataset planting as round 2b on the same commit. Every run logged `explore`. *Track B, broad virus discovery study (`DISC-01`, new):* lives in a local private study repo next to the package (seeded from the untracked Biomni plan bundle, which is never committed here); generic tools land in ViralScan as package features. Shipped-tier reference after the user's `PANEL-01` WP5 build; `DEC-02`..`DEC-04` confirmed (hash-pinned panel, combined host+virus, fixed `unstranded`); calibration, then `LOCK-02`, then blind discovery, then replication; no discovery run before the lock. Dataset facts (NCBI/ENA metadata, 2026-10-12): all series open access except `GSE317012` (raw data never deposited: replacement positive to be searched, fallback a recorded two-positive deviation); about 3.8 TB GEX FASTQ; `GSE151671` is 10x 3' v2 with R1/R2 as separate runs (pair by sample; no Drop-seq gate); `GSE190338` is BAM-only (`bamtofastq`); most discovery sets are 10x 5'. Influenza `GSE336913` also joins the package's scored T2 rows via an amendment in the SCI-05 review. Storage: calibration FASTQs kept until the lock, discovery/replication streamed (download, run, keep outputs + checksums, delete FASTQ). Host-homology screen: T2T-CHM13 now, HPRC only for L1+ candidates (user downloads). Healthy 3' and 5' PBMC backgrounds outside the package holdout, picked by an agent and approved by the user.
 
+- [~] `PERF-EXEC-04` (2026-10-18, active user goal: finish the performance improvement
+  plan and merge to main): remaining-card execution in `codex/perf-remaining-candidates`,
+  frozen baseline `d056986` in `/tmp/viralscan-perf-remaining-baseline`. Start with B29
+  failure-contract feasibility, then B17 (both deferred: removing a repeated native
+  command suppresses its observable independent failure). B21 bounded host-feature
+  densification passed 103 strict and 435 caller tests; two timing sessions pass
+  benefit gates. Cell/group/strata fitted results match (27/30 raw files identical;
+  three source-provenance-only manifests verified as literal spans). B09 backed
+  reads deferred because they skip eager validation. Combined qualification pending.
+  Evaluate each remaining eligible card in
+  isolation, retaining failed gates as measured negative/deferred outcomes. G00 source,
+  environment and six native-tool identities are captured in
+  `analysis/computational_bottlenecks_2026-10-17/followups/20261018-remaining-candidates/baseline.json`.
+  No job submission, downloads, held-out data use, scientific parameter changes or
+  changes to effective worker counts are authorized. B11/B30 resource wiring retains
+  its separate gate. G01/G02/C00 must be reconciled before completion is claimed.
+
 - [~] `PERF-EXEC-03` (2026-10-18, original branch `codex/perf-wave2-b25-b27-b18`,
   historical baseline `faf5667`; finalized on `codex/perf-wave2-final` over merged main
   `5e05a27` after PR #73): wave-2 B08/B10 gate decisions (B08 deferred, B10 no compliant fast path — no
