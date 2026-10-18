@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 from matplotlib.ticker import ScalarFormatter
+from scipy import sparse
 
 from viralscan import anello_align
 from viralscan.constants import SIBLING_CROSSMAP_RATIO_THRESHOLD
@@ -133,6 +134,32 @@ def _count_value(value, ndigits=6):
     return round(value, ndigits)
 
 
+def _requested_column_view(matrix, names, viral_accessions, pos):
+    """Return ``(matrix, index_map)`` for per-column totals.
+
+    For a reusable accession sequence and a plain 2-D CSR matrix whose width matches
+    ``names``, a local CSR copy holding only the requested columns (first-seen order)
+    is returned, so each column total scans fewer stored entries. Every other case
+    (generators, CSC/dense/other layouts, mismatched width, no or all columns
+    requested) returns the original matrix and the identity map. The caller's matrix
+    is never modified and the per-column ``toarray().sum()`` reduction is unchanged.
+    """
+    if (
+        isinstance(viral_accessions, (list, tuple))
+        and type(matrix) in (sparse.csr_matrix, sparse.csr_array)
+        and matrix.ndim == 2
+        and matrix.shape[1] == len(names)
+    ):
+        try:
+            wanted = list(dict.fromkeys(pos[g] for g in viral_accessions if g in pos))
+        except TypeError:  # unhashable accession: let the original path raise
+            wanted = []
+        if 0 < len(wanted) < matrix.shape[1]:
+            local = {col: k for k, col in enumerate(wanted)}
+            return matrix[:, wanted], local.__getitem__
+    return matrix, lambda i: i
+
+
 def detect_genes(var_names, matrix, viral_accessions, threshold=1, groups=None):
     """Return {gene_id: total_count} for viral genes meeting the threshold.
 
@@ -152,8 +179,11 @@ def detect_genes(var_names, matrix, viral_accessions, threshold=1, groups=None):
         dupes = sorted({n for n in names if names.count(n) > 1})
         raise ValueError(f"detect_genes: duplicate var_names {dupes[:5]!r}; make them unique first")
     pos = {gene_id: i for i, gene_id in enumerate(names)}
+    column_matrix, column_of = _requested_column_view(matrix, names, viral_accessions, pos)
     totals = {
-        g: _gene_counts_from_matrix(matrix, pos[g]).sum() for g in viral_accessions if g in pos
+        g: _gene_counts_from_matrix(column_matrix, column_of(pos[g])).sum()
+        for g in viral_accessions
+        if g in pos
     }
     bad = sorted(g for g, t in totals.items() if not np.isfinite(t))
     if bad:

@@ -370,6 +370,22 @@ def validate_reference_records(
     *sibling_groups* overrides the catalogue's declared siblings.
     """
     records = _fasta_records(fasta)
+    _check_reference_structure(records, fasta)
+    if near_duplicates != "off":
+        _screen_near_duplicates(records, near_duplicates, viral_identifiers, sibling_groups)
+    if max_pure_homopolymer_kmers is not None or max_low_complexity_fraction is not None:
+        _raise_on_low_complexity(
+            records,
+            [low_complexity_kmer_counts(sequence, k=k, max_run=max_run) for _, sequence in records],
+            max_low_complexity_fraction=max_low_complexity_fraction,
+            max_pure_homopolymer_kmers=max_pure_homopolymer_kmers,
+            k=k,
+        )
+    return records
+
+
+def _check_reference_structure(records: list[tuple[str, str]], fasta: Path) -> None:
+    """Raise ``ValueError`` on no records, an empty sequence, or duplicate ID/sequence."""
     if not records:
         raise ValueError(f"Reference FASTA has no sequences: {fasta}")
     seen_ids: set[str] = set()
@@ -387,59 +403,65 @@ def validate_reference_records(
                 f"{seen_sequences[digest]} and {identifier}"
             )
         seen_sequences[digest] = identifier
-    if near_duplicates != "off":
-        _screen_near_duplicates(records, near_duplicates, viral_identifiers, sibling_groups)
-    if max_pure_homopolymer_kmers is not None or max_low_complexity_fraction is not None:
-        homopolymer_offenders: list[tuple[str, int]] = []
-        fraction_offenders: list[tuple[str, int, int]] = []
-        for identifier, sequence in records:
-            counts = low_complexity_kmer_counts(sequence, k=k, max_run=max_run)
-            if (
-                max_pure_homopolymer_kmers is not None
-                and counts["pure_homopolymer"] > max_pure_homopolymer_kmers
-            ):
-                homopolymer_offenders.append((identifier, counts["pure_homopolymer"]))
-            if max_low_complexity_fraction is not None and counts["total"]:
-                low = (
-                    counts["pure_homopolymer"]
-                    + counts["long_run"]
-                    + counts["few_bases"]
-                    + counts["tandem"]
-                )
-                if low / counts["total"] > max_low_complexity_fraction:
-                    fraction_offenders.append((identifier, low, counts["total"]))
-        problems = []
-        if homopolymer_offenders:
-            homopolymer_offenders.sort(key=lambda row: -row[1])
-            shown = ", ".join(f"{i} ({n})" for i, n in homopolymer_offenders[:10])
-            more = (
-                ""
-                if len(homopolymer_offenders) <= 10
-                else f" (+{len(homopolymer_offenders) - 10} more)"
+
+
+def _raise_on_low_complexity(
+    records: list[tuple[str, str]],
+    all_counts: list[dict[str, int]],
+    *,
+    max_low_complexity_fraction: float | None,
+    max_pure_homopolymer_kmers: int | None,
+    k: int,
+) -> None:
+    """Raise the low-complexity ``ValueError`` from precomputed per-record counters."""
+    homopolymer_offenders: list[tuple[str, int]] = []
+    fraction_offenders: list[tuple[str, int, int]] = []
+    for (identifier, _), counts in zip(records, all_counts, strict=True):
+        if (
+            max_pure_homopolymer_kmers is not None
+            and counts["pure_homopolymer"] > max_pure_homopolymer_kmers
+        ):
+            homopolymer_offenders.append((identifier, counts["pure_homopolymer"]))
+        if max_low_complexity_fraction is not None and counts["total"]:
+            low = (
+                counts["pure_homopolymer"]
+                + counts["long_run"]
+                + counts["few_bases"]
+                + counts["tandem"]
             )
-            problems.append(
-                f"{len(homopolymer_offenders)} record(s) contain pure-homopolymer "
-                f"{k}-mers above the limit of {max_pure_homopolymer_kmers}: {shown}{more}"
-            )
-        if fraction_offenders:
-            fraction_offenders.sort(key=lambda row: -(row[1] / row[2]))
-            shown = ", ".join(f"{i} ({a}/{b})" for i, a, b in fraction_offenders[:10])
-            more = (
-                "" if len(fraction_offenders) <= 10 else f" (+{len(fraction_offenders) - 10} more)"
-            )
-            problems.append(
-                f"{len(fraction_offenders)} record(s) exceed the low-complexity fraction "
-                f"limit of {max_low_complexity_fraction}: {shown}{more}"
-            )
-        if problems:
-            raise ValueError(
-                "Reference k-mers are low-complexity and will match the poly-A and poly-T "
-                "tails that dominate 10x reads. " + "; ".join(problems) + ". Mask the panel "
-                "with `dustmasker` (windows 64 and 30, merged, masked to N) before indexing, "
-                "or raise the limits deliberately. A kallisto D-list cannot fix this: it "
-                "filters host-homologous k-mers, not self-similarity inside a viral contig."
-            )
-    return records
+            if low / counts["total"] > max_low_complexity_fraction:
+                fraction_offenders.append((identifier, low, counts["total"]))
+    problems = []
+    if homopolymer_offenders:
+        homopolymer_offenders.sort(key=lambda row: -row[1])
+        shown = ", ".join(f"{i} ({n})" for i, n in homopolymer_offenders[:10])
+        more = (
+            ""
+            if len(homopolymer_offenders) <= 10
+            else f" (+{len(homopolymer_offenders) - 10} more)"
+        )
+        problems.append(
+            f"{len(homopolymer_offenders)} record(s) contain pure-homopolymer "
+            f"{k}-mers above the limit of {max_pure_homopolymer_kmers}: {shown}{more}"
+        )
+    if fraction_offenders:
+        fraction_offenders.sort(key=lambda row: -(row[1] / row[2]))
+        shown = ", ".join(f"{i} ({a}/{b})" for i, a, b in fraction_offenders[:10])
+        more = (
+            "" if len(fraction_offenders) <= 10 else f" (+{len(fraction_offenders) - 10} more)"
+        )
+        problems.append(
+            f"{len(fraction_offenders)} record(s) exceed the low-complexity fraction "
+            f"limit of {max_low_complexity_fraction}: {shown}{more}"
+        )
+    if problems:
+        raise ValueError(
+            "Reference k-mers are low-complexity and will match the poly-A and poly-T "
+            "tails that dominate 10x reads. " + "; ".join(problems) + ". Mask the panel "
+            "with `dustmasker` (windows 64 and 30, merged, masked to N) before indexing, "
+            "or raise the limits deliberately. A kallisto D-list cannot fix this: it "
+            "filters host-homologous k-mers, not self-similarity inside a viral contig."
+        )
 
 
 def write_reference_manifest(
@@ -2133,17 +2155,25 @@ def _enforce_low_complexity_gate(fasta: Path, *, mask: bool, label: str) -> None
     """
     max_low_complexity_fraction = 0.0 if mask else 0.05
     max_pure_homopolymer_kmers = 0 if mask else 2
-    report = low_complexity_report(fasta)
+    # One FASTA read and one classifier pass per record feed the scan log, the structural
+    # check and the verdict. The report dict keeps low_complexity_report's semantics
+    # (first key, last value for duplicate identifiers); ``pure`` still counts every record.
+    records = _fasta_records(fasta)
+    all_counts = [low_complexity_kmer_counts(sequence) for _, sequence in records]
+    report = {
+        identifier: (
+            counts["pure_homopolymer"] + counts["long_run"] + counts["few_bases"] + counts["tandem"],
+            counts["total"],
+        )
+        for (identifier, _), counts in zip(records, all_counts, strict=True)
+    }
     overall_low = sum(low for low, _ in report.values())
     overall_total = sum(total for _, total in report.values())
     if report:
         worst_id, (worst_low, worst_total) = max(
             report.items(), key=lambda row: (row[1][0] / row[1][1]) if row[1][1] else 0.0
         )
-        pure = sum(
-            low_complexity_kmer_counts(sequence)["pure_homopolymer"]
-            for _, sequence in _fasta_records(fasta)
-        )
+        pure = sum(counts["pure_homopolymer"] for counts in all_counts)
         log.info(
             "Low-complexity k-mer scan: %s/%s (%.4f%%) low-complexity, %d pure-homopolymer, "
             "across %d records; worst record %s at %d/%s",
@@ -2158,13 +2188,14 @@ def _enforce_low_complexity_gate(fasta: Path, *, mask: bool, label: str) -> None
         )
     # Structural problems (empty, duplicate ID, duplicate sequence) keep their own
     # ValueError; only the low-complexity verdict is reported as a gate failure.
-    validate_reference_records(fasta, near_duplicates="off")
+    _check_reference_structure(records, fasta)
     try:
-        validate_reference_records(
-            fasta,
-            near_duplicates="off",
+        _raise_on_low_complexity(
+            records,
+            all_counts,
             max_low_complexity_fraction=max_low_complexity_fraction,
             max_pure_homopolymer_kmers=max_pure_homopolymer_kmers,
+            k=DEFAULT_K,
         )
     except ValueError as exc:
         raise RuntimeError(
