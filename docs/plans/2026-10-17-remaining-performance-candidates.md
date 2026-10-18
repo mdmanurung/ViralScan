@@ -1,10 +1,11 @@
 # Remaining performance candidates: implementation and qualification plan
 
 Date: 2026-10-17; status reconciled 2026-10-18 (`PERF-DOC-01`). Project: ViralScan.
-Status: **wave 1 (B24, B23, B04, B06) implemented and qualified at component level on
-`codex/perf-wave1-b24-b23-b04-b06`; B08 deferred on its benefit gate; B10 and wave 2
-(B25, B27, B18) in flight in the `20261018-112322-wave2-g00` packet; the remaining cards
-are not started. G01, G02 and C00 stay partial.**
+Status: **wave 1 (B24, B23, B04, B06, plus B05/B07/B20) merged in PR #73;
+wave 2 (B25 and B18) implemented and qualified at component level, reconciled onto
+merged `main` (`5e05a27`) in `codex/perf-wave2-final`. B08 deferred on its benefit
+gate; B10 has no compliant fast path; B27 recorded a negative result. The remaining
+cards are not started. G01, G02 and C00 stay partial for their documented gaps.**
 
 This document turns the 27 unimplemented survey candidates into bounded work cards.
 It also records preservation requirements for the three completed candidates. A card
@@ -120,9 +121,11 @@ consumers of alignment data and should not be folded into one broad rewrite.
   representative whole-run measurement. **Wave-2 update (2026-10-18):** the B08 replot is
   9 alternating paired trials per fixture in one session at host load 17.1 → 9.4; the second
   session requirement is still outstanding.
-- [~] C00 — Qualify combined accepted changes. **Status: wave-1 (B24, B23, B04, B06)
-  qualified at component level on 2026-10-18; native/R/whole-run checks pending.** Evidence:
-  `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`. Next: remaining cards, a second timing session on a quieter host.
+- [~] C00 — Qualify combined accepted changes. **Status: waves 1 and 2 qualified
+  at component level on 2026-10-18; performance-specific native/R/whole-run checks pending.**
+  Evidence: `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`
+  and `analysis/computational_bottlenecks_2026-10-17/followups/20261018-112322-wave2-g00/c00/C00_WAVE2_REPORT.md`.
+  Next: a second timing session on a quieter host and a representative whole-run measurement.
 Each B-card below has three separately checkable steps: establish feasibility,
 implement the smallest qualifying change, qualify it. Every unchecked B-step has
 status **not started**. Do not mark implementation complete when only a prototype
@@ -1229,3 +1232,16 @@ documentation-only task. The first-wave receipts remain unchanged.
   records for B24.
 
   Tags: PERF-EXEC-02, PERF-DOC-01, rebase, byte-identity, LOCK-01, wave-2
+
+- 2026-10-18 — Landing reconciliation (`PERF-EXEC-03`): PR #73 rebase-merged as
+  `5e05a27` after all 12 CI jobs passed, including Python 3.10–3.12 on Linux/macOS and
+  native integration. Applied only the five wave-2 commits (`bddae5c` through `94cd034`)
+  to that revision in `codex/perf-wave2-final`. Conflicts were confined to tracker and
+  appended project notes; retained both histories. No source conflict or oracle edit.
+  Checked the frozen B25 target and all ten B18 baseline functions/classes against
+  merged main: AST-identical. Preserved every other function on main, including the
+  post-alignment molecule deduplication helpers (34 menu and 14 verdict definitions).
+  Focused oracle/caller tests: 97 passed, one `sdust` skip. Ruff check, formatting
+  (267 files), and mypy (60 source files) pass. Final full-suite and cross-platform
+  results are recorded on the finalization PR; the earlier 5,028-test receipt remains
+  bound to `faf5667` plus the original wave-2 commits. G02 and whole-run gaps remain open.

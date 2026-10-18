@@ -246,8 +246,9 @@ port the kallisto translated-search tutorial with explicit attribution.
 
 **2026-10-12 (grill session 3, user-confirmed Q19-Q40):** two public-dataset tracks. *Track A, exploratory round 2 (`DSR-16`, new):* full rerun of every arm on a new pinned `main` commit, `cat42d` reference, the 22 frozen round-1 chemistry JSONs, arms `combined_off`, `combined_artefact`, `twostep` (new DEF-05 cell calling; compare with round-1 `twostep_v2`); public development set plus COVID x213/x216 and SFL x223 reported separately; `ERR13027122` (HTO/ADT) and `GSM4682312` (no barcode read) dropped as n/a; agents submit under `dsr_round2/GUARD.md` (resources only), throttle `%4` combined / `%2` two-step; `SENS-07` per-dataset planting as round 2b on the same commit. Every run logged `explore`. *Track B, broad virus discovery study (`DISC-01`, new):* lives in a local private study repo next to the package (seeded from the untracked Biomni plan bundle, which is never committed here); generic tools land in ViralScan as package features. Shipped-tier reference after the user's `PANEL-01` WP5 build; `DEC-02`..`DEC-04` confirmed (hash-pinned panel, combined host+virus, fixed `unstranded`); calibration, then `LOCK-02`, then blind discovery, then replication; no discovery run before the lock. Dataset facts (NCBI/ENA metadata, 2026-10-12): all series open access except `GSE317012` (raw data never deposited: replacement positive to be searched, fallback a recorded two-positive deviation); about 3.8 TB GEX FASTQ; `GSE151671` is 10x 3' v2 with R1/R2 as separate runs (pair by sample; no Drop-seq gate); `GSE190338` is BAM-only (`bamtofastq`); most discovery sets are 10x 5'. Influenza `GSE336913` also joins the package's scored T2 rows via an amendment in the SCI-05 review. Storage: calibration FASTQs kept until the lock, discovery/replication streamed (download, run, keep outputs + checksums, delete FASTQ). Host-homology screen: T2T-CHM13 now, HPRC only for L1+ candidates (user downloads). Healthy 3' and 5' PBMC backgrounds outside the package holdout, picked by an agent and approved by the user.
 
-- [~] `PERF-EXEC-03` (2026-10-18, branch `codex/perf-wave2-b25-b27-b18`, base wave-1 tip
-  `faf5667`): wave-2 B08/B10 gate decisions (B08 deferred, B10 no compliant fast path — no
+- [~] `PERF-EXEC-03` (2026-10-18, original branch `codex/perf-wave2-b25-b27-b18`,
+  historical baseline `faf5667`; finalized on `codex/perf-wave2-final` over merged main
+  `5e05a27` after PR #73): wave-2 B08/B10 gate decisions (B08 deferred, B10 no compliant fast path — no
   source edits), B27 negative (whitelist I/O dominates — no source edit), B25 (bounded
   reference-input concatenation) and B18 (fused molecule reducer + streaming writer)
   implemented byte-identical, all qualified together as C00-wave2. Combined vs a `faf5667`
@@ -260,7 +261,10 @@ port the kallisto translated-search tutorial with explicit attribution.
   0.728x/0.641x/0.571x/0.526x at 1/2/4/8 reads per molecule (0.468x at 1M reads), wall 0.925x
   median over 7 pairs, 7/7 faster. Both timed in one loud window (load 11.5-19.1); no
   whole-run claim. Not done: a quiet-host second timing session, whole-run measurement,
-  wave-3 B29/B17 and the remaining cards. Not pushed; no PR. Evidence:
+  wave-3 B29/B17 and the remaining cards. Landing authorized by the user's merge/finalize
+  request. Reconciled source preserves main's newer deduplication helpers and both
+  unchanged frozen oracles; focused tests 97 passed, one sdust skip; lint/format/mypy
+  pass. Final full-suite and CI results are recorded on the finalization PR. Historical evidence:
   `analysis/computational_bottlenecks_2026-10-17/followups/20261018-112322-wave2-g00/c00/C00_WAVE2_REPORT.md`
   and the branch's `docs/plans/2026-10-17-remaining-performance-candidates.md` card rows.
 
