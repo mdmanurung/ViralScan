@@ -1941,3 +1941,15 @@ What happened: CI py3.12 resolved anndata 0.13.4/pandas 3.0.6 where set(adata.la
 Why it matters: broad except hid the real error; reproduce with a venv pinned to the CI versions from the Successfully installed log line.
 Resolution: skip None layer keys; strip the suffix in the generator; rename test inputs.
 Tags: ci, anndata, argparse, macos
+
+### [2026-10-18] Perf wave 1 (B24/B23/B04/B06): card candidates need a combined gate, and governance pins follow the source
+
+**Category**: gotcha
+
+**What happened**: Four accepted byte-identical perf cards were combined in worktree `vs_work/perf_wave1`. Combined checks found two things the isolated cards could not: mypy `[index]` on B23's blocked `unique[start:stop]` (`_marker_matrix` returns `Optional`), and the artifact-inventory/claim-registry tests failing on the B24 sha256 of `build_reference.py` (pins must be re-pinned in a later commit because the pinned `git_sha` has to contain the new blob). `tests/test_performance_exactness.py` also needs the untracked `tests/fixtures/performance_original.py`; without it the whole suite aborts at collection. A baseline from a non-git copy differs only in provenance `kind: installed` vs `checkout`, so compare against a git-checkout baseline.
+
+**Why it matters**: component evidence is not combined evidence; load noise (load 8-61) produced 2x swings on unchanged code paths (an untouched B06 path shows ratio 0.44), so only ratios beyond baseline-vs-baseline spread count.
+
+**Resolution**: B23 `None` pass-through, governance re-pin commits, fixture carried over; see `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`.
+
+**Tags**: performance, governance, mypy, timing-noise

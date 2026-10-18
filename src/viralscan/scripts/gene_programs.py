@@ -156,6 +156,10 @@ def _panel_form(config: RunConfig) -> str:
     return "bundled"
 
 
+#: Cells per ``call_cell_programme`` block in :func:`run_one` (memory bound only).
+_CALL_ROW_BLOCK = 8192
+
+
 def run_one(
     adata: ad.AnnData,
     viruses: list[str],
@@ -228,34 +232,50 @@ def run_one(
             )
 
         unique, selected = _marker_matrix(adata, resolved)
-        calls = call_cell_programme(
-            unique,
-            resolved,
-            min_breadth=min_breadth,
-            latency_observable=info["latency_observable"],
-            selected_matrix=selected,
-            latent_min_breadth=latent_min_breadth,
-            min_umi=min_umi,
-            absence_assessable=absence_ok,
+        # Call in bounded row blocks so only one block's call dicts are alive at a
+        # time; pruned rows are dropped immediately. State counts cover *all* calls
+        # (kept or pruned), accumulated in global first-seen order, and are logged once.
+        state_counts: dict[str, int] = {}
+        # At least one (possibly empty) block, so parameter validation inside
+        # call_cell_programme still fires for a zero-cell input.
+        for start in range(0, max(adata.n_obs, 1), _CALL_ROW_BLOCK):
+            stop = start + _CALL_ROW_BLOCK
+            # A None layer passes through unchanged so call_cell_programme validates it as before.
+            calls = call_cell_programme(
+                unique if unique is None else unique[start:stop],
+                resolved,
+                min_breadth=min_breadth,
+                latency_observable=info["latency_observable"],
+                selected_matrix=None if selected is None else selected[start:stop],
+                latent_min_breadth=latent_min_breadth,
+                min_umi=min_umi,
+                absence_assessable=absence_ok,
+            )
+            for barcode, call in zip(obs_names[start:stop], calls):
+                state_counts[call["state"]] = state_counts.get(call["state"], 0) + 1
+                if call["state"] == "indeterminate" and not any(
+                    call[k] or 0  # selected_* is None when there is no selected matrix
+                    for k in (
+                        "productive_breadth",
+                        "latent_breadth",
+                        "selected_productive_breadth",
+                        "selected_latent_breadth",
+                    )
+                ):
+                    # No marker evidence on either layer: the virus was called by layer 1 on
+                    # molecules we cannot attribute to a programme, which is worth
+                    # recording but not worth a per-cell row for every barcode. A cell with
+                    # allocated-only evidence is kept: summarise_programs counts it on the
+                    # selected layer (the BZLF1 "unique 0 / allocated 9,308" comparison).
+                    continue
+                records.append({"barcode": barcode, "virus_name": virus, **call})
+        # Rebuild the series from the counts in first-seen order so value_counts() sees
+        # the same first-seen order and counts, hence the same tie order, as before.
+        states = (
+            pd.Series([s for s, n in state_counts.items() for _ in range(n)])
+            .value_counts()
+            .to_dict()
         )
-        for barcode, call in zip(obs_names, calls):
-            if call["state"] == "indeterminate" and not any(
-                call[k] or 0  # selected_* is None when there is no selected matrix
-                for k in (
-                    "productive_breadth",
-                    "latent_breadth",
-                    "selected_productive_breadth",
-                    "selected_latent_breadth",
-                )
-            ):
-                # No marker evidence on either layer: the virus was called by layer 1 on
-                # molecules we cannot attribute to a programme, which is worth
-                # recording but not worth a per-cell row for every barcode. A cell with
-                # allocated-only evidence is kept: summarise_programs counts it on the
-                # selected layer (the BZLF1 "unique 0 / allocated 9,308" comparison).
-                continue
-            records.append({"barcode": barcode, "virus_name": virus, **call})
-        states = pd.Series([c["state"] for c in calls]).value_counts().to_dict()
         log.info("%s: %s", virus, states)
 
     df = pd.DataFrame(

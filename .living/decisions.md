@@ -1973,3 +1973,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Q154: the independent G3 review of PR #64 (host-only cell calling) found that `seeds.cell_calling = 20260727002` is above R's integer maximum, so `emptydrops.R` (`as.integer(args[[6]])` is NA) stopped in `set.seed` in combined and two-step mode. Fixed in code, not in `protocol.yaml`: the G3 allowlist (`scripts/check_g3_diff.py`) forbids touching seeds in the signing commit, and the protocol value is frozen text. The seed is parsed as numeric and reduced modulo 2147483647 only when it exceeds R's integer range (20260727002 -> 933374179); seeds within range, including the default 100, are used unchanged, so earlier runs reproduce. The receipt records `seed` and `effective_seed`. Why it was missed: every test checked `cmd[-1]` of the argv, none ran R with the frozen seed (same pattern as F-008).
 - Also folded in: unlink the old `emptydrops_cells.tsv` and the receipt before a call; a matrix column missing from an existing Virus Identity table is fatal; receipt provenance (partition file digest, R and DropletUtils versions, code SHA).
 - Tags: Q154, Q153, CELLS-02, CELLS-05, G3
+### [2026-10-18] Wave-1 perf changes committed as a separate branch, not merged
+
+- Decision: B24, B23, B04, B06 are committed on `codex/perf-wave1-b24-b23-b04-b06` (after a carry-over commit of the earlier uncommitted B05/B07/B20 edits). No push, no PR; the user decides.
+- Claims limited to component results: B24 gate time and B06 wide-input memory are the supported benefits; B23 time and B04 time are inconclusive; no whole-pipeline claim and no ratio products.
+- B23 got one non-card edit in C00 (a `None` pass-through) to keep CI mypy clean.
+- Tags: performance, scope
