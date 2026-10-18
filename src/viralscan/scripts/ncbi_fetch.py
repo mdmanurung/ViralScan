@@ -486,16 +486,13 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
     locus = _locus_fields(genbank_text)
     seqid_field = str(locus["version"]) or accession
     genome_length = int(locus["genome_length"])
-    cds_features = [
-        (location, qualifiers)
-        for key, location, qualifiers in iter_features(genbank_text)
-        if key == "CDS"
-    ]
-    noncoding_features = [
-        (location, qualifiers)
-        for key, location, qualifiers in iter_features(genbank_text)
-        if key == NONCODING_FEATURE_KEY
-    ]
+    cds_features = []
+    noncoding_features = []
+    for key, location, qualifiers in iter_features(genbank_text):
+        if key == "CDS":
+            cds_features.append((location, qualifiers))
+        elif key == NONCODING_FEATURE_KEY:
+            noncoding_features.append((location, qualifiers))
     if not cds_features and not noncoding_features:
         raise NCBIFetchError(
             f"No CDS or {NONCODING_FEATURE_KEY} features found in GenBank record for "
