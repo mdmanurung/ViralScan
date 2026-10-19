@@ -494,3 +494,64 @@ class TestHostCaptureDag(TestAutoEvidenceDag):
         output = self._plan(tmp_path, ["host_capture=true"])
         assert re.search(r"^\s*host_capture\s+1\s", output, re.MULTILINE), output
         assert re.search(r"^\s*kb_count\s+1\s", output, re.MULTILINE), output
+
+
+@pytest.mark.integration
+class TestCpuBudgetThreads(TestAutoEvidenceDag):
+    """total_budget_v1: every rule reserves what its native tool uses, capped at --cores."""
+
+    def _threads(self, tmp_path: Path, cores: int, override: str | None) -> dict[str, int]:
+        cmd = [
+            "snakemake", "--snakefile", str(SNAKEFILE), "--dryrun", "all",
+            "--cores", str(cores),
+            "--configfile",
+            _configfile(
+                tmp_path,
+                [
+                    "sample1=/fake/R1.fastq.gz", "sample2=/fake/R2.fastq.gz",
+                    "kb_r1=/fake/R1.fastq.gz", "kb_r2=/fake/R2.fastq.gz",
+                    f"cores={cores}", "auto_evidence=true", "host_capture=true",
+                ],
+            ),
+        ]  # fmt: skip
+        if override:
+            cmd += ["--set-threads", override]
+        if have_tools(["snakemake"]):
+            pytest.skip("snakemake not on PATH")
+        done = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        assert done.returncode == 0, done.stdout + done.stderr
+        # Snakemake omits the "threads:" line for the default of 1.
+        return {
+            name: int((re.search(r"\n\s+threads: (\d+)", block) or [0, 1])[1])
+            for name, block in re.findall(r"rule (\w+):\n(.*?)(?=\n\[|\Z)", done.stdout, re.S)
+        }
+
+    @pytest.mark.parametrize("cores", [1, 6, 8, 32])
+    def test_reservations_follow_budget(self, tmp_path, cores) -> None:
+        got = self._threads(tmp_path, cores, None)
+        assert got["kb_count"] == min(8, cores)
+        for name in ("multimap", "auto_evidence", "host_capture"):
+            assert got[name] == cores, got
+        assert max(got.values()) <= cores
+
+    def test_external_set_threads_is_honoured(self, tmp_path) -> None:
+        got = self._threads(tmp_path, 6, "auto_evidence=2")
+        assert got["auto_evidence"] == 2 and got["kb_count"] == 6
+
+
+@pytest.mark.parametrize("script", ["multimap", "auto_evidence", "host_capture"])
+def test_scripts_use_scheduler_reserved_threads(script) -> None:
+    source = (SNAKEFILE.parent / "scripts" / f"{script}.py").read_text()
+    assert "with_cores(snakemake.threads)" in source
+
+
+def test_multimap_pins_numerical_libraries_before_numpy_loads() -> None:
+    source = (SNAKEFILE.parent / "scripts" / "multimap.py").read_text()
+    pin, first_import = source.index("OPENBLAS_NUM_THREADS"), source.index("import anndata")
+    assert pin < first_import and 'os.environ[_name] = "1"' in source
+
+
+def test_snakefile_kb_count_uses_rule_threads_not_a_literal() -> None:
+    text = SNAKEFILE.read_text()
+    assert text.count("kb count -t {threads} ") == 2 and "kb count -t 8" not in text
+    assert "threads: bounded_workers(KB_WORKERS" in text

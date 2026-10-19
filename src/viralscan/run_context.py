@@ -12,7 +12,7 @@ It is deliberately passive: it answers "what / where", it performs no I/O. See
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Union
 
@@ -29,6 +29,10 @@ class RunContext:
     def from_config(cls, config: RunConfig) -> RunContext:
         """Build from a :class:`~viralscan.runconfig.RunConfig` (the testable seam)."""
         return cls(config, KbCountOutputs.from_config_output(config.output))
+
+    def with_cores(self, cores: int) -> RunContext:
+        """Same Run with the CPU budget replaced (the rule's scheduler-reserved threads)."""
+        return RunContext(replace(self.config, cores=int(cores)), self.outputs)
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> RunContext:

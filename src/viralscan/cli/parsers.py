@@ -239,6 +239,17 @@ def _build_ref_parser(subparsers: Any) -> None:
         default=False,
         help="Print all supported host species and exit.",
     )
+    p.add_argument(
+        "--cores",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Total CPU budget for kb ref, minimap2 homology and cd-hit-est. "
+            "Native workers are bounded to N (kb ref min(8, N), minimap2 min(3, N), "
+            "cd-hit-est -T N). Unset keeps the legacy requests (8 / 3 / all CPUs)."
+        ),
+    )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="build-ref")
 

@@ -1,4 +1,20 @@
-# Resource policy — explicit legacy profile approved; admission policy pending
+# Resource policy — `--cores` is the total CPU budget (approved 2026-10-19)
+
+**Approved and implemented 2026-10-19 (`total_budget_v1`, PLAN B11/B30, branch
+`codex/cpu-budget`).** `--cores` is the total concurrent CPU budget. Native workers are
+bounded by it (never raised): `kb count`/`kb ref` `-t min(8, cores)`, homology minimap2
+`-t min(3, cores)`, CD-HIT `-T cores` (`-M 8000` unchanged). `kb_count` and `multimap`
+now declare `threads` (kb_count `min(8, cores)`, multimap `cores`), and auto_evidence,
+host_capture and multimap read `snakemake.threads`, so `--set-threads` is honoured.
+Numerical libraries stay pinned at one worker (kb_count shell exports OMP etc = 1;
+multimap.py pins them before numpy loads). `build-ref --cores N` is new; unset keeps the
+legacy requests (8 / 3 / all CPUs) so unflagged builds are argv-identical. The workflow
+default stays 6, so a default workflow run now uses `kb count -t 6`. Lower worker counts
+can change thread-dependent raw bytes; that needs its own compatibility decision, no
+comparator was relaxed. Manifest fields for requested/effective workers are not yet
+recorded (argv in logs and receipts is the record). The text below is the pre-approval
+state.
+
 
 The user explicitly approved the local qualification phase on 2026-10-19.
 The candidate makes installed legacy worker requests explicit: kb count/ref eight,

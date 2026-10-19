@@ -9,6 +9,12 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+if "snakemake" in globals():
+    # Snakemake exports OMP etc = rule threads. Only bustools gets those; numerical
+    # libraries stay at one worker (total_budget_v1), pinned before numpy loads.
+    for _name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        os.environ[_name] = "1"
+
 import anndata as ad
 import pandas as pd
 
@@ -618,6 +624,6 @@ def run(ctx, done_file):
 
 if "snakemake" in globals():
     run(
-        RunContext.from_yaml(snakemake.params.configfile),  # noqa: F821 (snakemake magic global)
+        RunContext.from_yaml(snakemake.params.configfile).with_cores(snakemake.threads),  # noqa: F821 (snakemake magic global)
         snakemake.output[0],  # noqa: F821
     )

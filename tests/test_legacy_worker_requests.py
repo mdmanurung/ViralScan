@@ -1,4 +1,4 @@
-"""Keep native legacy requests explicit without changing scheduler/library workers."""
+"""total_budget_v1: --cores bounds every native worker request (legacy request when unset)."""
 
 import json
 import os
@@ -11,11 +11,22 @@ import pytest
 import yaml
 
 from viralscan import menu
+from viralscan.resources import bounded_workers
 from viralscan.scripts import build_reference as br
 
+LEGACY_CORES = [None, 1, 2, 3, 6, 8, 32]
 
+
+@pytest.mark.parametrize("legacy", [8, 3])
+@pytest.mark.parametrize("cores", [1, 2, 3, 6, 8, 32])
+def test_bounded_workers_table(legacy, cores):
+    assert bounded_workers(legacy, cores) == min(legacy, cores)
+    assert bounded_workers(legacy, None) == legacy
+
+
+@pytest.mark.parametrize("cores", LEGACY_CORES)
 @pytest.mark.parametrize("entrypoint", ["menu", "finish", "finish_dlist"])
-def test_reference_entrypoints_request_eight_workers(tmp_path, monkeypatch, entrypoint):
+def test_reference_entrypoints_bound_workers(tmp_path, monkeypatch, entrypoint, cores):
     fasta, gtf = tmp_path / "reference.fa", tmp_path / "reference.gtf"
     fasta.write_text(">V1\nACGT\n")
     gtf.write_text('V1\ttest\texon\t1\t4\t.\t+\t.\tgene_id "V1";\n')
@@ -36,7 +47,7 @@ def test_reference_entrypoints_request_eight_workers(tmp_path, monkeypatch, entr
     monkeypatch.setattr(menu, "_prepare_kb_ref_inputs", lambda *a: (str(fasta), str(gtf)))
     monkeypatch.setattr(menu, "_write_reference_manifest", lambda *a: None)
     if entrypoint == "menu":
-        menu._build_kb_ref(tmp_path / "out", str(fasta), str(gtf))
+        menu._build_kb_ref(tmp_path / "out", str(fasta), str(gtf), cores)
     else:
         br._finish_reference_build(
             tmp_path,
@@ -49,17 +60,21 @@ def test_reference_entrypoints_request_eight_workers(tmp_path, monkeypatch, entr
             viral_gtf=gtf,
             builder="test",
             extra={},
+            cores=cores,
         )
     command = commands[0]
-    assert command[1:4] == ["ref", "-t", "8"]
+    assert command[1:4] == ["ref", "-t", str(8 if cores is None else min(8, cores))]
     assert command.count("-t") == 1
     assert command[-2:] == [str(fasta), str(gtf)]
     assert ("--d-list" in command) == (entrypoint == "finish_dlist")
     assert receipts[0]["command"] == command
 
 
+@pytest.mark.parametrize("cores", LEGACY_CORES)
 @pytest.mark.parametrize("fails", [False, True])
-def test_homology_requests_three_and_preserves_search_and_errors(tmp_path, monkeypatch, fails):
+def test_homology_bounds_workers_and_preserves_search_and_errors(
+    tmp_path, monkeypatch, fails, cores
+):
     fasta = tmp_path / "viral.fa"
     fasta.write_text(">V1\n" + "ACGT" * 25 + "\n")
     host, output = tmp_path / "host.fa", tmp_path / "out.tsv"
@@ -77,17 +92,17 @@ def test_homology_requests_three_and_preserves_search_and_errors(tmp_path, monke
     monkeypatch.setattr(br.subprocess, "run", run)
     if fails:
         with pytest.raises(subprocess.CalledProcessError) as caught:
-            br.measure_host_homology(fasta, host, output)
+            br.measure_host_homology(fasta, host, output, cores)
         assert caught.value is failure
         assert not output.exists()
     else:
-        br.measure_host_homology(fasta, host, output)
+        br.measure_host_homology(fasta, host, output, cores)
         assert output.is_file()
     assert commands == [
         [
             "/native/minimap2",
             "-t",
-            "3",
+            str(3 if cores is None else min(3, cores)),
             "-c",
             "-k",
             "15",
@@ -107,7 +122,8 @@ def test_homology_requests_three_and_preserves_search_and_errors(tmp_path, monke
     ]
 
 
-def test_clustering_keeps_all_cpu_and_memory_policy(tmp_path, monkeypatch):
+@pytest.mark.parametrize("cores", LEGACY_CORES)
+def test_clustering_bounds_cpu_and_keeps_memory_and_identity(tmp_path, monkeypatch, cores):
     fasta, output = tmp_path / "in.fa", tmp_path / "out.fa"
     commands = []
 
@@ -117,7 +133,7 @@ def test_clustering_keeps_all_cpu_and_memory_policy(tmp_path, monkeypatch):
 
     monkeypatch.setattr(br.shutil, "which", lambda tool: "/native/cd-hit-est")
     monkeypatch.setattr(br.subprocess, "run", run)
-    assert br._run_cdhit_est(fasta, output)
+    assert br._run_cdhit_est(fasta, output, cores=cores)
     assert commands == [
         [
             "/native/cd-hit-est",
@@ -132,7 +148,7 @@ def test_clustering_keeps_all_cpu_and_memory_policy(tmp_path, monkeypatch):
             "-M",
             "8000",
             "-T",
-            "0",
+            "0" if cores is None else str(cores),
             "-d",
             "0",
         ]
@@ -188,6 +204,7 @@ def test_count_legacy_request_and_library_environment(tmp_path, cores, whitelist
     ]
     if override:
         command += ["--set-threads", "kb_count=2"]
+    expected = min(8, cores, 2) if override else min(8, cores)
     env = {
         **os.environ,
         "PATH": str(binary) + os.pathsep + os.environ["PATH"],
@@ -197,8 +214,7 @@ def test_count_legacy_request_and_library_environment(tmp_path, cores, whitelist
     done = subprocess.run(command, cwd=tmp_path, env=env, capture_output=True, text=True)
     assert done.returncode == 0, done.stdout + done.stderr
     request = json.loads((out / "kb-python/request.json").read_text())
-    assert request["argv"][:3] == ["count", "-t", "8"]
+    assert request["argv"][:3] == ["count", "-t", str(expected)]
     assert request["argv"].count("-t") == 1
     assert ("-w" in request["argv"]) is whitelist
-    library_workers = min(cores, 2) if override else 1
-    assert set(request["env"].values()) == {str(library_workers)}
+    assert set(request["env"].values()) == {"1"}  # numerical libraries stay pinned at one worker

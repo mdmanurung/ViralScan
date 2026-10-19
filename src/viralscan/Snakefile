@@ -2,6 +2,7 @@ import os
 import yaml
 
 from viralscan.chemistry import kb_whitelist_arg
+from viralscan.resources import KB_WORKERS, bounded_workers
 
 
 def _all_targets(wildcards):
@@ -138,6 +139,9 @@ rule kb_count:
         _kb_count_inputs
     output:
         f"{config['output']}log/kb.done"
+    # --cores is the total CPU budget: kb gets min(8, cores) workers and the rule
+    # reserves exactly that many, so no concurrent rule oversubscribes the budget.
+    threads: bounded_workers(KB_WORKERS, config.get("cores", 6))
     params:
         # Snakemake parses an empty `--config whitelist=` as None, and a shell
         # template renders None as the literal string "None". `kb count -w None`
@@ -184,11 +188,13 @@ rule kb_count:
         ST={params.strand:q}
         # Empty ST expands to nothing, so kb keeps its per-technology default.
         # No -w lets kb use its pre-packaged on-list for the technology.
-        # Pin the legacy native request without changing rule-thread reservations.
+        # Native workers = rule threads = min(legacy 8, --cores). Numerical libraries stay
+        # at one worker, as before (Snakemake would export OMP etc = threads).
+        export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
         if [ -z "$WL" ]; then
-            kb count -t 8 -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            kb count -t {threads} -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         else
-            kb count -t 8 -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            kb count -t {threads} -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         fi
 
         [ -n "$WL_PLAIN" ] && rm -f "$WL_PLAIN"
@@ -242,6 +248,7 @@ rule multimap:
         virus_identity = f"{config['output']}results/virus_identity.tsv"
     output:
         f"{config['output']}log/multimap.done"
+    threads: config.get("cores", 6)
     params:
         configfile = lambda wildcards: f"{config['output']}config.yaml",
         snakefile_dir = lambda wildcards: workflow.basedir

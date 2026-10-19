@@ -52,6 +52,13 @@ from typing import Any, NamedTuple, Optional, cast
 from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.kmer_sharing import near_duplicate_pairs
 from viralscan.reference_gates import record_index_inspect
+from viralscan.resources import (
+    CDHIT_MEMORY_MB,
+    HOMOLOGY_WORKERS,
+    KB_WORKERS,
+    bounded_workers,
+    cdhit_threads,
+)
 from viralscan.run_safety import sha256_file, software_identity
 from viralscan.sensitivity import DEFAULT_K
 from viralscan.validation import require_schema_valid, tool_provenance
@@ -925,7 +932,7 @@ def _parse_host_homology_paf(
 
 
 def measure_host_homology(
-    viral_fasta: Path, host_genome: Path, output_tsv: Path
+    viral_fasta: Path, host_genome: Path, output_tsv: Path, cores: int | None = None
 ) -> dict[str, dict[str, object]]:
     """Measure viral-sequence homology to the full host genome and retain raw metrics.
 
@@ -948,7 +955,7 @@ def measure_host_homology(
         [
             minimap2,
             "-t",
-            "3",
+            str(bounded_workers(HOMOLOGY_WORKERS, cores)),
             *("-c", "-k", "15", "-w", "10", "-N", "200", "-p", "0.01", "-s", "40", "-m", "20"),
             str(viral_fasta),
             str(host_genome),
@@ -1680,6 +1687,7 @@ def _finish_reference_build(
     viral_gtf: Path,
     builder: str,
     extra: dict[str, object],
+    cores: int | None = None,
 ) -> tuple[Optional[Path], Optional[Path]]:
     """One index invocation and receipt boundary for both native source adapters."""
     index = t2g = None
@@ -1696,7 +1704,7 @@ def _finish_reference_build(
             kb_bin,
             "ref",
             "-t",
-            "8",
+            str(bounded_workers(KB_WORKERS, cores)),
             "-i",
             str(index),
             "-g",
@@ -1750,6 +1758,7 @@ def build_combined_reference(
     mask: bool = True,
     ensembl_release: Optional[int] = None,
     strict_reference: bool = False,
+    cores: int | None = None,
 ) -> dict[str, Optional[Path]]:
     """Build a combined host + virus kallisto reference.
 
@@ -1994,6 +2003,7 @@ def build_combined_reference(
             viral_fasta_path,
             genome_dlist_path,
             out_dir / "host_homology_annotations.tsv",
+            cores=cores,
         )
         if genome_dlist_path
         else None
@@ -2041,6 +2051,7 @@ def build_combined_reference(
             "host_species": host_species,
             "viral_accessions": sorted(viral_identifiers),
         },
+        cores=cores,
     )
     return {
         "fasta": combined_fasta,
@@ -2229,7 +2240,9 @@ def _low_complexity_total(sequence: str) -> int:
     return counts["pure_homopolymer"] + counts["long_run"] + counts["few_bases"] + counts["tandem"]
 
 
-def _run_cdhit_est(fasta_in: Path, fasta_out: Path, identity: float = 0.95) -> bool:
+def _run_cdhit_est(
+    fasta_in: Path, fasta_out: Path, identity: float = 0.95, cores: int | None = None
+) -> bool:
     """Run cd-hit-est to cluster near-identical sequences.
 
     Returns True if clustering ran, False if cd-hit-est is not on PATH.
@@ -2253,9 +2266,9 @@ def _run_cdhit_est(fasta_in: Path, fasta_out: Path, identity: float = 0.95) -> b
         "-n",
         str(word_size),
         "-M",
-        "8000",
+        str(CDHIT_MEMORY_MB),
         "-T",
-        "0",
+        str(cdhit_threads(cores)),
         "-d",
         "0",  # keep full sequence name
     ]
@@ -2413,6 +2426,7 @@ def build_anellovirus_reference(
     fasta_path: Optional[Path] = None,
     genome_dlist: Optional[os.PathLike[str] | str] = None,
     strict_reference: bool = False,
+    cores: int | None = None,
 ) -> dict[str, Optional[Path]]:
     """Build a kallisto-ready Anelloviridae reference.
 
@@ -2514,7 +2528,7 @@ def build_anellovirus_reference(
     if cluster:
         log.info("Step 3/4  Clustering with cd-hit-est …")
         clustered_fasta = out_dir / "anellovirus.clustered.fa"
-        ran = _run_cdhit_est(working_fasta, clustered_fasta)
+        ran = _run_cdhit_est(working_fasta, clustered_fasta, cores=cores)
         if ran:
             working_fasta = clustered_fasta
             cluster_annotations = _cluster_provenance(
@@ -2555,6 +2569,7 @@ def build_anellovirus_reference(
             final_fasta,
             genome_dlist_path,
             out_dir / "host_homology_annotations.tsv",
+            cores=cores,
         )
         if genome_dlist_path
         else None
@@ -2601,6 +2616,7 @@ def build_anellovirus_reference(
         viral_gtf=final_gtf,
         builder="viralscan build-ref (anellovirus)",
         extra={"profile": "anellovirus-representative" if cluster else "anellovirus-expanded"},
+        cores=cores,
     )
     return {
         "fasta": final_fasta,
@@ -2681,6 +2697,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
                 fasta_path=bundled_fasta,
                 genome_dlist=genome_dlist,
                 strict_reference=getattr(args, "strict_reference", False),
+                cores=getattr(args, "cores", None),
             )
         except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
             # Error already logged by the builder.
@@ -2729,6 +2746,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
             mask=not getattr(args, "no_mask", False),
             ensembl_release=getattr(args, "ensembl_release", None),
             strict_reference=getattr(args, "strict_reference", False),
+            cores=getattr(args, "cores", None),
         )
     except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
         # Error already logged by the builder.

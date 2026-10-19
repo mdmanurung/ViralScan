@@ -164,7 +164,7 @@ fingerprint. `--ncbi-email` and `--ncbi-api-key` are not recorded in the manifes
 ## `viralscan build-ref` — reference builder
 
 ```
-viralscan build-ref [OPTIONS]
+viralscan build-ref [OPTIONS]   # --cores N bounds kb ref / minimap2 / cd-hit-est (unset: legacy 8 / 3 / all CPUs)
 ```
 
 Build a combined host + virus kallisto reference without running a full
@@ -388,7 +388,7 @@ used without an explicit rerun and audit. This remains tracked as `SW-04` and
 | `--run-dir PATH` | | *(required)* | Completed source run; it is never modified. |
 | `--output PATH` | `-o` | *(required)* | New result directory; it must not already be non-empty. |
 | `--multimap-method METHOD` | | *(required)* | Multimapping resolution method: `conservative`, `em`, or `equal` |
-| `--cores N` | `-c` | `6` | Number of cores for snakemake workers |
+| `--cores N` | `-c` | `6` | Total CPU budget; native workers (kb, bustools, STAR, ...) are bounded to it |
 | `--multimap-em-max-iter N` | | *(preserve)* | (EM methods) Maximum iterations; omit to keep the existing config value |
 | `--multimap-em-tol TOL` | | *(preserve)* | (EM methods) Convergence tolerance; omit to keep the existing config value |
 | `--verbose` | | off | Enable DEBUG-level logging |
@@ -634,7 +634,7 @@ the sections above add context. Do not edit between the markers.
 | `--sample2, -s2 SAMPLE2` | *(none)* | The path to the backward FASTQ sample (gunzipped is preferred). |
 | `--transcripts, -t TRANSCRIPTS` | *(none)* | The path to the transcripts (t2g) file produced by kb ref. |
 | `--index, -i INDEX` | *(none)* | The path to the reference index created by kb ref. |
-| `--cores, -c CORES` | `6` | The amount of cores the workflow can use. Default: 6. |
+| `--cores, -c CORES` | `6` | Total CPU budget for the workflow; native workers are bounded to it. Default: 6. |
 | `--reference, -ref` | `False` | Build a kb ref index from -fasta and -gtf into the output directory. |
 | `--gtf, -gtf GTF` | *(none)* | Path to GTF files (comma-delimited, without space in-between). |
 | `--fasta, -fasta FASTA` | *(none)* | Path to FASTA files (comma-delimited, without space in-between). |
