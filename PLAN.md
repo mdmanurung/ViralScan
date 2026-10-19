@@ -252,7 +252,7 @@ port the kallisto translated-search tutorial with explicit attribution.
   47 focused tests pass, including exact gzip bytes and late failures. Two seven-pair
   complete-filter sessions: duplicate wall 0.0527/0.0525x, reagent 0.1356/0.1331x;
   unique 1.0232/1.0173x, long-read fallback 0.9944/0.9944x. Synthetic stage benefits;
-  no production whole-run claim. Independent baseline d056986; C00 pending.
+  no production whole-run claim. Independent baseline d056986; combined local/native qualification passes.
 
 - [x] `PERF-B28` (2026-10-19) — parse captured immutable GenBank text once for
   CDS/noncoding groups, retaining CDS-first emission, ordinals and all independent
@@ -260,24 +260,37 @@ port the kallisto translated-search tutorial with explicit attribution.
   stale-GTF preparation passes two seven-pair benefit sessions (0.8964/0.8863x wall).
   Warm-cache control 1.0243/0.9697x. Raw output/cache tree signatures match; no network
   requests. Mutable-path digest reuse rejected by a sidecar-mutation counterexample.
-  C00 pending; no remote-service or production whole-run performance claim.
+  Combined local/native qualification passes; no remote-service or production whole-run claim.
 
-- [~] `PERF-EXEC-04` (2026-10-18, active user goal: finish the performance improvement
-  plan and merge to main): remaining-card execution in `codex/perf-remaining-candidates`,
-  frozen baseline `d056986` in `/tmp/viralscan-perf-remaining-baseline`. Start with B29
-  failure-contract feasibility, then B17 (both deferred: removing a repeated native
-  command suppresses its observable independent failure). B21 bounded host-feature
-  densification passed 103 strict and 435 caller tests; two timing sessions pass
-  benefit gates. Cell/group/strata fitted results match (27/30 raw files identical;
-  three source-provenance-only manifests verified as literal spans). B09 backed
-  reads deferred because they skip eager validation. Combined qualification pending.
-  Evaluate each remaining eligible card in
-  isolation, retaining failed gates as measured negative/deferred outcomes. G00 source,
-  environment and six native-tool identities are captured in
-  `analysis/computational_bottlenecks_2026-10-17/followups/20261018-remaining-candidates/baseline.json`.
-  No job submission, downloads, held-out data use, scientific parameter changes or
-  changes to effective worker counts are authorized. B11/B30 resource wiring retains
-  its separate gate. G01/G02/C00 must be reconciled before completion is claimed.
+- [x] `PERF-ASSESS-04` (2026-10-19) — remaining cards have explicit dispositions:
+  B21/B13/B28/B16 accepted subject to final combined C00. B01 weighted-buffer
+  prototype wall1.0209x/peak0.9241x and B02 index reuse wall0.9308x/peak1.0012x
+  fail benefit gates. Real R4_51/DropletUtils A/A passes; B12 adapter not material
+  on the bounded fixture. B22 repeated preparation0.696% of profiled real fits.
+  B03/B09/B14/B15/B17/B26/B29 retain observable rereads/failures/validation; B19 has
+  no repeated BLAST DB workload in current orchestration. B28 optimizes immutable
+  parsing only. G01 retrospective mutation receipt passes with historical goldens
+  unchanged. B11/B30 remain separately gated; no resource edits. Full grids stopped
+  after early rejection, not claimed complete. See the qualification/disposition
+  report and resource proposal under docs/plans/2026-10-19-performance-*.
+
+- [~] `PERF-EXEC-04` (2026-10-19) — authorized performance code delivery:
+  B21/B13/B28/B16 accepted and combined on frozen baseline d056986 (tree6e70eda).
+  Each has independent exactness and two seven-pair benefit sessions. Combined:
+  154 new oracle tests,53 real offline native integration tests,12/12 retained
+  reducer raw files against pre-performance main6910c2d; bounded fitted cell/group/
+  strata outputs27/30raw equal, three precise source-provenance manifests. Source
+  freeze326files; original oracle function bodies match baseline raw source and AST.
+  Ruff/format275files, mypy60 and data governance pass. G01 historical mutation
+  receipt recovered without golden edits; all17 legacy component timing rows now
+  repeated in two7pair sessions. Final full PR CI and rebase merge are required.
+  Total13accepted/15deferred cards; rejected edit grids stay unchecked. G02 production
+  attribution/whole-run measurement and B11/B30 resource-policy qualification retain
+  separate authorization gates, with concrete proposals in docs/plans/2026-10-19-
+  performance-{whole-run-proposal,resource-policy}.md. No scheduler jobs, downloads,
+  scientific/worker changes or retained-data deletion. Qualification report and raw
+  receipts retain all failed runner/prototype attempts. This row remains partial
+  until the gated plan work is resolved; code delivery is a separate completion claim.
 
 - [~] `PERF-EXEC-03` (2026-10-18, original branch `codex/perf-wave2-b25-b27-b18`,
   historical baseline `faf5667`; finalized on `codex/perf-wave2-final` over merged main
