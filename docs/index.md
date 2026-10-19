@@ -31,25 +31,15 @@ Project policies: [SUPPORT.md](https://github.com/mdmanurung/ViralScan/blob/main
 
 ```{toctree}
 :maxdepth: 2
-:caption: User Guide
+:caption: Home
 
 installation
 quickstart
-cli_reference
-output_reference
-reference_panel
-faq
-workflow_comparison
-migration
-release_policy
-reference_maintenance
-v3_counting_contract
-panel_integrity
 ```
 
 ```{toctree}
 :maxdepth: 1
-:caption: Vignettes
+:caption: Tutorials
 
 vignettes/README
 vignettes/quickstart_fastq_to_viral_load
@@ -64,8 +54,31 @@ vignettes/host_response_depth_control
 
 ```{toctree}
 :maxdepth: 1
-:caption: Developer Reference
+:caption: API
 
 api
+api_reference
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: CLI and outputs
+
+cli_reference
+output_reference
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: More
+
+reference_panel
+faq
+workflow_comparison
+migration
+release_policy
+reference_maintenance
+v3_counting_contract
+panel_integrity
 changelog
 ```

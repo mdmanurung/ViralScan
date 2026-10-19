@@ -60,6 +60,13 @@ dev = [
 enrichment = [
     "gget>=0.27",
 ]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme>=2.0",
+    "myst-parser>=2.0",
+    "sphinx-autodoc-typehints>=1.23",
+    "nbsphinx>=0.9",
+]
 
 [project.scripts]
 viralscan = "viralscan.menu:main"

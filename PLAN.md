@@ -20,6 +20,16 @@ completion.
 
 ## Next action
 
+- [x] `DOCS-ORIG-01`: README and Sphinx site restructured on the original upstream
+  (mahfouzlab/ViralScan) skeleton: README Introduction / Installation / Input Data / User Guide
+  (original-style short-flag examples, multi-sample) / License, with the v3 notice, claim markers
+  and Limitations retained. Sphinx nav now Home / Tutorials / API / CLI and outputs; added
+  `docs/api_reference.md` (autodoc, NumPy docstrings) and a `docs` extra (also installed by
+  `.readthedocs.yaml`). `build_combined_reference` is not autodoc'd: its docstring is not
+  reST-clean and `build_reference.py` is sha-pinned by claim `v3-reference-homology`. Vignettes are
+  rendered unexecuted (`nbsphinx_execute = "never"`). Pre-existing `-W` warning:
+  `docs/notices/CAT-30_retraction_DRAFT.md` is in no toctree.
+
 - [x] `CLI-ORIG-01`: accept the original upstream (mahfouzlab/ViralScan) invocation forms:
   `-reference` alias and optional True/False values on `--reference`, `--visual`, `--multimapping`
   (strict `_OptionalBool` action, never `type=bool`). Defaults and v3 contracts unchanged. Tests:
