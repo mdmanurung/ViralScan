@@ -50,6 +50,7 @@ exclude_patterns = [
     "review-*.md",
     "write-docs-prompt.md",
     "showcase_runbook.md",
+    "notices/CAT-30_retraction_DRAFT.md",  # draft notice, not published (DEF-07)
     "plans/**",
     "handoffs/**",
     "superpowers/**",

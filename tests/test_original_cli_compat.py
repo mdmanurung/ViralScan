@@ -127,6 +127,14 @@ def test_invalid_value_is_argparse_error(argv):
     assert e.value.code == 2
 
 
+@pytest.mark.parametrize("argv", [["-v", "data"], ["-ref", "build-ref"], ["-mm", "data"]])
+def test_bare_flag_before_subcommand_takes_it_as_value(argv):
+    # Pins documented behaviour: use the flag after the subcommand or `--visual=false`.
+    with pytest.raises(SystemExit) as e:
+        build_parser().parse_args(argv)
+    assert e.value.code == 2
+
+
 def test_comma_lists_f1_and_misc_flags():
     ns = _ns(
         [
