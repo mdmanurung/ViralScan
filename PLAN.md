@@ -164,6 +164,10 @@ completion.
   flags-only, missing-sctk error, DAG dry-run. **Open gate:** real FASTQ-to-UMAP validation on SRR8315713 (needs
   kb/kallisto/bustools env, reference and user-approved compute) is NOT done; clusterwise multi-resolution QC
   (absent in SCTK 0.2.0) and ribo/globin marker sensitivity are untested. Flip to `[x]` only after that gate.
+  Review follow-up: scoring all barcodes (empty droplets included) is a KNOWN LIMITATION, not mitigated; flags on a
+  raw 10x matrix are not meaningful and clustering may be slow until the rule is moved after cell calling (gated
+  on the real run). Added BioMart failure handling + low-mapping warning, case-insensitive `MT-`, extra tests;
+  virus-only/no-host index still hard-fails (documented). Clustering path needs `scanpy[leiden]` (the extra).
 
 - [x] `PERF-PLAN-02`: draft and review actionable cards for all 27 remaining
   performance candidates; preserve completed B05/B07/B20. Plan:

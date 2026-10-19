@@ -128,7 +128,8 @@ def test_unrelated_type_error_is_not_swallowed(monkeypatch):
 
     from viralscan.scautoqc import add_scautoqc
 
-    def boom(host_adata, **_):
+    def boom(host_adata, cell_qc_key, **_):
+        host_adata.obs[cell_qc_key] = False  # all-fail state, but the message is unrelated
         raise TypeError("something else")
 
     monkeypatch.setattr(sctk, "cellwise_qc", boom)
@@ -148,3 +149,39 @@ def test_flags_only_n_obs_and_cell_set_recorded():
     assert adata.n_obs == 5 and adata.obs_names.equals(names)
     assert adata.uns["scautoqc"]["n_cells_scored"] == 5
     assert "before cell calling" in adata.uns["scautoqc"]["cell_set"]
+
+
+def test_host_only_metrics_and_curated_globins_without_leiden():
+    ad = pytest.importorskip("anndata")
+    pytest.importorskip("sctk")
+
+    from viralscan.scautoqc import add_scautoqc
+
+    adata = _toy(ad, 5)
+    names = list(adata.var_names)
+    names[3] = "HBEGF"
+    names[4] = "mt-Nd5"  # mouse-style lowercase symbol
+    adata.var_names = names
+    adata.var["gene_name"] = names
+    host_sum = np.asarray(adata.X[:, :600].sum(axis=1)).ravel()
+    all_sum = np.asarray(adata.X.sum(axis=1)).ravel()
+    add_scautoqc(adata)
+    assert not adata.var.loc["HBEGF", "scautoqc_hb"]
+    assert adata.var.loc["HBA1", "scautoqc_hb"]
+    assert adata.var.loc["mt-Nd5", "scautoqc_mito"]
+    assert not adata.var.loc["V1", "scautoqc_mito"]
+    np.testing.assert_allclose(adata.obs["scautoqc_n_counts"], host_sum)
+    assert not np.allclose(host_sum, all_sum)
+
+
+def test_biomart_failure_is_actionable(monkeypatch):
+    sc = pytest.importorskip("scanpy")
+
+    from viralscan.scautoqc import query_gene_annotations
+
+    def down(*_a, **_k):
+        raise ConnectionError("no route")
+
+    monkeypatch.setattr(sc.queries, "biomart_annotations", down)
+    with pytest.raises(RuntimeError, match="BioMart"):
+        query_gene_annotations(["ENSG00000000001"])

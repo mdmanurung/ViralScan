@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from importlib.metadata import version
 from typing import Any
 
@@ -27,20 +28,34 @@ def query_gene_annotations(gene_ids: Any) -> pd.DataFrame:
         raise ValueError(
             "scAutoQC gene annotation needs gene symbols or human/mouse Ensembl gene IDs."
         )
-    annotations = (
-        sc.queries.biomart_annotations(
+    try:
+        annotations = sc.queries.biomart_annotations(
             organism,
             ["ensembl_gene_id", "external_gene_name", "gene_biotype", "chromosome_name"],
         )
-        .drop_duplicates("ensembl_gene_id")
-        .set_index("ensembl_gene_id")
-    )
-    mito_ids = set(
-        sc.queries.mitochondrial_genes(organism, attrname="ensembl_gene_id")["ensembl_gene_id"]
-        .dropna()
-        .astype(str)
-    )
+        if "ensembl_gene_id" not in annotations or annotations.empty:
+            raise ValueError("empty BioMart response")
+        annotations = annotations.drop_duplicates("ensembl_gene_id").set_index("ensembl_gene_id")
+        mito_ids = set(
+            sc.queries.mitochondrial_genes(organism, attrname="ensembl_gene_id")["ensembl_gene_id"]
+            .dropna()
+            .astype(str)
+        )
+    except Exception as exc:  # network, BioMart outage, or empty/odd response
+        raise RuntimeError(
+            "scAutoQC could not retrieve Ensembl BioMart annotations (needs network access to "
+            "www.ensembl.org, which serves the latest release). Provide gene symbols in "
+            "var['gene_name'] or pre-seed <output>/results/scautoqc_gene_annotations.tsv "
+            f"(columns gene_id, gene_symbol, mito). Cause: {exc!r}"
+        ) from exc
     mapped = annotations.reindex(stable_ids)
+    unmapped = float(mapped["external_gene_name"].isna().mean())
+    if unmapped > 0.2:
+        warnings.warn(
+            f"scAutoQC: {unmapped:.0%} of features have no BioMart symbol (Ensembl release "
+            "mismatch with the reference?); mitochondrial/ribosomal sets may be undercounted.",
+            stacklevel=2,
+        )
     return pd.DataFrame(
         {
             "gene_symbol": mapped["external_gene_name"].fillna("").astype(str).to_numpy(),
@@ -146,7 +161,7 @@ def add_scautoqc(
     mito = (
         adata.var["scautoqc_mito"].astype(bool).to_numpy()
         if "scautoqc_mito" in adata.var
-        else symbols.str.match(r"^MT-", na=False).to_numpy() & host
+        else symbols.str.upper().str.match(r"^MT-", na=False).to_numpy() & host
     )
     marker_symbols = symbols.str.upper()
     ribo = marker_symbols.str.match(r"^RP[LS]", na=False).to_numpy() & host
@@ -239,7 +254,8 @@ def add_scautoqc(
         "host_features": int(host.sum()),
         "qc_metrics": ["n_counts", "n_genes", "percent_mito", "percent_ribo", "percent_hb"],
         "cell_removal_performed": False,
-        # scautoqc runs before cell calling, so this is every barcode in the kb H5AD.
+        # Known limitation: scautoqc runs before cell calling, so this is every barcode in the
+        # kb H5AD; empty droplets shape the SCTK distributions. See PLAN SCAUTOQC-01.
         "cell_set": "all barcodes in the input H5AD (before cell calling)",
         "n_cells_scored": int(adata.n_obs),
         "clusterwise_status": cluster_status,
