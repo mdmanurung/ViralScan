@@ -858,3 +858,11 @@ def test_snakemake_failure_is_a_clean_error_not_a_traceback(
     assert exc.value.code != 0
     assert "snakemake failed (exit 3)" in caplog.text
     assert f"see {tmp_path}/log" in caplog.text
+
+
+def test_build_ref_cores_defaults_to_legacy_and_parses() -> None:
+    from viralscan.cli.parsers import build_parser
+
+    parser = build_parser()
+    assert parser.parse_args(["build-ref", "-o", "x"]).cores is None
+    assert parser.parse_args(["build-ref", "-o", "x", "--cores", "3"]).cores == 3

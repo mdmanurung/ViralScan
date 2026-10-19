@@ -69,6 +69,6 @@ def run(ctx: RunContext, done_file: str) -> None:
 
 if "snakemake" in globals():
     run(
-        RunContext.from_yaml(snakemake.params.configfile),  # noqa: F821
+        RunContext.from_yaml(snakemake.params.configfile).with_cores(snakemake.threads),  # noqa: F821
         snakemake.output[0],  # noqa: F821
     )

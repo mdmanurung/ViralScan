@@ -35,6 +35,7 @@ from viralscan.cli.parsers import (  # noqa: F401  (private builders re-exported
 from viralscan.defaults import (
     DEFAULTS,
 )
+from viralscan.resources import KB_WORKERS, bounded_workers
 from viralscan.run_safety import (
     RUN_MANIFEST,
     clear_run_complete,
@@ -1143,7 +1144,9 @@ def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> Non
     log.info("Index build manifest: %s", path)
 
 
-def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str]:
+def _build_kb_ref(
+    output_dir: Path, fasta: str, gtf: str, cores: int | None = None
+) -> tuple[str, str, str]:
     """Run ``kb ref`` to build an index. Returns (transcripts, index, f1) paths."""
     from viralscan.scripts.build_reference import (
         _run_kb_ref,
@@ -1170,7 +1173,7 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
         "kb",
         "ref",
         "-t",
-        "8",
+        str(bounded_workers(KB_WORKERS, cores)),
         "-i",
         index,
         "-g",
@@ -1375,7 +1378,7 @@ def main() -> None:
         log.info("Fetched NCBI reference for: %s", ", ".join(accessions))
 
     if args.reference:
-        transcripts, index, f1 = _build_kb_ref(output_dir, args.fasta, args.gtf)
+        transcripts, index, f1 = _build_kb_ref(output_dir, args.fasta, args.gtf, args.cores)
     else:
         transcripts = args.transcripts
         index = args.index

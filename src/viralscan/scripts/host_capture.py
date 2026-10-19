@@ -177,6 +177,6 @@ def run(ctx: RunContext, identity: VirusIdentityTable, tsv_path: str, done_path:
 
 
 if "snakemake" in globals():
-    _ctx = RunContext.from_yaml(snakemake.params.configfile)  # noqa: F821
+    _ctx = RunContext.from_yaml(snakemake.params.configfile).with_cores(snakemake.threads)  # noqa: F821
     _identity = VirusIdentityTable.read_tsv(snakemake.input.virus_identity)  # noqa: F821
     run(_ctx, _identity, snakemake.output.tsv, snakemake.output.done)  # noqa: F821

@@ -270,7 +270,7 @@ port the kallisto translated-search tutorial with explicit attribution.
   B03/B09/B14/B15/B17/B26/B29 retain observable rereads/failures/validation; B19 has
   no repeated BLAST DB workload in current orchestration. B28 optimizes immutable
   parsing only. G01 retrospective mutation receipt passes with historical goldens
-  unchanged. B11/B30 remain separately gated; no resource edits. Full grids stopped
+  unchanged. B11/B30: total-budget policy approved and implemented 2026-10-19 on `codex/cpu-budget` (`--cores` bounds kb/minimap2/CD-HIT/rule threads; `build-ref --cores` new, unset = legacy; numerical libs pinned at 1; manifest worker fields and native A/A raw-byte comparison still open). Full grids stopped
   after early rejection, not claimed complete. See the qualification/disposition
   report and resource proposal under docs/plans/2026-10-19-performance-*.
 
