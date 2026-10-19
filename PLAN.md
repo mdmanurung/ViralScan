@@ -274,6 +274,15 @@ port the kallisto translated-search tutorial with explicit attribution.
   after early rejection, not claimed complete. See the qualification/disposition
   report and resource proposal under docs/plans/2026-10-19-performance-*.
 
+- [~] `PERF-RESOURCE-01` (2026-10-19, user explicitly approved local qualification)
+  — qualify explicit legacy worker requests only: kb count/ref8 and homology
+  minimap2 3; unchanged effective workers, Snakemake thread declarations, CD-HIT
+  -T0/-M8000, search parameters and numerical-library environment. Independent
+  baseline9f0c397; native A/A before candidate edits, then A/B raw-artifact and
+  error/partial-output checks plus 1/6/8/32-core DAG controls. No scheduler jobs,
+  new data, scientific changes or total-admission policy implementation. Resource
+  provenance differences must remain truthful and explicit; no performance claim.
+
 - [~] `PERF-EXEC-04` (2026-10-19) — authorized performance code delivery:
   B21/B13/B28/B16 accepted and combined on frozen baseline d056986 (tree6e70eda).
   Each has independent exactness and two seven-pair benefit sessions. Combined:
@@ -283,10 +292,11 @@ port the kallisto translated-search tutorial with explicit attribution.
   freeze326files; original oracle function bodies match baseline raw source and AST.
   Ruff/format275files, mypy60 and data governance pass. G01 historical mutation
   receipt recovered without golden edits; all17 legacy component timing rows now
-  repeated in two7pair sessions. Final full PR CI and rebase merge are required.
+  repeated in two7pair sessions.
+  PR #75 merged as9f0c397 after all12CI checks passed; code delivery complete.
   Total13accepted/15deferred cards; rejected edit grids stay unchecked. G02 production
-  attribution/whole-run measurement and B11/B30 resource-policy qualification retain
-  separate authorization gates, with concrete proposals in docs/plans/2026-10-19-
+  attribution/whole-run measurement and B11/B30 total-admission policy retain
+  separate authorization gates; local legacy qualification is approved above, with concrete proposals in docs/plans/2026-10-19-
   performance-{whole-run-proposal,resource-policy}.md. No scheduler jobs, downloads,
   scientific/worker changes or retained-data deletion. Qualification report and raw
   receipts retain all failed runner/prototype attempts. This row remains partial

@@ -1,9 +1,13 @@
-# Resource policy proposal — pending separate authorization
+# Resource policy — explicit legacy profile approved; admission policy pending
 
-No resource or scheduling change is implemented by the performance finalization.
-B11/B30 retain their separate authorization gate. The current request authorizes
-byte-preserving optimizations and their local qualification; it does not waive the
-plan's prohibition on changing effective workers, scientific parameters or SLURM.
+The user explicitly approved the local qualification phase on 2026-10-19.
+The candidate makes installed legacy worker requests explicit: kb count/ref eight,
+homology minimap2 three. Existing Snakemake declarations, numerical-library
+environment, CPU affinity, CD-HIT settings and scientific options stay fixed.
+No changed worker count, scheduling policy, SLURM job or large build is authorized.
+See [qualification](2026-10-19-legacy-worker-qualification.md) for current receipts
+and their limits. B11/B30 remain partial until the total-admission decision and
+its later qualification are resolved.
 
 ## Verified current requests
 
@@ -12,10 +16,10 @@ These are requested worker defaults, not measured concurrent CPU utilization.
 
 | Entry point | Current native worker request | Source of request |
 |---|---:|---|
-| `kb count`, both whitelist branches | 8 | installed kb default, forwarded to kallisto |
+| `kb count`, both whitelist branches | 8 | explicit `-t 8`, preserving installed kb default |
 | direct `kallisto bus` with no flag | 1 | native default; distinct from kb count |
-| `kb ref`, both package entry points | 8 | installed kb default, forwarded to index |
-| reference homology minimap2 | 3 | native default |
+| `kb ref`, both package entry points | 8 | explicit `-t 8`, preserving installed kb default |
+| reference homology minimap2 | 3 | explicit `-t 3`, preserving native default |
 | reference CD-HIT | all visible CPUs | explicit `-T 0 -M 8000` |
 | multimap bustools sort | configured cores | explicit `-t config.cores` |
 
@@ -32,7 +36,7 @@ Source reach: `Snakefile`, `cli/parsers.py`, `menu.py`, `runconfig.py`,
 Installed-source and help receipts are retained in the remaining-wave evidence
 packet's `baseline.json` and `cards/b11/tool_defaults.json`.
 
-## Concrete proposed next scope
+## Approved legacy scope and later policy boundary
 
 1. Qualify an explicit legacy profile: `kb count -t 8`, both `kb ref -t 8`,
    reference minimap2 `-t 3`; preserve existing replay/STAR/sort/evidence requests,

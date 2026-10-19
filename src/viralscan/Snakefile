@@ -184,10 +184,11 @@ rule kb_count:
         ST={params.strand:q}
         # Empty ST expands to nothing, so kb keeps its per-technology default.
         # No -w lets kb use its pre-packaged on-list for the technology.
+        # Pin the legacy native request without changing rule-thread reservations.
         if [ -z "$WL" ]; then
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            kb count -t 8 -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         else
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            kb count -t 8 -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         fi
 
         [ -n "$WL_PLAIN" ] && rm -f "$WL_PLAIN"
