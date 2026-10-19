@@ -1,0 +1,19 @@
+INFO  Loading virus h5ad: /tmp/viralscan-shifted-log-fit/inputs/virus.h5ad
+INFO  Loading host h5ad: /tmp/viralscan-shifted-log-fit/inputs/host.h5ad
+INFO  Pooled 2 viral gene(s) into 2 virus feature(s): VIRUS_A (1), VIRUS_B (1)
+INFO  hostresponse output directory: /tmp/viralscan-shifted-log-fit/out
+INFO  Retained 2 virus(es) for hostresponse.
+INFO  Aligned on 80 shared barcodes.
+INFO  %%mito control requested but no mitochondrial genes found; skipping.
+INFO  Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+WARNING  use_hvg=False: densifying full gene matrix (50 genes × 80 cells). This may require substantial RAM.
+INFO  [VIRUS_A] 20 / 80 cells positive (label=raw, detection_threshold=1).
+WARNING  [VIRUS_A] Cell-CV test fold has as few as 2 positive cell(s) (< 5) in 2 of 2 seeds (20 positives, top-50% depth filter, 80% train split); the held-out metrics are very noisy. Results are unchanged.
+INFO  [VIRUS_A] Gene weights written to /tmp/viralscan-shifted-log-fit/out/VIRUS_A_gene_weights.csv
+INFO  [VIRUS_A] Uncalibrated selection frequencies written to /tmp/viralscan-shifted-log-fit/out/VIRUS_A_stability.csv
+INFO  [VIRUS_A] Depth-adjusted E-values written to /tmp/viralscan-shifted-log-fit/out/VIRUS_A_depth_diagnostics.csv
+INFO  [VIRUS_A] Depth-confound check: model AUC 0.500 vs depth-ALONE AUC 0.500 (same balanced design); panel+depth AUC 0.750; 6/8 above-threshold genes have E-value>=2.
+WARNING  [VIRUS_A] Sequencing depth alone predicts virus status about as well as the host-gene model (0.500 vs 0.500) — treat the headline AUC as depth-confounded (F-001/F-003). Prefer the per-gene E-values, which are depth-adjusted.
+INFO  [VIRUS_B] 0 / 80 cells positive (label=raw, detection_threshold=1).
+INFO  [VIRUS_B] Skipping: fewer than 10 positive cells in the analysis cohort.
+INFO  Summary metrics written to /tmp/viralscan-shifted-log-fit/out/hostresponse_metrics.csv

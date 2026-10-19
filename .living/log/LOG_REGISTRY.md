@@ -81,3 +81,16 @@
 | 2026-10-11 | 2026-10-11-001 | viralscan | main | 3m | 4 | decisions.md, learnings.md, PLAN.md (+1 more) | | complete | | [log](2026-10-11-001-viralscan.md) |
 | 2026-10-11 | 2026-10-11-003 | viralscan | codex/audit-fixes-2026-10 | 37m | 6 | docs(plan): AUD-16 partial (ANDET-01 breadth merged); Merge codex/aud-a1: per-virus best-genome breadth (ANDET-01 part of AUD-16); Merge codex/aud-h: reference_strategy, evidence_run, constants, ho... | | complete | | [log](2026-10-11-003-viralscan.md) |
 | 2026-10-12 | 2026-10-12-001 | viralscan | main | 17m | 11 | fix(ci): clear the red CI groups left after PR #13 | | complete | | [log](2026-10-12-001-viralscan.md) |
+| 2026-10-14 | 2026-10-14-003 | viralscan | codex/drop-py39 | 83m | 5 | decisions.md, learnings.md, PLAN.md (+2 more) | | complete | | [log](2026-10-14-003-viralscan.md) |
+| 2026-10-15 | 2026-10-14-004 | viralscan | codex/drop-py39 | 172m | 3 | decisions.md, learnings.md, count_big.sbatch | | complete | | [log](2026-10-14-004-viralscan.md) |
+| 2026-10-15 | 2026-10-15-001 | viralscan | codex/drop-py39 | 2m | 2 | learnings.md, AUDIT_VERIFICATION_PROMPT.md | | complete | | [log](2026-10-15-001-viralscan.md) |
+| 2026-10-15 | 2026-10-15-002 | viralscan | codex/drop-py39 | 78m | 16 | decisions.md, learnings.md, GUARD.md (+13 more) | | complete | | [log](2026-10-15-002-viralscan.md) |
+| 2026-10-15 | 2026-10-15-003 | viralscan | codex/drop-py39 | 22m | 1 | learnings.md | | complete | | [log](2026-10-15-003-viralscan.md) |
+| 2026-10-16 | 2026-10-16-001 | viralscan | codex/drop-py39 | 1m | 2 | decisions.md, learnings.md | | complete | | [log](2026-10-16-001-viralscan.md) |
+| 2026-10-17 | 2026-10-17-002 | viralscan | codex/drop-py39 | 15m | 17 | learnings.md, timing.json, timing.json (+14 more) | | complete | | [log](2026-10-17-002-viralscan.md) |
+| 2026-10-18 | 2026-10-18-002 | viralscan | codex/drop-py39 | 3m | 5 | decisions.md, learnings.md, C00_WAVE2_REPORT.md (+2 more) | | complete | | [log](2026-10-18-002-viralscan.md) |
+| 2026-10-18 | 2026-10-18-001 | viralscan | codex/drop-py39 | long | 0 | learnings.md | | complete | | [log](2026-10-18-001-viralscan.md) |
+| 2026-10-19 | 2026-10-19-001 | viralscan | codex/drop-py39 | 1m | 15 | learnings.md, alignment.bam, alignment.bam.bai (+12 more) | | complete | | [log](2026-10-19-001-viralscan.md) |
+| 2026-10-19 | 2026-10-19-002 | viralscan | codex/drop-py39 | 258m | 43 | remaining-performance-recovery.bundle, decisions.md, learnings.md (+40 more) | | complete | | [log](2026-10-19-002-viralscan.md) |
+| 2026-10-19 | 2026-10-19-003 | viralscan | codex/drop-py39 | 4m | 1 | learnings.md | | complete | | [log](2026-10-19-003-viralscan.md) |
+| 2026-10-19 | 2026-10-19-004 | viralscan | codex/drop-py39 | 197m | 328 | RECOVERY.md, RECOVERY.md, baseline.manifest.json (+325 more) | | complete | | [log](2026-10-19-004-viralscan.md) |

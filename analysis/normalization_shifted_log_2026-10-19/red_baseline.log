@@ -1,0 +1,642 @@
+FFFFFFFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+_______ test_host_shifted_log_formula_and_raw_preservation[int32-False] ________
+
+sparse = False, dtype = <class 'numpy.int32'>
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("dtype", [np.int32, np.float32, np.float64])
+    def test_host_shifted_log_formula_and_raw_preservation(sparse, dtype):
+        raw = np.array([[0, 0, 0], [20, 0, 20], [1, 9, 10], [100, 0, 0]], dtype=dtype)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.layers["counts"] = data.X.copy()
+        data.raw = data.copy()
+        hr._detect_and_normalize(data)
+>       np.testing.assert_allclose(dense(data.X), shifted_log_reference(raw.astype(float)), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 12 (50%)
+E       First 5 mismatches are at indices:
+E        [1, 0]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [1, 2]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [2, 0]: 6.216606140136719 (ACTUAL), 1.0986122886681096 (DESIRED)
+E        [2, 1]: 8.412055015563965 (ACTUAL), 2.9444389791664403 (DESIRED)
+E        [2, 2]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E       Max absolute difference among violations: 5.49686857
+E       Max relative difference among violations: 4.65859877
+E        ACTUAL: array([[0.      , 0.      , 0.      ],
+E              [8.517393, 0.      , 8.517393],
+E              [6.216606, 8.412055, 8.517393],
+E              [9.210441, 0.      , 0.      ]], dtype=float32)
+E        DESIRED: array([[0.      , 0.      , 0.      ],
+E              [3.044522, 0.      , 3.044522],
+E              [1.098612, 2.944439, 3.044522],
+E              [3.713572, 0.      , 0.      ]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:38: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:383 Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+________ test_host_shifted_log_formula_and_raw_preservation[int32-True] ________
+
+sparse = True, dtype = <class 'numpy.int32'>
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("dtype", [np.int32, np.float32, np.float64])
+    def test_host_shifted_log_formula_and_raw_preservation(sparse, dtype):
+        raw = np.array([[0, 0, 0], [20, 0, 20], [1, 9, 10], [100, 0, 0]], dtype=dtype)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.layers["counts"] = data.X.copy()
+        data.raw = data.copy()
+        hr._detect_and_normalize(data)
+>       np.testing.assert_allclose(dense(data.X), shifted_log_reference(raw.astype(float)), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 12 (50%)
+E       First 5 mismatches are at indices:
+E        [1, 0]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [1, 2]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [2, 0]: 6.216606140136719 (ACTUAL), 1.0986122886681096 (DESIRED)
+E        [2, 1]: 8.412055015563965 (ACTUAL), 2.9444389791664403 (DESIRED)
+E        [2, 2]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E       Max absolute difference among violations: 5.49686857
+E       Max relative difference among violations: 4.65859877
+E        ACTUAL: array([[0.      , 0.      , 0.      ],
+E              [8.517393, 0.      , 8.517393],
+E              [6.216606, 8.412055, 8.517393],
+E              [9.210441, 0.      , 0.      ]], dtype=float32)
+E        DESIRED: array([[0.      , 0.      , 0.      ],
+E              [3.044522, 0.      , 3.044522],
+E              [1.098612, 2.944439, 3.044522],
+E              [3.713572, 0.      , 0.      ]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:38: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:383 Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+______ test_host_shifted_log_formula_and_raw_preservation[float32-False] _______
+
+sparse = False, dtype = <class 'numpy.float32'>
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("dtype", [np.int32, np.float32, np.float64])
+    def test_host_shifted_log_formula_and_raw_preservation(sparse, dtype):
+        raw = np.array([[0, 0, 0], [20, 0, 20], [1, 9, 10], [100, 0, 0]], dtype=dtype)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.layers["counts"] = data.X.copy()
+        data.raw = data.copy()
+        hr._detect_and_normalize(data)
+>       np.testing.assert_allclose(dense(data.X), shifted_log_reference(raw.astype(float)), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 12 (50%)
+E       First 5 mismatches are at indices:
+E        [1, 0]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [1, 2]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [2, 0]: 6.216606140136719 (ACTUAL), 1.0986122886681096 (DESIRED)
+E        [2, 1]: 8.412055015563965 (ACTUAL), 2.9444389791664403 (DESIRED)
+E        [2, 2]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E       Max absolute difference among violations: 5.49686857
+E       Max relative difference among violations: 4.65859877
+E        ACTUAL: array([[0.      , 0.      , 0.      ],
+E              [8.517393, 0.      , 8.517393],
+E              [6.216606, 8.412055, 8.517393],
+E              [9.210441, 0.      , 0.      ]], dtype=float32)
+E        DESIRED: array([[0.      , 0.      , 0.      ],
+E              [3.044522, 0.      , 3.044522],
+E              [1.098612, 2.944439, 3.044522],
+E              [3.713572, 0.      , 0.      ]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:38: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:383 Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+_______ test_host_shifted_log_formula_and_raw_preservation[float32-True] _______
+
+sparse = True, dtype = <class 'numpy.float32'>
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("dtype", [np.int32, np.float32, np.float64])
+    def test_host_shifted_log_formula_and_raw_preservation(sparse, dtype):
+        raw = np.array([[0, 0, 0], [20, 0, 20], [1, 9, 10], [100, 0, 0]], dtype=dtype)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.layers["counts"] = data.X.copy()
+        data.raw = data.copy()
+        hr._detect_and_normalize(data)
+>       np.testing.assert_allclose(dense(data.X), shifted_log_reference(raw.astype(float)), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 12 (50%)
+E       First 5 mismatches are at indices:
+E        [1, 0]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [1, 2]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [2, 0]: 6.216606140136719 (ACTUAL), 1.0986122886681096 (DESIRED)
+E        [2, 1]: 8.412055015563965 (ACTUAL), 2.9444389791664403 (DESIRED)
+E        [2, 2]: 8.517393112182617 (ACTUAL), 3.044522437723423 (DESIRED)
+E       Max absolute difference among violations: 5.49686857
+E       Max relative difference among violations: 4.65859877
+E        ACTUAL: array([[0.      , 0.      , 0.      ],
+E              [8.517393, 0.      , 8.517393],
+E              [6.216606, 8.412055, 8.517393],
+E              [9.210441, 0.      , 0.      ]], dtype=float32)
+E        DESIRED: array([[0.      , 0.      , 0.      ],
+E              [3.044522, 0.      , 3.044522],
+E              [1.098612, 2.944439, 3.044522],
+E              [3.713572, 0.      , 0.      ]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:38: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:383 Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+______ test_host_shifted_log_formula_and_raw_preservation[float64-False] _______
+
+sparse = False, dtype = <class 'numpy.float64'>
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("dtype", [np.int32, np.float32, np.float64])
+    def test_host_shifted_log_formula_and_raw_preservation(sparse, dtype):
+        raw = np.array([[0, 0, 0], [20, 0, 20], [1, 9, 10], [100, 0, 0]], dtype=dtype)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.layers["counts"] = data.X.copy()
+        data.raw = data.copy()
+        hr._detect_and_normalize(data)
+>       np.testing.assert_allclose(dense(data.X), shifted_log_reference(raw.astype(float)), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 12 (50%)
+E       First 5 mismatches are at indices:
+E        [1, 0]: 8.517393171418904 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [1, 2]: 8.517393171418904 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [2, 0]: 6.2166061010848646 (ACTUAL), 1.0986122886681096 (DESIRED)
+E        [2, 1]: 8.412054873292933 (ACTUAL), 2.9444389791664403 (DESIRED)
+E        [2, 2]: 8.517393171418904 (ACTUAL), 3.044522437723423 (DESIRED)
+E       Max absolute difference among violations: 5.4968683
+E       Max relative difference among violations: 4.65859873
+E        ACTUAL: array([[0.      , 0.      , 0.      ],
+E              [8.517393, 0.      , 8.517393],
+E              [6.216606, 8.412055, 8.517393],
+E              [9.21044 , 0.      , 0.      ]])
+E        DESIRED: array([[0.      , 0.      , 0.      ],
+E              [3.044522, 0.      , 3.044522],
+E              [1.098612, 2.944439, 3.044522],
+E              [3.713572, 0.      , 0.      ]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:38: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:383 Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+_______ test_host_shifted_log_formula_and_raw_preservation[float64-True] _______
+
+sparse = True, dtype = <class 'numpy.float64'>
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("dtype", [np.int32, np.float32, np.float64])
+    def test_host_shifted_log_formula_and_raw_preservation(sparse, dtype):
+        raw = np.array([[0, 0, 0], [20, 0, 20], [1, 9, 10], [100, 0, 0]], dtype=dtype)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.layers["counts"] = data.X.copy()
+        data.raw = data.copy()
+        hr._detect_and_normalize(data)
+>       np.testing.assert_allclose(dense(data.X), shifted_log_reference(raw.astype(float)), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 12 (50%)
+E       First 5 mismatches are at indices:
+E        [1, 0]: 8.517393171418904 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [1, 2]: 8.517393171418904 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [2, 0]: 6.2166061010848646 (ACTUAL), 1.0986122886681096 (DESIRED)
+E        [2, 1]: 8.412054873292933 (ACTUAL), 2.9444389791664403 (DESIRED)
+E        [2, 2]: 8.517393171418904 (ACTUAL), 3.044522437723423 (DESIRED)
+E       Max absolute difference among violations: 5.4968683
+E       Max relative difference among violations: 4.65859873
+E        ACTUAL: array([[0.      , 0.      , 0.      ],
+E              [8.517393, 0.      , 8.517393],
+E              [6.216606, 8.412055, 8.517393],
+E              [9.21044 , 0.      , 0.      ]])
+E        DESIRED: array([[0.      , 0.      , 0.      ],
+E              [3.044522, 0.      , 3.044522],
+E              [1.098612, 2.944439, 3.044522],
+E              [3.713572, 0.      , 0.      ]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:38: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:383 Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+_____ test_both_umap_paths_and_host_graph_receive_shifted_log[False-False] _____
+
+tmp_path = PosixPath('/tmp/pytest-of-mdmanurung/pytest-84/test_both_umap_paths_and_host_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fcef910d410>
+sparse = False, viral = False
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("viral", [False, True])
+    def test_both_umap_paths_and_host_graph_receive_shifted_log(tmp_path, monkeypatch, sparse, viral):
+        raw = np.array([[20, 0, 1], [1, 19, 0], [100, 0, 2], [5, 35, 0]], dtype=float)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.var_names = ["H1", "H2", "V"]
+        data.layers["counts"] = data.X.copy()
+        seen = []
+    
+        def inspect_hvg(matrix, **kwargs):
+            indices = [data.var_names.get_loc(gene) for gene in matrix.var_names]
+            expected = shifted_log_reference(raw[:, indices])
+            np.testing.assert_allclose(dense(matrix.X), expected, rtol=1e-6)
+            if "viral_counts" in matrix.obs:
+                np.testing.assert_array_equal(matrix.obs["viral_counts"], raw[:, 2])
+            seen.append(list(matrix.var_names))
+            # Exercise the real documented no-HVG exit after checking the transformed input.
+            matrix.var["highly_variable"] = False
+    
+        monkeypatch.setattr(um.sc.pp, "highly_variable_genes", inspect_hvg)
+        monkeypatch.setattr(um, "config", RunConfig(output=str(tmp_path), min_counts=1, min_genes=1))
+        monkeypatch.setattr(um, "identity", None)
+>       um.umap(data, {"V": 1} if viral else {})
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/exports/archive/hg-funcgenom-research/mdmanurung/vs_work/main/src/viralscan/scripts/umap.py:274: in umap
+    sc.pp.highly_variable_genes(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+matrix = AnnData object with n_obs × n_vars = 4 × 3
+    obs: 'n_counts', 'n_genes'
+    uns: 'log1p'
+    layers: 'counts'
+kwargs = {'min_mean': 0.0125, 'max_mean': 3.0, 'min_disp': 0.5}
+
+    def inspect_hvg(matrix, **kwargs):
+        indices = [data.var_names.get_loc(gene) for gene in matrix.var_names]
+        expected = shifted_log_reference(raw[:, indices])
+>       np.testing.assert_allclose(dense(matrix.X), expected, rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 8 / 12 (66.7%)
+E       First 5 mismatches are at indices:
+E        [0, 0]: 9.161655202294636 (ACTUAL), 3.40278342481779 (DESIRED)
+E        [0, 2]: 6.167915732334906 (ACTUAL), 0.8970593699462674 (DESIRED)
+E        [1, 0]: 6.2166061010848646 (ACTUAL), 0.9262410627273231 (DESIRED)
+E        [1, 1]: 9.15915233520675 (ACTUAL), 3.400363700913578 (DESIRED)
+E        [2, 0]: 9.190639739478357 (ACTUAL), 3.4308196376934985 (DESIRED)
+E       Max absolute difference among violations: 5.7598201
+E       Max relative difference among violations: 10.27102526
+E        ACTUAL: array([[9.161655, 0.      , 6.167916],
+E              [6.216606, 9.159152, 0.      ],
+E              [9.19064 , 0.      , 5.283602],
+E              [7.131699, 9.076923, 0.      ]])
+E        DESIRED: array([[3.402783, 0.      , 0.897059],
+E              [0.926241, 3.400364, 0.      ],
+E              [3.43082 , 0.      , 0.468777],
+E              [1.571217, 3.320981, 0.      ]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:61: AssertionError
+----------------------------- Captured stdout call -----------------------------
+No viral genes detected. Creating standard UMAP (no virus labeling).
+_____ test_both_umap_paths_and_host_graph_receive_shifted_log[False-True] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-mdmanurung/pytest-84/test_both_umap_paths_and_host_1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fcee134e390>
+sparse = True, viral = False
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("viral", [False, True])
+    def test_both_umap_paths_and_host_graph_receive_shifted_log(tmp_path, monkeypatch, sparse, viral):
+        raw = np.array([[20, 0, 1], [1, 19, 0], [100, 0, 2], [5, 35, 0]], dtype=float)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.var_names = ["H1", "H2", "V"]
+        data.layers["counts"] = data.X.copy()
+        seen = []
+    
+        def inspect_hvg(matrix, **kwargs):
+            indices = [data.var_names.get_loc(gene) for gene in matrix.var_names]
+            expected = shifted_log_reference(raw[:, indices])
+            np.testing.assert_allclose(dense(matrix.X), expected, rtol=1e-6)
+            if "viral_counts" in matrix.obs:
+                np.testing.assert_array_equal(matrix.obs["viral_counts"], raw[:, 2])
+            seen.append(list(matrix.var_names))
+            # Exercise the real documented no-HVG exit after checking the transformed input.
+            matrix.var["highly_variable"] = False
+    
+        monkeypatch.setattr(um.sc.pp, "highly_variable_genes", inspect_hvg)
+        monkeypatch.setattr(um, "config", RunConfig(output=str(tmp_path), min_counts=1, min_genes=1))
+        monkeypatch.setattr(um, "identity", None)
+>       um.umap(data, {"V": 1} if viral else {})
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/exports/archive/hg-funcgenom-research/mdmanurung/vs_work/main/src/viralscan/scripts/umap.py:274: in umap
+    sc.pp.highly_variable_genes(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+matrix = AnnData object with n_obs × n_vars = 4 × 3
+    obs: 'n_counts', 'n_genes'
+    uns: 'log1p'
+    layers: 'counts'
+kwargs = {'min_mean': 0.0125, 'max_mean': 3.0, 'min_disp': 0.5}
+
+    def inspect_hvg(matrix, **kwargs):
+        indices = [data.var_names.get_loc(gene) for gene in matrix.var_names]
+        expected = shifted_log_reference(raw[:, indices])
+>       np.testing.assert_allclose(dense(matrix.X), expected, rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 8 / 12 (66.7%)
+E       First 5 mismatches are at indices:
+E        [0, 0]: 9.161655202294636 (ACTUAL), 3.40278342481779 (DESIRED)
+E        [0, 2]: 6.167915732334906 (ACTUAL), 0.8970593699462674 (DESIRED)
+E        [1, 0]: 6.2166061010848646 (ACTUAL), 0.9262410627273231 (DESIRED)
+E        [1, 1]: 9.15915233520675 (ACTUAL), 3.400363700913578 (DESIRED)
+E        [2, 0]: 9.190639739478357 (ACTUAL), 3.4308196376934985 (DESIRED)
+E       Max absolute difference among violations: 5.7598201
+E       Max relative difference among violations: 10.27102526
+E        ACTUAL: array([[9.161655, 0.      , 6.167916],
+E              [6.216606, 9.159152, 0.      ],
+E              [9.19064 , 0.      , 5.283602],
+E              [7.131699, 9.076923, 0.      ]])
+E        DESIRED: array([[3.402783, 0.      , 0.897059],
+E              [0.926241, 3.400364, 0.      ],
+E              [3.43082 , 0.      , 0.468777],
+E              [1.571217, 3.320981, 0.      ]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:61: AssertionError
+----------------------------- Captured stdout call -----------------------------
+No viral genes detected. Creating standard UMAP (no virus labeling).
+_____ test_both_umap_paths_and_host_graph_receive_shifted_log[True-False] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-mdmanurung/pytest-84/test_both_umap_paths_and_host_2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fcee1357310>
+sparse = False, viral = True
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("viral", [False, True])
+    def test_both_umap_paths_and_host_graph_receive_shifted_log(tmp_path, monkeypatch, sparse, viral):
+        raw = np.array([[20, 0, 1], [1, 19, 0], [100, 0, 2], [5, 35, 0]], dtype=float)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.var_names = ["H1", "H2", "V"]
+        data.layers["counts"] = data.X.copy()
+        seen = []
+    
+        def inspect_hvg(matrix, **kwargs):
+            indices = [data.var_names.get_loc(gene) for gene in matrix.var_names]
+            expected = shifted_log_reference(raw[:, indices])
+            np.testing.assert_allclose(dense(matrix.X), expected, rtol=1e-6)
+            if "viral_counts" in matrix.obs:
+                np.testing.assert_array_equal(matrix.obs["viral_counts"], raw[:, 2])
+            seen.append(list(matrix.var_names))
+            # Exercise the real documented no-HVG exit after checking the transformed input.
+            matrix.var["highly_variable"] = False
+    
+        monkeypatch.setattr(um.sc.pp, "highly_variable_genes", inspect_hvg)
+        monkeypatch.setattr(um, "config", RunConfig(output=str(tmp_path), min_counts=1, min_genes=1))
+        monkeypatch.setattr(um, "identity", None)
+>       um.umap(data, {"V": 1} if viral else {})
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/exports/archive/hg-funcgenom-research/mdmanurung/vs_work/main/src/viralscan/scripts/umap.py:328: in umap
+    test_coords, _ = host_only_pca(adata, viral_cols, hvg_min_mean, hvg_max_mean, hvg_min_disp)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/exports/archive/hg-funcgenom-research/mdmanurung/vs_work/main/src/viralscan/scripts/umap.py:131: in host_only_pca
+    sc.pp.highly_variable_genes(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+matrix = AnnData object with n_obs × n_vars = 4 × 2
+    obs: 'n_counts', 'n_genes', 'virus_detected', 'viral_counts', 'virus_positive'
+    uns: 'log1p'
+    layers: 'counts'
+kwargs = {'min_mean': 0.0125, 'max_mean': 3.0, 'min_disp': 0.5}
+
+    def inspect_hvg(matrix, **kwargs):
+        indices = [data.var_names.get_loc(gene) for gene in matrix.var_names]
+        expected = shifted_log_reference(raw[:, indices])
+>       np.testing.assert_allclose(dense(matrix.X), expected, rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 8 (75%)
+E       First 5 mismatches are at indices:
+E        [0, 0]: 9.210440366976517 (ACTUAL), 3.4339872044851463 (DESIRED)
+E        [1, 0]: 6.2166061010848646 (ACTUAL), 0.9162907318741551 (DESIRED)
+E        [1, 1]: 9.15915233520675 (ACTUAL), 3.3843902633457743 (DESIRED)
+E        [2, 0]: 9.210440366976517 (ACTUAL), 3.4339872044851463 (DESIRED)
+E        [3, 0]: 7.1316985104669115 (ACTUAL), 1.55814461804655 (DESIRED)
+E       Max absolute difference among violations: 5.77645316
+E       Max relative difference among violations: 5.78453452
+E        ACTUAL: array([[9.21044 , 0.      ],
+E              [6.216606, 9.159152],
+E              [9.21044 , 0.      ],
+E              [7.131699, 9.076923]])
+E        DESIRED: array([[3.433987, 0.      ],
+E              [0.916291, 3.38439 ],
+E              [3.433987, 0.      ],
+E              [1.558145, 3.305054]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:61: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Viral genes detected. Computing viral load and annotated UMAP.
+______ test_both_umap_paths_and_host_graph_receive_shifted_log[True-True] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-mdmanurung/pytest-84/test_both_umap_paths_and_host_3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fcee0df0890>
+sparse = True, viral = True
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("viral", [False, True])
+    def test_both_umap_paths_and_host_graph_receive_shifted_log(tmp_path, monkeypatch, sparse, viral):
+        raw = np.array([[20, 0, 1], [1, 19, 0], [100, 0, 2], [5, 35, 0]], dtype=float)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.var_names = ["H1", "H2", "V"]
+        data.layers["counts"] = data.X.copy()
+        seen = []
+    
+        def inspect_hvg(matrix, **kwargs):
+            indices = [data.var_names.get_loc(gene) for gene in matrix.var_names]
+            expected = shifted_log_reference(raw[:, indices])
+            np.testing.assert_allclose(dense(matrix.X), expected, rtol=1e-6)
+            if "viral_counts" in matrix.obs:
+                np.testing.assert_array_equal(matrix.obs["viral_counts"], raw[:, 2])
+            seen.append(list(matrix.var_names))
+            # Exercise the real documented no-HVG exit after checking the transformed input.
+            matrix.var["highly_variable"] = False
+    
+        monkeypatch.setattr(um.sc.pp, "highly_variable_genes", inspect_hvg)
+        monkeypatch.setattr(um, "config", RunConfig(output=str(tmp_path), min_counts=1, min_genes=1))
+        monkeypatch.setattr(um, "identity", None)
+>       um.umap(data, {"V": 1} if viral else {})
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/exports/archive/hg-funcgenom-research/mdmanurung/vs_work/main/src/viralscan/scripts/umap.py:328: in umap
+    test_coords, _ = host_only_pca(adata, viral_cols, hvg_min_mean, hvg_max_mean, hvg_min_disp)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/exports/archive/hg-funcgenom-research/mdmanurung/vs_work/main/src/viralscan/scripts/umap.py:131: in host_only_pca
+    sc.pp.highly_variable_genes(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+matrix = AnnData object with n_obs × n_vars = 4 × 2
+    obs: 'n_counts', 'n_genes', 'virus_detected', 'viral_counts', 'virus_positive'
+    uns: 'log1p'
+    layers: 'counts'
+kwargs = {'min_mean': 0.0125, 'max_mean': 3.0, 'min_disp': 0.5}
+
+    def inspect_hvg(matrix, **kwargs):
+        indices = [data.var_names.get_loc(gene) for gene in matrix.var_names]
+        expected = shifted_log_reference(raw[:, indices])
+>       np.testing.assert_allclose(dense(matrix.X), expected, rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 8 (75%)
+E       First 5 mismatches are at indices:
+E        [0, 0]: 9.210440366976517 (ACTUAL), 3.4339872044851463 (DESIRED)
+E        [1, 0]: 6.2166061010848646 (ACTUAL), 0.9162907318741551 (DESIRED)
+E        [1, 1]: 9.15915233520675 (ACTUAL), 3.3843902633457743 (DESIRED)
+E        [2, 0]: 9.210440366976517 (ACTUAL), 3.4339872044851463 (DESIRED)
+E        [3, 0]: 7.1316985104669115 (ACTUAL), 1.55814461804655 (DESIRED)
+E       Max absolute difference among violations: 5.77645316
+E       Max relative difference among violations: 5.78453452
+E        ACTUAL: array([[9.21044 , 0.      ],
+E              [6.216606, 9.159152],
+E              [9.21044 , 0.      ],
+E              [7.131699, 9.076923]])
+E        DESIRED: array([[3.433987, 0.      ],
+E              [0.916291, 3.38439 ],
+E              [3.433987, 0.      ],
+E              [1.558145, 3.305054]])
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:61: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Viral genes detected. Computing viral load and annotated UMAP.
+______ test_fitted_host_response_uses_shifted_features_and_records_policy ______
+
+tmp_path = PosixPath('/tmp/pytest-of-mdmanurung/pytest-84/test_fitted_host_response_uses0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fcee0d280d0>
+
+    def test_fitted_host_response_uses_shifted_features_and_records_policy(tmp_path, monkeypatch):
+        from .test_hostresponse import _make_host_adata, _make_virus_adata
+    
+        host = _make_host_adata()
+        virus = _make_virus_adata()
+        host_file, virus_file, accessions = (
+            tmp_path / name for name in ["host.h5ad", "virus.h5ad", "ids.txt"]
+        )
+        host.write_h5ad(host_file)
+        virus.write_h5ad(virus_file)
+        accessions.write_text("VIRUS_A\nVIRUS_B\n")
+        inputs = {
+            path: hashlib.sha256(path.read_bytes()).hexdigest() for path in [host_file, virus_file]
+        }
+        real = hr._detect_and_normalize
+        observed = []
+    
+        def check_features(matrix):
+            raw = dense(matrix.X).copy()
+            real(matrix)
+            np.testing.assert_allclose(dense(matrix.X), shifted_log_reference(raw), rtol=1e-6)
+            observed.append(matrix.n_obs)
+    
+        monkeypatch.setattr(hr, "_detect_and_normalize", check_features)
+>       result = hr.run_hostresponse(
+            virus_h5ad=str(virus_file),
+            host_h5ad=str(host_file),
+            viral_accessions_file=str(accessions),
+            out_dir=str(tmp_path / "out"),
+            use_hvg=False,
+            seeds=[0],
+            n_stab_iter=2,
+            detection_threshold=1,
+            cv_mode="cell",
+            do_enrichment=False,
+        )
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/exports/archive/hg-funcgenom-research/mdmanurung/vs_work/main/src/viralscan/scripts/hostresponse.py:3236: in run_hostresponse
+    cohort_metrics, cohort_status = _run_cohort(
+/exports/archive/hg-funcgenom-research/mdmanurung/vs_work/main/src/viralscan/scripts/hostresponse.py:2435: in _run_cohort
+    _detect_and_normalize(host_adata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+matrix = AnnData object with n_obs × n_vars = 80 × 50
+    obs: '_raw_depth'
+    uns: '_raw_depth_source', 'log1p'
+
+    def check_features(matrix):
+        raw = dense(matrix.X).copy()
+        real(matrix)
+>       np.testing.assert_allclose(dense(matrix.X), shifted_log_reference(raw), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 3996 / 4000 (99.9%)
+E       First 5 mismatches are at indices:
+E        [0, 0]: 3.790759801864624 (ACTUAL), 1.2533812522888184 (DESIRED)
+E        [0, 1]: 4.6250715255737305 (ACTUAL), 1.9225513935089111 (DESIRED)
+E        [0, 2]: 4.072781085968018 (ACTUAL), 1.4670028686523438 (DESIRED)
+E        [0, 3]: 5.717127323150635 (ACTUAL), 2.9185893535614014 (DESIRED)
+E        [0, 4]: 5.23957633972168 (ACTUAL), 2.471712589263916 (DESIRED)
+E       Max absolute difference among violations: 2.8275266
+E       Max relative difference among violations: 3.4119546
+E        ACTUAL: array([[3.79076 , 4.625072, 4.072781, ..., 5.313305, 5.313305, 5.239576],
+E              [5.473221, 5.10736 , 4.704916, ..., 4.857773, 4.524404, 4.857773],
+E              [5.203573, 5.847579, 5.290126, ..., 3.52326 , 5.443556, 5.512261],...
+E        DESIRED: array([[1.253381, 1.922551, 1.467003, ..., 2.539771, 2.539771, 2.471713],
+E              [2.688642, 2.35068 , 1.991766, ..., 2.126231, 1.83637 , 2.126231],
+E              [2.438622, 3.042798, 2.518333, ..., 1.065164, 2.660903, 2.725226],...
+
+viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py:97: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Loading virus h5ad: /tmp/pytest-of-mdmanurung/pytest-84/test_fitted_host_response_uses0/virus.h5ad
+INFO  Loading host h5ad: /tmp/pytest-of-mdmanurung/pytest-84/test_fitted_host_response_uses0/host.h5ad
+INFO  Pooled 2 viral gene(s) into 2 virus feature(s): VIRUS_A (1), VIRUS_B (1)
+INFO  hostresponse output directory: /tmp/pytest-of-mdmanurung/pytest-84/test_fitted_host_response_uses0/out
+INFO  Retained 2 virus(es) for hostresponse.
+INFO  Aligned on 80 shared barcodes.
+INFO  %%mito control requested but no mitochondrial genes found; skipping.
+INFO  Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:3027 Loading virus h5ad: /tmp/pytest-of-mdmanurung/pytest-84/test_fitted_host_response_uses0/virus.h5ad
+INFO     viralscan:hostresponse.py:3029 Loading host h5ad: /tmp/pytest-of-mdmanurung/pytest-84/test_fitted_host_response_uses0/host.h5ad
+INFO     viralscan:hostresponse.py:304 Pooled 2 viral gene(s) into 2 virus feature(s): VIRUS_A (1), VIRUS_B (1)
+INFO     viralscan:hostresponse.py:3189 hostresponse output directory: /tmp/pytest-of-mdmanurung/pytest-84/test_fitted_host_response_uses0/out
+INFO     viralscan:hostresponse.py:3202 Retained 2 virus(es) for hostresponse.
+INFO     viralscan:hostresponse.py:3215 Aligned on 80 shared barcodes.
+INFO     viralscan:hostresponse.py:2432 %%mito control requested but no mitochondrial genes found; skipping.
+INFO     viralscan:hostresponse.py:383 Host h5ad: looks like raw counts (integer values, max > 10). Normalising.
+=============================== warnings summary ===============================
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[int32-False]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[int32-True]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float32-False]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float32-True]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float64-False]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float64-True]
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/legacy_api_wrap/__init__.py:88: UserWarning: Some cells have zero counts
+    return fn(*args_all, **kw)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[int32-False]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[int32-True]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float32-False]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float32-True]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float64-False]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float64-True]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_both_umap_paths_and_host_graph_receive_shifted_log[False-False]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_both_umap_paths_and_host_graph_receive_shifted_log[False-True]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_both_umap_paths_and_host_graph_receive_shifted_log[True-False]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_both_umap_paths_and_host_graph_receive_shifted_log[True-True]
+FAILED viralscan-shifted-log-candidate/tests/test_shifted_log_normalization.py::test_fitted_host_response_uses_shifted_features_and_records_policy
+11 failed, 6 warnings in 9.80s

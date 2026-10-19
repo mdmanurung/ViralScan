@@ -1,0 +1,2 @@
+input_molecules	resolved_molecules	unique_molecules	ambiguous_molecules	unresolved_molecules	ignored_read_multiplicity	allocated_ambiguous_mass	host_virus_ambiguous_molecules
+20000	20000	8000	12000	0	0	12000.000000000004	4000

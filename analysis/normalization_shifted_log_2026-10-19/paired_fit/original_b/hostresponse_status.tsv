@@ -1,0 +1,3 @@
+stratum	virus	status	reason	n_cells	n_positive	n_negative	n_groups
+ALL	VIRUS_A	ok		80	20	60	
+ALL	VIRUS_B	skipped_min_positive	0 < 10	80	0	80	

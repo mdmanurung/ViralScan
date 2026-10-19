@@ -1845,3 +1845,114 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - No numeric specificity pass/fail (upper bound with n; >=3 donor-distinct libraries for T2/T3 claims; >=10 T4 libraries to say assessed). SCI-05 round 12 after the software queue merges, G3 right after sign-off.
 - Process: branch protection (user), weekly non-blocking lock audit, worktree cleanup with patch archive, pinned-commit installs for external labs, MAINTAINER_CHECKLIST.md draft.
 - Tags: grill, scope, claims, process
+
+### [2026-10-14] Q150-Q152 (user; merge order, G3 blocker, Codex takeover)
+- Q150: #59 (trimmed-query coverage fix) merges into #57 first; #57 lands on main before G3 (#61).
+- Q151: G3 step-5 test failures are fixed by a pre-G3 PR to main (#62: state-independent protocol tests, workflow page without status), not by widening the check_g3_diff allowlist.
+- Q152: Claude takes over Codex's uncommitted AA-01/AA-02 (translated search) and VR-01..04 (read-cleanup pilot): the code goes on a branch and PR, and AA-02 and VR-03/04 run with parallel agents.
+- Tags: Q150, Q151, Q152, G3, EVID-UMI-01, AA-02, VR
+
+### [2026-10-15] Q156-Q158 (user; Track A full depth, release holds, super-expressors)
+- Q156: the held Track A downloads (GSE123782, GSE164690, E-MTAB-13687 rest; RNA/GEX runs only, about 2.5 TB) are released, smallest first. Track B holds (D01, D02) stay held. Logged in `discovery/GUARD.md`.
+- Q157: every Track A library is analysed on the WHOLE FASTQ in a new round dir `viralscan_work/trackA_round1` (own GUARD, ledger, manifest, chem JSONs), pinned to main `97a64f6`: arm N (combined_off first; combined_artefact and twostep on the frozen cells afterwards) plus arm P at full depth; cells = one host-only emptyDrops call per library (combined mode, #64), frozen and reused. Bulk RNA-seq runs of GSE123782 are `bulk_not_sc`.
+- Q158: a super-expressor analysis is added for every dataset, as in the HHV-6B study (Lareau 2023: a cell with >=10 viral UMIs). `scripts/super_expressors.py` (PLAN SE-01, PR #68).
+- Tags: Q156, Q157, Q158, trackA, super-expressor
+
+### [2026-10-15] AUD3-08 implemented as a resume-time guard (option a, per user decision of 2026-10-15)
+- `run_safety.prepare_output_directory` raises `RunSafetyError` on `--resume` when `<sample>/log/kb.done` exists without `kb-python/counts_unfiltered/adata.h5ad`; it runs before `clear_run_complete`, so a refused resume leaves the completion marker intact. Commit 0b2ad48 on `codex/aud3-08-resume-guard` (worktree `vs_work/aud3-08`), local only, not pushed.
+- Tags: AUD3-08, run_safety, resume
+
+### [2026-10-15] Track A grill round 1 (user approved the recommended answers; Q5 as revised)
+- Q1: deletion proposals are per dataset (all libraries READY), not per library. First proposal: the 20 hsv1 `bulk_not_sc` runs (57 GB); then EBV. The 3 READY HHV-6B libraries wait for the rest of GSE210063.
+- Q2: `TON-BCLL-9-T-182636-GEX` is marked n/a with the reason recorded (chemistry unresolved); its FASTQ is kept.
+- Q3: GSM6416033 keeps the frozen host-only cells; a flagged note records that arm-P barcodes (438) disagree with the called cells (31).
+- Q4: no go for arm P on the 17 DSR libraries; they are outside the Track A deletion scope.
+- Q5 (revised): GSM6416035's approved labels wait for the running evidence array (its directory is merely missing, not from another round). The tonsil `ERR13027027` label is re-keyed to the library once full-library concat evidence exists.
+- Q6: sequence-only verdicts stay untouched; an `artefact_class` column (vector, sibling_bleed) is fed from approved labels. A call counts as done with a verdict plus either no label or an approved one.
+- Tags: trackA, grill, deletion, evidence
+
+### [2026-10-15] Track A grill round 2 (user approved the recommended answers)
+- Q7: recreate only the Track A automation (not DSR round-2, not Track B downloads). Done for the read-only readiness check (cron c578c918, every 2 h at :11, session-only). The Track A "advance" cron is NOT recreated: its prompt was not recorded and concat/array submission order is fragile; needs its prompt from the parallel Track A session.
+- Q8: recalibration does not gate deletion; it starts after every dataset has evidence verdicts, as one written proposal for user sign-off (vector/transgene decoys, HHV-6A sibling handling, 5' adapter filter); G3 signing separate.
+- Q9: one SUMMARY.md and one TSV per dataset when it goes READY, linked from the deletion proposal.
+- Tags: trackA, grill, recalibration, automation
+
+### [2026-10-15] HNSCC downloads first; tonsil atlas held until HNSCC is analysed and deleted (user)
+- Raised HNSCC array throttle (25763392, 25763393) from 2 to 4; held the pending tonsil arrays (25764020, 25764021). The tonsil download and analysis resume after HNSCC is analysed and its FASTQs are deleted with the user's per-dataset OK. Reason: tonsil is about 1.8 TB with low expected viral yield (EBV expected-value, SENS-06 still open); HNSCC is about 1 TB and adds HPV-negative specificity controls. Release commands are in `discovery/GUARD.md`.
+- Tags: trackA, downloads, hnscc, tonsil
+
+### [2026-10-15] Analysis project layout v1.0.0 approved in principle (user: "approved"); specification only
+- Dataset = one portable folder `datasets/<accession>/` with `study/`, `libraries/<lib>/{library.json,frozen/,runs/,protein_search/,validation/,results/}`, `across_libraries/`, `raw/` (deletable), `reproduce/`, `_state/`. Package per-sample dir is wrapped unchanged. Every analysis folder has `receipt.json` + `logs/`; `results/` is derived by `publish`. Spec: `viralscan_work/LAYOUT.md` (outside the public repo). Nothing built or moved; migration proof planned on EBV first.
+- SLURM plugin installed at the user's request into an isolated venv (`mdmanurung/venvs/snakemake_slurm`, snakemake 9.23.1 + executor-plugin-slurm 2.8.0) to avoid upgrading `packaging` in `viralscan_test_full`.
+- Tags: layout, self-contained, snakemake, trackA
+
+### [2026-10-15] Grill: standard analysis set + dataset dashboard (user: "approve all")
+- Q1 every function runs wherever it applies, else n/a with reason; Q2 never recount frozen arms to add a function (extra runs go to `reanalyses/`); Q3 a re-analysis never replaces the primary result without an explicit recorded decision; Q4 package in-run outputs stay in `runs/`, surfaced by `publish`; Q5 read-reconstruction slot only when the pilot is adopted.
+- Dashboard: one self-contained offline HTML per dataset with all libraries (library picker), built only from the dataset folder (no recompute) by `run.sh publish`; package per-arm `report.html` kept and linked; inline JS + SVG (no CDN, plotly UMAPs stay separate); views = overview+alerts, viral detection, read-level validation, protein search, cells/QC, provenance, plus dataset view with deletion readiness; `metrics_summary.csv` twin. Audience: our reviewers + external collaborator; use: trust each call and decide FASTQ deletion; tone: technical/austere. User asked to emulate Cell Ranger outputs and improve on them.
+- Tags: layout, dashboard, hallmark, cellranger
+- Correction (user, 2026-10-15, same thread): do NOT adopt Cell Ranger's folder structure. Cell Ranger is the reference for the web summary (dashboard) only. D1 (rename results/ to outs/) is withdrawn; the library keeps `results/{matrices,tables,plots}`. D3 (embedded font subsets) stands. D2 (MEX matrices with a `Viral` feature type) is re-asked as a format question inside `results/matrices/`.
+
+### [2026-10-15] Grill: per-function analysis set (user: "approve all") + LAYOUT.md 1.1.0
+- D2: MEX `results/matrices/filtered_matrix/` (features col 3 = Gene Expression | Viral) for the cells-only matrix; unfiltered stays h5ad only.
+- F1: additive post-hoc package commands may write inside frozen run dirs, with a ledger row and refreshed retained hashes/provenance (rerun-programs re-stamps run_complete.json). F2: gene programs standard for EBV, HHV-6B, HSV-1 on combined_off only. F3: hostresponse pilot on one EBV library first. F4: cell-type enrichment n/a (no labels); docs/api.md example bug logged in PLAN. F5: our UMAP rule from host_virus.cells.h5ad is standard. F6: anello alignment branch and molecule assignments n/a (need recount). F7: swap check where flowcell shows a shared pool (HNSCC, HPV16).
+- Spec: `viralscan_work/LAYOUT.md` v1.1.0 (outside the repo). Nothing built or moved.
+- Tags: layout, analysis-set, gene-programs, hostresponse, swap-check
+
+### [2026-10-15] User requests Leiden for EBV clustering
+- Use Leiden for cell clustering. The older `analysis/hostresponse_ebv_matched/scripts/intermediate_state_test.py` now clusters the host-PCA neighbor graph (15 neighbors, resolution 1.0, seed 42, igraph, convergence); its plots previously displayed KMeans labels under an HDBSCAN title. HDBSCAN and KMeans were removed from that script.
+- Rerun: 13 clusters among 1,906 cells, 12 among 1,006 depth-matched cells. All cells assigned, labels reproduced with the same seed, PCA and cell IDs preserved, input h5ad SHA-256 values unchanged. Both figures and the summary regenerated. Resolution sensitivity and independent biological validation remain unrun; the older continuum/state conclusion is not established by a clustering partition alone.
+- Runtime: Scanpy 1.11.5, igraph 0.11.9, texttable 1.7.0; graph dependencies installed only in `/tmp/viralscan_leiden_deps`. The dataset dashboard has no cluster view yet; frozen Track A artifacts were not modified.
+- Tags: ebv, leiden, clustering, exploratory, EBV-LEIDEN-01
+
+### [2026-10-16] Tonsil multiome RNA chemistry probe + virus-sharing uncertainty (user: "go chemistry", "also go uncertainty")
+- Multiome RNA libraries (182655, 188571, 188573) failed check-chemistry because the 10x Multiome GEX on-list was not tried. The on-list bundled with ngs-tools 1.8.6 (`viralscan_work/onlists/10x/`, PROVENANCE.tsv, 736,319 barcodes) matches 92.9-94.7% of the first 100k R1 barcodes. Package check-chemistry with -w + strand pilot is running as SLURM 25807516 into `viralscan_work/chem_probe_2026-10-16/` (not the round's chem/). Applying it to the round needs a separate OK.
+- Correction: Track A counts use `host-conservative`, which splits viral-only shared molecules equally (not EM), and `viral_molecules_upper_bound` also divides them, so it is not a sibling upper bound. An EC-level pass over retained combined_off files (no recount) will give the per-virus range [unique, all compatible] under `libraries/<lib>/reanalyses/virus_sharing__2026-10-16/`.
+- Tags: trackA, tonsil, chemistry, multimap, dashboard
+
+### [2026-10-16] GSE162632 (IAV PBMC, Randolph 2021) grill round 1 (user: "approve all")
+- Q1 pilot now (2 scRNA libraries, ~108 GB) alongside HNSCC; full run after HNSCC is analysed and deleted; tonsil stays behind flu.
+- Q2 scRNA only (30 GSMs, 1.61 TB); 262 bulk RNA-seq samples n/a (bulk, not single-cell).
+- Q3/Q4 dataset-specific reference cat42d + A/California/04/2009 (8 segments) is primary; cat42d only on the 2 pilot libraries as comparison. Adding strains to the general panel is a separate later decision.
+- Q5 new round dir `trackC_iav/` reusing round scripts with REF_BUILD = the Cal09 build; published into `results/datasets/GSE162632/` layout-native.
+- Q6 FASTQ deletion per wave (~6 libraries), one explicit OK per wave.
+- Q7 user applies the multiome chemistry fix (scratchpad apply_multiome_chem.py) themselves; Q8 resubmit HHV-6B evidence row 208 (GSM6416022) at 96G, user runs it.
+- Plan: `viralscan_work/plans/2026-10-16-GSE162632-iav-pbmc.md`. Tags: flu, gse162632, trackC, reference, deletion
+
+### [2026-10-16] Re-pin committed before user confirmed grill round 2 Q8
+User explicitly asked to start the re-pin; Q8 (separate commit) was my proposed answer. Local commit only, not pushed; amend/revert if the user changes Q8.
+
+## 2026-10-17 — PERF-EXEC-01 first-wave performance
+
+Implemented B07/B20/B05 only, with independent original goldens and isolated/combined
+checks. Keep production provenance truthful: four detection-stage provenance files
+differ only in the exact 64-character build hash; whole-directory identity is not
+claimed. B08/B24 assessed and deferred. No commits or external execution.
+Tracker: `docs/plans/2026-10-17-performance-triage-byte-identical-outputs.md`.
+
+### [2026-10-18] Public tonsil analysis (E-MTAB-13687) cancelled and removed
+User: "cancel all public data tonsil analysis, so remove any raw fastqs and outputs". Removed 183 paths / 1.78 TB (store FASTQs 1068 GB, runs 353 GB, inputs concat 299 GB, evidence 57 GB, armP) via `scripts/delete_tonsil_cancelled.py` (dry-run first; log `status/deleted_tonsil_2026-10-18.log`). Small records kept in `status/tonsil_cancelled_2026-10-18/`. Tonsil libs marked n/a in `status/n_a.tsv`; `advance_trackA.py` skips `tonsil_atlas`. `sfl_tonsil` untouched. Readiness now 61/71 non-tonsil libs; disk 94%, 4.5 TB free.
+Tags: trackA, tonsil, deletion
+
+### [2026-10-19] hostresponse inputs pre-normalised by the prep script
+Fix the Track A prep script rather than the pinned package (pin 97a64f6 must stay frozen). Old hsv1 output kept as `hostresponse_2026-10-19/hsv1/GSM3511335.invalid_rawcounts_unnormalised`. Other four libraries (hhv6b GSM6416024, hnscc GSM5017065, ebv GSM4796271, hpv16 GSM5705760) submitted as jobs 25836245-48.
+Tags: trackA, hostresponse
+
+### [2026-10-19] Track A anellovirus settle: plan approved, PREREG frozen, tools built
+Plan `~/.claude/plans/comprehensively-plan-for-the-shiny-pancake.md`; work dir `$R/anello_settle_2026-10-19/` (`PREREG.md`, sha256 5825b213f2808e6d10e486bfc0fef7649c10c8cfabb48a2e461cbb6080ebe9e1). Built (all under `$R/scripts/`): `trackA_anello_classify.py` (calls `viralscan.read_support` + anello_align helpers; parity PASS vs hnscc GSM5017024 evidence, 13/13 fields; competitive reference sha equals the evidence manifest's), `trackA_anello_align.py --setting shipped|relaxed` (override verified: relaxed STAR cmd carries 0.66/0.10), `trackA_anello_plant.py`, `trackA_anello_score.py`. Controls running: negative set at both settings (25837103/4), planted exact (panel alpha/beta/gamma) + Modha held-out per dataset (25837110-13, then STAR + classify chain in `plant_chain_jobs.txt`). Real-library array not submitted until the gates pass.
+Tags: trackA, anello
+
+### [2026-10-19] Anello real-library array held after plant gates
+v2 plant scores: hhv6b passes STAR exact@100 (0.95/0.97), hsv1/ebv/hnscc fail (0.81/0.73/0.51 shipped). No PREREG threshold changed. Array not released; awaiting user choice: run hhv6b only (others NOT RESOLVABLE) or diagnose hnscc planter geometry first. Score tables: `$R/anello_settle_2026-10-19/plant/<ds>/<setting>/score.tsv`.
+Tags: trackA, anello
+
+### [2026-10-19] hhv6b real-library anello array released; scorer fixed (no threshold change)
+User approved (grilling round 1): hhv6b 13 libs x shipped/relaxed + chained classify submitted (jobs 25842155-206, `anello_settle_2026-10-19/real_hhv6b_jobs.txt`). Scorer CB-correction fix applied per approved Q2 (bug -> fix, thresholds unchanged). Tail-geometry ceiling left open for the user.
+Tags: trackA, anello
+
+### [2026-10-19] Grilling rounds 1-2 approved (user: "i approve" x2)
+Approved: Q1 measure real tail rate then re-plant 3' datasets (PREREG_ADDENDUM_1, 5% tail, thresholds unchanged; v2 kept); Q2 real-library arrays for hsv1/ebv/hnscc run now (jobs listed in `real_other_jobs.txt`); Q3 ebv hostresponse rerun with looser caliper, both AUCs reported (k>=3 infeasible: 383 controls vs 316 positives); Q4 hhv6b may be dry-run for deletion alone after its anello finishes; Q5 one worktree commit at the end, user pushes; Q6 Track A keeps CP10k, shifted-log as sensitivity; Q7 Claude owns Track A only; Q8 scAutoQC handoff reconstructed to its own file; Q9 `HANDOFF_pending_approvals_2026-10-19.md`; Q10 leave wedged process/stray clone alone.
+Tags: trackA, grilling
+
+### [2026-10-19] Grilling round 3 approved; Track A handoff refreshed
+Approved: Track A = separate internal report (not rc1 manuscript); priority order Track A > rc1-blocker prep > bookkeeping > park perf/VR/translated search; prepare (not execute) REF-11 bundle, Action SHA pins, WP5 script in worktree `vs_work/rc1-prep`; NORM-SHIFT PR pushed by user; scAutoQC keeps legacy filter + subset validation; CPU-budget byte diffs stop; TRACKA-HOST-02 pilot authorised for its owner; status cadence per milestone. Handoff in `HANDOFF_trackA_2026-10-19.md` (root `HANDOFF.md` left to the Codex thread).
+Tags: trackA, handoff

@@ -1,0 +1,2 @@
+virus,stratum,n_positive,label,depth_matched,mito_controlled,cv_mode,expression_auc,depth_auc,expression_minus_best_baseline_auc,sensitivity_mean,sensitivity_sd,specificity_mean,specificity_sd,balanced_acc_mean,balanced_acc_sd,auc_mean,auc_sd,mcc_mean,mcc_sd,depth_alone_auc_mean,depth_alone_auc_sd,n_stable_genes,n_genes_evalue_ge2,model_auc_depth_adjusted_mean,model_auc_depth_adjusted_sd
+VIRUS_A,ALL,20,raw,False,False,cell,0.375,0.5,-0.125,0.5,0.0,0.5,0.0,0.5,0.0,0.375,0.125,0.0,0.0,0.5,0.0,5,5,0.5,0.25

@@ -1,0 +1,50 @@
+........................................................................ [ 30%]
+........................................................................ [ 61%]
+........................................................................ [ 92%]
+..................                                                       [100%]
+=============================== warnings summary ===============================
+tests/test_shifted_log_normalization.py::test_empty_rows_stay_empty_and_finite[False]
+tests/test_shifted_log_normalization.py::test_empty_rows_stay_empty_and_finite[True]
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/legacy_api_wrap/__init__.py:88: UserWarning: Some cells have zero counts
+    return fn(*args_all, **kw)
+
+tests/test_umap.py: 10 warnings
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/preprocessing/_pca/__init__.py:226: FutureWarning: Argument `use_highly_variable` is deprecated, consider using the mask argument. Use_highly_variable=True can be called through mask_var="highly_variable". Use_highly_variable=False can be called through mask_var=None
+    mask_var_param, mask_var = _handle_mask_var(
+
+tests/test_umap.py::TestViralFreeTestGraph::test_zero_host_hvg_with_virus_writes_figures_without_pvalue
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scipy/sparse/_index.py:216: SparseEfficiencyWarning: Changing the sparsity structure of a csr_matrix is expensive. lil and dok are more efficient.
+    self._set_arrayXarray(i, j, x)
+
+tests/test_hostresponse.py: 61 warnings
+tests/test_hostresponse_baselines.py: 4 warnings
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/sklearn/linear_model/_sag.py:348: ConvergenceWarning: The max_iter was reached which means the coef_ did not converge
+    warnings.warn(
+
+tests/test_hostresponse_groups.py: 4 warnings
+tests/test_hostresponse_null.py: 24 warnings
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/preprocessing/_highly_variable_genes.py:336: RuntimeWarning: invalid value encountered in log
+    dispersion = np.log(dispersion)
+
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/preprocessing/_highly_variable_genes.py:326: RuntimeWarning: overflow encountered in expm1
+    np.expm1(x, out=x)
+
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/_utils/__init__.py:551: RuntimeWarning: overflow encountered in multiply
+    return x * y
+
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/preprocessing/_utils.py:45: RuntimeWarning: invalid value encountered in subtract
+    var = mean_sq - mean**2
+
+tests/test_hostresponse_groups.py::TestRunHostresponseGroupMode::test_duplicate_barcodes_fail_before_cleanup
+tests/test_hostresponse_groups.py::TestRunHostresponseGroupMode::test_duplicate_barcodes_fail_before_cleanup
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/anndata/_core/anndata.py:1882: UserWarning: Observation names are not unique. To make them unique, call `.obs_names_make_unique`.
+    utils.warn_names_duplicates("obs")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+234 passed, 114 warnings in 63.26s (0:01:03)

@@ -1,0 +1,107 @@
+{
+  "artifacts": {
+    "VIRUS_A_depth_diagnostics.csv": "d6d0c5db77ab02f3da1902f4ece4f3cbb72013e89d167bf376956ea5de60e77c",
+    "VIRUS_A_gene_weights.csv": "b42f713a73c202a220901a2f05a62e516194ee12be56ed804e1a793810b3932c",
+    "VIRUS_A_stability.csv": "e837049636703a2a74f657c6dd91bd51f28be4ef4312436ddc060ec74cb4ca25",
+    "hostresponse_metrics.csv": "4aeaa809cfad615b84ea781c1f29fa743ef2603a7b385aaa36f416844b58db88",
+    "hostresponse_status.tsv": "53f7ec7ab20a7e41ba42195a4b7e89aadda611865d845f64abe93c8b8e3bb1c3"
+  },
+  "auc_statistic": "mean_over_seeds_of_fold_mean_test_auc",
+  "barcode_alignment": {
+    "frac_viral_dropped_not_host_called": 0.0,
+    "frac_viral_zero_filled": 0.0,
+    "n_host": 80,
+    "n_shared": 80,
+    "n_viral": 80,
+    "n_viral_dropped_not_host_called": 0,
+    "n_viral_zero_filled": 0,
+    "policy": "host_cell_universe_zero_fill"
+  },
+  "baseline_models": [
+    "depth_only"
+  ],
+  "cell_type_column": null,
+  "cell_type_filter": null,
+  "cv_auto_fallback": null,
+  "cv_mode": "cell",
+  "cv_mode_requested": "cell",
+  "depth_matching": false,
+  "descriptive_inference_unit": "cell",
+  "detection_threshold": 1,
+  "feature_mode": "all_genes",
+  "group_column": null,
+  "hostresponse_schema_version": 1,
+  "inputs": {
+    "host_h5ad": {
+      "path": "/tmp/viralscan-shifted-log-fit/inputs/host.h5ad",
+      "sha256": "3a2c23ff8e81294eda81df20fbcb76fdb7a78faa0257d6f68cd4aebe9ecf3fb6"
+    },
+    "viral_accessions": {
+      "path": "/tmp/viralscan-shifted-log-fit/inputs/ids.txt",
+      "sha256": "dbb5c41246a2ffb1b08f7407aff766387f2ed5fa5769c6c655931e585b180224"
+    },
+    "virus_h5ad": {
+      "path": "/tmp/viralscan-shifted-log-fit/inputs/virus.h5ad",
+      "sha256": "9f4098e9336113876c6c38a697ac3eb5ef5dd9beb883f728b3983aafc5cc8de4"
+    }
+  },
+  "label": "raw",
+  "legacy_cell_panel_auc": "descriptive_whole_cohort_selection",
+  "min_groups": 2,
+  "min_negative_cells": 10,
+  "n_cells_aligned": 80,
+  "n_folds": null,
+  "n_groups": null,
+  "permutation_block": null,
+  "permutation_count": 0,
+  "permutation_unit": null,
+  "raw_depth_source": "X",
+  "seeds": [
+    0,
+    1
+  ],
+  "sklearn_version": "1.9.1",
+  "software": {
+    "build_sha256": "f5ef5694f8191680b70a215aa84a392d18ac096498bcc20c8a07960a0815b90e",
+    "git_commit": "6bd1652779dc64e5ba68cbcdafe0b322ecbcdb6c",
+    "kind": "checkout",
+    "source_dirty": false,
+    "version": "3.0.0.dev1"
+  },
+  "status": "ok",
+  "statuses": [
+    {
+      "n_cells": 80,
+      "n_groups": "",
+      "n_negative": 60,
+      "n_positive": 20,
+      "reason": "",
+      "status": "ok",
+      "stratum": "ALL",
+      "virus": "VIRUS_A"
+    },
+    {
+      "n_cells": 80,
+      "n_groups": "",
+      "n_negative": 80,
+      "n_positive": 0,
+      "reason": "0 < 10",
+      "status": "skipped_min_positive",
+      "stratum": "ALL",
+      "virus": "VIRUS_B"
+    }
+  ],
+  "strata": {
+    "ALL": {
+      "n_cells": 80,
+      "output_directory": ".",
+      "status": "ok",
+      "viruses": {}
+    }
+  },
+  "viruses": {},
+  "viruses_status": {
+    "VIRUS_A": "ok",
+    "VIRUS_B": "skipped_min_positive"
+  }
+}

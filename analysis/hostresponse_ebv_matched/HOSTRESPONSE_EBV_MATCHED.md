@@ -72,6 +72,25 @@ and `..._gene_weights.csv`.
 - `ebv_burden_matched.h5ad`, `host_only_matched.h5ad` — AnnData (**gitignored**;
   regenerate via the script)
 
+## Exploratory host-state clustering (2026-10-15)
+
+`scripts/intermediate_state_test.py` uses Leiden on the host-HVG PCA neighbor
+graph (15 neighbors, resolution 1.0, seed 42, igraph backend, iterations until
+convergence). Both the 1,906-cell set and the 1,006-cell depth-matched subset use
+this method. EBV counts are overlaid after host preprocessing, not used to build
+the graph. The figures and per-cluster summaries now refer to the same labels.
+The previous script used HDBSCAN as a density check and plotted forced KMeans
+labels under an HDBSCAN title; those labels and that title are superseded.
+
+Outputs: `outputs/figures/intermediate_umap_{allcells,depthmatched}.pdf` and
+`results/hostresponse_ebv_matched/intermediate_state_test.txt` (from the repo root).
+Runtime: Scanpy 1.11.5 with igraph 0.11.9 and texttable 1.7.0. The latter two were
+installed only under `/tmp/viralscan_leiden_deps` for this rerun; provide igraph in
+the analysis environment to rerun after that temporary directory is removed.
+Leiden clusters are exploratory partitions; discrete biological states require
+independent validation and resolution sensitivity checks. This older single-library
+analysis does not update the frozen Track A runs or the dataset web summary.
+
 ## Depth-confounder check (2026-07-01, follow-up — MAJOR caveat)
 
 `scripts/depth_confounder_check.py` (results in `results/hostresponse_ebv_matched/depth_confounder.txt`)

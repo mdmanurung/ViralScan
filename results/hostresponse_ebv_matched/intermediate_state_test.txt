@@ -1,24 +1,43 @@
 
 === ALL CELLS: 1906 cells ===
   Spearman(depth, ebv_umi) in this set = 0.529
-  HDBSCAN(min_cluster_size=30): 2 clusters, 1291/1906 unassigned -> discrete structure present
-  KMeans silhouette (structure strength): k=2:0.167, k=3:0.165, k=4:0.173
-  forced KMeans k=3 (EBV vs depth per cluster):
+  Leiden(resolution=1.0, seed=42, backend=igraph, n_iterations=-1, n_neighbors=15, use_rep=X_pca): 13 clusters
+  Leiden silhouette in host PCA: 0.098
+  Leiden (EBV vs depth per cluster):
                n  ebv_pos_rate  median_ebv_umi  median_depth
     cluster                                                 
-    0        478          0.37             7.0       12631.0
-    2        624          0.64            14.0       15617.0
-    1        804          0.75            14.0       27687.5
+    4         74          0.22             5.0        9535.5
+    3        110          0.25             7.0       10220.5
+    11       122          0.29             6.0       11777.0
+    2         98          0.41             8.0       10808.0
+    0        274          0.54            10.0       16451.5
+    1        149          0.58            12.0       19491.0
+    5        267          0.66            12.0       23590.0
+    9        142          0.75            15.0       19241.0
+    10        55          0.78            17.0       25651.0
+    7        255          0.78            15.0       29087.0
+    6        264          0.79            15.0       29253.5
+    12        27          0.81            23.0       22110.0
+    8         69          1.00          2780.0        9489.0
 
 === DEPTH-MATCHED: 1006 cells ===
   Spearman(depth, ebv_umi) in this set = 0.070
-  HDBSCAN(min_cluster_size=30): 2 clusters, 833/1006 unassigned -> discrete structure present
-  KMeans silhouette (structure strength): k=2:0.139, k=3:0.167, k=4:0.163
-  forced KMeans k=3 (EBV vs depth per cluster):
+  Leiden(resolution=1.0, seed=42, backend=igraph, n_iterations=-1, n_neighbors=15, use_rep=X_pca): 12 clusters
+  Leiden silhouette in host PCA: 0.085
+  Leiden (EBV vs depth per cluster):
                n  ebv_pos_rate  median_ebv_umi  median_depth
     cluster                                                 
-    1        368          0.42             8.0       14064.0
-    2        581          0.50            10.0       17320.0
-    0         57          1.00          3279.0        8647.0
+    7         70          0.34             7.0       12458.0
+    3        112          0.39             9.0       18569.0
+    2         73          0.40             8.0       20586.0
+    11        77          0.40             8.0       11099.0
+    9         57          0.40             8.0       12817.0
+    6         95          0.42             9.0       22222.0
+    5        117          0.43             9.0       17839.0
+    0        106          0.47             9.0       14467.0
+    4         55          0.49             9.0       12282.0
+    10        46          0.59            12.5       16605.5
+    1        132          0.70            13.5       17025.0
+    8         66          1.00          2770.0        8885.0
 
-Verdict rule: if clusters track depth (high depth-Kruskal, EBV+ rate rises with median_depth) the 'intermediate' is a depth stratum; if a distinct intermediate-EBV cluster persists in the DEPTH-MATCHED set, it is a genuine depth-independent state.
+Interpretation: compare cluster EBV burden with depth in both sets. Leiden partitions the neighbor graph; clusters alone do not establish discrete biological states. Persistence after depth matching is exploratory evidence requiring independent validation and resolution sensitivity checks.

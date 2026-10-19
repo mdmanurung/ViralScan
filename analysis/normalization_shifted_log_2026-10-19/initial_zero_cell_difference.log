@@ -1,0 +1,135 @@
+.F.F.F.....                                                              [100%]
+=================================== FAILURES ===================================
+________ test_host_shifted_log_formula_and_raw_preservation[int32-True] ________
+
+sparse = True, dtype = <class 'numpy.int32'>
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("dtype", [np.int32, np.float32, np.float64])
+    def test_host_shifted_log_formula_and_raw_preservation(sparse, dtype):
+        raw = np.array([[0, 0, 0], [20, 0, 20], [1, 9, 10], [100, 0, 0]], dtype=dtype)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.layers["counts"] = data.X.copy()
+        data.raw = data.copy()
+        hr._detect_and_normalize(data)
+>       np.testing.assert_allclose(dense(data.X), shifted_log_reference(raw.astype(float)), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 12 (50%)
+E       First 5 mismatches are at indices:
+E        [1, 0]: 2.7725887298583984 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [1, 2]: 2.7725887298583984 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [2, 0]: 0.9162907600402832 (ACTUAL), 1.0986122886681096 (DESIRED)
+E        [2, 1]: 2.6741485595703125 (ACTUAL), 2.9444389791664403 (DESIRED)
+E        [2, 2]: 2.7725887298583984 (ACTUAL), 3.044522437723423 (DESIRED)
+E       Max absolute difference among violations: 0.27958493
+E       Max relative difference among violations: 0.16595621
+E        ACTUAL: array([[0.      , 0.      , 0.      ],
+E              [2.772589, 0.      , 2.772589],
+E              [0.916291, 2.674149, 2.772589],
+E              [3.433987, 0.      , 0.      ]], dtype=float32)
+E        DESIRED: array([[0.      , 0.      , 0.      ],
+E              [3.044522, 0.      , 3.044522],
+E              [1.098612, 2.944439, 3.044522],
+E              [3.713572, 0.      , 0.      ]])
+
+tests/test_shifted_log_normalization.py:38: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Host h5ad: raw counts detected; median-depth normalization then natural log1p.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:383 Host h5ad: raw counts detected; median-depth normalization then natural log1p.
+_______ test_host_shifted_log_formula_and_raw_preservation[float32-True] _______
+
+sparse = True, dtype = <class 'numpy.float32'>
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("dtype", [np.int32, np.float32, np.float64])
+    def test_host_shifted_log_formula_and_raw_preservation(sparse, dtype):
+        raw = np.array([[0, 0, 0], [20, 0, 20], [1, 9, 10], [100, 0, 0]], dtype=dtype)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.layers["counts"] = data.X.copy()
+        data.raw = data.copy()
+        hr._detect_and_normalize(data)
+>       np.testing.assert_allclose(dense(data.X), shifted_log_reference(raw.astype(float)), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 12 (50%)
+E       First 5 mismatches are at indices:
+E        [1, 0]: 2.7725887298583984 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [1, 2]: 2.7725887298583984 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [2, 0]: 0.9162907600402832 (ACTUAL), 1.0986122886681096 (DESIRED)
+E        [2, 1]: 2.6741485595703125 (ACTUAL), 2.9444389791664403 (DESIRED)
+E        [2, 2]: 2.7725887298583984 (ACTUAL), 3.044522437723423 (DESIRED)
+E       Max absolute difference among violations: 0.27958493
+E       Max relative difference among violations: 0.16595621
+E        ACTUAL: array([[0.      , 0.      , 0.      ],
+E              [2.772589, 0.      , 2.772589],
+E              [0.916291, 2.674149, 2.772589],
+E              [3.433987, 0.      , 0.      ]], dtype=float32)
+E        DESIRED: array([[0.      , 0.      , 0.      ],
+E              [3.044522, 0.      , 3.044522],
+E              [1.098612, 2.944439, 3.044522],
+E              [3.713572, 0.      , 0.      ]])
+
+tests/test_shifted_log_normalization.py:38: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Host h5ad: raw counts detected; median-depth normalization then natural log1p.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:383 Host h5ad: raw counts detected; median-depth normalization then natural log1p.
+_______ test_host_shifted_log_formula_and_raw_preservation[float64-True] _______
+
+sparse = True, dtype = <class 'numpy.float64'>
+
+    @pytest.mark.parametrize("sparse", [False, True])
+    @pytest.mark.parametrize("dtype", [np.int32, np.float32, np.float64])
+    def test_host_shifted_log_formula_and_raw_preservation(sparse, dtype):
+        raw = np.array([[0, 0, 0], [20, 0, 20], [1, 9, 10], [100, 0, 0]], dtype=dtype)
+        data = ad.AnnData(sp.csr_matrix(raw) if sparse else raw.copy())
+        data.layers["counts"] = data.X.copy()
+        data.raw = data.copy()
+        hr._detect_and_normalize(data)
+>       np.testing.assert_allclose(dense(data.X), shifted_log_reference(raw.astype(float)), rtol=1e-6)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-06, atol=0
+E       
+E       Mismatched elements: 6 / 12 (50%)
+E       First 5 mismatches are at indices:
+E        [1, 0]: 2.772588722239781 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [1, 2]: 2.772588722239781 (ACTUAL), 3.044522437723423 (DESIRED)
+E        [2, 0]: 0.9162907318741551 (ACTUAL), 1.0986122886681096 (DESIRED)
+E        [2, 1]: 2.6741486494265287 (ACTUAL), 2.9444389791664403 (DESIRED)
+E        [2, 2]: 2.772588722239781 (ACTUAL), 3.044522437723423 (DESIRED)
+E       Max absolute difference among violations: 0.27958486
+E       Max relative difference among violations: 0.16595623
+E        ACTUAL: array([[0.      , 0.      , 0.      ],
+E              [2.772589, 0.      , 2.772589],
+E              [0.916291, 2.674149, 2.772589],
+E              [3.433987, 0.      , 0.      ]])
+E        DESIRED: array([[0.      , 0.      , 0.      ],
+E              [3.044522, 0.      , 3.044522],
+E              [1.098612, 2.944439, 3.044522],
+E              [3.713572, 0.      , 0.      ]])
+
+tests/test_shifted_log_normalization.py:38: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Host h5ad: raw counts detected; median-depth normalization then natural log1p.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:383 Host h5ad: raw counts detected; median-depth normalization then natural log1p.
+=============================== warnings summary ===============================
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[int32-False]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[int32-True]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float32-False]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float32-True]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float64-False]
+tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float64-True]
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/legacy_api_wrap/__init__.py:88: UserWarning: Some cells have zero counts
+    return fn(*args_all, **kw)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[int32-True]
+FAILED tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float32-True]
+FAILED tests/test_shifted_log_normalization.py::test_host_shifted_log_formula_and_raw_preservation[float64-True]
+3 failed, 8 passed, 6 warnings in 18.14s

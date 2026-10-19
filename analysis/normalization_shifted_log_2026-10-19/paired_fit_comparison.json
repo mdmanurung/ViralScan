@@ -1,0 +1,69 @@
+{
+  "input_sha256": {
+    "/tmp/viralscan-shifted-log-fit/inputs/virus.h5ad": "9f4098e9336113876c6c38a697ac3eb5ef5dd9beb883f728b3983aafc5cc8de4",
+    "/tmp/viralscan-shifted-log-fit/inputs/ids.txt": "dbb5c41246a2ffb1b08f7407aff766387f2ed5fa5769c6c655931e585b180224",
+    "/tmp/viralscan-shifted-log-fit/inputs/host.h5ad": "3a2c23ff8e81294eda81df20fbcb76fdb7a78faa0257d6f68cd4aebe9ecf3fb6"
+  },
+  "raw_manifests": {
+    "original_a": {
+      "hostresponse_manifest.json": "7c739628eec806706d22d3adf1e36dfaf20b447a9ff57a1909150474634b8661",
+      "hostresponse_status.tsv": "53f7ec7ab20a7e41ba42195a4b7e89aadda611865d845f64abe93c8b8e3bb1c3",
+      "VIRUS_A_depth_diagnostics.csv": "d6d0c5db77ab02f3da1902f4ece4f3cbb72013e89d167bf376956ea5de60e77c",
+      "VIRUS_A_stability.csv": "e837049636703a2a74f657c6dd91bd51f28be4ef4312436ddc060ec74cb4ca25",
+      "hostresponse_metrics.csv": "4aeaa809cfad615b84ea781c1f29fa743ef2603a7b385aaa36f416844b58db88",
+      "VIRUS_A_gene_weights.csv": "b42f713a73c202a220901a2f05a62e516194ee12be56ed804e1a793810b3932c"
+    },
+    "original_b": {
+      "hostresponse_manifest.json": "7c739628eec806706d22d3adf1e36dfaf20b447a9ff57a1909150474634b8661",
+      "hostresponse_status.tsv": "53f7ec7ab20a7e41ba42195a4b7e89aadda611865d845f64abe93c8b8e3bb1c3",
+      "VIRUS_A_depth_diagnostics.csv": "d6d0c5db77ab02f3da1902f4ece4f3cbb72013e89d167bf376956ea5de60e77c",
+      "VIRUS_A_stability.csv": "e837049636703a2a74f657c6dd91bd51f28be4ef4312436ddc060ec74cb4ca25",
+      "hostresponse_metrics.csv": "4aeaa809cfad615b84ea781c1f29fa743ef2603a7b385aaa36f416844b58db88",
+      "VIRUS_A_gene_weights.csv": "b42f713a73c202a220901a2f05a62e516194ee12be56ed804e1a793810b3932c"
+    },
+    "candidate_a": {
+      "hostresponse_manifest.json": "4b2de5404fc916ad6ba51de18a6902e370f67d2a313e9401b5e4e9024e841171",
+      "hostresponse_status.tsv": "53f7ec7ab20a7e41ba42195a4b7e89aadda611865d845f64abe93c8b8e3bb1c3",
+      "VIRUS_A_depth_diagnostics.csv": "b17390d507c9c949162e0d7000d60c4f186307f3059f0a28c13db893f2069575",
+      "VIRUS_A_stability.csv": "1efdd1ca3da9384160a44260a6cbcb6053d6a00211f941fb0305c74dc6588f29",
+      "hostresponse_metrics.csv": "412e7bd1d5dac79e7975d6f25b8237389f50263c8996649ccbbfde7e9f2395b5",
+      "VIRUS_A_gene_weights.csv": "a48d33fc7b42f850df5fb3eb24bc08c388caa167088dd222736c2cad1d0d0a54"
+    },
+    "candidate_b": {
+      "hostresponse_manifest.json": "4b2de5404fc916ad6ba51de18a6902e370f67d2a313e9401b5e4e9024e841171",
+      "hostresponse_status.tsv": "53f7ec7ab20a7e41ba42195a4b7e89aadda611865d845f64abe93c8b8e3bb1c3",
+      "VIRUS_A_depth_diagnostics.csv": "b17390d507c9c949162e0d7000d60c4f186307f3059f0a28c13db893f2069575",
+      "VIRUS_A_stability.csv": "1efdd1ca3da9384160a44260a6cbcb6053d6a00211f941fb0305c74dc6588f29",
+      "hostresponse_metrics.csv": "412e7bd1d5dac79e7975d6f25b8237389f50263c8996649ccbbfde7e9f2395b5",
+      "VIRUS_A_gene_weights.csv": "a48d33fc7b42f850df5fb3eb24bc08c388caa167088dd222736c2cad1d0d0a54"
+    }
+  },
+  "original_AA_raw_equal": true,
+  "candidate_AA_raw_equal": true,
+  "different_files": [
+    "hostresponse_manifest.json",
+    "VIRUS_A_depth_diagnostics.csv",
+    "VIRUS_A_stability.csv",
+    "hostresponse_metrics.csv",
+    "VIRUS_A_gene_weights.csv"
+  ],
+  "summaries": {
+    "original_a": {
+      "auc_mean": [
+        0.5
+      ],
+      "weight_absolute_sum": 9.158124451499999,
+      "stability_sum": 10.666666666666666,
+      "stable_genes": 8
+    },
+    "candidate_a": {
+      "auc_mean": [
+        0.375
+      ],
+      "weight_absolute_sum": 9.323273190919998,
+      "stability_sum": 9.666666666666666,
+      "stable_genes": 5
+    }
+  },
+  "interpretation": "intentional new preprocessing; bounded synthetic technical evidence, no scientific improvement claim"
+}

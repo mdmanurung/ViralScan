@@ -15,6 +15,7 @@ Two passes:
 
 Writes a UMAP figure (colored by EBV UMI, depth, cluster) and a cluster table.
 Run: PYTHONPATH=src <bioenv-python> analysis/hostresponse_ebv_matched/scripts/intermediate_state_test.py
+Requires scanpy and igraph (Leiden backend).
 """
 from __future__ import annotations
 
@@ -26,13 +27,14 @@ import scanpy as sc
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from scipy.stats import spearmanr, kruskal
+from scipy.stats import spearmanr
 
 BASE = "results/hostresponse_ebv_matched"
 FIGDIR = "analysis/hostresponse_ebv_matched/outputs/figures"
 THRESH = 10
 N_BINS = 20
 SEED = 42
+LEIDEN_RESOLUTION = 1.0
 
 
 def _sum(X):
@@ -57,34 +59,29 @@ def prep():
 
 
 def cluster_embed(adata, tag, out):
-    from sklearn.cluster import HDBSCAN, KMeans  # noqa: PLC0415
     from sklearn.metrics import silhouette_score  # noqa: PLC0415
-    sc.pp.neighbors(adata, n_neighbors=15, random_state=SEED)
+    sc.pp.neighbors(adata, n_neighbors=15, use_rep="X_pca", random_state=SEED)
+    sc.tl.leiden(
+        adata, resolution=LEIDEN_RESOLUTION, random_state=SEED,
+        flavor="igraph", directed=False, n_iterations=-1, key_added="cluster",
+    )
     sc.tl.umap(adata, random_state=SEED)
     Xp = adata.obsm["X_pca"]
     df = adata.obs
     out.append(f"\n=== {tag}: {adata.n_obs} cells ===")
     out.append(f"  Spearman(depth, ebv_umi) in this set = {spearmanr(df['depth'], df['ebv_umi']).correlation:.3f}")
 
-    # (1) Density-based: does discrete structure exist at all?
-    lab = HDBSCAN(min_cluster_size=30).fit_predict(Xp)
-    n_hdb = len(set(lab)) - (1 if -1 in lab else 0)
-    out.append(f"  HDBSCAN(min_cluster_size=30): {n_hdb} clusters, {(lab == -1).sum()}/{len(lab)} unassigned "
-               f"-> {'CONTINUUM (no discrete states)' if n_hdb == 0 else 'discrete structure present'}")
-
-    # (2) Silhouette: how discrete is a forced k-partition (higher = more separated; <0.1 ~ no structure)
-    sils = {k: silhouette_score(Xp, KMeans(k, random_state=SEED, n_init=10).fit_predict(Xp)) for k in (2, 3, 4)}
-    out.append("  KMeans silhouette (structure strength): " + ", ".join(f"k={k}:{s:.3f}" for k, s in sils.items()))
-
-    # (3) Direct tristable test: force k=3, is there a middle-EBV cluster NOT explained by depth?
-    km3 = KMeans(3, random_state=SEED, n_init=10).fit_predict(Xp)
-    adata.obs["cluster"] = pd.Categorical([str(c) for c in km3])
+    n_clusters = df["cluster"].nunique()
+    out.append(f"  Leiden(resolution={LEIDEN_RESOLUTION}, seed={SEED}, backend=igraph, "
+               f"n_iterations=-1, n_neighbors=15, use_rep=X_pca): {n_clusters} clusters")
+    if 1 < n_clusters < adata.n_obs:
+        out.append(f"  Leiden silhouette in host PCA: {silhouette_score(Xp, df['cluster']):.3f}")
     g = df.groupby("cluster", observed=True)
     tab = pd.DataFrame({
         "n": g.size(), "ebv_pos_rate": g["ebv_pos"].mean(),
         "median_ebv_umi": g["ebv_umi"].median(), "median_depth": g["depth"].median(),
     }).sort_values("ebv_pos_rate")
-    out.append("  forced KMeans k=3 (EBV vs depth per cluster):")
+    out.append("  Leiden (EBV vs depth per cluster):")
     out.append("    " + tab.round(2).to_string().replace("\n", "\n    "))
     return tab
 
@@ -93,7 +90,7 @@ def figure(adata, path):
     fig, axes = plt.subplots(1, 3, figsize=(13, 4))
     um = adata.obsm["X_umap"]
     for a, key, title in zip(axes, ["ebv_umi", "depth", "cluster"],
-                             ["EBV burden (log1p UMI)", "sequencing depth (log1p)", "HDBSCAN clusters"]):
+                             ["EBV burden (log1p UMI)", "sequencing depth (log1p)", "Leiden clusters"]):
         if key == "cluster":
             for c in adata.obs["cluster"].cat.categories:
                 m = (adata.obs["cluster"] == c).to_numpy()
@@ -128,9 +125,10 @@ def main():
     cluster_embed(hm, "DEPTH-MATCHED", out)
     figure(hm, f"{FIGDIR}/intermediate_umap_depthmatched.pdf")
 
-    out.append("\nVerdict rule: if clusters track depth (high depth-Kruskal, EBV+ rate rises with "
-               "median_depth) the 'intermediate' is a depth stratum; if a distinct intermediate-EBV "
-               "cluster persists in the DEPTH-MATCHED set, it is a genuine depth-independent state.")
+    out.append("\nInterpretation: compare cluster EBV burden with depth in both sets. Leiden "
+               "partitions the neighbor graph; clusters alone do not establish discrete biological "
+               "states. Persistence after depth matching is exploratory evidence requiring "
+               "independent validation and resolution sensitivity checks.")
     report = "\n".join(out)
     print(report)
     with open(f"{BASE}/intermediate_state_test.txt", "w") as fh:

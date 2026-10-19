@@ -1,0 +1,44 @@
+{
+  "baseline": "6bd1652779dc64e5ba68cbcdafe0b322ecbcdb6c",
+  "versions": {
+    "scanpy": "1.11.5",
+    "anndata": "0.12.19",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "scikit-learn": "1.9.1"
+  },
+  "requested_method": "scanpy.pp.normalize_total(target_sum=None), then scanpy.pp.log1p",
+  "scope": [
+    "host_only_pca",
+    "both UMAP branches",
+    "raw host-response inputs"
+  ],
+  "input_counts_policy": "input files, existing raw/count layers and raw depth covariates unchanged",
+  "scientific_outputs": "expected to change; no performance equivalence claim",
+  "zero_cell_observation": {
+    "scanpy": "1.11.5",
+    "cell_totals": [
+      0,
+      40,
+      20,
+      100
+    ],
+    "dense_target": 40,
+    "sparse_CSR_target": 30,
+    "contract": "exact native API retained; representation/version-specific empty-cell behavior disclosed; normal quantitative comparisons use nonempty cells"
+  },
+  "runtime_files": {
+    "src/viralscan/scripts/umap.py": "d92a2d1fdfef494833589b4b28aab9d44a11626df46e6346ba243f6ec683f177",
+    "src/viralscan/scripts/hostresponse.py": "df162585c2f5655ee0421fd0348efdb6fb96512f3bdf92770d25530e09878284"
+  },
+  "changed_functions": {
+    "src/viralscan/scripts/umap.py": [
+      "host_only_pca",
+      "umap"
+    ],
+    "src/viralscan/scripts/hostresponse.py": [
+      "_detect_and_normalize",
+      "run_hostresponse"
+    ]
+  }
+}

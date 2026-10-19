@@ -1941,3 +1941,172 @@ What happened: CI py3.12 resolved anndata 0.13.4/pandas 3.0.6 where set(adata.la
 Why it matters: broad except hid the real error; reproduce with a venv pinned to the CI versions from the Successfully installed log line.
 Resolution: skip None layer keys; strip the suffix in the generator; rename test inputs.
 Tags: ci, anndata, argparse, macos
+
+### [2026-10-14] A PR stacked on by another PR needs GitHub's merge-async endpoint
+- Category: git-workflows
+- What happened: `gh pr merge 57 --merge` and `PUT /pulls/57/merge` both refused #57 ("part of a stack") because #59 had been opened against #57's branch, even after #59 merged.
+- Why it matters: the documented "merge green PRs with gh pr merge" fails silently for stacks.
+- Resolution: `gh api -X PUT repos/<o>/<r>/pulls/N/merge-async -f merge_method=merge -f sha=<FULL 40-char head sha>`. A short sha fails with "head branch was modified".
+- Tags: github, stacked-pr, merge
+
+### [2026-10-14] Tests that assert the live protocol is draft block the G3 freeze
+- Category: testing-patterns
+- What happened: freezing protocol.yaml (#61) failed 10 tests that asserted `status == "pending"` on the committed protocol or used it as the pending input for rule probes. The G3 allowlist forbids touching tests in the signing commit.
+- Why it matters: any state-asserting test turns a governed state change into a forced code change.
+- Resolution: #62. The tests check invariants that hold in both states; the probes build their own pending input (`_pending()`); generated docs no longer embed the state. Verified by overlaying the frozen files on main.
+- Tags: G3, SCI-05, protocol, tests
+
+### [2026-10-14] Dead agents leave stale index.lock in scratchpad worktrees
+- Category: debugging-patterns
+- What happened: `wt_umi` and `wt_sign` each had a 0-byte `.git/worktrees/<name>/index.lock` from agents killed by the usage limit. One merge half-failed with "Unable to write index". A full pytest run inside a worktree also left one behind.
+- Resolution: check `pgrep -af git` first, then remove the lock and redo the operation (`git merge --abort` first if MERGE_HEAD exists).
+- Tags: git, worktree, agents
+
+### [2026-10-14] A 150-nt R1 with TSO after barcode+UMI does not identify a V(D)J library
+- Category: scientific-analysis
+- What happened: SRR20710641 (GEO title "D98-Day19-TCRs", R1 150 nt, 482 called cells) was suspected to be a TCR V(D)J library. R1 carried the TSO in 88% of reads, but the host matrix is gene-expression-like (TR* genes 1.7%).
+- Why it matters: a 5' GEX library sequenced at 150 nt also reads barcode, UMI, TSO and cDNA in R1. Library type has to be decided from content (top genes, TR* share), not from read structure or the GEO title.
+- Resolution: use the STARsolo GeneFull raw matrix top genes and the TR* gene share.
+- Tags: HHV-6B, GSE210063, library-type, 10x-5prime
+
+### [2026-10-15] Round-2 HPV16 used one of two lanes per library; Track A inputs must merge all lanes
+- Category: scientific-analysis
+- What happened: GSE189670 libraries GSM5705759/60 have two runs each (SRR19537339+340, 341+342). The round-2 manifest used only 339 and 341, so those numbers are half-depth. Track A round 1 concatenates per library (`slurm_trackA_concat.sh`).
+- Why it matters: "whole FASTQ" needs lane/run grouping by GSM first; ENA `sample_alias` is the library key, except E-MTAB-13687 where it bundles GEX/ADT/BCR runs (needs the SDRF).
+- Tags: GSE189670, lanes, trackA
+
+### [2026-10-15] ViralScan names its output folder from the FASTQ prefix; give inputs `<sample>_R1/_R2` names
+- Category: pipeline
+- What happened: the run script checks `$OUT/$SAMPLE/results/viral_summary.tsv`; a sample name that differs from the FASTQ prefix (x223, or GSM name with SRR_1 files) fails the check. Track A manifests point to `inputs/<lib>/<lib>_R1/_R2.fastq.gz` symlinks, so no pinned-script edit is needed (Q8 resolved this way).
+- Tags: slurm, run-script, Q8
+
+### [2026-10-15] HIV-1 calls in HHV-6B CAR-T libraries are lentiviral-vector reads
+- Category: scientific-analysis
+- What happened: the 43 reads / 24 molecules called as HIV-1 in SRR20710641 fall only in vector-carried HIV segments (gag 5', cPPT, RRE-env, SIN 3' LTR) and carry polylinker and CD8a-leader junctions; about 40% of called cells hold the CD8a leader/WPRE transcript. Tonsil HSV-1 (ERR13027027) is a real polyA-primed trace in 2 cells. Details: `viralscan_work/q143_interim_evidence/SUMMARY.md`.
+- Why it matters: T-cell/CAR-T libraries need vector/transgene decoys before an HIV-1 call is read as biology.
+- Tags: HHV-6B, HIV-1, vector, read-level-evidence
+
+### [2026-10-15] Arm-P (protein) off-target hits are host-derived or adapter reads; real viruses are viral-supported
+- Category: scientific-analysis
+- What happened: read-level confirmation (`confirm_hits.py`, PR #70) of the EBV, HSV-1 and x213 pilots: x213 HPV83 E1 (24,180 UMIs) = 96.6% TSO+poly(T) adapter reads, only 0.7% align the host genome (host capture would NOT remove them; an adapter check does); HSV-1 library HCMV pp71 and HPV83 = host reads (90-95% align the human genome, none gets a BLAST hit); EBV (BHLF1, BNLF2b, UL43, whole virus) and HSV-1 whole virus = viral_supported. Host capture would remove 3.3% of EBV and 1.1% of HSV-1 reads of the real virus but 23% (EBV library) and 58% (HSV-1 library) of all examined virus reads.
+- Why it matters: arm-P calibration needs (1) host capture, (2) a TSO/poly(T) adapter filter for 5' libraries, (3) read-level confirmation before any call; divergent real viruses appear as protein_only_viral, not viral_supported.
+- Tags: arm-P, translated-search, host-capture, adapter, confirm_hits
+
+### [2026-10-15] External audit (plans3) targets commit 97a64f6, which is not an ancestor of codex/drop-py39
+- Category: process
+- What happened: the Biomni audit in `biomni_bundle/plans3` (51 findings: 1 Critical P5-01, 6 High) was run on main@97a64f6. Local HEAD does not contain that commit, so findings need a STALE check against HEAD before they are accepted. Wrote `biomni_bundle/plans3/AUDIT_VERIFICATION_PROMPT.md` for a second LLM: verify each finding against local source, review confirmed ones, plan fixes (read-only, outputs to `plans3/verification/`).
+- Why it matters: audit labels ("Confirmed") are not evidence on this branch; verdicts must cite file:symbol on local HEAD.
+- Tags: audit, biomni, plans3, verification
+
+### [2026-10-15] `git branch -d` checks HEAD, not origin/main; verify ancestry of origin/main before `-D`
+- Category: process
+- What happened: after PR #71 merged, `git branch -d` refused 11 `codex/aud3-*` branches because the root checkout is on `codex/drop-py39`, which lacks them. `git merge-base --is-ancestor <branch> origin/main` was true for all 12, so `-D` was safe. Stale `index.lock` files in `.git/worktrees/<own>/` (L-71) recurred, including in a freshly created worktree.
+- Why it matters: loop `is-ancestor origin/main && branch -D` instead of forcing blindly; check `ps` for live git before removing a lock.
+- Tags: git, worktree, cleanup, aud3
+
+### [2026-10-15] Layout proof: manifests and verify readers must match the real producer format
+- **What**: `build_manifest.py` followed symlinks under `libraries/*/results/matrices/` (re-hashing 3 h5ads twice); it now skips symlinks and fails if a link target is not itself in the manifest. `publish.py`'s tolerant verify reader guessed keys (`status`, `ok`) that verify.py never writes (`overall`, `checks`), so the dashboard would have shown "recorded" instead of pass/fail.
+- **Evidence**: GSE158275 proof run, `_state/checks/verify-proof-20261015T201612Z.json`.
+- **When useful**: any consumer of another agent's JSON; any hash manifest over a tree with links.
+- Tags: layout, manifest, verify, agents
+
+### [2026-10-16] Governance re-pin is a separate commit after the feature commit
+Category: governance
+What happened: TAXO-01 changed docs/output_reference.md, leaving inventory row 17 stale (1 test failure).
+Why it matters: AUD3-GOV convention pins artifact_sha256/git_sha/retrieval command in their own commit.
+Resolution: re-pinned to feature commit 9da7fe7 in commit 9853995; bare `python` is absent, use env viralscan_test_full.
+Tags: governance, inventory, taxonomy
+
+## 2026-10-17 — PERF-EXEC-01 exactness evidence
+
+Sparse reduction/storage changes can alter floating bits. The implemented evidence
+optimization keeps per-column CSR arithmetic and caps cached CSR buffers at 32 MiB.
+Frozen original oracles must also freeze their numerical helpers and schema.
+Evidence: `analysis/computational_bottlenecks_2026-10-17/execution/REPORT.md`.
+
+### [2026-10-17] deletion_window.sh does not hold tA_evidence array tasks
+Category: operations
+What happened: ran `deletion_window.sh hhv6b --yes` (twice; second interrupted client-side). The script holds only pending tA_advance/evidence_finish/summaries/provenance jobs; tA_evidence array tasks (62-81) and tA_off_L keep running and can rewrite shared evidence tables. Interrupting the shell does not cancel the sbatch job, so a second tA_provenance_window (25826297) ran after the window_open_hhv6b marker (19:56:34).
+Why it matters: provenance/readiness can go stale relative to the marker; delete_dataset.py should then refuse.
+Resolution: no deletion done. Wait for evidence/off tasks to drain, re-run the window once uninterrupted, then dry-run delete_dataset.py.
+Tags: trackA, deletion-window, slurm
+
+### [2026-10-18] HHV-6B raw FASTQs deleted (Track A, first dataset)
+Category: operations
+What happened: user ran `delete_dataset.py hhv6b --yes`: 12 runs, 387.0 GB, logged with sha256 in status/deleted_hhv6b_2026-10-18.log. 91/91 retained outputs exist. Only 1 of 12 runs had a spot-check marker (the script gates per series).
+Why it matters: deletion_readiness.tsv does not check spot-check, window, live jobs or `_1` technical-read hashes; hpv16 and hnscc fail the `_1` hash gate.
+Resolution: window jobs still held until the user runs `deletion_window.sh --release`.
+Tags: trackA, deletion, hhv6b
+
+### [2026-10-18] Readiness gate denominator and deletion-scope gaps found by the Track A review
+**Category**: process
+**What happened**: Review workflow found (1) deletion_readiness counts only 82 libs while libs.tsv also holds 17 hnscc + 56 tonsil libs waiting_for_download and 91 unanalysed runs already in the store; (2) ebv was deleted by manual rm (also removed BUS/read_filtered/star_tmp) without spot-check or ENA rows; (3) check_ena_readcounts.py covers only deletable folders, so ENA rows appear only after a dataset reaches READY; (4) fastq_content_tasks.tsv lists only R1/R2 sources so _1 index reads are never hashed.
+**Why it matters**: 100% READY can be reached while many runs are unaccounted for; deletions outside delete_dataset.py skip the gates.
+**Resolution**: Documented in review REPORT.md; hpv16 hash proposal written; user decisions pending (denominator, index-read hashing rule).
+**Tags**: trackA, deletion-gates, provenance
+
+### [2026-10-18] Scope-asserted deletion script pattern for cancelled datasets
+**Category**: process
+**What happened**: Tonsil removal done with a dry-run-by-default script that asserts every path is tonsil-owned (marker substrings, excludes sfl_tonsil), unlinks symlinks, logs path+size before each delete. Running jobs were checked against tonsil manifest rows first.
+**Why it matters**: Shared checkout with many datasets; a glob mistake would delete other data.
+**Tags**: trackA, deletion-gates
+
+### [2026-10-19] Dataset removal needs a manifest/config sweep
+**Category**: process
+**What happened**: Tonsil runs were deleted while `trackA_round1/manifest.tsv` kept 19 tonsil rows; `slurm_finish_summaries.sh` loops the manifest and failed with FileNotFoundError (job 25835465), blocking provenance and the hsv1 deletion window.
+**Why it matters**: Finisher jobs are global; removing one dataset's outputs breaks every other dataset's gate until the manifest is updated.
+**Tags**: trackA, deletion-gates, provenance
+
+### [2026-10-19] hostresponse mistakes sparse raw counts for normalised data
+**Category**: bug
+**What happened**: `hostresponse._detect_and_normalize` samples the top-left 100x100 block and only normalises if integer AND max > 10. A sparse raw-count block has max <= 10, so it logged "appears already normalized" and skipped normalisation; HVG selection then overflowed (`expm1`). First hsv1 test (25836017) was invalid and cancelled. `trackA_hostresponse_prep.py` now writes CP10k+log1p in X, raw in `layers['counts']`, and `uns['log1p']`. Rerun 25836024 clean: HSV-1 depth-matched AUC 0.887 vs depth-only 0.483 vs scrambled 0.491 (passes the decision rule); HSV-2 (35 cells) fails.
+**Why it matters**: Any caller passing a raw-count h5ad to `--host-h5ad` silently gets wrong HVGs/AUCs. Upstream heuristic should be fixed (not done; not in PLAN.md yet).
+**Tags**: trackA, hostresponse, normalization
+
+### [2026-10-19] ENA table goes stale when new runs become deletable
+- Category: pipeline
+- What happened: delete_dataset.py refused hnscc for 24 runs with no ENA row; table last written 00:37.
+- Resolution: re-run scripts/check_ena_readcounts.py before the window.
+- Tags: trackA, deletion-gates
+
+### [2026-10-19] Deleting concat-based datasets regresses provenance
+- Category: pipeline
+- What happened: after hpv16 deletion, concat_plan.tsv rows drop on next tA_advance and build_provenance nulls source content_sha256, so readiness shows provenance:incomplete.
+- Resolution: snapshot provenance/ and concat_plan.tsv before deleting; fix build_provenance to read hashes from fastq_content_sha256.tsv.
+- Tags: trackA, provenance, deletion
+
+### [2026-10-19] Anello alignment positive control passes; ebv 0-hit result is a true negative
+**Category**: validation
+**What happened**: ebv GSM4796271 anello test (25835964) aligned 0/17.76M host-filtered reads. Positive control (25836965; 400k real ebv reads + 30 contigs x 200 simulated reads, 2% subs, real CBs) recovered 5,987/6,000 spiked reads (5,579 unique), all 30 contigs with >=100 unique reads, and 0 of the 400k real reads aligned. Script `trackA_anello_poscontrol.py`, output `$R/anello_poscontrol_2026-10-19/`.
+**Why it matters**: The ebv negative is not a broken index/orientation/barcode setup; running hsv1/hhv6b/hnscc anello alignment is justified.
+**Tags**: trackA, anello, validation
+
+### [2026-10-19] hostresponse `--label cpm` picks the wrong cells when viral UMI are sparse; clean controls are scarce in infected libraries
+**Category**: method / bug-risk
+**What happened**: `--label cpm` calls the top-n_pos cells by viral UMI / host UMI, not the cells with >=10 viral UMI. Overlap with the real >=10-UMI positives: hsv1 0.82, hhv6b 0.89, ebv 0.61, hnscc GSM5017065 0.42, hpv16 GSM5705760 0.01 (3 of 357; the "positives" are low-depth cells, median depth 202 vs 27,918). So the 2026-10-19 depth-matched hostresponse AUCs for hnscc/ebv/hpv16 do not describe the infected cells; the hpv16 "no host signal" is a labelling artefact (kNN-matched >=10 UMI vs 0-UMI cells gives AUC 0.907, depth-only 0.56, scrambled 0.48). Separately, hsv1 HSV-1 has only 18 of 5,361 cells with 0 viral UMI (hhv6b HHV-6B 74, ebv EBV 185 of 2,647), so within-library virus-negative controls do not exist there; the earlier AUCs for those compare high vs low viral burden.
+**Why it matters**: any "host signal / no host signal" claim from `--label cpm` needs the overlap check; infected-vs-clean contrasts need controls from uninfected libraries or a dose-response framing.
+**Tags**: trackA, hostresponse, labels
+
+### [2026-10-19] Anello v2 plant scoring: only hhv6b passes the STAR exact@100 gate
+**Category**: validation
+**What happened**: Scored v2 plants (exact panel genomes) with `trackA_anello_score.py`, 4 datasets x shipped/relaxed. STAR exact@100 (gate >= 0.90), shipped/relaxed: hhv6b 0.952/0.965 PASS; hsv1 0.808/0.857; ebv 0.728/0.802; hnscc 0.513/0.558 (all FAIL). Classifier candidate gate (>= 0.50) passes everywhere (0.51-0.97). hnscc recovery is flat ~50-60% across all genomes including exact, so likely a fixed loss in the planted 3' read geometry (cause not yet checked; hypothesis: poly-A tail leaves body < 60 aligned bases).
+**Why it matters**: Under frozen PREREG, hsv1/ebv/hnscc can only be GENUINE/TRACE/NOT RESOLVABLE; real-library array (137 tasks) NOT released pending user decision (hhv6b only vs diagnose planter first).
+**Tags**: trackA, anello, gates
+
+### [2026-10-19] Anello plant scorer keyed on raw CB: hnscc recovery under-counted; tail geometry caps 3' datasets
+**Category**: bug / validation
+**What happened**: Diagnosis agent + my rescore. (1) `trackA_anello_score.py` matched the planted raw (cb, umi), but STARsolo rewrites CB to a whitelist 1-mismatch neighbour; hnscc's planter pool had 30% off-whitelist CBs (183/600). Scorer now accepts a whitelist 1-MM neighbour with the same UMI (old scores kept as `score_rawkey_v2.tsv`). Rescored exact@100 star (shipped/relaxed): hnscc 0.707/0.778 (was 0.513/0.558); hhv6b, ebv, hsv1 unchanged (no off-whitelist CBs / no whitelist). (2) Real ceiling: pinned planter gives 1/3 of 3' reads a poly-A tail (body < ~80 nt for 27%), which STAR's 0.80 filter rejects; full-body reads recover 0.92-0.96. Planter geometry is a PREREG-level modelling choice (real 10x tail frequency unverified). hhv6b (5' window) has no tail loss.
+**Why it matters**: the 0.90 gate is unattainable on 3' windows under this geometry even with a perfect scorer; thresholds untouched, v2 results retained; decision on re-planting with realistic tail frequency is the user's.
+**Tags**: trackA, anello, planter, scorer
+
+### [2026-10-19] Real viral 3' reads rarely carry poly-A tails; planter default (1/3) was far too high
+**Category**: validation
+**What happened**: Trailing-A runs in real target-virus reads (evidence `viral_reads.fasta`): ebv 0.1% (>=20% of read) / 0.4% (>=10 nt), hnscc HPV16 0.0%/0.1%, hsv1 HSV-1 2.0%/2.6%. Pinned planter tails ~1/3. v3 plants use 5% (`--tail-rate 0.05`, `PREREG_ADDENDUM_1.md`, sha 5f75b6a7...), jobs in `plant_v3_chain_jobs.txt`. Also: ebv kNN control pool (383) is smaller than positives (316), so k>=3 matching is impossible; a looser caliper only adds matched positives.
+**Why it matters**: the 90% STAR gate only measures STAR sensitivity once the planted geometry is realistic.
+**Tags**: trackA, anello, planter
+
+### [2026-10-19] Cross-library hostresponse controls: hsv1 has matched 37C uninfected libs, hhv6b has one clean control and no batch null
+**Category**: method
+**What happened**: Viral UMI audit of control candidates (combined_off, frozen cells): hsv1 uninfected sc libs GSM3511328/329 (37C, same protocol as flagship GSM3511335 = 37C 5hpi) have 0-2 viral UMI; the 4C uninfected libs 317/320/321 also 0-1 but are a different condition (4C synchronous). hhv6b D38-Day19 GSM6416026 has 0 HHV-6B UMI (374 viral UMI total, HIV1 gp9 313, 0 cells with >=10); same-donor D34-Day24 GSM6416023 is INFECTED (282,426 HHV-6B UMI), so a same-donor control does not exist. New `trackA_hostresponse_xlib.py` (case vs control libs, kNN match, depth/PC/scrambled diagnostics, batch null = control A vs B). hsv1 gets a null (328 vs 329); hhv6b cannot (one control library), so its headline stays the raw cross-library AUC with the batch caveat. Jobs 25842522 (hsv1), 25842523 (hhv6b); output `hostresponse_xlib_2026-10-19/`.
+**Why it matters**: deviation from the approved Q5(b) for hhv6b: no control-vs-control adjustment possible.
+**Tags**: trackA, hostresponse, controls

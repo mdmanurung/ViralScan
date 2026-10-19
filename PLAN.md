@@ -20,6 +20,103 @@ completion.
 
 ## Next action
 
+- [x] `TRACKA-HOST-01` (2026-10-19, user: implement agreed plan): implement
+  isolated GBCD/EBCD/gene-aligned DIVAS discovery and grouped held-out host-only
+  prediction on the five existing Track A datasets. Preserve frozen runs;
+  exclude HHV-6B TCR libraries, qualify upstream interfaces, retain metadata
+  gaps and unevaluable folds explicitly. Workflow and evidence:
+  `analysis/trackA_host_programs/`. Software checks: 20 focused tests, nine
+  real-engine synthetic checks, 134-job Snakemake dry-run, and read-only EBV
+  preparation (2,647 cells x 41,145 host genes). Private CVXR 1.0-15 and a
+  recorded DIVAS rank-one dimension correction; original sources retained.
+  Evidence: `analysis/trackA_host_programs/VALIDATION.md`. No new cohorts or
+  scheduler submissions; this does not establish scientific validity.
+- [~] `TRACKA-HOST-02`: benchmark a bounded real-data fitting pilot, review
+  scheduler resources, then execute the cohort workflow. Author cell types
+  remain required before mixed-population associations can support adjusted
+  sharing claims. Current unit counts cannot support formal shared inference
+  in two studies; descriptive cross-context programs and held-out prediction
+  are the exploratory endpoints. Full fitting and calibration are unrun.
+  Pilot completed 2026-10-19: `analysis/trackA_host_programs/pilot.smk`, existing
+  allocation 25833654, one CPU; EBV GSM4796271 and HSV-1 GSM3511335,
+  100 cells per study x 80 genes, rank 3, seed 1, 100 iterations, DIVAS nsim 40.
+  Each engine has a 900-second process-group timeout. No new scheduler jobs.
+  GBCD 37.37 s / 421.3 MiB (iteration warnings, rejected), EBCD 8.79 s /
+  364.2 MiB, DIVAS 489.93 s / 406.8 MiB; no timeouts. Fixed fresh/cached
+  iteration-warning qualification; 24 focused tests passed. Two historical
+  GBCD synthetic fits are also rejected under the corrected gate (7/9 eligible).
+  Evidence: `analysis/trackA_host_programs/PILOT.md` and
+  `validation/pilot_receipt.json` within that analysis. Next: bounded default-
+  iteration GBCD retry and cell/gene/DIVAS-simulation scaling; 80 genes cannot
+  establish full-cohort resources. Original pilot receipts preserved unchanged.
+  Follow-up completed after user resume: isolated GBCD retry at the default 500
+  iterations on the same cells/genes, same 900-second cap, output
+  `outputs/pilot-convergence-20261019-v1/` within that analysis. No new jobs.
+  Retry: 65.68 s / 419.7 MiB; still rejected for iteration warnings. Exact
+  input equality checked apart from maxiter; eight source inputs unchanged.
+  Current focused suite: 25 passed. Evidence: `validation/convergence_receipt.json`.
+  Next: diagnose GBCD warnings before accepting real-data programs, then
+  measured engine scaling. Full cohort fitting and biological claims remain unrun.
+  Diagnostic replay completed: `diagnose_gbcd.R` / `pilot.smk diagnose_gbcd`,
+  same 500-iteration request, one CPU and 900-second cap in the existing
+  allocation. Capture warning stacks and active iteration budgets without
+  modifying the pinned adapter or installed packages.
+  Root cause: both warnings in the 500-iteration fit arose from upstream's
+  fixed 25-iteration initializations. Added phase/budget records and a gate
+  that exempts only recorded initialization limits; unknown/terminal limits
+  still reject. Fresh `pilot-convergence-20261019-v2` passes (73.16 s,
+  419.5 MiB); the 100-iteration native control retains two terminal limits
+  and is rejected. Both runs preserve byte-identical signatures/memberships
+  relative to their earlier counterparts. Regression failed before the fix;
+  current focused suite: 32 passed. Evidence: `GBCD_DIAGNOSIS.md` and
+  `validation/diagnosis_receipt.json` within the analysis. Next: bounded engine
+  scaling before cohort execution; no new scheduler jobs or biological claims.
+
+- [x] `PERF-PLAN-02`: draft and review actionable cards for all 27 remaining
+  performance candidates; preserve completed B05/B07/B20. Implementation has not
+  started. Each card includes dependencies, source/caller scope, exactness fixtures,
+  tests, benefit/memory gates and stop conditions; B11/B30 worker changes remain
+  separately gated. Plan: `docs/plans/2026-10-17-remaining-performance-candidates.md`.
+
+- [x] `PERF-EXEC-01`: first-wave B07/B20/B05 complete; E01–E05 passed and E06
+  assessed/deferred. 1,055 tests passed, one R skip; 125 independent exactness tests
+  reverified. Combined Python workload 4.21x faster; no whole-run speedup claim.
+  Plan: `docs/plans/2026-10-17-performance-triage-byte-identical-outputs.md`.
+
+- [x] `EBV-LEIDEN-01` (2026-10-15, user request): replace the older EBV
+  host-state test's HDBSCAN/KMeans clustering with seeded Leiden on the host-PCA
+  neighbor graph; correct plot labels, regenerate the two depth-aware plots and
+  summary, and verify cell coverage. This is an exploratory method change, not
+  evidence of discrete biological states or a change to frozen Track A runs.
+  **Verified:** 13 clusters / 1,906 cells and 12 clusters / 1,006 depth-matched
+  cells at resolution 1.0, seed 42; every cell assigned, PCA and cell identities
+  preserved, seeded labels reproduced, both input h5ad hashes unchanged. Both
+  PDFs and the summary regenerated. Scanpy 1.11.5 + igraph 0.11.9; igraph and
+  texttable installed in `/tmp` only. Resolution sensitivity was not assessed.
+
+**2026-10-14 (user-requested translated protein search):** prepare an all-protein
+reference for the viruses in the local GTF corpus (RNA and DNA viruses), and
+port the kallisto translated-search tutorial with explicit attribution.
+- [x] `AA-01` — extract accession-matched, catalogue-hash-verified GenBank CDS
+  translations; preserve missing annotations in a coverage table; prepare
+  Snakemake host-masked indexing/counting and verify a small real-tool example.
+  This is a separate exploratory reference, with no change to v3 detection claims.
+  **Preparation verified 2026-10-14:** 4,124 proteins from 389/393 GTF
+  accessions cover 296/299 catalogue labels (111 RNA, 185 DNA); four annotation
+  gaps are retained in `coverage.tsv`. Four focused tests, lint/format, and data
+  governance pass. The Snakemake reference/index/count workflow passes a real
+  kallisto 0.52.0/kb-python 0.30.2 smoke test: 20/20 synthetic UMIs each for
+  Aichi virus and HSV-2, using a synthetic host mask. The real human-mask build
+  passes dry-run only; real samples, specificity/sensitivity, and reactivation
+  qualification remain unrun. Attribution and run instructions:
+  `analysis/translated_search/README.md`.
+- [~] `AA-02` — user-authorized bounded exploratory sanity check: build the
+  human-genome/cDNA-masked protein index, then search the first 1,000,000 intact
+  paired reads from public EBV-positive SRR12682296 (10xv2) and HSV-1-positive
+  SRR8315713 (Drop-seq). Keep immutable subsets, input/reference hashes,
+  exploration ledger, expected-virus and off-target summaries. No full-depth
+  analysis, held-out negatives, calibration, commit, or push is authorized here.
+
 **2026-10-12 (grill session 2, user-confirmed Q1-Q18; branch `codex/grill2-decisions-2026-10-12`):** *Datasets:* exploratory runs (labelled `explore`, logged in an explore ledger) on the development set HSV-1, EBV, HHV-6B, COVID x213/x216, KSHV `GSE190558`, HPV16 `GSE189670` and BC-1 `GSE154900` (context-only rows are exempt from the partition rules); HNSCC `GSE164690` and the tonsil-atlas negative subset `E-MTAB-13687` are held out untouched until G3. Only the HPV16 raft/parental pair and iSLK.219 latent/induced become scored T2 rows; EBV, HHV-6B, HSV-1, BC-1 stay descriptive. *Build:* max EC size 9,921 is the `CAT-40` baseline; no `kb count --mm`; `pbmc_10x_healthy_v3` is the D1 background and T4 negative (user downloads and checksum-pins it; label 'presumed negative'). *Code:* `B-19` zero-fill host-called cells missing from the viral matrix, drop and log viral barcodes not host-called, error if no host cell set; `C-12` exclude `cores` from the run fingerprint (record it as information) and name differing options in the error; cell-type labels only from author annotations, never from ViralScan output. *Content:* DEF-07 notice approved as drafted (beside, never over); `CAT-10` phased, v1 = 9 herpesviruses + HIV-1/2 + HTLV-1/2 + HBV with `verify-references` and user review before commit. *Claims:* no wet controls required for the first release (affected claims stay 'screening support'); no numeric specificity pass/fail: report the upper bound with n; >= 3 donor-distinct libraries for any T2/T3 sensitivity claim; >= 10 independent T4 libraries before 'specificity assessed'; LOD95 per genus reported, not pass/fail. SCI-05 review round 12 starts when the software queue has merged; G3 freezes right after the user's sign-off. *Process:* branch protection on `main` (user, GitHub settings); weekly non-blocking lock-audit workflow; prune merged worktrees/branches (dirty old worktrees saved as patches under `.living/archive/` first); external labs install from a pinned commit, no `v*` tags before the RC gates pass; an agent drafts `MAINTAINER_CHECKLIST.md` (user fills it; nothing published or reserved).
 
 **2026-10-12 (grill session, user-confirmed; branch `codex/grill-decisions-2026-10-12`):** goal = finish all software so exploratory runs on public datasets can start. Exploratory (unscored, labelled `explore`) runs come first; scored G5b runs wait for the G3 freeze. Decisions are recorded under `AUD-12` (M-03/M-04), `CAT-21`, `CAT-29`, `DEF-04`, `DEF-07`, `ANDET-04`, `ANDET-07` and in `.living/decisions.md`. Software queue, in order: batch 1 `M03-IMPL`, `M04-GEN`, `CAT-29`+`DEF-07` (parallel worktree agents, 3 max); batch 2 `M04-SCORE`, `HR-01..05`, DSR/verdict tooling (`DSR-02`, `DOSSIER-01..03`, `VERDICT-01`, `CARD-01`, `SENS-07`, `DLIST-02`), `REL-04/05`, AUD-13 minors, ANDET-01/02 follow-ups, `CAT-40`. **Deferred, not dropped:** protocol decisions (which context-only positives become scored rows; acceptance thresholds), DEF-00/SCI-05 sign-off and the G3 freeze, wet controls (same-pool negative, reagent control, orthogonally confirmed positive). First exploratory batch once software is done: HSV-1 `SRR8315713`, EBV `SRR12682296`, HHV-6B `SRR20710641`, COVID x213/x216 (standard arm set each), then KSHV `GSE190558` and HPV16 `GSE189670`. PRs: one `codex/*` branch per task, green CI, `PLAN.md` in the same commit; the user merges (`! gh pr merge <n> --merge`).
@@ -6482,3 +6579,68 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
 
   Masking checked and excluded as a confound: the shipped panel FASTA carries
   728 N bases in 5,998,625 (0.01 %), 16 genomes affected, worst 11 %.
+
+## VR pilot — read cleanup and transcript reconstruction (2026-10-14)
+
+- [~] `VR-01..04` — user authorized the reviewed plan with "run it".
+  Separate exploratory pilot; do not change frozen DSR rounds or package defaults.
+  Tracker: `docs/plans/2026-10-14-viral-read-cleanup-and-transcript-reconstruction.md`.
+  Owner: current Codex coordinator, limited to the new analysis prototype, its tests,
+  this tracker row, and the reviewed plan. Original reads and references remain read-only.
+  Pinned optional Cutadapt 5.2 and StringTie 2.2.3 are isolated under `/tmp`.
+  Real inputs: separate first-1M-pair subsets of EBV SRR12682296 and HPV16 positive /
+  parental SRR19537341 / SRR19537339; exact synthetic tail/orientation controls supplement them.
+  Nine focused prototype tests pass. Native STAR/StringTie fixture recovered two transcript
+  models (three exons, verified junction support). The first real attempt stopped at a repeat
+  coordinate audit; corrected v3 is frozen and dry-run only. Real outcomes, lint cleanup,
+  source/chemistry qualification and the integration verdict remain pending.
+  Attempts/receipts: `.tmp/viral-read-cleanup-20261014*`; no scored G5b/VAL-01 or real-sensitivity claim.
+- [ ] `VR-05` — candidate host-virus junction design remains deferred until pilot results.
+
+## Computational bottleneck survey (2026-10-17)
+
+- [x] `PERF-EXEC-01` — execute E01–E05 of the byte-identity performance plan;
+  independently freeze original source/artifacts, qualify isolated B07/B20/B05,
+  then the combined implementation; assess B08/B24 only after first-wave gates.
+  Authorized 2026-10-17: local source/tests/receipts only; no SLURM, downloads,
+  deletion of retained data, commits, push, or publication. E01 passed: original
+  A/A matched 689 files; 675 existing tests passed. E02 passed: 123 exactness
+  tests, 689 matching files, 5.47x component gain. E03 passed: 141 focused tests,
+  689 matching files, 20.39x enrichment gain. E04 passed: 708 focused tests,
+  689 matching files, 1.77x summary gain, bounded retained em-cell exactness and
+  100,000-cell memory checks. E05 passed: combined fixtures/retained outputs match;
+  seven actual detection scenarios, 77 files with only four truthful build-hash
+  differences; 1,055 tests passed, one R skip, combined Python workload 4.21x faster.
+  E06 assessed: B08 showed no consistent paired reporting gain in the post-wave
+  pilot; B24 lacks equivalent build-gate/reference-byte qualification. Both deferred.
+  Portable oracles include frozen original helpers/schema; 125 tests reverified.
+  Mypy passed on all 54 original/current source files; data-governance and targeted
+  Ruff/format checks passed. Local binary goldens preserved and excluded from Git.
+  Final report/receipts: `execution/REPORT.md`, `execution/validation.json`.
+  B05 adds 13.96 MB traced allocation on the 100,000-cell probe, with a 32 MiB
+  retained CSR cache limit. Native/full-run and universal byte equivalence unclaimed.
+  All changes remain uncommitted; unrelated checkout changes preserved.
+  Evidence: `analysis/computational_bottlenecks_2026-10-17/execution/`.
+
+- [x] `PERF-SURVEY-01` — source-backed survey of package execution paths, bounded
+  synthetic profiling, reproducible receipts, and optimization priorities.
+  Scope: `analysis/computational_bottlenecks_2026-10-17/`; no production-code
+  changes, real-data reruns, downloads, SLURM submissions, or scientific claims.
+  Completed: `REPORT.md` covers 30 candidates; 56 source files / 806 Python
+  definitions inventoried; eight synthetic benchmark suites and the formatting
+  boundary/output-equivalence probe passed. Three-trial timings, profiles, source
+  hashes, seven checked historical job receipts, and packet verification are saved.
+  Native-tool/end-to-end production profiling remains explicitly unmeasured.
+
+- [x] `PERF-TRIAGE-01` — prioritize the surveyed candidates by benefit, effort,
+  and byte-identity risk; save a reviewed implementation/regression tracker in
+  `docs/plans/2026-10-17-performance-triage-byte-identical-outputs.md`.
+  Triage/probes only; production optimizations are not part of this step.
+  Completed: all 30 candidates triaged; B07, conditional B20, and B05 lead the
+  implementation order. Guarded B07 measured 5.75x on the synthetic component;
+  40,172 scalar cases, 24 exact-bit UMAP cases, and controlled TSV/HTML comparisons
+  passed. Sparse-reduction counterexamples demote direct B04/B06 rewrites.
+  Exact artifact gates, honest operational/provenance differences, baseline goldens,
+  isolated rollback, and remaining implementation checks are tracked in the plan.
+  Production source unchanged; implementation and native/end-to-end qualification
+  remain not started. Receipts: `analysis/computational_bottlenecks_2026-10-17/receipts/`.

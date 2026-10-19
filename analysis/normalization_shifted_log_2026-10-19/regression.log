@@ -1,0 +1,189 @@
+...................................FF................................... [ 35%]
+........................................................................ [ 71%]
+........................................................F                [100%]
+=================================== FAILURES ===================================
+______ TestViralFreeTestGraph.test_zero_hvg_negative_sample_skips_cleanly ______
+
+self = <tests.test_umap.TestViralFreeTestGraph object at 0x7f03ad297dd0>
+tmp_path = PosixPath('/tmp/pytest-of-mdmanurung/pytest-85/test_zero_hvg_negative_sample_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f038db25590>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x7f038e894fd0>
+
+    def test_zero_hvg_negative_sample_skips_cleanly(self, tmp_path, monkeypatch, caplog) -> None:
+        """P8-01: no HVG survives -> warning and return, no sklearn exception."""
+        import anndata as ad
+        import scipy.sparse as sp
+    
+        from viralscan.scripts import umap as umap_mod
+    
+        rng = np.random.default_rng(0)
+        x = sp.csr_matrix(rng.poisson(2, size=(200, 100)).astype(np.float32))
+        a = ad.AnnData(x)
+        a.var_names = [f"g{i}" for i in range(100)]
+        a.obs_names = [f"c{i}" for i in range(200)]
+        with caplog.at_level("WARNING"):
+            _run_umap(umap_mod, monkeypatch, tmp_path, a, [])
+>       assert "highly variable" in caplog.text
+E       AssertionError: assert 'highly variable' in ''
+E        +  where '' = <_pytest.logging.LogCaptureFixture object at 0x7f038e894fd0>.text
+
+tests/test_umap.py:460: AssertionError
+----------------------------- Captured stdout call -----------------------------
+No viral genes detected. Creating standard UMAP (no virus labeling).
+----------------------------- Captured stderr call -----------------------------
+INFO  UMAP preprocessing: median-depth normalization followed by natural log1p.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:umap.py:256 UMAP preprocessing: median-depth normalization followed by natural log1p.
+_ TestViralFreeTestGraph.test_zero_host_hvg_with_virus_writes_figures_without_pvalue _
+
+self = <tests.test_umap.TestViralFreeTestGraph object at 0x7f03ad297b90>
+tmp_path = PosixPath('/tmp/pytest-of-mdmanurung/pytest-85/test_zero_host_hvg_with_virus_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f038de76350>
+
+    def test_zero_host_hvg_with_virus_writes_figures_without_pvalue(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """P8-01: viral-free graph impossible -> figures kept, test reported as not run."""
+        pytest.importorskip("plotly")
+        import anndata as ad
+        import scipy.sparse as sp
+    
+        from viralscan.scripts import umap as umap_mod
+    
+        rng = np.random.default_rng(0)
+        host = rng.poisson(2, size=(200, 100)).astype(np.float32)
+        v = np.zeros((200, 3), dtype=np.float32)
+        v[:20] = 30
+        a = ad.AnnData(sp.csr_matrix(np.hstack([host, v])))
+        a.var_names = [f"g{i}" for i in range(100)] + _VIR
+        a.obs_names = [f"c{i}" for i in range(200)]
+        seen = _run_umap(umap_mod, monkeypatch, tmp_path, a, {g: 1.0 for g in _VIR}, fake_px=False)
+>       assert seen == []
+E       assert [((200, 33), ...2857142857)))] == []
+E         
+E         Left contains one more item: ((200, 33), (np.float64(0.11538461538461539), np.float64(0.10038846153846154), np.float64(0.2857142857142857)))
+E         Use -v to get more diff
+
+tests/test_umap.py:481: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Viral genes detected. Computing viral load and annotated UMAP.
+----------------------------- Captured stderr call -----------------------------
+INFO  UMAP preprocessing: median-depth normalization followed by natural log1p.
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:umap.py:256 UMAP preprocessing: median-depth normalization followed by natural log1p.
+____________________ test_outputs_unchanged_for_fixed_seed _____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0')
+
+    def test_outputs_unchanged_for_fixed_seed(tmp_path):
+        _run(tmp_path)
+        out = tmp_path / "out"
+        m = pd.read_csv(out / "hostresponse_metrics.csv")
+        stab = pd.read_csv(out / "VIRUS_A_stability.csv")
+        w = pd.read_csv(out / "VIRUS_A_gene_weights.csv")
+        got = {
+            "auc_mean": round(float(m["auc_mean"].iloc[0]), 6),
+            "stab_sum": round(float(stab["stab_prob"].sum()), 6),
+            "n_stable": int(stab["stable"].sum()),
+            "w_abs_sum": round(float(w["weight_mean"].abs().sum()), 6),
+        }
+        # The regression weights move by ~1e-4 (relative) across BLAS builds and platforms (CI: Linux and macOS,
+        # Python 3.10-3.12), so they get a relative tolerance; the rank-based and discrete values stay tight.
+>       assert got["w_abs_sum"] == pytest.approx(GOLDEN["w_abs_sum"], rel=1e-3)
+E       assert 9.323273 == 9.158124 ± 0.00915812
+E         
+E         comparison failed
+E         Obtained: 9.323273
+E         Expected: 9.158124 ± 0.00915812
+
+tests/test_hostresponse_warnings.py:141: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  Loading virus h5ad: /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/virus.h5ad
+INFO  Loading host h5ad: /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/host.h5ad
+INFO  Pooled 2 viral gene(s) into 2 virus feature(s): VIRUS_A (1), VIRUS_B (1)
+WARNING  obs column(s) ['donor'] look like a donor/sample identifier but cell CV is in use: donor leakage possible (held-out cells share donors with training cells); use --cv group --groups <column>.
+INFO  hostresponse output directory: /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out
+INFO  Retained 2 virus(es) for hostresponse.
+INFO  Aligned on 80 shared barcodes.
+INFO  %%mito control requested but no mitochondrial genes found; skipping.
+INFO  Host h5ad: raw counts detected; median-depth normalization then natural log1p.
+WARNING  use_hvg=False: densifying full gene matrix (50 genes × 80 cells). This may require substantial RAM.
+INFO  [VIRUS_A] 20 / 80 cells positive (label=raw, detection_threshold=1).
+WARNING  [VIRUS_A] Cell-CV test fold has as few as 2 positive cell(s) (< 5) in 2 of 2 seeds (20 positives, top-50% depth filter, 80% train split); the held-out metrics are very noisy. Results are unchanged.
+INFO  [VIRUS_A] Gene weights written to /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out/VIRUS_A_gene_weights.csv
+INFO  [VIRUS_A] Uncalibrated selection frequencies written to /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out/VIRUS_A_stability.csv
+INFO  [VIRUS_A] Depth-adjusted E-values written to /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out/VIRUS_A_depth_diagnostics.csv
+INFO  [VIRUS_A] Depth-confound check: model AUC 0.375 vs depth-ALONE AUC 0.500 (same balanced design); panel+depth AUC 0.500; 5/5 above-threshold genes have E-value>=2.
+WARNING  [VIRUS_A] Sequencing depth alone predicts virus status about as well as the host-gene model (0.500 vs 0.375) — treat the headline AUC as depth-confounded (F-001/F-003). Prefer the per-gene E-values, which are depth-adjusted.
+INFO  [VIRUS_B] 0 / 80 cells positive (label=raw, detection_threshold=1).
+INFO  [VIRUS_B] Skipping: fewer than 10 positive cells in the analysis cohort.
+INFO  Summary metrics written to /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out/hostresponse_metrics.csv
+------------------------------ Captured log call -------------------------------
+INFO     viralscan:hostresponse.py:3040 Loading virus h5ad: /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/virus.h5ad
+INFO     viralscan:hostresponse.py:3042 Loading host h5ad: /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/host.h5ad
+INFO     viralscan:hostresponse.py:305 Pooled 2 viral gene(s) into 2 virus feature(s): VIRUS_A (1), VIRUS_B (1)
+WARNING  viralscan:hostresponse.py:2316 obs column(s) ['donor'] look like a donor/sample identifier but cell CV is in use: donor leakage possible (held-out cells share donors with training cells); use --cv group --groups <column>.
+INFO     viralscan:hostresponse.py:3202 hostresponse output directory: /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out
+INFO     viralscan:hostresponse.py:3215 Retained 2 virus(es) for hostresponse.
+INFO     viralscan:hostresponse.py:3228 Aligned on 80 shared barcodes.
+INFO     viralscan:hostresponse.py:2435 %%mito control requested but no mitochondrial genes found; skipping.
+INFO     viralscan:hostresponse.py:384 Host h5ad: raw counts detected; median-depth normalization then natural log1p.
+WARNING  viralscan:hostresponse.py:415 use_hvg=False: densifying full gene matrix (50 genes × 80 cells). This may require substantial RAM.
+INFO     viralscan:hostresponse.py:2469 [VIRUS_A] 20 / 80 cells positive (label=raw, detection_threshold=1).
+WARNING  viralscan:hostresponse.py:602 [VIRUS_A] Cell-CV test fold has as few as 2 positive cell(s) (< 5) in 2 of 2 seeds (20 positives, top-50% depth filter, 80% train split); the held-out metrics are very noisy. Results are unchanged.
+INFO     viralscan:hostresponse.py:2655 [VIRUS_A] Gene weights written to /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out/VIRUS_A_gene_weights.csv
+INFO     viralscan:hostresponse.py:2677 [VIRUS_A] Uncalibrated selection frequencies written to /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out/VIRUS_A_stability.csv
+INFO     viralscan:hostresponse.py:2756 [VIRUS_A] Depth-adjusted E-values written to /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out/VIRUS_A_depth_diagnostics.csv
+INFO     viralscan:hostresponse.py:2832 [VIRUS_A] Depth-confound check: model AUC 0.375 vs depth-ALONE AUC 0.500 (same balanced design); panel+depth AUC 0.500; 5/5 above-threshold genes have E-value>=2.
+WARNING  viralscan:hostresponse.py:2843 [VIRUS_A] Sequencing depth alone predicts virus status about as well as the host-gene model (0.500 vs 0.375) — treat the headline AUC as depth-confounded (F-001/F-003). Prefer the per-gene E-values, which are depth-adjusted.
+INFO     viralscan:hostresponse.py:2469 [VIRUS_B] 0 / 80 cells positive (label=raw, detection_threshold=1).
+INFO     viralscan:hostresponse.py:2520 [VIRUS_B] Skipping: fewer than 10 positive cells in the analysis cohort.
+INFO     viralscan:hostresponse.py:3276 Summary metrics written to /tmp/pytest-of-mdmanurung/pytest-85/test_outputs_unchanged_for_fix0/out/hostresponse_metrics.csv
+=============================== warnings summary ===============================
+tests/test_shifted_log_normalization.py::test_empty_rows_stay_empty_and_finite[False]
+tests/test_shifted_log_normalization.py::test_empty_rows_stay_empty_and_finite[True]
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/legacy_api_wrap/__init__.py:88: UserWarning: Some cells have zero counts
+    return fn(*args_all, **kw)
+
+tests/test_umap.py: 11 warnings
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/preprocessing/_pca/__init__.py:226: FutureWarning: Argument `use_highly_variable` is deprecated, consider using the mask argument. Use_highly_variable=True can be called through mask_var="highly_variable". Use_highly_variable=False can be called through mask_var=None
+    mask_var_param, mask_var = _handle_mask_var(
+
+tests/test_hostresponse.py: 61 warnings
+tests/test_hostresponse_baselines.py: 4 warnings
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/sklearn/linear_model/_sag.py:348: ConvergenceWarning: The max_iter was reached which means the coef_ did not converge
+    warnings.warn(
+
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_row_order_does_not_change_results
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_row_order_does_not_change_results
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_row_order_does_not_change_results
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_row_order_does_not_change_results
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/preprocessing/_highly_variable_genes.py:336: RuntimeWarning: invalid value encountered in log
+    dispersion = np.log(dispersion)
+
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/preprocessing/_highly_variable_genes.py:326: RuntimeWarning: overflow encountered in expm1
+    np.expm1(x, out=x)
+
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/_utils/__init__.py:551: RuntimeWarning: overflow encountered in multiply
+    return x * y
+
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+tests/test_hostresponse_groups.py::TestEvaluateGroupCV::test_hvg_selection_never_sees_held_out_cells
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/scanpy/preprocessing/_utils.py:45: RuntimeWarning: invalid value encountered in subtract
+    var = mean_sq - mean**2
+
+tests/test_hostresponse_groups.py::TestRunHostresponseGroupMode::test_duplicate_barcodes_fail_before_cleanup
+tests/test_hostresponse_groups.py::TestRunHostresponseGroupMode::test_duplicate_barcodes_fail_before_cleanup
+  /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/anndata/_core/anndata.py:1882: UserWarning: Observation names are not unique. To make them unique, call `.obs_names_make_unique`.
+    utils.warn_names_duplicates("obs")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_umap.py::TestViralFreeTestGraph::test_zero_hvg_negative_sample_skips_cleanly
+FAILED tests/test_umap.py::TestViralFreeTestGraph::test_zero_host_hvg_with_virus_writes_figures_without_pvalue
+FAILED tests/test_hostresponse_warnings.py::test_outputs_unchanged_for_fixed_seed
+3 failed, 198 passed, 90 warnings in 70.64s (0:01:10)

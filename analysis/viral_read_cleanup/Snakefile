@@ -1,0 +1,107 @@
+import json
+
+PILOT = config["pilot_script"]
+OUT = config["output"]
+SAMPLES = list(config["samples"])
+ARMS = ["off", "tso", "cleanup"]
+PYTHON = config["python"]
+KALLISTO = config["kallisto"]
+BUSTOOLS = config["bustools"]
+
+wildcard_constraints:
+    sample="|".join(SAMPLES)
+
+rule all:
+    input:
+        expand(OUT + "/{sample}/{arm}/candidate_summary.json", sample=SAMPLES, arm=ARMS),
+        OUT + "/truth/cleanup/audit.json",
+        OUT + "/truth/antisense/audit.json"
+
+rule sample:
+    input:
+        script=PILOT,
+        r1=lambda w: config["samples"][w.sample]["r1"],
+        r2=lambda w: config["samples"][w.sample]["r2"]
+    output:
+        r1=OUT + "/{sample}/input/R1.fastq.gz",
+        r2=OUT + "/{sample}/input/R2.fastq.gz",
+        receipt=OUT + "/{sample}/input/sample.json"
+    params:
+        out=lambda w: OUT + "/" + w.sample + "/input",
+        geometry=lambda w: config["samples"][w.sample]["geometry"],
+        pairs=config["pairs"]
+    shell:
+        "{PYTHON:q} {PILOT:q} sample {input.r1:q} {input.r2:q} {params.out:q} --pairs {params.pairs} --geometry {params.geometry}"
+
+rule transform:
+    input:
+        script=PILOT,
+        r1=OUT + "/{sample}/input/R1.fastq.gz",
+        r2=OUT + "/{sample}/input/R2.fastq.gz"
+    output:
+        r1=OUT + "/{sample}/{arm}/R1.fastq.gz",
+        r2=OUT + "/{sample}/{arm}/R2.fastq.gz",
+        audit=OUT + "/{sample}/{arm}/audit.json"
+    wildcard_constraints:
+        arm="off|tso|cleanup"
+    params:
+        out=lambda w: OUT + "/" + w.sample + "/" + w.arm,
+        minimum=config["index_k"]
+    shell:
+        "{PYTHON:q} {PILOT:q} transform {input.r1:q} {input.r2:q} {params.out:q} --mode {wildcards.arm:q} --minimum {params.minimum}"
+
+rule quantify:
+    input:
+        r1=OUT + "/{sample}/{arm}/R1.fastq.gz",
+        r2=OUT + "/{sample}/{arm}/R2.fastq.gz",
+        index=config["index"]
+    output:
+        text=OUT + "/{sample}/{arm}/quant/bus.tsv"
+    threads: 2
+    resources:
+        mem_mb=12000
+    params:
+        out=lambda w: OUT + "/" + w.sample + "/" + w.arm + "/quant",
+        technology=lambda w: config["samples"][w.sample]["technology"]
+    log:
+        OUT + "/{sample}/{arm}/quant.log"
+    shell:
+        "{KALLISTO:q} bus -n --fr-stranded -t {threads} -i {input.index:q} -x {params.technology:q} -o {params.out:q} {input.r1:q} {input.r2:q} > {log:q} 2>&1 && {BUSTOOLS:q} text -f {params.out:q}/output.bus > {output.text:q}"
+
+rule assess:
+    input:
+        text=OUT + "/{sample}/{arm}/quant/bus.tsv",
+        script=PILOT,
+        config=config["config_path"],
+        t2g=config["t2g"],
+        viral_t2g=config["viral_t2g"]
+    output:
+        OUT + "/{sample}/{arm}/candidate_summary.json"
+    params:
+        cfg=config["config_path"]
+    shell:
+        "{PYTHON:q} {PILOT:q} assess {params.cfg:q} {wildcards.sample:q} {wildcards.arm:q}"
+
+rule truth:
+    output:
+        r1=OUT + "/truth/input/R1.fastq.gz",
+        r2=OUT + "/truth/input/R2.fastq.gz",
+        truth=OUT + "/truth/input/truth.tsv"
+    params:
+        out=OUT + "/truth/input"
+    shell:
+        "{PYTHON:q} {PILOT:q} truth {params.out:q}"
+
+rule truth_cleanup:
+    input:
+        r1=OUT + "/truth/input/R1.fastq.gz",
+        r2=OUT + "/truth/input/R2.fastq.gz"
+    output:
+        OUT + "/truth/{orientation}/audit.json"
+    wildcard_constraints:
+        orientation="cleanup|antisense"
+    params:
+        out=lambda w: OUT + "/truth/" + w.orientation,
+        orientation=lambda w: "sense" if w.orientation == "cleanup" else "antisense"
+    shell:
+        "{PYTHON:q} {PILOT:q} transform {input.r1:q} {input.r2:q} {params.out:q} --mode cleanup --orientation {params.orientation:q}"
