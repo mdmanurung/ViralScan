@@ -15,8 +15,8 @@ From: ghcr.io/prefix-dev/pixi:latest
 
 %post
     cd /opt/viralscan
-    pixi install
-    pixi run viralscan doctor --profile full
+    pixi install -e default
+    pixi run -e default viralscan doctor --profile full
 
 %environment
     export PATH="/opt/viralscan/.pixi/envs/default/bin:$PATH"
