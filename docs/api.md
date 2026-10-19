@@ -33,25 +33,27 @@ compute or re-run enrichment by cell type outside the full Snakemake workflow.
 def cell_type_enrichment(
     adata: anndata.AnnData,
     group_by_virus: dict[str, list[str]],
-    cfg: dict[str, Any],
+    cfg: RunConfig,
 ) -> pandas.DataFrame: ...
 ```
 
 Computes one-sided Fisher exact tests for each virus and cell type. A cell is
-treated as infected for a virus when the sum across that virus's listed
-features is greater than zero.
+treated as infected for a virus when the molecule total across that virus's
+listed features reaches `cfg.infected_min_molecules` (default 1.0), the same
+rule that Detection and the UMAP use.
 
 Minimal example:
 
 ```python
 import scanpy as sc
 from viralscan.enrichment import cell_type_enrichment
+from viralscan.runconfig import RunConfig
 
 adata = sc.read_h5ad("output/sample/kb-python/counts_unfiltered/adata_multimap.h5ad")
 group_by_virus = {
     "Influenza A virus": ["INFLUENZA_A_PB2", "INFLUENZA_A_NS1"],
 }
-cfg = {"cell_types": "cell_types.csv"}
+cfg = RunConfig(cell_types="cell_types.csv")
 
 df = cell_type_enrichment(adata, group_by_virus, cfg)
 print(df.sort_values("padj").head())
@@ -69,7 +71,7 @@ AAACCCAGTGCA-1,Monocyte
 |-----------|------|-------------|
 | `adata` | `anndata.AnnData` | AnnData object whose `obs_names` are cell barcodes. |
 | `group_by_virus` | `dict[str, list[str]]` | Virus name to feature names in `adata.var_names`. Missing features are ignored. |
-| `cfg` | `dict[str, Any]` | Must include `"cell_types"` with the CSV path. |
+| `cfg` | `RunConfig` | Must set `cell_types` to the CSV path; `infected_min_molecules` sets the infected threshold. |
 
 Returns an empty `DataFrame` when the CSV is missing, unreadable, empty, lacks
 overlapping barcodes, or none of the requested viral features are present.
