@@ -274,8 +274,8 @@ port the kallisto translated-search tutorial with explicit attribution.
   after early rejection, not claimed complete. See the qualification/disposition
   report and resource proposal under docs/plans/2026-10-19-performance-*.
 
-- [~] `PERF-RESOURCE-01` (2026-10-19, user explicitly approved local qualification)
-  — qualify explicit legacy worker requests only: kb count/ref8 and homology
+- [x] `PERF-RESOURCE-01` (2026-10-19, user explicitly approved local qualification)
+  — qualified explicit legacy worker requests only: kb count/ref8 and homology
   minimap2 3; unchanged effective workers, Snakemake thread declarations, CD-HIT
   -T0/-M8000, search parameters and numerical-library environment. Independent
   baseline9f0c397; native A/A before candidate edits, then A/B raw-artifact and
@@ -286,7 +286,19 @@ port the kallisto translated-search tutorial with explicit attribution.
   regressions,34 scheduler/failure tests and32 paired DAG cases (64runs) pass.
   PR76 initial CI found stale build-reference evidence hashes; refresh the
   claim/inventory pins against immutable source commits without changing runtime
-  or claim calibration status. Full B11/B30 total-admission policy remains open.
+  or claim calibration status. The registry inventory pin follows the immutable
+  registry commit1b731be; preserve its non-release provenance tag through rebase.
+  Final local native count/strand/lineage/end-to-end54passed with no skips;
+  governance/worker27passed. PR76 final CI remains the merge gate.
+  Full B11/B30 total-admission policy remains open.
+
+- [ ] `NORM-SHIFT-01` (user note, 2026-10-19) — use shifted-log normalization
+  from [Single-cell best practices](https://www.sc-best-practices.org/preprocessing-visualization/normalization/#shifted-logarithm):
+  `normalize_total(target_sum=None)` (median library depth), followed by `log1p`;
+  do not use a fixed TP10K target. Four current sites: `umap.py:host_only_pca`,
+  both main UMAP preprocessing paths, and `hostresponse.py:_detect_and_normalize`.
+  Keep raw counts and normalization provenance. This changes scientific features
+  and requires explicit downstream validation; no normalization edits are in PR76.
 
 - [~] `PERF-EXEC-04` (2026-10-19) — authorized performance code delivery:
   B21/B13/B28/B16 accepted and combined on frozen baseline d056986 (tree6e70eda).
