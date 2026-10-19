@@ -62,7 +62,9 @@ Reference modes are mutually exclusive:
 **Original-CLI compatibility.** `--reference`/`-ref`/`-reference`, `--visual`/`-v` and
 `--multimapping`/`-mm` also accept the upstream value form (`-reference True`, `-v False`,
 `-mm False`). The value is optional and case-insensitive (`true/false/1/0/yes/no`); anything
-else is a usage error. Bare flags and `--no-visual`/`--no-multimapping` are unchanged.
+else is a usage error. Because the value is optional, a bare flag placed directly before a
+subcommand name takes it as the value (`-v data` is an error): put the flag after the subcommand or
+write `--visual=false`. Bare flags and `--no-visual`/`--no-multimapping` are unchanged.
 
 ### Analysis parameters
 

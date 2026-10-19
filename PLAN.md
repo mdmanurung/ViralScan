@@ -27,13 +27,15 @@ completion.
   `docs/api_reference.md` (autodoc, NumPy docstrings) and a `docs` extra (also installed by
   `.readthedocs.yaml`). `build_combined_reference` is not autodoc'd: its docstring is not
   reST-clean and `build_reference.py` is sha-pinned by claim `v3-reference-homology`. Vignettes are
-  rendered unexecuted (`nbsphinx_execute = "never"`). Pre-existing `-W` warning:
-  `docs/notices/CAT-30_retraction_DRAFT.md` is in no toctree.
+  rendered unexecuted (`nbsphinx_execute = "never"`). The draft CAT-30 notice is in
+  `exclude_patterns`, so `sphinx -W` is clean. Inventory row `public-readme` re-pinned to the new
+  README (sha256 + git_sha `ab47b5a`).
 
 - [x] `CLI-ORIG-01`: accept the original upstream (mahfouzlab/ViralScan) invocation forms:
   `-reference` alias and optional True/False values on `--reference`, `--visual`, `--multimapping`
   (strict `_OptionalBool` action, never `type=bool`). Defaults and v3 contracts unchanged. Tests:
-  `tests/test_original_cli_compat.py`. `-umap` stays a bare flag.
+  `tests/test_original_cli_compat.py`. `-umap` stays a bare flag. Known limit: a bare flag directly before a subcommand name takes it
+  as the value (`-v data` is a usage error); documented, pinned by test.
 
 - [x] `PERF-PLAN-02`: draft and review actionable cards for all 27 remaining
   performance candidates; preserve completed B05/B07/B20. Plan:
