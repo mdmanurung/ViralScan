@@ -32,6 +32,10 @@ completion.
   README (sha256 + git_sha `ab47b5a`).
   Follow-up: `docs/index.md` now mirrors the upstream docs/index.md heading order (Introduction /
   Installation / Input Data / User Guide / License), keeping the toctrees, migration/SUPPORT/SECURITY links.
+  Theme switched to `sphinx_clarity_theme` (PyPI 2.1.0, Sphinx>=8; MIT/community licence requires the
+  footer attribution, which the theme emits by default: do not remove). `pixi.toml` (mirrors environment.yml pins,
+  dev/docs environments) and `Singularity.pixi.def` (dev image, re-solves) added with installation.md Options 3-4.
+  Not verified: `pixi lock` solve and `apptainer build` (no apptainer on this host); no pixi.lock committed.
 
 - [x] `CLI-ORIG-01`: accept the original upstream (mahfouzlab/ViralScan) invocation forms:
   `-reference` alias and optional True/False values on `--reference`, `--visual`, `--multimapping`

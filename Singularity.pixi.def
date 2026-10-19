@@ -1,0 +1,31 @@
+# Development/convenience image built from pixi.toml (re-solves; not a release artifact).
+# Release images must replay the committed lock instead: see Singularity.def.
+#   apptainer build viralscan-pixi.sif Singularity.pixi.def     # run from the repo root
+#   apptainer run viralscan-pixi.sif --help
+Bootstrap: docker
+From: ghcr.io/prefix-dev/pixi:latest
+
+%files
+    pixi.toml /opt/viralscan/pixi.toml
+    pyproject.toml /opt/viralscan/pyproject.toml
+    README.md /opt/viralscan/README.md
+    LICENSE /opt/viralscan/LICENSE
+    MANIFEST.in /opt/viralscan/MANIFEST.in
+    src /opt/viralscan/src
+
+%post
+    cd /opt/viralscan
+    pixi install
+    pixi run viralscan doctor --profile full
+
+%environment
+    export PATH="/opt/viralscan/.pixi/envs/default/bin:$PATH"
+
+%runscript
+    exec /opt/viralscan/.pixi/envs/default/bin/viralscan "$@"
+
+%test
+    /opt/viralscan/.pixi/envs/default/bin/viralscan doctor --profile full
+
+%labels
+    Description ViralScan and its tool suite (kb-python, kallisto, bustools, STAR, samtools, minimap2, BLAST, CD-HIT, R/DropletUtils)
