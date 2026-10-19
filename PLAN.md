@@ -282,6 +282,11 @@ port the kallisto translated-search tutorial with explicit attribution.
   error/partial-output checks plus 1/6/8/32-core DAG controls. No scheduler jobs,
   new data, scientific changes or total-admission policy implementation. Resource
   provenance differences must remain truthful and explicit; no performance claim.
+  Native six-stage A/A/A-B and supplemental count artifacts pass; 237+48 default
+  regressions,34 scheduler/failure tests and32 paired DAG cases (64runs) pass.
+  PR76 initial CI found stale build-reference evidence hashes; refresh the
+  claim/inventory pins against immutable source commits without changing runtime
+  or claim calibration status. Full B11/B30 total-admission policy remains open.
 
 - [~] `PERF-EXEC-04` (2026-10-19) — authorized performance code delivery:
   B21/B13/B28/B16 accepted and combined on frozen baseline d056986 (tree6e70eda).
