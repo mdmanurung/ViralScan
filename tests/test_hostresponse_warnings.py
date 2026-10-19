@@ -124,7 +124,20 @@ def test_stability_default_threshold_is_300():
 GOLDEN = {"auc_mean": 0.5, "stab_sum": 10.666667, "n_stable": 8, "w_abs_sum": 9.158124}
 
 
-def test_outputs_unchanged_for_fixed_seed(tmp_path):
+def test_outputs_unchanged_for_preprocessed_fixed_seed_input(tmp_path, monkeypatch):
+    # Preserve the historical TP10K golden on its original feature scale.
+    import scanpy as sc
+
+    original_fixture = _make_host_adata
+
+    def preprocessed_fixture(**kwargs):
+        host = original_fixture(**kwargs)
+        host.layers["counts"] = host.X.copy()
+        sc.pp.normalize_total(host, target_sum=1e4)
+        sc.pp.log1p(host)
+        return host
+
+    monkeypatch.setattr(__name__ + "._make_host_adata", preprocessed_fixture)
     _run(tmp_path)
     out = tmp_path / "out"
     m = pd.read_csv(out / "hostresponse_metrics.csv")
