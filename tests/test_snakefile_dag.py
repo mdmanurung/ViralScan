@@ -574,3 +574,17 @@ def test_snakefile_kb_count_uses_rule_threads_not_a_literal() -> None:
     text = SNAKEFILE.read_text()
     assert text.count("kb count -t {threads} ") == 2 and "kb count -t 8" not in text
     assert "threads: bounded_workers(KB_WORKERS" in text
+
+
+@pytest.mark.integration
+class TestScAutoQcDag(TestAutoEvidenceDag):
+    """SCAUTOQC-01: the opt-in scautoqc rule is in the DAG only when enabled."""
+
+    def test_rule_absent_by_default(self, tmp_path) -> None:
+        # match the plan's rule row, not the substring: a checkout path may contain "scautoqc"
+        assert not re.search(r"^\s*scautoqc\s", self._plan(tmp_path, []), re.MULTILINE)
+
+    def test_rule_runs_after_multimap_and_before_detection_when_enabled(self, tmp_path) -> None:
+        output = self._plan(tmp_path, ["scautoqc=true"])
+        assert re.search(r"^\s*scautoqc\s+1\s", output, re.MULTILINE), output
+        assert re.search(r"^\s*detection\s+1\s", output, re.MULTILINE), output

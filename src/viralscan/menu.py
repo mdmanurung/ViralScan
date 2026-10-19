@@ -923,6 +923,14 @@ def _check_required_tools() -> None:
         )
 
 
+def _check_scautoqc_deps() -> None:
+    """Fail before a long run, not after multimap, when --scautoqc lacks SCTK."""
+    import importlib.util
+
+    if importlib.util.find_spec("sctk") is None:
+        _die("--scautoqc requires the optional dependency sctk: pip install 'viralscan[scautoqc]'.")
+
+
 def _resolve_cell_calling(method: str, called_cells_file: Optional[str]) -> str:
     """Resolve ``auto`` the same way :func:`viralscan.scripts.cellcalling.call_cells` does."""
     if method == "auto":
@@ -1066,6 +1074,7 @@ def _build_run_config(
             "f1": f1,
             "reference": args.reference,
             "umap": args.umap,
+            "scautoqc": getattr(args, "scautoqc", False),
             "technology": args.technology,
             "require_chemistry_sanity": getattr(args, "require_chemistry_sanity", False),
             "whitelist": args.whitelist,
@@ -1387,6 +1396,8 @@ def main() -> None:
 
     if args.host_filter:
         _check_host_filter_tools(args.host_filter)
+    if getattr(args, "scautoqc", False):
+        _check_scautoqc_deps()
 
     _check_cell_caller_tools(
         _resolve_cell_calling(

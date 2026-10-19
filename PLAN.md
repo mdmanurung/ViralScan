@@ -154,6 +154,17 @@ completion.
   `tests/test_original_cli_compat.py`. `-umap` stays a bare flag. Known limit: a bare flag directly before a subcommand name takes it
   as the value (`-v data` is a usage error); documented, pinned by test.
 
+- [~] `SCAUTOQC-01` (2026-10-19, branch `codex/scautoqc`, ported from `codex/scautoqc-wip` 92dd88e): optional
+  `--scautoqc` SCTK cell/cluster QC flags added in place to the count H5ADs and UMAP outputs; cells are flagged,
+  never removed. Opt-in rule/flag/config key are absent when off. Conservative defaults on the two open design
+  questions (user to confirm): (a) the legacy n_counts/n_genes filter in `umap.py` is UNCHANGED with the flag
+  (the WIP skipped it); (b) the rule runs after multimap and before cell calling, so it scores every barcode in
+  the kb H5AD, and that cell set is recorded in `adata.uns['scautoqc']` and `log/scautoqc.done` (JSON).
+  SCTK ships as the optional extra `viralscan[scautoqc]`, not in `full`. Tests: flag-off, all-cells-fail guard,
+  flags-only, missing-sctk error, DAG dry-run. **Open gate:** real FASTQ-to-UMAP validation on SRR8315713 (needs
+  kb/kallisto/bustools env, reference and user-approved compute) is NOT done; clusterwise multi-resolution QC
+  (absent in SCTK 0.2.0) and ribo/globin marker sensitivity are untested. Flip to `[x]` only after that gate.
+
 - [x] `PERF-PLAN-02`: draft and review actionable cards for all 27 remaining
   performance candidates; preserve completed B05/B07/B20. Plan:
   `docs/plans/2026-10-17-remaining-performance-candidates.md`. (Row text carried over
