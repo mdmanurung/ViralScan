@@ -1,0 +1,58 @@
+[workspace]
+name = "viralscan"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]  # canonical, tested toolchain (see environment.yml)
+
+# Mirrors environment.yml (same pins). `kb` runs its own bundled kallisto/bustools.
+[dependencies]
+python = "3.11.*"
+kb-python = "==0.30.2"
+kallisto = "==0.52.0"
+bustools = "==0.45.1"
+star = "==2.7.11b"
+snakemake = "==9.23.1"
+samtools = "==1.23.1"
+minimap2 = "==2.31"
+blast = "==2.17.0"
+cd-hit = "==4.8.1"
+r-base = "==4.5.3"
+bioconductor-dropletutils = "==1.30.0"
+numpy = ">=1.24"
+pandas = ">=1.5"
+scipy = ">=1.11"
+matplotlib = ">=3.7"
+scanpy = ">=1.9"
+anndata = ">=0.9"
+jsonschema = ">=4.0"
+scikit-learn = ">=1.0"
+plotly = ">=5.13"
+pyyaml = ">=6.0"
+requests = ">=2.28"
+jinja2 = ">=3.0"
+pip = "*"
+
+[pypi-dependencies]
+viralscan = { path = ".", editable = true }
+
+[feature.dev.dependencies]
+pytest = ">=7"
+pytest-cov = "*"
+ruff = "*"
+mypy = "*"
+
+[feature.docs.pypi-dependencies]
+sphinx = ">=8.0"
+sphinx-clarity-theme = ">=2.1"
+myst-parser = ">=2.0"
+sphinx-autodoc-typehints = ">=1.23"
+nbsphinx = ">=0.9"
+
+[environments]
+default = []
+dev = ["dev"]
+docs = ["docs"]
+
+[tasks]
+doctor = "viralscan doctor --profile full"
+test = { cmd = "python -m pytest tests -q", env = { PYTHONPATH = "src" } }
+docs = "python -m sphinx -b html docs docs/_build/html"

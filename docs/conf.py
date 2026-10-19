@@ -91,17 +91,10 @@ linkcheck_ignore = [
 
 # -- Options for HTML output ---------------------------------------------------
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "sphinx_clarity_theme"  # MIT/community licence: keep the footer attribution
 html_static_path = []
 
-html_theme_options = {
-    "logo_only": False,
-    "prev_next_buttons_location": "bottom",
-    "style_external_links": True,
-    "collapse_navigation": False,
-    "sticky_navigation": True,
-    "navigation_depth": 4,
-}
+html_theme_options = {}
 
 # -- Autodoc configuration -----------------------------------------------------
 

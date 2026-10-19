@@ -65,7 +65,42 @@ pip install "viralscan[enrichment]"
 
 This pulls in `gget>=0.27`. All other subcommands work without it.
 
-## Option 3 — Container (Docker / Singularity)
+## Option 3 — Pixi
+
+[Pixi](https://pixi.sh) installs the full tool suite (kb-python, kallisto, bustools,
+STAR, samtools, Snakemake, minimap2, BLAST, CD-HIT, R/DropletUtils) from the same pins as
+`environment.yml`, using the repository's `pixi.toml` (linux-64):
+
+```bash
+curl -fsSL https://pixi.sh/install.sh | bash   # once
+git clone https://github.com/mdmanurung/ViralScan && cd ViralScan
+pixi install                                    # default environment
+pixi run doctor                                 # viralscan doctor --profile full
+pixi run viralscan --help
+```
+
+Other environments: `pixi install -e dev` (pytest, ruff, mypy; `pixi run -e dev test`) and
+`pixi install -e docs` (`pixi run -e docs docs` builds this site into `docs/_build/html`).
+Commit `pixi.lock` once generated so every machine resolves identically.
+
+## Option 4 — Singularity / Apptainer image
+
+`Singularity.pixi.def` builds one image containing ViralScan and the whole tool suite from
+`pixi.toml`:
+
+```bash
+apptainer build viralscan-pixi.sif Singularity.pixi.def   # from the repository root
+apptainer run viralscan-pixi.sif --help
+apptainer exec viralscan-pixi.sif kb info
+apptainer run --bind /path/to/data:/data viralscan-pixi.sif \
+  -t /data/t2g.txt -i /data/index.idx -o /data/out -s1 /data/a_1.fastq.gz -s2 /data/a_2.fastq.gz
+```
+
+This image re-solves its environment at build time, so use it for development and
+convenience. For releases build from a tested OCI digest (below), which replays the
+committed lock.
+
+## Option 5 — Container (Docker / Singularity release build)
 
 Pre-built containers bundle every dependency including external tools.
 
