@@ -63,8 +63,16 @@ subsets of optional rules are not exhaustively crossed.
 
 The targeted default regression suites passed 237 tests (35 integration cases
 deselected), and rerun-multimap/tool-resolution/reference-pipeline regressions
-passed 48 tests. Ruff check, Ruff format (276 files), mypy (60 source files) and
-data governance passed. Final native/scheduler counts and PR CI are the merge gate. The first count sampler missed descendants
+passed 48 tests. All 34 scheduler/failure cases passed, and all 32 paired DAG
+cases (64 dry runs) preserved reservations. Initial native CI passed 87 tests
+with 23 skips. Its first full-suite run caught stale registered source hashes;
+the source and claim-registry evidence pins were refreshed against immutable
+commits, preserving the `implemented_not_calibrated` claim status. A non-release
+provenance tag retains these commits after rebase. Runtime source is unchanged.
+Ruff check, Ruff format (276 files), mypy (60 source files) and
+data governance passed. The final local native count/strand/lineage/end-to-end
+suite passed 54 tests with no skips; governance/worker regressions passed 27
+(16 integration cases deselected in that run). Final PR CI is the merge gate. The first count sampler missed descendants
 launched by Snakemake's worker thread. A supplemental audit traverses every task's
 child list; the original incomplete observations are retained, not presented as
 measured worker counts. The supplemental audit observed native count bus/sort
