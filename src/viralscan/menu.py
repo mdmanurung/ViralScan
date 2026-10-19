@@ -965,6 +965,7 @@ def _build_run_config(
             "f1": f1,
             "reference": args.reference,
             "umap": args.umap,
+            "scautoqc": getattr(args, "scautoqc", False),
             "technology": args.technology,
             "require_chemistry_sanity": getattr(args, "require_chemistry_sanity", False),
             "whitelist": args.whitelist,

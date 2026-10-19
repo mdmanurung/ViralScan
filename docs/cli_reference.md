@@ -71,6 +71,7 @@ Reference modes are mutually exclusive:
 | `--cell-calling METHOD` | | `auto` | `auto`, `emptydrops`, `external`, `knee`, or `none`; `auto` uses an external list when supplied and otherwise EmptyDrops (needs R with DropletUtils; `Rscript` on `PATH`). `knee` is sensitivity-only and not for reported numbers: on real libraries it lands at the 10-molecule floor and calls empty droplets as cells |
 | `--called-cells-file PATH` | | *(none)* | External called-cell barcodes used by `auto` or required by `external` |
 | `--umap` | `-umap` | off | Generate UMAP plot |
+| `--scautoqc` / `--no-scautoqc` | | off | Add SCTK cell/cluster QC flags and QC-space UMAP coordinates to existing H5ADs in place; cells are retained |
 | `--visual` / `--no-visual` | `-v` | on | Generate visualisations |
 | `--host-filter ALIGNER` | | *(none)* | Optional irreversible host subtraction before quantification. V3 supports `starsolo` only. |
 | `--host-index PATH` | | *(none)* | Required with `--host-filter`; a full-host-genome STAR index directory. |
@@ -111,7 +112,15 @@ requires `pip install "viralscan[enrichment]"`.
 
 ### UMAP / QC parameters
 
-These flags affect only the optional `--umap` workflow.
+The count/feature cutoffs and embedding options below affect the optional `--umap` workflow.
+
+`--scautoqc` is independent of `--umap`: it annotates the initial and
+multimapping H5AD outputs in place. Ensembl-indexed features use Scanpy's
+BioMart queries on the first run, then cache annotations in the run output.
+With `--umap`, it also writes interactive
+QC-space UMAPs colored by cellwise QC, clusterwise QC, and QC cluster. SCTK
+flags never remove cells; in this mode the UMAP includes cells below the legacy
+`--min-counts` and `--min-genes` plotting cutoffs.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -612,6 +621,7 @@ the sections above add context. Do not edit between the markers.
 | `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default (no flag): with the pinned kallisto 0.52.0 the effective behaviour is `unstranded` for every chemistry — kallisto 0.52.0 marks the 10x technologies strand-specific yet leaves the strand unset, so the legacy per-technology forward default no longer engages (upstream regression; kallisto <=0.51.1 defaulted 10x to forward). Set the flag explicitly for stranded quantification. 10x 5' libraries need `reverse` or `unstranded`: forward pseudoaligns only 6.5-8.9% of reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first 1M read pairs of each sample and picks one; the choice is recorded in run_manifest.json. |
 | `--multimapping, --no-multimapping, -mm` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |
 | `--umap, -umap` | `False` | Generate a UMAP plot. Significantly increases runtime. Default: off. |
+| `--scautoqc, --no-scautoqc` | `False` | Add SCTK cell/cluster QC flags and QC-space UMAP coordinates to existing H5ADs in place; cells are retained. Default: off. |
 | `--ncbi-accession, -acc NCBI_ACCESSION` | *(none)* | One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. ViralScan will download FASTA + GTF for each and build the index. Mutually exclusive with --reference / -fasta / -gtf. |
 | `--ncbi-email NCBI_EMAIL` | *(none)* | Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL. |
 | `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher E-utilities request rates with --ncbi-accession. Falls back to $NCBI_API_KEY. |

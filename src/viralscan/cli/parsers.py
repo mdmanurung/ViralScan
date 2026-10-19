@@ -878,6 +878,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Generate a UMAP plot. Significantly increases runtime. Default: off.",
     )
+    parser.add_argument(
+        "--scautoqc",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Add optional SCTK scAutoQC cell/cluster flags and QC-space UMAP coordinates "
+            "to H5AD outputs in place. Cells are retained. Requires sctk. Default: off."
+        ),
+    )
 
     parser.add_argument(
         "--ncbi-accession",

@@ -130,6 +130,7 @@ class RunConfig:
     f1: Union[str, None] = None
     reference: bool = False
     umap: bool = False
+    scautoqc: bool = False
     technology: str = "10xv3"
     require_chemistry_sanity: bool = False
     whitelist: Union[str, None] = None
@@ -528,6 +529,7 @@ class RunConfig:
             f1=_opt(cfg_in["f1"]),
             reference=_coerce_bool(cfg_in["reference"]),
             umap=_coerce_bool(cfg_in["umap"]),
+            scautoqc=_coerce_bool(cfg_in.get("scautoqc", False)),
             technology=cfg_in["technology"],
             require_chemistry_sanity=_coerce_bool(cfg_in.get("require_chemistry_sanity", False)),
             whitelist=_opt(cfg_in["whitelist"]),
