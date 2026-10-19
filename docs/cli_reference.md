@@ -59,6 +59,11 @@ Reference modes are mutually exclusive:
 - FASTA/GTF: use `--reference -fasta ... -gtf ...`.
 - NCBI: use `-acc ...` and provide an NCBI email.
 
+**Original-CLI compatibility.** `--reference`/`-ref`/`-reference`, `--visual`/`-v` and
+`--multimapping`/`-mm` also accept the upstream value form (`-reference True`, `-v False`,
+`-mm False`). The value is optional and case-insensitive (`true/false/1/0/yes/no`); anything
+else is a usage error. Bare flags and `--no-visual`/`--no-multimapping` are unchanged.
+
 ### Analysis parameters
 
 | Flag | Short | Default | Description |
@@ -635,17 +640,17 @@ the sections above add context. Do not edit between the markers.
 | `--transcripts, -t TRANSCRIPTS` | *(none)* | The path to the transcripts (t2g) file produced by kb ref. |
 | `--index, -i INDEX` | *(none)* | The path to the reference index created by kb ref. |
 | `--cores, -c CORES` | `6` | The amount of cores the workflow can use. Default: 6. |
-| `--reference, -ref` | `False` | Build a kb ref index from -fasta and -gtf into the output directory. |
+| `--reference, -reference, -ref [BOOL]` | `False` | Build a kb ref index from -fasta and -gtf into the output directory. Bare flag or `-reference True` (original form); `False` disables. |
 | `--gtf, -gtf GTF` | *(none)* | Path to GTF files (comma-delimited, without space in-between). |
 | `--fasta, -fasta FASTA` | *(none)* | Path to FASTA files (comma-delimited, without space in-between). |
 | `--f1, -f1 F1` | *(none)* | Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated |
-| `--visual, --no-visual, -v` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
+| `--visual, --no-visual, -v [BOOL]` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
 | `--technology, -x TECHNOLOGY` | *(none)* | Single-cell technology (`kb --list` to view). Default: detected from the first 100k R1 reads of each sample (on-list match, TSO/poly-T position). An explicit -x that the reads contradict, or reads that fit no single chemistry, stop the run. GEM-X 5' needs its on-list via -w. |
 | `--force-technology` | `False` | Run with the explicit -x even when the chemistry check disagrees or cannot decide. The detection is still logged. |
 | `--require-chemistry-sanity` | `False` | Stop after kb count if library sanity reports an error or cannot be checked. Diagnostics are retained; warnings alone do not stop the run. |
 | `--whitelist, -w WHITELIST` | *(none)* | Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used. |
 | `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default (no flag): with the pinned kallisto 0.52.0 the effective behaviour is `unstranded` for every chemistry — kallisto 0.52.0 marks the 10x technologies strand-specific yet leaves the strand unset, so the legacy per-technology forward default no longer engages (upstream regression; kallisto <=0.51.1 defaulted 10x to forward). Set the flag explicitly for stranded quantification. 10x 5' libraries need `reverse` or `unstranded`: forward pseudoaligns only 6.5-8.9% of reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first 1M read pairs of each sample and picks one; the choice is recorded in run_manifest.json. |
-| `--multimapping, --no-multimapping, -mm` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |
+| `--multimapping, --no-multimapping, -mm [BOOL]` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |
 | `--umap, -umap` | `False` | Generate a UMAP plot. Significantly increases runtime. Default: off. |
 | `--ncbi-accession, -acc NCBI_ACCESSION` | *(none)* | One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. ViralScan will download FASTA + GTF for each and build the index. Mutually exclusive with --reference / -fasta / -gtf. |
 | `--ncbi-email NCBI_EMAIL` | *(none)* | Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL. |

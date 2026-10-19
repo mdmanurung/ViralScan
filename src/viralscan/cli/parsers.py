@@ -29,6 +29,37 @@ except ImportError:  # pyfiglet is optional
 figlet_format = _figlet_format
 
 
+_TRUE_WORDS = frozenset({"true", "1", "yes"})
+_FALSE_WORDS = frozenset({"false", "0", "no"})
+
+
+class _OptionalBool(argparse.Action):
+    """Boolean flag that also accepts the original CLI's value form (``-v False``, ``-ref True``).
+
+    Bare flag -> True; ``--no-<name>`` (when declared in ``option_strings``) -> False; an optional
+    value in true/false/1/0/yes/no (any case) is parsed strictly, anything else is an argparse
+    error. Never ``type=bool`` (``bool("False")`` is True).
+    """
+
+    def __init__(self, option_strings: Any, dest: str, default: Any = False, **kwargs: Any) -> None:
+        super().__init__(option_strings, dest, nargs="?", const=True, default=default, **kwargs)
+
+    def __call__(self, parser: Any, namespace: Any, values: Any, option_string: Any = None) -> None:
+        if option_string is not None and option_string.startswith("--no-"):
+            if values is not True and values is not None:
+                parser.error(f"argument {option_string}: takes no value")
+            setattr(namespace, self.dest, False)
+        elif values is True or values is None or str(values).lower() in _TRUE_WORDS:
+            setattr(namespace, self.dest, True)
+        elif str(values).lower() in _FALSE_WORDS:
+            setattr(namespace, self.dest, False)
+        else:
+            parser.error(
+                f"argument {option_string}: invalid boolean {values!r} "
+                "(use true/false/1/0/yes/no, or omit the value)"
+            )
+
+
 def _multimap_method(value: str) -> str:
     """argparse ``type=`` for ``--multimap-method``: short alias or canonical name -> canonical name.
 
@@ -902,9 +933,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--reference",
+        "-reference",
         "-ref",
-        action="store_true",
-        help="Build a kb ref index from -fasta and -gtf into the output directory.",
+        action=_OptionalBool,
+        metavar="[BOOL]",
+        help="Build a kb ref index from -fasta and -gtf into the output directory. "
+        "Bare flag or `-reference True` (original form); `False` disables.",
     )
     parser.add_argument(
         "--gtf",
@@ -926,8 +960,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--visual",
+        "--no-visual",
         "-v",
-        action=argparse.BooleanOptionalAction,
+        action=_OptionalBool,
+        metavar="[BOOL]",
         default=True,
         help="Add visualizations to the output. Use --no-visual to disable. Default: True.",
     )
@@ -980,8 +1016,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--multimapping",
+        "--no-multimapping",
         "-mm",
-        action=argparse.BooleanOptionalAction,
+        action=_OptionalBool,
+        metavar="[BOOL]",
         default=True,
         help="Take multimapping into account. Use --no-multimapping to disable. Default: True.",
     )
