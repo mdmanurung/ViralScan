@@ -40,6 +40,10 @@ pytest-cov = "*"
 ruff = "*"
 mypy = "*"
 
+# sphinx-null-theme (a Clarity dependency) pins beautifulsoup4==4.13.3 on PyPI; match it in the conda solve.
+[feature.docs.dependencies]
+beautifulsoup4 = "==4.13.3"
+
 [feature.docs.pypi-dependencies]
 sphinx = ">=8.0"
 sphinx-clarity-theme = ">=2.1"
