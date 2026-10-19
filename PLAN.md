@@ -30,6 +30,8 @@ completion.
   rendered unexecuted (`nbsphinx_execute = "never"`). The draft CAT-30 notice is in
   `exclude_patterns`, so `sphinx -W` is clean. Inventory row `public-readme` re-pinned to the new
   README (sha256 + git_sha `ab47b5a`).
+  Follow-up: `docs/index.md` now mirrors the upstream docs/index.md heading order (Introduction /
+  Installation / Input Data / User Guide / License), keeping the toctrees, migration/SUPPORT/SECURITY links.
 
 - [x] `CLI-ORIG-01`: accept the original upstream (mahfouzlab/ViralScan) invocation forms:
   `-reference` alias and optional True/False values on `--reference`, `--visual`, `--multimapping`
