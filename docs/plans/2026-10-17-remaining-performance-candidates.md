@@ -1,11 +1,13 @@
 # Remaining performance candidates: implementation and qualification plan
 
-Date: 2026-10-17; status reconciled 2026-10-18 (`PERF-DOC-01`). Project: ViralScan.
-Status: **wave 1 (B24, B23, B04, B06, plus B05/B07/B20) merged in PR #73;
-wave 2 (B25 and B18) merged in PR #74 (`6e70eda`). B21 accepted at component
-and bounded downstream-cohort level; combined qualification pending. B08 deferred on its benefit
-gate; B10 has no compliant fast path; B27 recorded a negative result. Remaining-card execution uses frozen baseline `d056986` (tree identical to `6e70eda`).
-B09/B17/B29 prototypes are deferred at exactness gates; other cards remain under review. G01, G02 and C00 stay partial for their documented gaps.**
+Date: 2026-10-17; status reconciled 2026-10-19. Project: ViralScan.
+Status: **waves 1/2 merged in PRs #73/#74. B21/B13/B28/B16 pass isolated
+benefit/exactness qualification; combined local/native qualification passes; final PR CI remains the merge gate.
+All other non-resource cards have measured or contract-backed deferred dispositions,
+listed in [the qualification report](2026-10-19-performance-qualification.md).
+G01 mutation coverage is recovered without regenerating historical goldens.
+G02 repeated component timing is complete; production stage attribution and
+whole-run performance remain unmeasured. B11/B30 require their separate resource gate.**
 
 This document turns the 27 unimplemented survey candidates into bounded work cards.
 It also records preservation requirements for the three completed candidates. A card
@@ -13,11 +15,12 @@ is ready to start at its first unchecked step; that does **not** mean its propos
 optimization has already passed an equivalence or benefit gate. Some cards may end
 with a measured decision to retain the current implementation.
 
-The current request authorizes drafting this plan. It does not authorize executing
-its implementations, changing scientific methods or resource budgets, submitting
-SLURM jobs, downloading data, deleting retained data, committing, pushing or publishing.
-Future execution must use the authorization then in force. Existing retained inputs
-are read-only. No held-out or protocol-frozen analysis is a performance fixture.
+The original planning authorization was documentation-only. Subsequent user requests
+explicitly authorize performance implementation, local qualification, commits, pushes,
+merge to main and cleanup of owned performance worktrees. They do not authorize
+scientific changes, changed effective workers, SLURM jobs, downloads or retained-data
+deletion. Existing retained inputs are read-only; held-out and protocol-frozen data
+are not performance fixtures. The concrete resource proposal remains separately gated.
 
 ## Evidence, current source and review
 
@@ -102,33 +105,34 @@ consumers of alignment data and should not be folded into one broad rewrite.
 - [x] G00 — Capture the current optimized baseline. **Status: done (2026-10-17).** Frozen,
   read-only `baseline_source/` (= 5e551c9 + the uncommitted first-wave edits), `baseline.json`
   and `capture_baseline.py` under `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/` (untracked evidence packet).
-- [~] G01 — Freeze new originals and original A/A behavior. **Status: partial.** Exact-mode
-  harness sections b24/b23/b04/b06 ran baseline-vs-candidate with identical `file_manifest`
-  per card and in C00 (baseline A/A twice, byte-identical); frozen oracles are in each card's
-  `extra_tests`. The comparator mutation self-check receipt was not produced in packet 1; the
-  wave-2 packet produced one for its own baseline (2026-10-18,
-  `followups/20261018-112322-wave2-g00/g01_comparator_selfcheck.json`, verdict pass: one-byte,
-  missing-file, dtype, one-ulp and error-message mutations all rejected; an identical failure
-  reproducing and warning records captured are accepted, as intended). The wave-1 goldens still
-  lack their own mutation receipt.
-  **Wave-2 update (2026-10-18):** re-frozen for the wave-2 baseline (wave-1 tip `faf5667`)
-  in packet `...followups/20261018-112322-wave2-g00/`: 80-file `baseline_file_manifest.tsv`,
-  A/A identical (`g01_baseline_aa.json`) and the comparator mutation self-check now exists
-  (5/5 injected mutations rejected, `g01_comparator_selfcheck.json`). Still single-session.
-- [~] G02 — Measure relevant stage shares. **Status: partial.** Paired timing/memory exists
-  per card and in C00 on synthetic component fixtures (single session of 3 baseline + 3
-  candidate processes). No stage profile of a real run, no second timing session, no
-  representative whole-run measurement. **Wave-2 update (2026-10-18):** the B08 replot is
-  9 alternating paired trials per fixture in one session at host load 17.1 → 9.4; the second
-  session requirement is still outstanding.
-- [~] C00 — Qualify combined accepted changes. **Status: waves 1 and 2 qualified
-  at component level on 2026-10-18; performance-specific native/R/whole-run checks pending.**
-  Evidence: `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`
-  and `analysis/computational_bottlenecks_2026-10-17/followups/20261018-112322-wave2-g00/c00/C00_WAVE2_REPORT.md`.
-  Next: a second timing session on a quieter host and a representative whole-run measurement.
+- [x] G01 — Independent baseline A/A and frozen-oracle checks retained. Historical
+  wave-1 comparator self-check recovered on 2026-10-19 without changing its 148 saved
+  comparison artifacts: one-byte, missing-file, dtype, type, one-ulp, error-message,
+  failure-status and warning-message mutations rejected; identical-failure control
+  accepted. This supplements the wave-2 self-check, not a universal proof of raw
+  production artifact equality. Some historical harness comparisons contain documented
+  operational-field handling; current raw-byte/native tests are reported separately.
+  Receipt: `followups/20261018-remaining-candidates/g01/wave1_selfcheck.json`.
+- [~] G02 — Repeated component trials complete (2026-10-19): six independent
+  legacy timing groups, seven alternating fresh-process pairs each, matched frozen
+  baselines and verified fixture hashes. All17 component/fixture rows and every
+  trial retained in `followups/20261018-remaining-candidates/g02/REPEATED_TIMINGS.md`.
+  New B21/B13/B28/B16 also have two seven-pair sessions. Shared host, synthetic
+  fixtures; no quiet-host or production whole-run claim. B08's earlier failed
+  benefit gate remains deferred, not reopened. Production stage attribution and a
+  representative whole run remain pending separate authorization under the bounded
+  [whole-run proposal](2026-10-19-performance-whole-run-proposal.md).
+- [~] C00 — Combined local qualification: 154 strict new-oracle tests and53 real
+  offline native integration tests pass, including complete reference/count/filter/
+  evidence/BLAST/validation dispatch. Ruff/format275files and mypy60sourcefiles pass.
+  Combined refits27/30raw identical (three precise source-provenance manifests);
+  retained pre-performance-main reducers12/12raw identical. Current PR full CI
+  is the remaining software merge gate.
+  G02 production performance and B11/B30 worker-policy qualification remain separate
+  gates; component/native fixtures do not close those gates.
 Each B-card below has three separately checkable steps: establish feasibility,
-implement the smallest qualifying change, qualify it. Every unchecked B-step has
-status **not started**. Do not mark implementation complete when only a prototype
+implement the smallest qualifying change, qualify it. Unchecked B-steps remain **not implemented or not fully qualified**; a deferred
+assessment may have stopped before its broad proposed fixture grid. Do not mark implementation complete when only a prototype
 or assessment exists. If an assessment rejects implementation, leave its edit step
 unchecked and record the disposition as **deferred** with the failed gate.
 
@@ -636,21 +640,25 @@ and test the same failure surface before accepting reuse.
 
 ### B13 — Optimize serial read classification before considering workers
 
+**2026-10-19 disposition:** Accepted bounded 256-entry/512-key-character cache; two seven-pair sessions
+pass on repeated/reagent reads, unique/long-read controls remain within the regression
+gate. 47 focused cases plus combined native count integration pass; final PR CI required.
+
 **Priority:** optional artefact path; serial Python/gzip cost is measured.
 **Reach:** `scripts/read_filter.py:classify`, `filter_pairs`, `trim_tso`;
 `anello_align.py` reagent/body helpers; both FASTQs, lineage and audit writers.
 
-- [ ] B13.1 — Reprofile classifier versus compression on diverse, reagent-rich and
+- [x] B13.1 — Reprofile classifier versus compression on diverse, reagent-rich and
   duplicate-rich reads. Edge tables and pigeonhole rejection already exist. Capture
   first reason, both-orientation rescue, CB/UMI span, TSO trim boundaries, quality
   preservation, mate mismatch/truncation and the exact partially written prefix.
-- [ ] B13.2 — First try a bounded invocation-local cache of successful classifier
+- [x] B13.2 — First try a bounded invocation-local cache of successful classifier
   results for repeated `(R1 CB/UMI span, R2)` pairs, with serial validation/writing
   unchanged. Include lookup cost and bounded key memory. If ineffective, select one
   measured pure classifier loop for an exact serial optimization; do not add a new
   compiled dependency. Keep gzip backend/level/write sequence and mode defaults.
   Ordered worker chunks are a separate resource change requiring authorization.
-- [ ] B13.3 — Run `test_read_filter.py`, `test_anello_align.py`, host-filter/DAG
+- [x] B13.3 — Run `test_read_filter.py`, `test_anello_align.py`, host-filter/DAG
   interaction tests and tiny real count integration. Compare raw compressed mates,
   lineage, audit, failures and partial files with test-only fixed gzip clocks. Measure
   complete filter wall/RSS on low-repetition as well as cache-friendly fixtures.
@@ -715,20 +723,24 @@ No cross-run cache or pooled competitive reference in the first implementation.
 
 ### B16 — Bound the minimap2-to-samtools SAM handoff
 
+**2026-10-19 disposition:** Accepted memory candidate: two seven-pair native sessions retain raw BAM/BAI
+bytes and halve sampled child-tree RSS; wall 1.0081/1.0016x. Spool size 28.6MB per
+100000 fixture reads; no runtime speedup claimed. Combined native integration passes.
+
 **Priority:** native memory candidate; piping can change headers and failure order.
 **Reach:** `evidence.py:_run`, `align_reads_to_viral`; `run_evidence` competitive
 alignment, BAM/index and downstream evidence/provenance artifacts.
 
-- [ ] B16.1 — Establish real original A/A BAM/BAI bytes and command logs with fixed
+- [x] B16.1 — Establish real original A/A BAM/BAI bytes and command logs with fixed
   tools/paths/workers. Freeze minimap2 failure before sort, sort failure, index
   failure, absent tools, stderr content, old-output preservation and partial outputs.
-- [ ] B16.2 — First try a sequential disk-backed SAM handoff: minimap2 must finish
+- [x] B16.2 — First try a sequential disk-backed SAM handoff: minimap2 must finish
   successfully before invoking sort, with the same argv/stdin interface. Preserve
   full stderr and RuntimeError formatting. This bounds Python SAM memory while
   retaining failure precedence. A concurrent pipe is a later experiment requiring
   explicit two-child waiting, deadlock-safe stderr handling and matched failure
   precedence; do not introduce it merely to claim streaming.
-- [ ] B16.3 — Run evidence/subcommand tests, real evidence-chain/competitor integration
+- [x] B16.3 — Run evidence/subcommand tests, real evidence-chain/competitor integration
   and fault-injection process tests. Compare **raw** BAM/BAI/header bytes and all QC
   artifacts; no removing `@PG` records or comparing decoded SAM as a pass. Include
   spool write failure, full stderr and producer/consumer failure. Measure full
@@ -791,11 +803,15 @@ schema/migration decision; this card cannot label it byte-preserving.
 
 ### B01 — Compact allocation state while retaining entry order
 
+**2026-10-19 disposition:** Deferred after one bounded weighted-buffer family failed the benefit gate
+(wall 1.0209x, traced peak 0.9241x). No delivered edit; broad overflow/method/grid
+qualification stopped. This is not a universal impossibility result.
+
 **Priority:** substantial allocator work; seek memory reduction first.
 **Reach:** `multimapping.py:build_multimap_layers`, `_csr_from_entries`, molecule
 iteration/audit; `scripts/multimap.py` storage, method switching and lineage consumers.
 
-- [ ] B01.1 — Profile live sizes of ambiguous records, coordinate lists, EC metadata
+- [~] B01.1 — Profile live sizes of ambiguous records, coordinate lists, EC metadata
   and sparse construction on all six actual allocation methods. Freeze every layer's
   data/indices/indptr/dtype, conservation/audit/diagnostics and assignment bytes.
 - [ ] B01.2 — First replace one high-volume Python coordinate list family with
@@ -816,11 +832,15 @@ aliases or errors; a more ambitious bounded allocator needs a new exactness argu
 
 ### B02 — Reuse full-width cell-EM workspace before shrinking it
 
+**2026-10-19 disposition:** Deferred after bounded repeated gene-index reuse failed the benefit gate
+(wall 0.9308x, traced peak 1.0012x; 691 focused tests). No delivered edit; second
+session, scratch reuse and full trajectory qualification stopped.
+
 **Priority:** numeric risk; preserve fitted trajectories and convergence exactly.
 **Reach:** `multimapping.py:em_cell_abundances`, `em_gene_abundances`, em-cell caller
 in `build_multimap_layers`; fitted compact retained state, audit/assignment consumers.
 
-- [ ] B02.1 — Capture each iteration's theta, update, denominator, convergence ratio
+- [~] B02.1 — Capture each iteration's theta, update, denominator, convergence ratio
   and diagnostics on small independent original oracles. Cover no compatible unique
   support, zero prior/global sum, large gene count with few compatible genes,
   max-iteration exits, near-tolerance values, skewed priors and invalid inputs.
@@ -899,12 +919,15 @@ changes. This reduces transient memory, not the final dense matrix's unavoidable
 
 ### B22 — Reuse deterministic fit preparation; gate parallel execution separately
 
+**2026-10-19 disposition:** Deferred: 102 real logistic fits profiled; repeated design preparation
+is 0.696% of bounded run time. No fit, iteration, parallelism or model edit delivered.
+
 **Priority:** potentially expensive optional modeling; exact numerical environment.
 **Reach:** `scripts/hostresponse.py:evaluate_group_cv`, `_run_stability_selection`,
 `_run_l2_regression`, `_panel_depth_fold_prob`, `group_cv_permutation_null`,
 `run_structured_null` and table writers.
 
-- [ ] B22.1 — Measure actual fit counts and preparation cost by seed/fold/stratum/
+- [~] B22.1 — Measure actual fit counts and preparation cost by seed/fold/stratum/
   replicate. Freeze full RNG draws/state, canonical cell/fold ordering, failure rows,
   convergence warnings, stable-panel selections, per-fit outputs and final reductions.
   Null refits exclude baselines/panel arguments; do not multiply the wrong workload.
@@ -950,21 +973,25 @@ changes the original detects. Record no safe reuse rather than adding stale hash
 
 ### B28 — Reuse verified cached-accession data within an offline merge
 
+**2026-10-19 disposition:** Accepted one-pass immutable GenBank parse only. All mutable-path digest
+validation retained. 96 focused tests and two seven-pair offline preparation sessions
+pass (wall 0.8964/0.8863x); no remote-service claim.
+
 **Priority:** low; deliberate network throttles remain unchanged.
 **Reach:** `scripts/ncbi_fetch.py:_cache_valid`, `_gtf_cache_valid`, `_write_cached`,
 `cached_accession_provenance`, `_fetch_one`, `fetch_reference`; `data_fetch.py`
 integrity checks only if separately shown redundant. Coordinate with B25/B26.
 
-- [ ] B28.1 — Run fully offline cache fixtures, counting hash/parse calls per
+- [x] B28.1 — Run fully offline cache fixtures, counting hash/parse calls per
   accession. Freeze legacy/recorded retrieval status, GTF format stamps, accession
   dedup order, corrupt/missing sidecars, FASTA/GenBank mismatch, trailing-newline
   behavior, credentials redaction and failure/partial merged files.
-- [ ] B28.2 — Pass verified digests/parsed metadata only for captured immutable bytes
+- [x] B28.2 — Pass verified digests/parsed metadata only for captured immutable bytes
   within the same merge. Keep each new invocation's cache integrity checks. Streaming
   merge is a separate B25-style subchange, staging all chunks before publication so
   late errors preserve original outputs. Do not change source snapshots, timestamps,
   remote request order, retry/backoff or throttle, and do not add network parallelism.
-- [ ] B28.3 — Run `test_ncbi_fetch.py`, `test_data_fetch.py`,
+- [x] B28.3 — Run `test_ncbi_fetch.py`, `test_data_fetch.py`,
   `test_reference_manifest_contract.py` and relevant CLI tests with network disabled.
   Compare merged FASTA/GTF/provenance/sidecar bytes, logged requests and failures.
   Benchmark cached end-to-end preparation with digest reuse overhead and peak RSS;
@@ -975,11 +1002,16 @@ No live requests or large downloads are authorized by this card.
 
 ### B12 — Profile and preserve the required emptyDrops computation
 
+**2026-10-19 disposition:** Deferred: approved R4_51/DropletUtils original A/A TSV bytes match with
+10000 draws retained. Fixture matrix 74736 bytes versus approximately 770MB process
+peak; no material adapter opportunity established here. No delivered R edit or
+claim about larger production matrices.
+
 **Priority:** scientific-contract protection; measurement first, no current algorithm fix.
 **Reach:** `scripts/cellcalling.py:_run_emptydrops`, `emptydrops_cells`, host-matrix
 selection; `scripts/emptydrops.R`, `read_emptydrops_mask`, called-cell artifacts.
 
-- [ ] B12.1 — Verify availability/version of the approved R runtime and DropletUtils;
+- [~] B12.1 — Verify availability/version of the approved R runtime and DropletUtils;
   do not infer it from an old skipped or passing receipt. Capture original A/A TSV,
   mask, R warnings/stderr, RNG settings and conversion timing on tiny nondegenerate
   kb/STARsolo fixtures. Preserve exact `matrix.mtx` preference and square-matrix

@@ -1,10 +1,13 @@
 """Verbatim _select_features from pre-B21 commit d056986; never regenerate."""
+
 # ruff: noqa
 import logging
 import numpy as np
 import scipy.sparse as sp
 import scanpy as sc
+
 log = logging.getLogger("viralscan.scripts.hostresponse")
+
 
 def _select_features(host_adata, use_hvg: bool):
     """Return (X, feature_names) after HVG selection or full-gene densification.
