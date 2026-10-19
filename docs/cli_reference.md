@@ -634,7 +634,7 @@ the sections above add context. Do not edit between the markers.
 | `--sample2, -s2 SAMPLE2` | *(none)* | The path to the backward FASTQ sample (gunzipped is preferred). |
 | `--transcripts, -t TRANSCRIPTS` | *(none)* | The path to the transcripts (t2g) file produced by kb ref. |
 | `--index, -i INDEX` | *(none)* | The path to the reference index created by kb ref. |
-| `--cores, -c CORES` | `6` | Total CPU budget for the workflow; native workers are bounded to it. Default: 6. |
+| `--cores, -c CORES` | `6` | The amount of cores the workflow can use. Default: 6. |
 | `--reference, -ref` | `False` | Build a kb ref index from -fasta and -gtf into the output directory. |
 | `--gtf, -gtf GTF` | *(none)* | Path to GTF files (comma-delimited, without space in-between). |
 | `--fasta, -fasta FASTA` | *(none)* | Path to FASTA files (comma-delimited, without space in-between). |
@@ -762,6 +762,7 @@ the sections above add context. Do not edit between the markers.
 | `--cluster` | `False` | (--anellovirus) Run cd-hit-est clustering at 95% identity after masking. |
 | `--reference-panel PANEL` | *(none)* | Build a pre-defined reference panel. Currently supported: 'anellovirus'. Uses the bundled FASTA from `viralscan data fetch` when available, otherwise falls back to NCBI accession download (same as --anellovirus). Combine with --no-mask / --cluster for masking/clustering options. |
 | `--list-species` | `False` | Print all supported host species and exit. |
+| `--cores N` | *(none)* | Total CPU budget for kb ref, minimap2 homology and cd-hit-est. Native workers are bounded to N (kb ref min(8, N), minimap2 min(3, N), cd-hit-est -T N). Unset keeps the legacy requests (8 / 3 / all CPUs). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
