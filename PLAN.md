@@ -20,6 +20,11 @@ completion.
 
 ## Next action
 
+- [x] `CLI-ORIG-01`: accept the original upstream (mahfouzlab/ViralScan) invocation forms:
+  `-reference` alias and optional True/False values on `--reference`, `--visual`, `--multimapping`
+  (strict `_OptionalBool` action, never `type=bool`). Defaults and v3 contracts unchanged. Tests:
+  `tests/test_original_cli_compat.py`. `-umap` stays a bare flag.
+
 - [x] `PERF-PLAN-02`: draft and review actionable cards for all 27 remaining
   performance candidates; preserve completed B05/B07/B20. Plan:
   `docs/plans/2026-10-17-remaining-performance-candidates.md`. (Row text carried over
