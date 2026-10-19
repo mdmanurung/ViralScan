@@ -447,9 +447,7 @@ def _raise_on_low_complexity(
     if fraction_offenders:
         fraction_offenders.sort(key=lambda row: -(row[1] / row[2]))
         shown = ", ".join(f"{i} ({a}/{b})" for i, a, b in fraction_offenders[:10])
-        more = (
-            "" if len(fraction_offenders) <= 10 else f" (+{len(fraction_offenders) - 10} more)"
-        )
+        more = "" if len(fraction_offenders) <= 10 else f" (+{len(fraction_offenders) - 10} more)"
         problems.append(
             f"{len(fraction_offenders)} record(s) exceed the low-complexity fraction "
             f"limit of {max_low_complexity_fraction}: {shown}{more}"
@@ -949,6 +947,8 @@ def measure_host_homology(
     proc = subprocess.run(  # noqa: S603
         [
             minimap2,
+            "-t",
+            "3",
             *("-c", "-k", "15", "-w", "10", "-N", "200", "-p", "0.01", "-s", "40", "-m", "20"),
             str(viral_fasta),
             str(host_genome),
@@ -1692,7 +1692,18 @@ def _finish_reference_build(
                 "Install the full ViralScan environment or pass --no-kb-ref explicitly."
             )
         index, t2g = out_dir / "index.idx", out_dir / "t2g.txt"
-        command = [kb_bin, "ref", "-i", str(index), "-g", str(t2g), "-f1", str(out_dir / "cdna.fa")]
+        command = [
+            kb_bin,
+            "ref",
+            "-t",
+            "8",
+            "-i",
+            str(index),
+            "-g",
+            str(t2g),
+            "-f1",
+            str(out_dir / "cdna.fa"),
+        ]
         if genome_dlist:
             command.extend(["--d-list", str(genome_dlist)])
         command.extend([str(fasta), str(gtf)])
@@ -2162,7 +2173,10 @@ def _enforce_low_complexity_gate(fasta: Path, *, mask: bool, label: str) -> None
     all_counts = [low_complexity_kmer_counts(sequence) for _, sequence in records]
     report = {
         identifier: (
-            counts["pure_homopolymer"] + counts["long_run"] + counts["few_bases"] + counts["tandem"],
+            counts["pure_homopolymer"]
+            + counts["long_run"]
+            + counts["few_bases"]
+            + counts["tandem"],
             counts["total"],
         )
         for (identifier, _), counts in zip(records, all_counts, strict=True)

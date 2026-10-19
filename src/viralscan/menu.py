@@ -1169,6 +1169,8 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
     command = [
         "kb",
         "ref",
+        "-t",
+        "8",
         "-i",
         index,
         "-g",

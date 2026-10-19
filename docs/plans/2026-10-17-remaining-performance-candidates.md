@@ -2,12 +2,13 @@
 
 Date: 2026-10-17; status reconciled 2026-10-19. Project: ViralScan.
 Status: **waves 1/2 merged in PRs #73/#74. B21/B13/B28/B16 pass isolated
-benefit/exactness qualification; combined local/native qualification passes; final PR CI remains the merge gate.
+benefit/exactness qualification and merged in PR #75 after all 12 CI checks passed.
 All other non-resource cards have measured or contract-backed deferred dispositions,
 listed in [the qualification report](2026-10-19-performance-qualification.md).
 G01 mutation coverage is recovered without regenerating historical goldens.
 G02 repeated component timing is complete; production stage attribution and
-whole-run performance remain unmeasured. B11/B30 require their separate resource gate.**
+whole-run performance remain unmeasured. B11/B30 explicit legacy requests have an
+approved local phase; total-admission policy remains separately gated.**
 
 This document turns the 27 unimplemented survey candidates into bounded work cards.
 It also records preservation requirements for the three completed candidates. A card
@@ -20,7 +21,8 @@ explicitly authorize performance implementation, local qualification, commits, p
 merge to main and cleanup of owned performance worktrees. They do not authorize
 scientific changes, changed effective workers, SLURM jobs, downloads or retained-data
 deletion. Existing retained inputs are read-only; held-out and protocol-frozen data
-are not performance fixtures. The concrete resource proposal remains separately gated.
+are not performance fixtures. The user approved local explicit legacy-worker qualification on 2026-10-19.
+Changed effective workers and total-admission policy remain separately gated.
 
 ## Evidence, current source and review
 
@@ -1032,6 +1034,12 @@ niters, substitute knee calling, or claim a skipped R test qualifies this path.
 
 ### B11 — Reconcile counting resource declarations without changing workers yet
 
+**Current disposition (2026-10-19): partial.** The approved fixed-worker phase
+makes legacy requests explicit and has bounded native A/A/A-B evidence; see
+[qualification](2026-10-19-legacy-worker-qualification.md). Total-admission policy,
+production concurrency/utilization and exhaustive optional-rule/core combinations
+remain open. The unchecked full-card steps below are not claimed complete.
+
 **Priority:** resource correctness; separate from strict-byte optimizations.
 **Reach:** `Snakefile:kb_count`, `multimap`; `scripts/multimap.py` correction/sort
 commands; `RunConfig.cores`, CLI/menu configuration and command/provenance tests.
@@ -1056,6 +1064,12 @@ correctness can be valuable without being a byte-identical performance improveme
 keep those claims separate.
 
 ### B30 — Make reference worker controls explicit only behind the resource gate
+
+**Current disposition (2026-10-19): partial.** The approved fixed-worker phase
+makes legacy requests explicit and has bounded native A/A/A-B evidence; see
+[qualification](2026-10-19-legacy-worker-qualification.md). Total-admission policy,
+production concurrency/utilization and exhaustive optional-rule/core combinations
+remain open. The unchecked full-card steps below are not claimed complete.
 
 **Priority:** resource correctness; reference-build-only.
 **Reach:** `scripts/build_reference.py:_run_cdhit_est`, `measure_host_homology`,
