@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -500,10 +501,12 @@ class TestHostCaptureDag(TestAutoEvidenceDag):
 class TestCpuBudgetThreads(TestAutoEvidenceDag):
     """total_budget_v1: every rule reserves what its native tool uses, capped at --cores."""
 
-    def _threads(self, tmp_path: Path, cores: int, override: str | None) -> dict[str, int]:
+    def _threads(
+        self, tmp_path: Path, cores: int, override: str | None, scheduler: int | None = None
+    ) -> dict[str, int]:
         cmd = [
             "snakemake", "--snakefile", str(SNAKEFILE), "--dryrun", "all",
-            "--cores", str(cores),
+            "--cores", str(scheduler or cores),
             "--configfile",
             _configfile(
                 tmp_path,
@@ -532,7 +535,16 @@ class TestCpuBudgetThreads(TestAutoEvidenceDag):
         assert got["kb_count"] == min(8, cores)
         for name in ("multimap", "auto_evidence", "host_capture"):
             assert got[name] == cores, got
-        assert max(got.values()) <= cores
+
+    def test_reservations_come_from_the_rule_expressions_not_the_scheduler_clamp(
+        self, tmp_path
+    ) -> None:
+        # Snakemake clamps threads to --cores, so only a scheduler larger than the
+        # configured budget shows what the expressions themselves request.
+        got = self._threads(tmp_path, 3, None, scheduler=64)
+        assert got["kb_count"] == 3  # a literal `threads: 8` would give 8
+        assert got["multimap"] == 3
+        assert self._threads(tmp_path, 32, None, scheduler=64)["kb_count"] == 8  # the cap
 
     def test_external_set_threads_is_honoured(self, tmp_path) -> None:
         got = self._threads(tmp_path, 6, "auto_evidence=2")
@@ -545,10 +557,17 @@ def test_scripts_use_scheduler_reserved_threads(script) -> None:
     assert "with_cores(snakemake.threads)" in source
 
 
-def test_multimap_pins_numerical_libraries_before_numpy_loads() -> None:
+def test_multimap_pins_numerical_libraries_at_runtime() -> None:
+    """Run the script's import-time preamble the way Snakemake would: BLAS vars end up 1."""
     source = (SNAKEFILE.parent / "scripts" / "multimap.py").read_text()
-    pin, first_import = source.index("OPENBLAS_NUM_THREADS"), source.index("import anndata")
-    assert pin < first_import and 'os.environ[_name] = "1"' in source
+    preamble = source[: source.index("import anndata")]
+    names = ["OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"]
+    code = f"snakemake = object()\n{preamble}\nprint(*[os.environ[n] for n in {names!r}])"
+    env = {**os.environ, **dict.fromkeys(names, "6")}  # what Snakemake exports for 6 threads
+    done = subprocess.run(
+        [sys.executable, "-c", code], env=env, capture_output=True, text=True, check=True
+    )
+    assert done.stdout.split() == ["1"] * 4
 
 
 def test_snakefile_kb_count_uses_rule_threads_not_a_literal() -> None:
