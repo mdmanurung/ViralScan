@@ -1,7 +1,10 @@
 """total_budget_v1: --cores bounds every native worker request (legacy request when unset)."""
 
+import argparse
+import gzip
 import json
 import os
+import random
 import shutil
 import subprocess
 import sys
@@ -153,6 +156,97 @@ def test_clustering_bounds_cpu_and_keeps_memory_and_identity(tmp_path, monkeypat
             "0",
         ]
     ]
+
+
+def test_main_passes_cli_cores_to_reference_build(tmp_path, monkeypatch):
+    fasta, gtf = tmp_path / "r.fa", tmp_path / "r.gtf"
+    fasta.write_text(">V1\nACGTACGTAC\n")
+    gtf.write_text('V1\tt\texon\t1\t4\t.\t+\t.\tgene_id "V1";\n')
+    for name in ("R1", "R2"):
+        (tmp_path / f"{name}.fastq.gz").touch()
+    seen = []
+
+    def stop(*args):
+        seen.append(args)
+        raise SystemExit(0)
+
+    monkeypatch.setattr(menu, "_build_kb_ref", stop)
+    monkeypatch.setattr(menu, "_check_required_tools", lambda: None)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["viralscan", "--reference", "--fasta", str(fasta), "--gtf", str(gtf), "-o", "out"]
+        + ["-s1", "R1.fastq.gz", "-s2", "R2.fastq.gz", "-x", "10xv3", "--force-technology"]
+        + ["--yes", "--cores", "2"],
+    )
+    with pytest.raises(SystemExit):
+        menu.main()
+    assert seen[0][3] == 2
+
+
+def _recording_native_run(commands):
+    """Stand-in for every native tool: record argv, create the file each would write."""
+
+    def run(command, **kwargs):
+        commands.append(list(command))
+        tool = Path(command[0]).name
+        if tool == "cd-hit-est":
+            Path(command[command.index("-o") + 1]).write_text(
+                Path(command[command.index("-i") + 1]).read_text()
+            )
+        elif tool == "kb":
+            Path(command[command.index("-i") + 1]).write_text("index")
+            Path(command[command.index("-g") + 1]).write_text("t2g")
+        return subprocess.CompletedProcess(command, 0, stdout="")
+
+    return run
+
+
+@pytest.mark.parametrize("panel", ["anellovirus", "combined"])
+def test_build_ref_main_threads_cores_to_every_native_tool(tmp_path, monkeypatch, panel):
+    """viralscan build-ref --cores 2: kb, minimap2 and cd-hit-est all get 2 (not 8/3/all)."""
+    from viralscan import data_fetch
+    from viralscan.scripts import ncbi_fetch
+
+    def dna(n, seed):
+        rng = random.Random(seed)
+        return "".join(rng.choice("ACGT") for _ in range(n))
+
+    host = tmp_path / "host.fa"
+    host.write_text(">chr1\n" + dna(200, 1) + "\n")
+    commands: list[list[str]] = []
+    monkeypatch.setattr(br.subprocess, "run", _recording_native_run(commands))
+    monkeypatch.setattr(br.shutil, "which", lambda tool: f"/native/{tool}")
+    monkeypatch.setattr(br, "record_reference_build", lambda *a, **kw: None)
+    monkeypatch.setattr(br, "_write_index_manifest", lambda *a, **kw: None)
+    monkeypatch.setattr(br, "record_index_inspect", lambda *a, **kw: None)
+    args = argparse.Namespace(
+        output=tmp_path / "out", genome_dlist=str(host), no_mask=True, cores=2, cluster=True
+    )
+    viral = tmp_path / "viral.fa"
+    viral.write_text(f">NC_000001.1 virus\n{dna(400, 2)}\n")
+    if panel == "anellovirus":
+        monkeypatch.setattr(data_fetch, "bundled_anellovirus_fasta", lambda cache: viral)
+        args.reference_panel = "anellovirus"
+    else:
+        cdna, host_gtf = tmp_path / "h.cdna.fa.gz", tmp_path / "h.gtf.gz"
+        with gzip.open(cdna, "wt") as fh:
+            fh.write(">ENST1.1 cdna gene:ENSG1.1\n" + dna(80, 3) + "\n")
+        with gzip.open(host_gtf, "wt") as fh:
+            fh.write('chr1\tEnsembl\texon\t1\t8\t.\t+\t.\tgene_id "HOST1";\n')
+        viral_gtf = tmp_path / "viral.gtf"
+        viral_gtf.write_text('NC_000001.1\tNCBI\texon\t1\t8\t.\t+\t0\tgene_id "V";\n')
+        monkeypatch.setattr(br, "fetch_host_cdna", lambda *a, **kw: (cdna, host_gtf))
+        monkeypatch.setattr(ncbi_fetch, "fetch_reference", lambda *a, **kw: (viral, viral_gtf))
+        args.reference_panel, args.host = None, "human"
+        args.virus_accessions = ["NC_000001.1"]
+    br.build_ref_main(args)
+    by_tool = {Path(c[0]).name: c for c in commands}
+    assert by_tool["kb"][by_tool["kb"].index("-t") + 1] == "2"
+    assert by_tool["minimap2"][by_tool["minimap2"].index("-t") + 1] == "2"
+    if panel == "anellovirus":
+        assert by_tool["cd-hit-est"][by_tool["cd-hit-est"].index("-T") + 1] == "2"
 
 
 @pytest.mark.integration
