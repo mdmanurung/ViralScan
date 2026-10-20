@@ -20,6 +20,14 @@ completion.
 
 ## Next action
 
+- [x] `INV-REPIN-01` (2026-10-20, `codex/fix-inventory-pins`): three `analysis/v3_artifact_inventory.tsv` rows pinned
+  pre-rebase commits that the rebase-merges of #77 and #78 left out of `main`'s history (`build-reference-command`
+  04562cf, `claim-registry` 4c352b7, `public-readme` ab47b5a), so `test_repository_artifact_inventory_is_valid`
+  fails in CI for any branch cut from `main` (local runs pass because the old objects still exist locally).
+  Re-pinned to the equivalent `main` commits (51854ee, 16a05ec, e94b036); artifact sha256 values are unchanged.
+  Lesson: a row pinned to a PR commit goes stale on rebase-merge; re-pin to the merged commit in a follow-up.
+  Check: every `git_sha` in the inventory is an ancestor of `origin/main`.
+
 - [x] `DOCS-ORIG-01`: README and Sphinx site restructured on the original upstream
   (mahfouzlab/ViralScan) skeleton: README Introduction / Installation / Input Data / User Guide
   (original-style short-flag examples, multi-sample) / License, with the v3 notice, claim markers
