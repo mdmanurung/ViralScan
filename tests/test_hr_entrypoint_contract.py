@@ -12,9 +12,12 @@ from viralscan.runconfig import RunConfig
 def test_group_options_roundtrip_into_worker_config(tmp_path):
     args = build_parser().parse_args(
         [
-            "-s1",
+            "run",
+            "-o",
+            "o",
+            "--r1",
             "R1.fq",
-            "-s2",
+            "--r2",
             "R2.fq",
             "-x",
             "10xv3",
@@ -145,7 +148,7 @@ def test_errorhandler_rejects_an_invalid_null_specification(settings, reason, ca
 
 def test_a_declared_group_null_passes_the_config():
     args = build_parser().parse_args(
-        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3"]
+        ["run", "-o", "o", "--r1", "R1.fq", "--r2", "R2.fq", "-x", "10xv3"]
         + ["--hostresponse-cv", "group", "--hostresponse-groups", "donor"]
         + ["--hostresponse-permutations", "5", "--hostresponse-permutation-unit", "group"]
     )
@@ -160,7 +163,7 @@ def test_help_cites_luebbert_2025_and_states_the_differential_family(capsys):
     from viralscan.scripts import hostresponse as hr
 
     texts = []
-    for argv in (["hostresponse", "--help"], ["--help"]):
+    for argv in (["hostresponse", "--help"], ["run", "--help"]):
         with pytest.raises(SystemExit):
             build_parser().parse_args(argv)
         texts.append(capsys.readouterr().out)
@@ -179,12 +182,34 @@ def test_panel_in_fold_without_group_cv_fails_before_kb_count():
     with pytest.raises(ValueError, match="panel_in_fold requires group CV"):
         RunConfig.from_snakemake_config({"hostresponse_panel_in_fold": True})
     args = build_parser().parse_args(
-        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3", "--hostresponse-panel-in-fold"]
+        [
+            "run",
+            "-o",
+            "o",
+            "--r1",
+            "R1.fq",
+            "--r2",
+            "R2.fq",
+            "-x",
+            "10xv3",
+            "--hostresponse-panel-in-fold",
+        ]
     )
     with pytest.raises(ValueError, match="panel_in_fold requires group CV"):
         _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
     ok = build_parser().parse_args(
-        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3", "--hostresponse-panel-in-fold"]
+        [
+            "run",
+            "-o",
+            "o",
+            "--r1",
+            "R1.fq",
+            "--r2",
+            "R2.fq",
+            "-x",
+            "10xv3",
+            "--hostresponse-panel-in-fold",
+        ]
         + ["--hostresponse-cv", "group", "--hostresponse-groups", "donor"]
     )
     cfg = _build_run_config(ok, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
@@ -206,7 +231,19 @@ def test_cell_types_syntax_is_the_same_on_every_entry_point(tokens):
         ["hostresponse", "-o", "out", "--host-h5ad", "h", "--cell-types", *tokens]
     )
     main = parser.parse_args(
-        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3", "--hostresponse-cell-types", *tokens]
+        [
+            "run",
+            "-o",
+            "o",
+            "--r1",
+            "R1.fq",
+            "--r2",
+            "R2.fq",
+            "-x",
+            "10xv3",
+            "--hostresponse-cell-types",
+            *tokens,
+        ]
     )
     flags = ["--virus-h5ad", "v", "--host-h5ad", "h", "--viral-accessions", "a", "--output", "o"]
     alone = hr._build_parser().parse_args([*flags, "--cell-types", *tokens])
@@ -217,7 +254,19 @@ def test_cell_types_without_a_column_fail_before_kb_count():
     with pytest.raises(ValueError, match="cell_type_column"):
         RunConfig.from_snakemake_config({"hostresponse_cell_types": ["B"]})
     args = build_parser().parse_args(
-        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3", "--hostresponse-cell-types", "B"]
+        [
+            "run",
+            "-o",
+            "o",
+            "--r1",
+            "R1.fq",
+            "--r2",
+            "R2.fq",
+            "-x",
+            "10xv3",
+            "--hostresponse-cell-types",
+            "B",
+        ]
     )
     with pytest.raises(ValueError, match="cell_type_column"):
         _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")

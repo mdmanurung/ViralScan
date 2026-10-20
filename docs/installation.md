@@ -92,7 +92,7 @@ apptainer build viralscan-pixi.sif Singularity.pixi.def   # from the repository 
 apptainer run viralscan-pixi.sif --help
 apptainer exec viralscan-pixi.sif kb info
 apptainer run --bind /path/to/data:/data viralscan-pixi.sif \
-  -t /data/t2g.txt -i /data/index.idx -o /data/out -s1 /data/a_1.fastq.gz -s2 /data/a_2.fastq.gz
+  -t /data/t2g.txt -i /data/index.idx -o /data/out --r1 /data/a_1.fastq.gz --r2 /data/a_2.fastq.gz
 ```
 
 This image re-solves its environment at build time. Use it for development and
@@ -153,7 +153,7 @@ viralscan data fetch
 
 This downloads the archive for DOI `10.5281/zenodo.20112332`, verifies the
 Zenodo checksum, and unpacks the GTF files under
-`~/.cache/viralscan/data/`. Custom `-gtf` workflows do not require this cache.
+`~/.cache/viralscan/data/`. Custom `--gtf` workflows do not require this cache.
 
 On HPC systems, a shared cache lets many users or jobs reuse the same panel:
 
@@ -164,7 +164,7 @@ viralscan data fetch --cache-dir /shared/viralscan-cache
 Point quantification runs at the same cache:
 
 ```bash
-viralscan --data-cache-dir /shared/viralscan-cache ...
+viralscan run --cache-dir /shared/viralscan-cache ...
 ```
 
 Alternatively, set `VIRALSCAN_CACHE=/shared/viralscan-cache` before both the fetch

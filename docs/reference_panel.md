@@ -101,7 +101,7 @@ code that expects the cached panel. Run it also for an index that has no
 `<index>.build_manifest.json`, because the analysis step then reads the viral gene
 list from the panel. The cache is not needed in three cases: the index has a build
 manifest (every index from `viralscan build-ref`), every run supplies custom GTF
-files with `--reference -gtf ...`, or a run uses `--ncbi-accession` to fetch a
+files with `--reference --gtf ...`, or a run uses `--ncbi-accession` to fetch a
 reference on demand.
 
 Check the cache location:
@@ -121,7 +121,7 @@ The GTF files are written to `/shared/viralscan-cache/data/`. Quantification
 reads the same cache with either:
 
 ```bash
-viralscan --data-cache-dir /shared/viralscan-cache ...
+viralscan run --cache-dir /shared/viralscan-cache ...
 ```
 
 or by setting `VIRALSCAN_CACHE=/shared/viralscan-cache` for both fetch and run
@@ -176,15 +176,15 @@ integrated genome is invisible rather than negative.
 
 ## Adding custom references
 
-Supplement the cached panel with your own annotation files. Pass the `-gtf` flag
+Supplement the cached panel with your own annotation files. Pass the `--gtf` flag
 (comma-separated list) together with `--reference`:
 
 ```bash
-viralscan --reference \
-  -fasta custom_virus.fasta \
-  -gtf   custom_virus.gtf \
+viralscan run --reference \
+  --fasta custom_virus.fasta \
+  --gtf   custom_virus.gtf \
   -o output/ \
-  -s1 R1.fastq.gz -s2 R2.fastq.gz
+  --r1 R1.fastq.gz --r2 R2.fastq.gz
 ```
 
 Alternatively, `--ncbi-accession` fetches and builds a reference for any
@@ -231,4 +231,4 @@ curated full virus name.
 By default, `viralscan data fetch` writes to `~/.cache/viralscan/data/`.
 Set `VIRALSCAN_CACHE` or use `viralscan data fetch --cache-dir PATH` to
 populate another cache root. Quantification reads that cache when you pass
-`--data-cache-dir PATH` or set the same `VIRALSCAN_CACHE` environment variable.
+`--cache-dir PATH` or set the same `VIRALSCAN_CACHE` environment variable.

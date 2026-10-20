@@ -54,7 +54,7 @@ def ensure_viral_data(cache_dir: str | Path | None = None) -> Path:
     raise ViralScanDataError(
         "Viral reference annotations were not found at "
         f"{data_dir}. Run `viralscan data fetch` before using the bundled "
-        "viral reference panel, or pass custom annotations with -gtf."
+        "viral reference panel, or pass custom annotations with --gtf."
     )
 
 

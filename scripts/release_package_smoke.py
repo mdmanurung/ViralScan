@@ -68,7 +68,7 @@ def smoke(work: Path) -> None:
     adata.write_h5ad(target / "adata_multimap.h5ad")
     (run / "sample" / "config.yaml").write_text("output: sample\n")
     write_run_complete(run)
-    for command in (("doctor", "--profile", "pip"), ("validate-run", str(run))):
+    for command in (("doctor", "--profile", "pip"), ("validate-run", "--run-dir", str(run))):
         subprocess.run([sys.executable, "-m", "viralscan.menu", *command], check=True, cwd=work)
 
 

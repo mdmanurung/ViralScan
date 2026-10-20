@@ -345,4 +345,4 @@ class TestReferenceStrategyPassesViralGtf:
                 {**row, "reference_strategy": strategy}, manifest, tmp_path
             )
             assert cmd[cmd.index("-i") + 1] == index
-            assert cmd[cmd.index("-gtf") + 1] == "viral_only.gtf"
+            assert cmd[cmd.index("--gtf") + 1] == "viral_only.gtf"
