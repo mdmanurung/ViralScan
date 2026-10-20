@@ -21,7 +21,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
-from matplotlib.ticker import ScalarFormatter
 from scipy import sparse
 
 from viralscan import anello_align
@@ -47,6 +46,7 @@ from viralscan.sensitivity import (
     sensitivity_statement,
     verify_exact_control,
 )
+from viralscan.tier_measures import features_supported
 from viralscan.utils import (
     INFECTED_RELATIVE_TOLERANCE,
     infected_masks,
@@ -55,7 +55,6 @@ from viralscan.utils import (
     setup_script_logging,
     virus_molecules_per_cell,
 )
-from viralscan.tier_measures import features_supported
 from viralscan.viral_loci import read_loci
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import (
@@ -328,136 +327,142 @@ def histogram(adata, found_genes, identity_table, outputpath, viral_count_matrix
     return group_by_virus, detected_viral_genes
 
 
-def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix=None):
+def super_expressor(
+    adata,
+    virus,
+    viral_gene_ids,
+    outputpath,
+    viral_count_matrix=None,
+    *,
+    host_gene_mask=None,
+    called_mask=None,
+):
+    """Plot cells with viral counts >= ``config.se_threshold`` (inclusive).
+
+    The caller's AnnData is not modified. Missing host depth is not estimable.
     """
-    This function creates a super expressor plot, showing how many data points (single
-    cells) have a viral UMI count >= ``config.se_threshold`` (inclusive).
-    The caller's ``adata`` is not modified.
-    ---------------------------------------------------------------------
-    Parameters:
-        adata (anndata.AnnData): h5ad file of kb-python used for further
-            analysis
-        virus (str): virus where plot needs to be made for
-        viral_gene_ids (list): gene IDs belonging to the virus param
-        outputpath (str): path to the output directory defined by the user
-    ---------------------------------------------------------------------
-    Raises:
-        ValueError: None of the provided viral gene IDs were found in the dataset,
-            or the dataset has no cells
-    """
+    from viralscan.run_safety import sha256_file, software_identity
+
     if adata.n_obs == 0:
         raise ValueError("super_expressor: the dataset has no cells, nothing to plot.")
-    # Derived columns stay local: the caller's AnnData is not touched (B-09).
-    n_count_rna = pd.Series(_sum_axis(adata.X, 1), index=adata.obs_names)
-
-    # Match viral gene IDs to adata and raise ValueError
-    viral_mask = adata.var_names.isin(viral_gene_ids)
-    matched_genes = adata.var_names[viral_mask]
-
+    universe = np.ones(adata.n_obs, dtype=bool) if called_mask is None else np.asarray(called_mask)
+    if universe.dtype != bool or universe.shape != (adata.n_obs,):
+        raise ValueError("called_mask must be boolean with one value per barcode")
+    host = None if host_gene_mask is None else np.asarray(host_gene_mask)
+    if host is not None and (host.dtype != bool or host.shape != (adata.n_vars,)):
+        raise ValueError("host_gene_mask must be boolean with one value per feature")
+    matched_genes = adata.var_names[adata.var_names.isin(viral_gene_ids)]
     if matched_genes.empty:
-        raise ValueError(
-            "None of the provided viral gene IDs were found in the dataset. No super expressor is therefore found."
-        )
-
-    # Compute viral UMI counts per cell from the primary-call matrix. Total RNA
-    # above remains the full expression matrix for the null model denominator.
+        raise ValueError("None of the provided viral gene IDs were found in the dataset.")
     count_matrix = resolve_count_matrix(viral_count_matrix, adata)
     viral_umi = pd.Series(
         _sum_axis(matrix_for_genes(adata, count_matrix, list(matched_genes)), 1),
         index=adata.obs_names,
+    ).iloc[universe]
+    host_depth = (
+        None
+        if host is None
+        else pd.Series(_sum_axis(adata.X[:, host], 1), index=adata.obs_names).iloc[universe]
     )
-
-    # Null Model (grey line)
-    total_viral = viral_umi.sum()
-    total_rna = n_count_rna.sum()
-    null_model = total_viral * (n_count_rna / total_rna)
-
-    obs_sorted = np.sort(viral_umi.values)[::-1]
-    null_sorted = np.sort(null_model.values)[::-1]
-
-    df_plot = pd.DataFrame(
-        {"rank": np.arange(1, len(obs_sorted) + 1), "observed": obs_sorted, "null": null_sorted}
+    total_host = 0.0 if host_depth is None else float(host_depth.sum())
+    null = None if total_host == 0 else viral_umi.sum() * host_depth / total_host
+    null_status = "not_estimable" if null is None else "ok"
+    table = pd.DataFrame(
+        {
+            "barcode": viral_umi.index,
+            "viral_molecules": viral_umi.values,
+            "host_molecules": np.nan if host_depth is None else host_depth.values,
+            "is_called": universe[universe] if called_mask is not None else None,
+            "null_expected": np.nan if null is None else null.values,
+            "rank_observed": viral_umi.rank(method="first", ascending=False).values.astype(int),
+            "rank_null": np.nan
+            if null is None
+            else null.rank(method="first", ascending=False).values.astype(int),
+        }
     )
-
-    # Smooth Null model
-    window = max(20, int(len(df_plot) / 300))
-    df_plot["null_smooth"] = (
-        df_plot["null"].rolling(window=window, center=True, min_periods=1).mean()
-    )
-
-    # Clip zeros for log plot stability
-    df_plot["observed"] = df_plot["observed"].clip(lower=1e-1)
-
-    # Count super-expressors using configurable threshold
+    folder = Path(outputpath) / "plots"
+    folder.mkdir(parents=True, exist_ok=True)
+    stem = folder / f"SuperExpressor_{virus}"
+    table.to_csv(str(stem) + ".tsv", sep="\t", index=False)
+    n = len(viral_umi)
+    cap = 50_000 if n > 50_000 else None
     se_threshold = config.se_threshold
-    n_SE = (viral_umi >= se_threshold).sum()
-
-    title = f"Virus {virus}, n_super={n_SE}\nn={adata.n_obs}; {virus} max={viral_umi.max():g}"
-
-    max_rank_display = 15000  # adjust to visually match paper; 500–20000 is typical
-    df_show = df_plot.iloc[:max_rank_display]
-
-    # ---- Plot ----
-    plt.figure(figsize=(7, 6))
-
-    plt.plot(
-        df_show["rank"],
-        df_show["null_smooth"],
-        color="grey",
-        linewidth=1.5,
-        alpha=0.9,
-        label="Null model (smoothed)",
+    called_file = Path(outputpath) / "results" / "called_cells.tsv"
+    software = software_identity()
+    metadata = {
+        "sample": getattr(config, "sample", "") or Path(outputpath).name,
+        "virus": virus,
+        "count_layer": "X" if count_matrix is adata.X else "provided_matrix",
+        "allocation_method": getattr(config, "multimap_method", "unknown"),
+        "se_threshold": se_threshold,
+        "null_status": null_status,
+        "denominator_kind": "all_barcodes" if called_mask is None else "called_cells",
+        "n_universe": n,
+        "n_plotted": min(n, 50_000),
+        "n_zero": int((viral_umi == 0).sum()),
+        "n_high_burden": int((viral_umi >= se_threshold).sum()),
+        "display_floor": 0.5,
+        "max_rank_display": cap,
+        "git_sha": software.get("git_commit"),
+        "software": software,
+        "host_gene_source": "unavailable"
+        if host is None
+        else ("identity" if identity is not None else "index_groups"),
+        "called_cells_source": "all_barcodes" if called_mask is None else "in_memory_called_mask",
+        "called_cells_sha256": sha256_file(called_file)
+        if called_file.is_file() and called_mask is not None
+        else None,
+    }
+    Path(str(stem) + ".json").write_text(json.dumps(metadata, indent=2) + "\n")
+    observed = np.sort(viral_umi.values)[::-1][:50_000]
+    ranks = np.arange(1, len(observed) + 1)
+    figure, axis = plt.subplots(figsize=(7, 6))
+    if null is not None:
+        smooth = (
+            pd.Series(np.sort(null.values)[::-1])
+            .rolling(window=max(20, n // 300), center=True, min_periods=1)
+            .mean()
+            .iloc[:50_000]
+        )
+        axis.plot(ranks, smooth.clip(lower=0.5), color="grey", label="Host-depth null (smoothed)")
+    high = observed >= se_threshold
+    axis.scatter(
+        ranks[~high], np.maximum(observed[~high], 0.5), color="firebrick", s=10, label="Observed"
     )
-
-    # Mask super-expressors
-    super_mask = df_show["observed"] >= se_threshold
-
-    plt.scatter(
-        df_show.loc[~super_mask, "rank"],
-        df_show.loc[~super_mask, "observed"],
-        color="firebrick",
-        s=10,
-        alpha=0.5,
-        label="Observed",
-    )
-
-    plt.scatter(
-        df_show.loc[super_mask, "rank"],
-        df_show.loc[super_mask, "observed"],
+    axis.scatter(
+        ranks[high],
+        np.maximum(observed[high], 0.5),
         color="red",
         s=25,
-        alpha=0.9,
-        label=f"Super-expressors (\u2265 {se_threshold} UMI)",
+        label=f"≥ {se_threshold} allocated molecules (exploratory high-burden cutoff)",
     )
-
-    # Threshold line
-    plt.axhline(se_threshold, linestyle="--", color="darkblue", linewidth=1)
-
-    # Log scaling
-    plt.yscale("log")
-    plt.ylim(1e-1, df_plot["observed"].max() * 1.2)
-
-    # Tidy y-ticks
-    ymin, ymax = plt.ylim()
-    powers = np.arange(np.floor(np.log10(ymin)), np.ceil(np.log10(ymax)) + 1)
-    yticks = 10**powers
-    plt.yticks(yticks)
-    plt.gca().yaxis.set_major_formatter(ScalarFormatter())
-
-    plt.xlabel("Cell Rank", fontsize=11)
-    plt.ylabel("Viral UMI Counts", fontsize=11)
-    plt.title(title, fontsize=12)
-
-    plt.legend(frameon=True, fontsize=9)
-    plt.tight_layout()
-
-    plt.savefig(f"{outputpath}/plots/SuperExpressor_{virus}.png", dpi=500)
-    plt.close()
+    axis.axhline(se_threshold, linestyle="--", color="darkblue", linewidth=1)
+    axis.set_yscale("log")
+    axis.set(
+        ylim=(0.4, max(1, float(observed.max()) * 1.2) if n else 1),
+        xlabel="Cell rank",
+        ylabel="Viral allocated molecules",
+        title=f"Viral molecule concentration across {metadata['denominator_kind'].replace('_', ' ')}\n"
+        f"{virus}; n={n}; high burden={metadata['n_high_burden']}; null={null_status}",
+    )
+    note = "values ≤ 0.5 drawn at 0.5 (log scale); exact values in the TSV"
+    if cap:
+        note += f"\nshowing ranks 1–50000 of {n}"
+    axis.text(0.5, -0.18, note, transform=axis.transAxes, ha="center", fontsize=8)
+    axis.legend(fontsize=7)
+    figure.tight_layout()
+    figure.savefig(str(stem) + ".png", dpi=200)
+    plt.close(figure)
 
 
 #: Filename patterns detection owns inside ``plots/``. The directory is shared
 #: with umap.py, so only these are cleared — never the whole directory.
-_OWNED_PLOT_PATTERNS = ("*_histogram.png", "SuperExpressor_*.png")
+_OWNED_PLOT_PATTERNS = (
+    "*_histogram.png",
+    "SuperExpressor_*.png",
+    "SuperExpressor_*.tsv",
+    "SuperExpressor_*.json",
+)
 
 
 def clear_stale_virus_plots(outputpath) -> list[str]:
@@ -2121,16 +2126,6 @@ def main():
     group_by_virus, detected_viral_genes = histogram(
         adata, found_genes, identity, outputpath, viral_count_matrix=detection_matrix
     )
-    if config.visual:
-        for virus in group_by_virus:
-            super_expressor(
-                adata,
-                virus,
-                group_by_virus[virus],
-                outputpath,
-                viral_count_matrix=detection_matrix,
-            )
-
     # Cell-calling: label real (non-empty-droplet) barcodes so viral rates are
     # reported over called cells, not over all barcodes (which are mostly empty).
     # Prefers an external list (CellRanger/STARsolo cells); else emptyDrops/knee.
@@ -2183,6 +2178,24 @@ def main():
     # Layer 2 scores this same set, so it is written out rather than re-derived
     # (PLAN PROG-17).
     write_called_cells(adata.obs_names, called_mask, outputpath)
+
+    if config.visual:
+        all_viral = (
+            set(identity.viral_gene_ids())
+            if identity is not None
+            else {g for genes in index_groups.values() for g in genes}
+        )
+        host_mask = ~adata.var_names.isin(all_viral)
+        for virus, genes in group_by_virus.items():
+            super_expressor(
+                adata,
+                virus,
+                genes,
+                outputpath,
+                viral_count_matrix=detection_matrix,
+                host_gene_mask=host_mask,
+                called_mask=called_mask,
+            )
 
     # Compute normalized statistics (PR 11 A1/A3) over both denominators
     virus_stats, per_cell_df = compute_stats(

@@ -89,6 +89,8 @@ output/
     ├── plots/
     │   ├── <virus>_histogram.png
     │   ├── SuperExpressor_<virus>.png
+    │   ├── SuperExpressor_<virus>.tsv
+    │   ├── SuperExpressor_<virus>.json
     │   ├── umap_binary.html
     │   └── umap_continuous.html
     └── results/
@@ -1180,3 +1182,28 @@ Expected directories:
 output/A/
 output/B/
 ```
+
+## Exploratory high-burden plots and opt-in evidence diagnostics
+
+When visuals are enabled, `plots/SuperExpressor_<virus>.png` shows allocated viral
+molecules across the run's called-cell mask. The exploratory cutoff remains
+10 allocated molecules by default; fractional allocations are compared without
+rounding. This is descriptive high viral burden, not proof of infection.
+
+The matching TSV contains every barcode in that universe, including exact zeros:
+`barcode`, `viral_molecules`, `host_molecules`, `is_called`, `null_expected`,
+`rank_observed`, `rank_null`. Missing host depth and null values are blank. The JSON
+records sample, virus, count layer/allocation method, cutoff, `null_status`,
+`denominator_kind`, universe/display/zero/high-burden sizes, display floor,
+truncation limit, software identity, host partition source, called-mask source,
+and the called-cell file digest when available. The host-depth null excludes all
+viral features and uses the same called cells as the observed curve. Without host
+depth it is `not_estimable` and no null curve is drawn. Standalone callers without
+a mask are explicitly labelled `all_barcodes`.
+
+Only the PNG applies a 0.5 display floor and a 50,000-rank cap, both labelled.
+Neither changes the TSV. The standalone `scripts/super_expressors.py` summary
+resolves `--cells`, then `<run>/results/called_cells.tsv`, or stops with an error.
+`--denominator viral_positive_called` reproduces the historical subset statistic
+with a warning. Its final `denominator_kind` column distinguishes that statistic
+from a complete called-cell percentage. Empty input still produces the full header.

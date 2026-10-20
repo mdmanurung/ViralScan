@@ -5,7 +5,9 @@ Follows the HHV-6B CAR-T study (Lareau et al. 2023, Nature): a super-expressor i
 ``--min-umi`` (default 10) viral UMIs. For every virus in ``per_cell_viral.tsv`` it reports the number and
 percentage of super-expressor cells, the share of that virus's UMIs that sit in them, and the maximum viral UMIs
 per 10,000 UMIs. The denominator is the cell set (``--cells``), so cells with no viral UMI count as zero; without
-``--cells`` the ``is_called_cell`` column is used. Exploratory: no detection claim is made here.
+``--cells`` results/called_cells.tsv is resolved, otherwise the script fails.
+The explicit viral_positive_called denominator reproduces the old subset statistic.
+Fractional allocations are compared without rounding. Exploratory: no detection claim is made here.
 
     python scripts/super_expressors.py --per-cell-viral results/per_cell_viral.tsv --cells cells.tsv \
         --dataset ebv --sample GSM4796271 --out super_expressors.tsv
@@ -14,11 +16,43 @@ per 10,000 UMIs. The denominator is the cell set (``--cells``), so cells with no
 import argparse
 import contextlib
 import csv
+import logging
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 SENSITIVITY = (3, 5, 10, 50)
+SUMMARY_FIELDS = (
+    "dataset",
+    "sample",
+    "virus",
+    "n_cells",
+    "n_cells_viral_umi",
+    "min_umi",
+    "n_super_expressors",
+    "pct_cells_super",
+    "viral_molecules",
+    "viral_molecules_in_super",
+    "share_molecules_in_super",
+    "max_viral_per_10k",
+    "n_ge_3",
+    "n_ge_5",
+    "n_ge_10",
+    "n_ge_50",
+    "denominator_kind",
+)
+
+
+def resolve_denominator(per_cell_viral, cells):
+    if cells is not None:
+        return set(cells)
+    called = Path(per_cell_viral).resolve().parent.parent / "results" / "called_cells.tsv"
+    if called.is_file():
+        return read_cells(called)
+    raise SystemExit(
+        f"No complete called-cell denominator for {per_cell_viral}. Pass --cells or provide "
+        f"{called}. Refusing to compute prevalence over the virus-positive subset."
+    )
 
 
 def read_cells(path):
@@ -27,8 +61,11 @@ def read_cells(path):
     return {r for r in rows if r != "barcode"}
 
 
-def summarise(per_cell_viral, cells=None, min_umi=10):
-    """Return one dict per virus. ``cells`` is the denominator set (None = is_called_cell)."""
+def summarise(per_cell_viral, cells=None, min_umi=10, denominator="called_cells"):
+    """Return one dict per virus over an explicit or resolved complete cell set."""
+    if denominator not in {"called_cells", "viral_positive_called"}:
+        raise ValueError(f"Unknown denominator: {denominator}")
+    universe = resolve_denominator(per_cell_viral, cells) if denominator == "called_cells" else None
     by_virus = defaultdict(dict)
     called = set()
     with open(per_cell_viral, newline="") as fh:
@@ -39,7 +76,15 @@ def summarise(per_cell_viral, cells=None, min_umi=10):
             total = float(row["molecules_total_est"] or 0)
             n = float(row["viral_molecules_total_est"] or 0)
             by_virus[row["virus_name"]][bc] = (n, total)
-    universe = set(cells) if cells is not None else called
+    if denominator == "viral_positive_called":
+        logging.getLogger(__name__).warning(
+            "Using viral_positive_called denominator; this subset statistic is not prevalence."
+        )
+        universe = called
+    elif by_virus and not universe.intersection(bc for per in by_virus.values() for bc in per):
+        raise SystemExit(
+            "Called-cell universe has no matching per-cell barcodes; check GEM suffixes."
+        )
     out = []
     for virus, per in sorted(by_virus.items()):
         vals = {bc: v for bc, v in per.items() if bc in universe}
@@ -49,6 +94,7 @@ def summarise(per_cell_viral, cells=None, min_umi=10):
         mol_se = sum(v[0] for v in se)
         row = {
             "virus": virus,
+            "denominator_kind": denominator,
             "n_cells": len(universe),
             "n_cells_viral_umi": sum(1 for c in counts if c >= 1),
             "min_umi": min_umi,
@@ -71,7 +117,12 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--per-cell-viral", required=True, type=Path)
     ap.add_argument(
-        "--cells", type=Path, help="frozen cell list (one barcode per line); default is_called_cell"
+        "--cells",
+        type=Path,
+        help="complete frozen cell list; otherwise resolve results/called_cells.tsv",
+    )
+    ap.add_argument(
+        "--denominator", choices=("called_cells", "viral_positive_called"), default="called_cells"
     )
     ap.add_argument("--min-umi", type=int, default=10)
     ap.add_argument("--dataset", default="")
@@ -79,16 +130,16 @@ def main(argv=None):
     ap.add_argument("--out", type=Path, help="TSV path (default stdout)")
     args = ap.parse_args(argv)
     rows = summarise(
-        args.per_cell_viral, read_cells(args.cells) if args.cells else None, args.min_umi
+        args.per_cell_viral,
+        read_cells(args.cells) if args.cells else None,
+        args.min_umi,
+        args.denominator,
     )
     for r in rows:
         r.update(dataset=args.dataset, sample=args.sample)
-    fields = ["dataset", "sample"] + [
-        k for k in (rows[0] if rows else {}) if k not in ("dataset", "sample")
-    ]
     with contextlib.ExitStack() as stack:
         fh = stack.enter_context(open(args.out, "w", newline="")) if args.out else sys.stdout
-        writer = csv.DictWriter(fh, fieldnames=fields, delimiter="\t")
+        writer = csv.DictWriter(fh, fieldnames=SUMMARY_FIELDS, delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
     return 0

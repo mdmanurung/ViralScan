@@ -20,6 +20,15 @@ completion.
 
 ## Next action
 
+- [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
+- [~] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
+- [ ] REVIEW-C (WP-3): opt-in accession coverage map, after REVIEW-B.
+- [ ] REVIEW-D (WP-4): opt-in candidate-complete source-labelled review.
+- [ ] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
+- [ ] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.
+- WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
+
+
 - [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
   `--soloCBwhitelist None` (chemistries without an on-list, SW-21) when no read mapped: STAR 2.7.11b segfaults (exit
   139) in the Solo step. Found on 30 hsv1 Drop-seq libraries in Track A; reproduced on a 500k-read subset (no-Solo and
