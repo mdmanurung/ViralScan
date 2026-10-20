@@ -3318,6 +3318,10 @@ about 8 cluster hours per full GRCh38 build.
   `DOC-05`, and `G2`; currently blocking the `GOV-06` attempt-3 cache pin.
   Owner action: publish the archive and register the DOI, or correct the pinned
   record identifier.
+  - 2026-10-20: `scripts/make_panel_archive.py` prepared (not run, not shipped; not in
+    `MANIFEST.in` or ship scope). Builds a deterministic zip + `PANEL_MANIFEST.json` +
+    `SHA256SUMS` + draft Zenodo metadata after checking the GTFs against
+    `analysis/panel_expansion/gtf_corpus_manifest.tsv`. Publishing stays the user's.
 
 ### WP4B — Full-genome competition and anellovirus
 
