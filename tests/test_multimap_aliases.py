@@ -16,7 +16,7 @@ HIDDEN = ("unique-weighted", "sibling-weighted", "em-global")
 
 
 def _main(*extra: str) -> argparse.Namespace:
-    return build_parser().parse_args(["-s1", "a", "-s2", "b", "-o", "o", *extra])
+    return build_parser().parse_args(["run", "--r1", "a", "--r2", "b", "-o", "o", *extra])
 
 
 def _rerun(method: str) -> argparse.Namespace:
@@ -56,16 +56,14 @@ def test_every_canonical_name_still_accepted_silently(
 
 
 def test_help_lists_exactly_three_options() -> None:
-    for parser in (
-        build_parser(),
-        build_parser()._subparsers._group_actions[0].choices["rerun-multimap"],
-    ):
+    subs = build_parser()._subparsers._group_actions[0].choices
+    for parser in (subs["run"], subs["rerun-multimap"]):
         action = _action(parser)
         assert action.choices is None
         assert action.metavar == "{conservative,em,equal}"
         text = parser.format_help()
         assert "{conservative,em,equal}" in text
-    main_action = _action(build_parser())
+    main_action = _action(subs["run"])
     for hidden in (*HIDDEN, "em-cell", "host-conservative"):
         assert hidden not in (main_action.help or "")
 
@@ -88,6 +86,16 @@ def test_manifest_records_canonical_name(tmp_path: Path, given: str, canonical: 
     r1.write_text("r1\n")
     r2.write_text("r2\n")
     args = build_parser().parse_args(
-        ["-s1", str(r1), "-s2", str(r2), "-o", str(tmp_path / "out"), "--multimap-method", given]
+        [
+            "run",
+            "--r1",
+            str(r1),
+            "--r2",
+            str(r2),
+            "-o",
+            str(tmp_path / "out"),
+            "--multimap-method",
+            given,
+        ]
     )
     assert build_run_manifest(args)["allocation_method"] == canonical

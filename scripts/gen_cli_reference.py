@@ -63,7 +63,7 @@ def tables() -> dict[str, str]:
     from viralscan.menu import build_parser
 
     root = build_parser()
-    out = {"main": _table(root)}
+    out: dict[str, str] = {}
 
     def walk(prefix: str, parser: argparse.ArgumentParser) -> None:
         for name, sub in _subparsers(parser).items():

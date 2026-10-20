@@ -133,7 +133,7 @@ def test_validation_accepts_a_complete_opt_in(tmp_path, fastas):
 def test_default_invocation_keeps_its_run_fingerprint():
     from viralscan.menu import create_help
 
-    with patch("sys.argv", ["viralscan"]):
+    with patch("sys.argv", ["viralscan", "run", "-o", "o", "--r1", "a_R1.fq", "--r2", "a_R2.fq"]):
         args = create_help()
     assert args.auto_evidence is None and args.host_fasta is None and args.viral_fasta is None
     from viralscan.run_safety import build_run_manifest

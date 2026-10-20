@@ -54,7 +54,7 @@ A fast, direct check is the built-in whitelist preflight, which reports the
 fraction of R1 barcodes that match the whitelist for a given chemistry:
 
 ```bash
-viralscan check-whitelist -s1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
+viralscan check-whitelist --r1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
 ```
 
 A low match rate confirms a chemistry/whitelist mismatch — the single most common
@@ -85,12 +85,12 @@ on-list, so it is inferred when no 10x list matches and R1 is 20 bp.
 
 ### Can I process multiple samples in one run?
 
-Yes — provide comma-separated paths to `-s1` and `-s2`:
+Yes — provide comma-separated paths to `--r1` and `--r2`:
 
 ```bash
-viralscan -t t2g.txt -i index.idx -o output/ \
-  -s1 A_R1.fastq.gz,B_R1.fastq.gz \
-  -s2 A_R2.fastq.gz,B_R2.fastq.gz
+viralscan run -t t2g.txt -i index.idx -o output/ \
+  --r1 A_R1.fastq.gz,B_R1.fastq.gz \
+  --r2 A_R2.fastq.gz,B_R2.fastq.gz
 ```
 
 This creates separate run directories under `output/`, for example
@@ -437,10 +437,10 @@ because layer 2 only reads the counts and layer 1's summary.
 Use `--ncbi-accession` to fetch any RefSeq nucleotide record:
 
 ```bash
-viralscan -acc NC_045512.2 -o output/ -s1 R1.fastq.gz -s2 R2.fastq.gz
+viralscan run --ncbi-accession NC_045512.2 -o output/ --r1 R1.fastq.gz --r2 R2.fastq.gz
 ```
 
-Or use `--reference -fasta my_virus.fasta -gtf my_virus.gtf` with your own
+Or use `--reference --fasta my_virus.fasta --gtf my_virus.gtf` with your own
 reference files.
 
 ### The virus name in the output shows the gene_id prefix (e.g. "HUM_SARS").
@@ -555,9 +555,9 @@ STAR --runMode genomeGenerate \
 Then pass it to ViralScan:
 
 ```bash
-viralscan \
+viralscan run \
   -t t2g.txt -i index.idx -o output/ \
-  -s1 R1.fastq.gz -s2 R2.fastq.gz \
+  --r1 R1.fastq.gz --r2 R2.fastq.gz \
   --host-filter starsolo \
   --host-index /path/to/star_hg38/
 ```

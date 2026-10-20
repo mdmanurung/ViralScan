@@ -203,7 +203,7 @@ class TestOptions:
     def test_cli_defaults_are_unset_and_resolve_at_use(self):
         from viralscan.cli.parsers import build_parser
 
-        args = build_parser().parse_args([])
+        args = build_parser().parse_args(["run", "-o", "o", "--r1", "a", "--r2", "b"])
         assert args.infected_min_molecules is None
         assert args.detection_min_cells is None
         assert args.hostresponse_min_umi is None
@@ -300,18 +300,8 @@ class TestHostresponseMinUmi:
         d = _sample_dir(tmp_path, hostresponse_min_umi=25)
         assert _run_subcommand(d, hostresponse_min_umi=3)["detection_threshold"] == 3
 
-    def test_deprecated_detection_threshold_alias_still_sets_the_label_and_warns(
-        self, tmp_path, caplog
-    ):
+    def test_the_removed_detection_threshold_alias_is_ignored(self, tmp_path):
+        # CLI-UNIFY-01: the parser refuses `hostresponse --detection-threshold`; a stray
+        # namespace attribute must not set the label either.
         d = _sample_dir(tmp_path)
-        with caplog.at_level("WARNING", logger="viralscan"):
-            kwargs = _run_subcommand(d, detection_threshold=4)
-        assert kwargs["detection_threshold"] == 4
-        assert "deprecated" in caplog.text
-
-    def test_the_new_flag_beats_the_alias(self, tmp_path):
-        d = _sample_dir(tmp_path)
-        assert (
-            _run_subcommand(d, detection_threshold=4, hostresponse_min_umi=6)["detection_threshold"]
-            == 6
-        )
+        assert _run_subcommand(d, detection_threshold=4)["detection_threshold"] == 10

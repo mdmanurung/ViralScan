@@ -19,8 +19,8 @@ multimapping is corrected internally. Any STARsolo two-pass machinery from earli
 It does **not** ingest CellRanger BAMs or remap a processed matrix. A dataset is usable ONLY if raw
 FASTQ is retrievable. Processed-matrix-only and BAM-only deposits are NOT usable (§5 gate).
 
-**Read order matters:** for 10x, **`-s1` is the barcode+UMI read (R1)** and **`-s2` is the cDNA read
-(R2)** — kb consumes them in that order. The per-sample output dir is named from the `-s1` filename
+**Read order matters:** for 10x, **`--r1` is the barcode+UMI read (R1)** and **`--r2` is the cDNA read
+(R2)** — kb consumes them in that order. The per-sample output dir is named from the `--r1` filename
 *before the first underscore* (`SRR12345_1.fastq.gz` → `output/SRR12345/`).
 
 ---
@@ -38,7 +38,7 @@ export VS_SE_THRESHOLD=10                      # super-expressor call: >=10 vira
 export VS_REFDIR=/exports/archive/hg-funcgenom-research/evonk/old/intern/fasta_viruses/Serratus/transcriptome_human_hhv6_v2
 export VS_INDEX=$VS_REFDIR/index_serratus.idx
 export VS_T2G=$VS_REFDIR/t2g_serratus.txt
-export VS_VIRAL_GTF=$VS_DATA/ref/viral_from_index.gtf   # generated in §2; passed via -gtf to every run
+export VS_VIRAL_GTF=$VS_DATA/ref/viral_from_index.gtf   # generated in §2; passed via --gtf to every run
 
 # --- Local test sample (evonk; read-only archive). ---
 export VS_LOCAL=/exports/archive/hg-funcgenom-research/evonk/viralscan/data/healthy_samples
@@ -54,7 +54,7 @@ mkdir -p $VS_DATA/ref $VS_OUT
 # ViralScan + its runtime engines. kb-python provides `kb`; snakemake is required.
 # Download helpers (sra-tools/pysradb/ffq/seqkit) are for fetching public FASTQ only —
 # they are NOT part of viralscan.
-mamba create -y -n viralscan -c bioconda -c conda-forge \
+mamba create -y -n viralscan run -c bioconda -c conda-forge \
   python=3.11 kb-python snakemake-minimal \
   sra-tools=3.1 pysradb ffq seqkit pigz pandas scipy numpy
 mamba activate viralscan
@@ -105,12 +105,12 @@ for acc in AF157706 NC_007605 NC_001806 NC_006273 NC_009333; do
 done
 ```
 
-### Required: derive the viral-gene GTF for this index (`-gtf`)
+### Required: derive the viral-gene GTF for this index (`--gtf`)
 ViralScan's `analysis` step needs a GTF that tells it **which genes are viral**. With a *custom*
 prebuilt index it will NOT use the bundled 195-virus panel (different gene naming → would match
 nothing, and `viralscan data fetch` is irrelevant here). The authoritative list of viral genes for
 this index is its own **t2g** — every non-host (non-`ENST`) row. Generate a minimal matching GTF
-once and pass it via `-gtf` on every run:
+once and pass it via `--gtf` on every run:
 
 ```bash
 # One-time: build a viral-gene GTF whose gene_id values exactly match the index's viral var_names.
@@ -215,7 +215,7 @@ fetch_fastq () {  # $1=id  $2=SRR  -> prints downloaded *.fastq.gz
   fi
   ls -1 "$d"/*.fastq.gz
 }
-# viralscan wants: -s1 = barcode read (R1), -s2 = cDNA read (LONGER R2).
+# viralscan wants: --r1 = barcode read (R1), --r2 = cDNA read (LONGER R2).
 read_len () { seqkit stats -T "$1" | awk 'NR==2{print $7}'; }   # max read length
 
 # CHOOSE -x FROM THE MEASURED R1 LENGTH — never trust the GEO chemistry tag (EBV was tagged v3 but
@@ -227,18 +227,18 @@ pick_x () {  # $1=R1.fastq.gz  -> 10xv2 | 10xv3 | UNKNOWN
 ```
 
 When streaming a subsample with `fastq-dump -X N --split-files --gzip`, assign reads by length:
-**cDNA = longest read → `-s2`; barcode = the next-longest with len ≥ 20 → `-s1`** (an 8 bp `I1`
+**cDNA = longest read → `--r2`; barcode = the next-longest with len ≥ 20 → `--r1`** (an 8 bp `I1`
 index read, if present, is ignored). Equal-length pairs ⇒ not 10x ⇒ skip (see §9).
 
 ### 6c. Per-sample ViralScan run — a single command runs the whole DAG
 ```bash
-run_viralscan () {  # $1=id  $2=label(for out subdir via -s1 prefix)  $3=technology  $4=R1(barcode)  $5=R2(cDNA)
-  viralscan \
+run_viralscan () {  # $1=id  $2=label(for out subdir via --r1 prefix)  $3=technology  $4=R1(barcode)  $5=R2(cDNA)
+  viralscan run \
     -i "$VS_INDEX" \
     -t "$VS_T2G" \
-    -gtf "$VS_VIRAL_GTF" \
+    --gtf "$VS_VIRAL_GTF" \
     -o "$VS_OUT/$1/" \
-    -s1 "$4" -s2 "$5" \
+    --r1 "$4" --r2 "$5" \
     -x "$3" \
     -c $VS_THREADS \
     --se-threshold $VS_SE_THRESHOLD \
@@ -250,7 +250,7 @@ run_viralscan () {  # $1=id  $2=label(for out subdir via -s1 prefix)  $3=technol
 # producing results/{viral_summary.tsv,per_cell_viral.tsv,multimap_evidence.tsv}, report.html,
 # plots/, and kb-python/counts_unfiltered/adata_multimap.h5ad.
 #
-# Add --umap for UMAP HTML (slower). Add --cell-types labels.csv (barcode,cell_type) for the
+# Add --umap for UMAP HTML (slower). Add --cell-type-labels labels.csv (barcode,cell_type) for the
 # Fisher-exact per-cell-type viral enrichment table (results/cell_type_enrichment.tsv).
 # host-conservative multimapping keeps host-virus ambiguous EC mass out of primary viral counts.
 ```
@@ -348,14 +348,14 @@ score_sample () {  # $1=id  $2=run_subdir (the R1-prefix dir under $VS_OUT/$1)
 - **Two reads of EQUAL length** (e.g. 76/76, 150/150) → likely **not droplet 10x** (bulk/plate
   RNA-seq). Read the sample title; if not 10x, **exclude the dataset** (kb will fabricate barcodes
   and produce meaningless "cells" — as GSE123782 did).
-- **Read order ambiguous** (R1/R2 similar length, e.g. some 5′ data) → cDNA = longer read = `-s2`;
+- **Read order ambiguous** (R1/R2 similar length, e.g. some 5′ data) → cDNA = longer read = `--r2`;
   log the choice.
 - **`pysradb gse-to-srr` "usage" error** → that subcommand does not exist; use
   `pysradb gse-to-srp <GSE> | …` then `pysradb srp-to-srr <SRP>` (fixed in §6a).
 - **`unrecognized arguments: --se-threshold …`** → the `viralscan` on PATH is < 2.3.0; run the repo
   via `PYTHONPATH` (see §1).
 - **`Viral reference annotations were not found … data fetch`** with a custom prebuilt index → you
-  did not pass `-gtf`; supply the t2g-derived viral GTF from §2.
+  did not pass `--gtf`; supply the t2g-derived viral GTF from §2.
 - **OOM in `kb count`** → lower `-c/--cores`. The combined index is host-dominated, so memory scales
   with the human transcriptome (~64 GB is comfortable for this index).
 - **Output dir exists & non-empty** → `viralscan` prompts to overwrite; pre-clean `$VS_OUT/<id>/` in
@@ -366,7 +366,7 @@ score_sample () {  # $1=id  $2=run_subdir (the R1-prefix dir under $VS_OUT/$1)
 ---
 
 ## 10. Output schema (one folder per sample)
-`viralscan` writes a sample dir named from the `-s1` filename before the first underscore:
+`viralscan` writes a sample dir named from the `--r1` filename before the first underscore:
 ```
 $VS_OUT/<id>/<R1-prefix>/
   config.yaml
@@ -376,7 +376,7 @@ $VS_OUT/<id>/<R1-prefix>/
     viral_summary.tsv                           # per-virus: total_umi, infected_cells, total_cells, pct_infected, umi_per_10k
     per_cell_viral.tsv                           # per barcode×virus: viral_umi, total_umi, viral_fraction
     multimap_evidence.tsv                        # unique / ambiguous / host-virus-ambiguous + call_confidence
-    cell_type_enrichment.tsv                     # only if --cell-types given
+    cell_type_enrichment.tsv                     # only if --cell-type-labels given
   kb-python/counts_unfiltered/
     adata.h5ad
     adata_multimap.h5ad                          # layers: counts_original, counts_corrected, ...
@@ -394,7 +394,7 @@ id  label  role  technology  n_cells  top_virus  top_virus_umi  pct_infected  n_
 
 ## 11. Dry-run validation (1M-read subsample, SLURM, 2026-06-21)
 The whole chain was exercised on a 1M-read subsample per dataset against the evonk combined index
-(repo viralscan 2.3.0, evonk env for `kb`/`snakemake`, t2g-derived `-gtf`). Runtime ~3–5 min/job,
+(repo viralscan 2.3.0, evonk env for `kb`/`snakemake`, t2g-derived `--gtf`). Runtime ~3–5 min/job,
 peak RAM ~0.7 GB (index ≈ 0.4 GB) on 8 cores — so **full runs fit comfortably in `-c 8 --mem 32G`,
 `-t 08:00:00`**, scaling roughly linearly with read count.
 

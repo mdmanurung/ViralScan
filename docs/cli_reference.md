@@ -8,11 +8,13 @@ the installed version. This page documents the public CLI as of ViralScan
 
 ---
 
-## `viralscan` — viral quantification (default mode)
+## `viralscan run` — viral quantification
 
 ```
-viralscan [OPTIONS]
+viralscan run [OPTIONS]
 ```
+
+A bare `viralscan [OPTIONS]` (no subcommand) still runs `run`, with a deprecation warning.
 
 Use this command with paired FASTQ files. ViralScan validates inputs, prepares
 or reuses the reference, then dispatches the Snakemake workflow.
@@ -36,8 +38,8 @@ canonical names themselves) are still accepted but not listed. `em-global` can l
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--output PATH` | `-o` | *(required)* | Root output directory. Each FASTQ pair is written to a sample subdirectory. |
-| `--sample1 PATHS` | `-s1` | *(required)* | R1 FASTQ path, or comma-separated R1 paths for multiple samples. |
-| `--sample2 PATHS` | `-s2` | *(required)* | R2 FASTQ path, or comma-separated R2 paths matching `--sample1`. |
+| `--r1 PATHS` | | *(required)* | R1 FASTQ path, or comma-separated R1 paths for multiple samples. |
+| `--r2 PATHS` | | *(required)* | R2 FASTQ path, or comma-separated R2 paths matching `--r1`. |
 
 ### Reference (choose one of three modes)
 
@@ -45,26 +47,23 @@ canonical names themselves) are still accepted but not listed. `em-global` can l
 |------|-------|-------------|
 | `--index PATH` | `-i` | Pre-built kallisto index from `kb ref`. Required in pre-built mode. |
 | `--transcripts PATH` | `-t` | `t2g.txt` transcript-to-gene map from `kb ref`. Required in pre-built mode. |
-| `--f1 PATH` | `-f1` | Optional cDNA FASTA passed through for kb workflows that need it. |
-| `--reference` | `-ref` | Build index from `-fasta` + `-gtf` |
-| `--fasta PATH` | `-fasta` | FASTA file(s), comma-separated |
-| `--gtf PATH` | `-gtf` | GTF file(s), comma-separated |
-| `--ncbi-accession ACC` | `-acc` | NCBI accession(s), comma-separated; fetch + build |
+| `--f1 PATH` | | Optional cDNA FASTA passed through for kb workflows that need it. |
+| `--reference` | | Build index from `--fasta` + `--gtf` |
+| `--fasta PATH` | | FASTA file(s), comma-separated |
+| `--gtf PATH` | | GTF file(s), comma-separated |
+| `--ncbi-accession ACC` | | NCBI accession(s), comma-separated; fetch + build |
 | `--ncbi-email EMAIL` | | Contact email for NCBI (or `$NCBI_EMAIL`); needed only when a sequence must be downloaded, not for a cache hit |
-| `--data-cache-dir PATH` | | Viral annotation cache root for the bundled panel (`PATH/data/`); read only for an index without a `<index>.build_manifest.json` |
+| `--cache-dir PATH` | | Viral annotation cache root for the bundled panel (`PATH/data/`); read only for an index without a `<index>.build_manifest.json` |
 
 Reference modes are mutually exclusive:
 
 - Pre-built: use `-i` and `-t`.
-- FASTA/GTF: use `--reference -fasta ... -gtf ...`.
-- NCBI: use `-acc ...` and provide an NCBI email.
+- FASTA/GTF: use `--reference --fasta ... --gtf ...`.
+- NCBI: use `--ncbi-accession ...` and provide an NCBI email.
 
-**Original-CLI compatibility.** `--reference`/`-ref`/`-reference`, `--visual`/`-v` and
-`--multimapping`/`-mm` also accept the upstream value form (`-reference True`, `-v False`,
-`-mm False`). The value is optional and case-insensitive (`true/false/1/0/yes/no`); anything
-else is a usage error. Because the value is optional, a bare flag placed directly before a
-subcommand name takes it as the value (`-v data` is an error): put the flag after the subcommand or
-write `--visual=false`. Bare flags and `--no-visual`/`--no-multimapping` are unchanged.
+`--reference`, `--visual` and `--multimapping` take no value: use the `--no-` form to turn
+one off. The original single-dash and value forms (`-ref True`, `-v False`, `-mm False`) were
+removed in 3.0 and now fail with the replacement named; see [migration.md](migration.md).
 
 ### Analysis parameters
 
@@ -74,7 +73,7 @@ write `--visual=false`. Bare flags and `--no-visual`/`--no-multimapping` are unc
 | `--whitelist PATH` | `-w` | *(bundled)* | Barcode whitelist file |
 | `--strand {forward,reverse,unstranded,auto}` | | *(kb default)* | Read strandedness passed to `kb count --strand`. 10x 5′ libraries need `reverse` or `unstranded` (F-020). `auto` (opt-in) pilots all three on the first 1M read pairs per sample and picks `reverse` or `forward` if it keeps ≥0.8 of the unstranded pseudoalignment rate (larger ratio wins, tie → `unstranded`), else `unstranded`; recorded as `strand_inference` in `run_manifest.json` and reused on `--resume` |
 | `--cores N` | `-c` | `6` | CPU cores |
-| `--multimapping` / `--no-multimapping` | `-mm` | on | Multimapping correction |
+| `--multimapping` / `--no-multimapping` | | on | Multimapping correction |
 | `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `conservative`, `em`, or `equal` |
 | `--multimap-pseudocount FLOAT` | | `1.0` | Positive pseudocount for `unique-weighted` |
 | `--multimap-primary-call MODE` | | `selected-method` | V3 fixed contract: summaries use the complete selected-method molecule matrix. |
@@ -82,8 +81,8 @@ write `--visual=false`. Bare flags and `--no-visual`/`--no-multimapping` are unc
 | `--multimap-em-tol FLOAT` | | `1e-6` | Convergence tolerance for `em-global` or `em-cell` |
 | `--cell-calling METHOD` | | `auto` | `auto`, `emptydrops`, `external`, `knee`, or `none`; `auto` uses an external list when supplied and otherwise EmptyDrops on the host transcriptome only (needs R with DropletUtils; `Rscript` on `PATH`). `knee` is sensitivity-only and not for reported numbers: on real libraries it lands at the 10-molecule floor and calls empty droplets as cells |
 | `--called-cells-file PATH` | | *(none)* | External called-cell barcodes used by `auto` or required by `external` |
-| `--umap` | `-umap` | off | Generate UMAP plot |
-| `--visual` / `--no-visual` | `-v` | on | Generate visualisations |
+| `--umap` | | off | Generate UMAP plot |
+| `--visual` / `--no-visual` | | on | Generate visualisations |
 | `--host-filter ALIGNER` | | *(none)* | Optional irreversible host subtraction before quantification. V3 supports `starsolo` only. |
 | `--host-index PATH` | | *(none)* | Required with `--host-filter`; a full-host-genome STAR index directory. |
 | `--host-filter-star-params SET` | | `pinned` | STAR filter parameters for `--host-filter starsolo`: `pinned` or `star-default` (STAR's own defaults). |
@@ -100,7 +99,7 @@ write `--visual=false`. Bare flags and `--no-visual`/`--no-multimapping` are unc
 | `--gene-programs` / `--no-gene-programs` | off | Second layer: for viruses already detected, infer the viral gene programme (latent vs productive) per cell and write `results/gene_program_summary.tsv` + `results/gene_program_cells.tsv` |
 | `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because herpesvirus latent and lytic ORFs share exonic sequence; a per-gene comparison gives a latent:lytic ratio of 1.15 in a latently-infected cell line. Must be >= 1 |
 | `--se-threshold N` | `10` | Legacy-named display threshold for high candidate molecule support; not a biological classification |
-| `--cell-types PATH` | *(none)* | CSV with `barcode,cell_type` columns for per-virus cell-type enrichment |
+| `--cell-type-labels PATH` | *(none)* | CSV with `barcode,cell_type` columns for per-virus cell-type enrichment |
 
 ### Host-response analysis (optional)
 
@@ -149,7 +148,7 @@ The default mode refuses a non-empty output directory. Reuse must be explicit:
 |------|----------|
 | `--resume` | Resume only when the existing `run_manifest.json` fingerprint exactly matches the current invocation and input bytes |
 | `--overwrite` | Replace only the resolved output target after an explicit confirmation |
-| `--yes`, `-y` | Answer the `--overwrite` confirmation, and the `--reference` prompt that asks whether to continue when `-i`/`-t`/`-f1` are also given (they are ignored; the reference is built into the output directory). It does not imply `--overwrite` or `--resume`. Without a terminal and without `--yes`, that prompt is an error, not a hang |
+| `--yes`, `-y` | Answer the `--overwrite` confirmation, and the `--reference` prompt that asks whether to continue when `-i`/`-t`/`--f1` are also given (they are ignored; the reference is built into the output directory). It does not imply `--overwrite` or `--resume`. Without a terminal and without `--yes`, that prompt is an error, not a hang |
 
 `--resume` and `--overwrite` are mutually exclusive. A missing manifest or
 fingerprint mismatch makes resume fail without changing the output directory, and
@@ -157,9 +156,9 @@ the error lists the options and input files that differ (for example
 `Options that differ: --strand.`).
 
 The fingerprint covers the input bytes, not just their paths: the FASTQs, `-t`, `-i`,
-`-f1`, `-w`, `-gtf`, `-fasta`, `--called-cells-file`, `--positive-control-receipt`, and also the
+`--f1`, `-w`, `--gtf`, `--fasta`, `--called-cells-file`, `--positive-control-receipt`, and also the
 STAR host index directory (`--host-index`, hashed as a directory), `--host-h5ad`,
-`--cell-types`, `--host-fasta` and `--viral-fasta`. For `-acc` runs the sha256 of the
+`--cell-type-labels`, `--host-fasta` and `--viral-fasta`. For `--ncbi-accession` runs the sha256 of the
 fetched NCBI FASTA and GTF is recorded in the manifest after the fetch, and `--resume`
 refuses a run whose accession now returns different bytes. A run that used any of these
 newer inputs and was started on an earlier version has no matching fingerprint: finish it
@@ -258,8 +257,8 @@ Expected outputs when `kb ref` succeeds:
 |------|-----|
 | `combined.fa` | Concatenated host + virus FASTA |
 | `combined.gtf` | Concatenated host + virus GTF |
-| `index.idx` | Pass to `viralscan -i` |
-| `t2g.txt` | Pass to `viralscan -t` |
+| `index.idx` | Pass to `viralscan run -i` |
+| `t2g.txt` | Pass to `viralscan run -t` |
 | `reference_manifest.json` | Frozen profile and per-sequence provenance/digests |
 | `cdna.fa` | cDNA FASTA produced by `kb ref -f1` |
 
@@ -439,11 +438,10 @@ completed multimap step (`log/multimap.done`). Results are written to
 | `--host-h5ad PATH` | | *(required)* | Host gene-expression h5ad (cells × genes, matched barcodes) |
 | `--n-seeds N` | | from config or `6` | Random seeds for multi-seed L2 regression |
 | `--n-stab-iter N` | | from config or `100` | Stability-selection iterations |
-| `--no-use-hvg` | | off | Use all genes instead of highly variable genes as features |
+| `--use-hvg` / `--no-use-hvg` | | on | Use highly variable genes as features; `--no-use-hvg` uses all genes |
 | `--stab-min-prob P` | | from config or `0.6` | Min selection probability to call a gene stably associated |
 | `--top-n-genes N` | | from config or `50` | Top N stable genes to pass to pathway enrichment |
-| `--hostresponse-min-umi N` | | from config or `10` | Min selected-method viral molecule estimate for the per-cell raw candidate-support label |
-| `--detection-threshold N` | | | Deprecated alias of `--hostresponse-min-umi` (warns); ignored when that is given |
+| `--min-umi N` | | from config or `10` | Min selected-method viral molecule estimate for the per-cell raw candidate-support label |
 | `--label {raw,cpm,fraction}` | | `raw` | Candidate-support label (see **Depth-confound controls** below) |
 | `--depth-match` | | off | Restrict each virus to a depth-matched cohort to reduce measured depth imbalance; residual confounding can remain |
 | `--mito-control` / `--no-mito-control` | | on | Add per-cell %mito as a covariate to the per-gene E-values |
@@ -471,7 +469,7 @@ h5ad obs.
 
 ### Depth-confound controls (important)
 
-The default candidate-support label (`--label raw`, `counts >= hostresponse-min-umi`)
+The default candidate-support label (`--label raw`, `counts >= min-umi`)
 **tracks sequencing depth**: deeper cells carry more viral *and* more host counts,
 so a naive host-gene AUC can partly reflect library size rather than biology.
 Every run reports a depth-confound baseline. Two opt-in controls change the
@@ -525,7 +523,7 @@ viralscan hostresponse \
 ## `viralscan check-whitelist` — chemistry/whitelist preflight
 
 ```
-viralscan check-whitelist -s1 R1.fastq.gz -w WHITELIST -x TECHNOLOGY
+viralscan check-whitelist --r1 R1.fastq.gz -w WHITELIST -x TECHNOLOGY
 ```
 
 Sample the first reads of R1, extract the cell barcode using the technology's
@@ -541,7 +539,7 @@ whenever an explicit `--whitelist` is supplied.
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--sample1 R1` | `-s1` | *(required)* | R1 FASTQ (the barcode read; optionally `.gz`) |
+| `--r1 R1` | | *(required)* | R1 FASTQ (the barcode read; optionally `.gz`) |
 | `--whitelist PATH` | `-w` | *(required)* | Barcode whitelist, one barcode per line (optionally `.gz`) |
 | `--technology X` | `-x` | `10xv3` | Single-cell technology (sets the barcode length/offset) |
 | `--min-match-rate F` | | `0.5` | Minimum acceptable barcode match rate |
@@ -552,17 +550,31 @@ can gate a pipeline. Example:
 
 ```bash
 viralscan check-whitelist \
-  -s1 sample_R1.fastq.gz \
+  --r1 sample_R1.fastq.gz \
   -w 3M-february-2018.txt \
   -x 10xv3
 ```
 
 ---
 
+## `viralscan check-chemistry` — library chemistry and strand diagnosis
+
+```
+viralscan check-chemistry --r1 R1.fastq.gz [--r2 R2.fastq.gz -i index.idx -t t2g.txt] [-x TECH] [-w LIST] [--json PATH]
+```
+
+Read-only check before a run. From the first R1 reads it reports bulk vs single-cell, the
+on-list/chemistry call and UMI length; with `--r2`, `-i` and `-t` it also runs the 1M-pair strand
+pilot, which tells 3' from 5' and picks `--strand`. It prints the `-x`/`-w`/`--strand` to use and
+exits 1 when the chemistry is unresolved or the evidence conflicts. Flags: see the generated
+table below.
+
+---
+
 ## `viralscan doctor` — dependency/profile check
 
 ```
-viralscan doctor [--profile {pip,full}] [--json]
+viralscan doctor [--profile {pip,full}] [--json PATH] [--verbose | --quiet]
 ```
 
 Check whether the current installation provides the dependencies required by a
@@ -572,12 +584,12 @@ does not imply that native full-workflow tools are installed.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--profile {pip,full}` | `full` | Check the Python/reporting/validation tier or the complete external-tool workflow tier |
-| `--json` | off | Emit machine-readable results |
+| `--json PATH` | *(none)* | Also write the report as JSON (it is always printed) |
 
 Example:
 
 ```bash
-viralscan doctor --profile full --json
+viralscan doctor --profile full --json doctor_report.json
 ```
 
 ---
@@ -585,7 +597,7 @@ viralscan doctor --profile full --json
 ## `viralscan validate-run` — schema and count-invariant check
 
 ```
-viralscan validate-run RUN_DIR [--no-verify-inputs] [--json-output PATH]
+viralscan validate-run --run-dir RUN_DIR [--no-verify-inputs] [--json PATH]
 ```
 
 Validate a v3 output tree against its run manifest, schemas, fingerprints, and
@@ -594,20 +606,20 @@ reinterpret a pre-v3 H5AD file.
 
 | Argument/flag | Default | Description |
 |---------------|---------|-------------|
-| `RUN_DIR` | *(required)* | Output directory containing `run_manifest.json` |
+| `--run-dir RUN_DIR` | *(required)* | Output directory containing `run_manifest.json` |
 | `--no-verify-inputs` | off | Skip re-hashing manifested input files; use only when those inputs are intentionally unavailable |
-| `--json-output PATH` | *(none)* | Write the validation report as JSON |
+| `--json PATH` | *(none)* | Write the validation report as JSON |
 
 Example:
 
 ```bash
-viralscan validate-run output/ --json-output output/validation_report.json
+viralscan validate-run --run-dir output/ --json output/validation_report.json
 ```
 
 Missing required schemas, incompatible schema versions, fingerprint failures,
 or broken count invariants make validation fail rather than silently downgrade.
 
-## `rerun-programs`
+## `viralscan rerun-programs` — re-score gene programmes
 
 Run layer 2 over a completed run, **in place**:
 
@@ -630,34 +642,34 @@ These tables are generated from the argument parser by
 `--check` fails if they are stale). They list every flag with its parser default and help text;
 the sections above add context. Do not edit between the markers.
 
-### viralscan (quantification and global options)
+### viralscan run
 
-<!-- BEGIN GENERATED: main -->
+<!-- BEGIN GENERATED: run -->
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--output, -o OUTPUT` | *(none)* | The path to the output directory (required for quantification). |
-| `--sample1, -s1 SAMPLE1` | *(none)* | The path to the forward FASTQ sample (gunzipped is preferred). |
-| `--sample2, -s2 SAMPLE2` | *(none)* | The path to the backward FASTQ sample (gunzipped is preferred). |
+| `--output, -o OUTPUT` | *required* | The path to the output directory. |
+| `--r1 R1` | *required* | The path to the forward FASTQ sample (gunzipped is preferred). |
+| `--r2 R2` | *required* | The path to the backward FASTQ sample (gunzipped is preferred). |
 | `--transcripts, -t TRANSCRIPTS` | *(none)* | The path to the transcripts (t2g) file produced by kb ref. |
 | `--index, -i INDEX` | *(none)* | The path to the reference index created by kb ref. |
 | `--cores, -c CORES` | `6` | The amount of cores the workflow can use. Default: 6. |
-| `--reference, -reference, -ref [BOOL]` | `False` | Build a kb ref index from -fasta and -gtf into the output directory. Bare flag or `-reference True` (original form); `False` disables. |
-| `--gtf, -gtf GTF` | *(none)* | Path to GTF files (comma-delimited, without space in-between). |
-| `--fasta, -fasta FASTA` | *(none)* | Path to FASTA files (comma-delimited, without space in-between). |
-| `--f1, -f1 F1` | *(none)* | Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated |
-| `--visual, --no-visual, -v [BOOL]` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
+| `--reference, --no-reference` | `False` | Build a kb ref index from --fasta and --gtf into the output directory. |
+| `--gtf GTF` | *(none)* | Path to GTF files (comma-delimited, without space in-between). |
+| `--fasta FASTA` | *(none)* | Path to FASTA files (comma-delimited, without space in-between). |
+| `--f1 F1` | *(none)* | Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated |
+| `--visual, --no-visual` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
 | `--technology, -x TECHNOLOGY` | *(none)* | Single-cell technology (`kb --list` to view). Default: detected from the first 100k R1 reads of each sample (on-list match, TSO/poly-T position). An explicit -x that the reads contradict, or reads that fit no single chemistry, stop the run. GEM-X 5' needs its on-list via -w. |
 | `--force-technology` | `False` | Run with the explicit -x even when the chemistry check disagrees or cannot decide. The detection is still logged. |
 | `--require-chemistry-sanity` | `False` | Stop after kb count if library sanity reports an error or cannot be checked. Diagnostics are retained; warnings alone do not stop the run. |
 | `--whitelist, -w WHITELIST` | *(none)* | Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used. |
 | `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default (no flag): with the pinned kallisto 0.52.0 the effective behaviour is `unstranded` for every chemistry — kallisto 0.52.0 marks the 10x technologies strand-specific yet leaves the strand unset, so the legacy per-technology forward default no longer engages (upstream regression; kallisto <=0.51.1 defaulted 10x to forward). Set the flag explicitly for stranded quantification. 10x 5' libraries need `reverse` or `unstranded`: forward pseudoaligns only 6.5-8.9% of reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first 1M read pairs of each sample and picks one; the choice is recorded in run_manifest.json. |
-| `--multimapping, --no-multimapping, -mm [BOOL]` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |
-| `--umap, -umap` | `False` | Generate a UMAP plot. Significantly increases runtime. Default: off. |
-| `--ncbi-accession, -acc NCBI_ACCESSION` | *(none)* | One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. ViralScan will download FASTA + GTF for each and build the index. Mutually exclusive with --reference / -fasta / -gtf. |
+| `--multimapping, --no-multimapping` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |
+| `--umap` | `False` | Generate a UMAP plot. Significantly increases runtime. Default: off. |
+| `--ncbi-accession NCBI_ACCESSION` | *(none)* | One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. ViralScan will download FASTA + GTF for each and build the index. Mutually exclusive with --reference / --fasta / --gtf. |
 | `--ncbi-email NCBI_EMAIL` | *(none)* | Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL. |
 | `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher E-utilities request rates with --ncbi-accession. Falls back to $NCBI_API_KEY. |
-| `--data-cache-dir PATH` | *(none)* | Root cache directory for ViralScan's fetched viral annotation panel. Default: $VIRALSCAN_CACHE or ~/.cache/viralscan/. |
+| `--cache-dir PATH` | *(none)* | Root cache directory for ViralScan's fetched viral annotation panel. Default: $VIRALSCAN_CACHE or ~/.cache/viralscan/. |
 | `--se-threshold SE_THRESHOLD` | `10` | Selected-method viral molecule estimate above which a cell is flagged as a 'super-expressor'. Default: 10. |
 | `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum selected-method viral molecule estimate, summed over the called cells, required for a virus to pass the called-cell detection gate (see --detection-min-cells). Molecules in non-called barcodes (empty droplets) do not count and are reported as background_umis. Default: 1. |
 | `--detection-min-cells N` | *(none)* | Minimum number of distinct called cells that must be infected (see --infected-min-molecules) for a virus to pass the detection gate. A virus seen only in the all-barcode screen is listed as a candidate, never dropped. With --cell-calling none every barcode counts as a called cell. Default: 1. |
@@ -694,7 +706,7 @@ the sections above add context. Do not edit between the markers.
 | `--multimap-em-max-iter MULTIMAP_EM_MAX_ITER` | `100` | Maximum EM iterations for --multimap-method em. Default: 100. |
 | `--multimap-em-tol MULTIMAP_EM_TOL` | `1e-06` | EM convergence tolerance for --multimap-method em. Default: 1e-06. |
 | `--multimap-molecule-assignments, --no-multimap-molecule-assignments` | `False` | Write results/molecule_assignments.tsv.gz: one row per corrected CB-UMI molecule with its EC ids, status (unique/ambiguous/unresolved), compatible genes and the selected --multimap-method's per-gene weights. Optional, off by default, and it changes no count. Needs one extra pass over the BUS text; the file is large on deep samples. Default: False. |
-| `--cell-types CELL_TYPES` | *(none)* | Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral enrichment in the HTML report. Optional. |
+| `--cell-type-labels CELL_TYPES` | *(none)* | Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral enrichment in the HTML report. Optional. |
 | `--host-filter ALIGNER` | *(none)* | Optional advanced host-subtraction pre-step before viral quantification. Removes reads that align to the host genome, reducing false positives. V3 supports 'starsolo' (full-genome STAR alignment) because it preserves exact fragment identity. Requires --host-index. Usually not needed when using a combined host+virus reference. |
 | `--read-filter READ_FILTER` | *(none)* | Read-artefact filter before kb count (after --host-filter, if any). 'off' (the default) counts every read. 'artefact' drops pairs whose R1 carries the 10x TSO in the barcode/UMI span, whose R2 is reagent (TSO\|poly-T, TruSeq chimera), or whose R2 has no complex body before its first >=15 nt homopolymer in either orientation. It also drops genuine low-complexity viral reads. 'tso-trim' keeps every pair but cuts the 10x TSO (30 nt) from the start of R2, because TSO-led host reads that STAR's host filter misses pseudoalign to viral CAG tracts (F-028). Writes read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz. |
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | *(none)* | STAR filter parameter set for --host-filter starsolo. 'pinned' (the default) removes only near-identical, near-full-length host alignments (at most 4 mismatches, 90% of the read aligned, up to 20 loci). 'star-default' uses STAR's own defaults (10 mismatches, 66% aligned, up to 10 loci). Both are passed explicitly and recorded in host_filter_audit.tsv. |
@@ -719,7 +731,7 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-top-n-genes N` | *(none)* | Top N above-threshold genes to pass to pathway enrichment (default: 50). |
 | `--hostresponse-label HOSTRESPONSE_LABEL` | *(none)* | Virus-support labeling strategy for hostresponse (default: raw = selected-method molecule estimate >= detection_threshold). 'cpm'/'fraction' normalize by measured host molecule depth but do not remove all depth confounding. |
 | `--hostresponse-depth-match` | `False` | Restrict hostresponse to a depth-matched cohort (removes depth as a design-level confounder). Recommended when depth_alone_auc is close to model_auc. |
-| `--hostresponse-control-mito, --no-hostresponse-control-mito` | `True` | Include %mito as a covariate in hostresponse depth-adjusted E-values (default: on). Disable with --no-hostresponse-control-mito if the host h5ad has no mitochondrial genes. |
+| `--hostresponse-mito-control, --no-hostresponse-mito-control` | `True` | Include %mito as a covariate in hostresponse depth-adjusted E-values (default: on). Disable with --no-hostresponse-mito-control if the host h5ad has no mitochondrial genes. |
 | `--hostresponse-differential` | `False` | Run a genome-wide depth-and-mito-adjusted differential expression test alongside the selection-frequency model (written to <output>/hostresponse/<virus>_differential.csv). |
 | `--enrichment` | `False` | Run pathway enrichment on above-threshold host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]'). |
 | `--enrichment-db DB` | *(none)* | Enrichment database for gget.enrichr (default: GO_Biological_Process_2023). |
@@ -769,7 +781,7 @@ the sections above add context. Do not edit between the markers.
 | `--cluster` | `False` | (--anellovirus) Run cd-hit-est clustering at 95% identity after masking. |
 | `--reference-panel PANEL` | *(none)* | Build a pre-defined reference panel. Currently supported: 'anellovirus'. Uses the bundled FASTA from `viralscan data fetch` when available, otherwise falls back to NCBI accession download (same as --anellovirus). Combine with --no-mask / --cluster for masking/clustering options. |
 | `--list-species` | `False` | Print all supported host species and exit. |
-| `--cores N` | *(none)* | Total CPU budget for kb ref, minimap2 homology and cd-hit-est. Native workers are bounded to N (kb ref min(8, N), minimap2 min(3, N), cd-hit-est -T N). Unset keeps the legacy requests (8 / 3 / all CPUs). |
+| `--cores, -c N` | *(none)* | Total CPU budget for kb ref, minimap2 homology and cd-hit-est. Native workers are bounded to N (kb ref min(8, N), minimap2 min(3, N), cd-hit-est -T N). Unset keeps the legacy requests (8 / 3 / all CPUs). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
@@ -829,7 +841,7 @@ the sections above add context. Do not edit between the markers.
 |------|---------|------|
 | `--run-dir RUN_DIR` | *required* | Completed source run. It is never modified. |
 | `--output, -o OUTPUT` | *required* | New result directory; must not already be non-empty. |
-| `--multimap-method {conservative,em,equal}` | *required* | Multimapping resolution method to apply: conservative, em or equal (see 'viralscan --help' for what each does). |
+| `--multimap-method {conservative,em,equal}` | *required* | Multimapping resolution method to apply: conservative, em or equal (see 'viralscan run --help' for what each does). |
 | `--cores, -c CORES` | `6` | Number of cores for snakemake workers. Default: 6. |
 | `--multimap-em-max-iter N` | *(none)* | (em only) Maximum EM iterations. Default: preserves existing config value. |
 | `--multimap-em-tol TOL` | *(none)* | (em only) EM convergence tolerance. Default: preserves existing config value. |
@@ -863,11 +875,10 @@ the sections above add context. Do not edit between the markers.
 | `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
 | `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
 | `--n-stab-iter N` | *(none)* | Selection-frequency (randomized-Lasso) iterations (default: from config or 100). |
-| `--no-use-hvg` | `True` | Use all genes instead of highly variable genes as features. |
+| `--use-hvg, --no-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-use-hvg uses all genes. |
 | `--stab-min-prob P` | *(none)* | Min uncalibrated selection frequency to flag a gene; a ranking threshold, not an error rate (default: 0.6). |
 | `--top-n-genes N` | *(none)* | Top N above-threshold genes to pass to pathway enrichment (default: 50). |
-| `--hostresponse-min-umi N` | *(none)* | Minimum selected-method viral molecule estimate for the per-cell positive label (default: from config or 10). |
-| `--detection-threshold N` | *(none)* | Deprecated alias of --hostresponse-min-umi (it used to set the per-cell label, not the sample gate). Ignored when --hostresponse-min-umi is given. |
+| `--min-umi N` | *(none)* | Minimum selected-method viral molecule estimate for the per-cell positive label (default: from config or 10). |
 | `--label LABEL` | `raw` | Candidate-support label: 'raw' (default, depth-confounded estimate>=threshold) or depth-normalized 'cpm'/'fraction' (prevalence-matched burden per host molecule). |
 | `--depth-match` | `False` | Restrict analysis to a coarsened-exact depth-matched cohort; this reduces measured total-depth imbalance but does not establish independence from depth confounding. |
 | `--mito-control, --no-mito-control` | `True` | Add %mito as a covariate to the per-gene E-values (default: on; --no-mito-control to disable). |
@@ -897,11 +908,30 @@ the sections above add context. Do not edit between the markers.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--sample1, -s1 R1` | *required* | R1 FASTQ (barcode read). |
+| `--r1 R1` | *required* | R1 FASTQ (barcode read). |
 | `--whitelist, -w PATH` | *required* | Barcode whitelist (optionally .gz). |
 | `--technology, -x TECHNOLOGY` | `10xv3` | Single-cell technology (default: 10xv3). |
 | `--min-match-rate F` | `0.5` | Minimum acceptable barcode match rate (default: 0.5). |
 | `--n-sample N` | `100000` | Number of R1 reads to sample (default: 100000). |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan check-chemistry
+
+<!-- BEGIN GENERATED: check-chemistry -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--r1 R1` | *required* | R1 FASTQ (barcode read). |
+| `--r2 R2` | *(none)* | R2 FASTQ (for the pilot). |
+| `--index, -i INDEX` | *(none)* | kallisto index (enables the strand pilot). |
+| `--transcripts, -t TRANSCRIPTS` | *(none)* | t2g file (enables the strand pilot). |
+| `--whitelist, -w PATH` | *(none)* | Barcode on-list. |
+| `--technology, -x TECHNOLOGY` | *(none)* | Technology you plan to use; checked. |
+| `--cores, -c CORES` | `4` | Threads for the pilot. |
+| `--json PATH` | *(none)* | Also write the report as JSON. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
@@ -914,7 +944,9 @@ the sections above add context. Do not edit between the markers.
 | Flag | Default | Help |
 |------|---------|------|
 | `--profile PROFILE` | `full` |  |
-| `--json` | `False` |  |
+| `--json PATH` | *(none)* | Also write the report as JSON. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
 
 <!-- END GENERATED -->
 
@@ -924,8 +956,10 @@ the sections above add context. Do not edit between the markers.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `run_dir` | *required* | ViralScan output directory containing run_manifest.json. |
+| `--run-dir RUN_DIR` | *required* | ViralScan output directory containing run_manifest.json. |
 | `--no-verify-inputs` | `False` |  |
-| `--json-output PATH` | *(none)* |  |
+| `--json PATH` | *(none)* | Also write the report as JSON. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
 
 <!-- END GENERATED -->

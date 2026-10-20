@@ -248,9 +248,12 @@ def test_config_is_typed_and_default_off(tmp_path):
 
 
 def test_flag_parses_and_default_run_keeps_its_fingerprint():
-    with patch("sys.argv", ["viralscan"]):
+    with patch("sys.argv", ["viralscan", "run", "-o", "o", "--r1", "a_R1.fq", "--r2", "a_R2.fq"]):
         args = create_help()
     assert args.host_capture is None
     assert "host_capture" not in build_run_manifest(args)["options"]
-    with patch("sys.argv", ["viralscan", "--host-capture"]):
+    with patch(
+        "sys.argv",
+        ["viralscan", "run", "-o", "o", "--r1", "a_R1.fq", "--r2", "a_R2.fq", "--host-capture"],
+    ):
         assert create_help().host_capture is True

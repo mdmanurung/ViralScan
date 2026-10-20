@@ -34,12 +34,12 @@ Use this mode with a kallisto index (`index.idx`) and a transcript-to-gene map
 (`t2g.txt`) created by `kb ref`.
 
 ```bash
-viralscan \
+viralscan run \
   -t t2g.txt \
   -i index.idx \
   -o output/ \
-  -s1 sample_R1.fastq.gz \
-  -s2 sample_R2.fastq.gz
+  --r1 sample_R1.fastq.gz \
+  --r2 sample_R2.fastq.gz
 ```
 
 The key results are:
@@ -54,7 +54,7 @@ output/sample/kb-python/counts_unfiltered/adata_multimap.h5ad
 Check that the run is complete and its artifacts match their schemas:
 
 ```bash
-viralscan validate-run output/
+viralscan validate-run --run-dir output/
 ```
 
 A good run prints a JSON report with `"ok": true` and an empty `"issues"` list.
@@ -73,19 +73,19 @@ all barcodes deliberately (every ViralScan count then includes empty droplets).
 Given FASTA and GTF files, ViralScan runs `kb ref`.
 
 ```bash
-viralscan \
+viralscan run \
   --reference \
-  -fasta viral_genome.fasta \
-  -gtf   viral_annotation.gtf \
+  --fasta viral_genome.fasta \
+  --gtf   viral_annotation.gtf \
   -o     output/ \
-  -s1    sample_R1.fastq.gz \
-  -s2    sample_R2.fastq.gz
+  --r1    sample_R1.fastq.gz \
+  --r2    sample_R2.fastq.gz
 ```
 
 Multiple FASTA or GTF files are comma-separated paths (no spaces):
 
 ```bash
--fasta host.fasta,virus.fasta -gtf host.gtf,virus.gtf
+--fasta host.fasta,virus.fasta --gtf host.gtf,virus.gtf
 ```
 
 The index is built under `output/index/` (`index.idx`, `t2g.txt`,
@@ -102,18 +102,18 @@ downloaded. Pass `--ncbi-email` or set `NCBI_EMAIL`. A run whose accessions are 
 the local cache (`~/.cache/viralscan/ncbi/`) needs no email.
 
 ```bash
-viralscan \
-  -acc   NC_002021.3 \
+viralscan run \
+  --ncbi-accession   NC_002021.3 \
   -o     output/ \
-  -s1    sample_R1.fastq.gz \
-  -s2    sample_R2.fastq.gz \
+  --r1    sample_R1.fastq.gz \
+  --r2    sample_R2.fastq.gz \
   --ncbi-email you@example.org
 ```
 
 Accessions are comma-separated:
 
 ```bash
--acc NC_002021.3,NC_001512.1
+--ncbi-accession NC_002021.3,NC_001512.1
 ```
 
 Downloaded references are cached in `~/.cache/viralscan/ncbi/` and reused on later runs.
@@ -137,12 +137,12 @@ viralscan build-ref \
 Use the resulting files with Mode 1:
 
 ```bash
-viralscan \
+viralscan run \
   -t ref_human_sars/t2g.txt \
   -i ref_human_sars/index.idx \
   -o output/ \
-  -s1 sample_R1.fastq.gz \
-  -s2 sample_R2.fastq.gz
+  --r1 sample_R1.fastq.gz \
+  --r2 sample_R2.fastq.gz
 ```
 
 The default `--multimap-method conservative` (recorded as `host-conservative`) keeps host-virus ambiguous
@@ -194,13 +194,13 @@ AAACCCAGTGCA-1,Monocyte
 Add the file to any quantification command:
 
 ```bash
-viralscan \
+viralscan run \
   -t t2g.txt \
   -i index.idx \
   -o output/ \
-  -s1 sample_R1.fastq.gz \
-  -s2 sample_R2.fastq.gz \
-  --cell-types cell_types.csv
+  --r1 sample_R1.fastq.gz \
+  --r2 sample_R2.fastq.gz \
+  --cell-type-labels cell_types.csv
 ```
 
 The enrichment table is written to
@@ -220,7 +220,7 @@ The enrichment table is written to
 | `--detection-threshold N` | Min estimated viral molecules in called cells for a virus to pass the detection gate (default: 1) |
 | `--detection-min-cells N` | Distinct called cells that must be infected to pass the gate (default: 1); other viruses stay listed as candidates |
 | `--infected-min-molecules X` | Summed allocated molecules for a cell to count as infected (default: 1.0); weaker cells are counted as sub-threshold |
-| `--cell-types CSV` | Add per-virus cell-type enrichment to the report |
+| `--cell-type-labels CSV` | Add per-virus cell-type enrichment to the report |
 | `--host-filter starsolo --host-index PATH` | Optional genome-level host pre-subtraction before quantification |
 | `--verbose` | Enable debug logging |
 

@@ -19,8 +19,17 @@ from viralscan.defaults import DEFAULTS
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 
+_SUBCOMMANDS = {"run", "data", "build-ref", "evidence", "evidence-plot", "rerun-multimap",
+                "rerun-programs", "doctor", "validate-run", "hostresponse", "check-whitelist",
+                "check-chemistry", "--help"}  # fmt: skip
+# `run` requires these; a test that passes its own -o/--r1/--r2 overrides them (last wins).
+_RUN_REQUIRED = ["run", "-o", "out", "--r1", "s_R1.fastq.gz", "--r2", "s_R2.fastq.gz"]
+
+
 def _parse(argv: list[str]) -> argparse.Namespace:
-    """Run create_help() with a mocked sys.argv."""
+    """Run create_help() with a mocked sys.argv; run-mode argv gets `run` and its required inputs."""
+    if not argv or argv[0] not in _SUBCOMMANDS:
+        argv = _RUN_REQUIRED + argv
     with patch("sys.argv", ["viralscan"] + argv):
         from viralscan.menu import create_help
 
@@ -140,8 +149,10 @@ class TestDefaults:
     def test_multimap_primary_call_default(self) -> None:
         assert _parse([]).multimap_primary_call == DEFAULTS["multimap_primary_call"]
 
-    def test_output_defaults_none(self) -> None:
-        assert _parse([]).output is None
+    def test_run_requires_output_and_reads(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _parse(["run"])
+        assert exc.value.code == 2
 
     def test_whitelist_defaults_none(self) -> None:
         assert _parse([]).whitelist is None
@@ -201,13 +212,13 @@ class TestFlagParsing:
         assert _parse(["--detection-threshold", "5"]).detection_threshold == 5
 
     def test_ncbi_accession_parsed(self) -> None:
-        assert _parse(["-acc", "NC_002021.3"]).ncbi_accession == "NC_002021.3"
+        assert _parse(["--ncbi-accession", "NC_002021.3"]).ncbi_accession == "NC_002021.3"
 
     def test_ncbi_email_parsed(self) -> None:
         assert _parse(["--ncbi-email", "a@b.com"]).ncbi_email == "a@b.com"
 
     def test_data_cache_dir_parsed(self) -> None:
-        assert _parse(["--data-cache-dir", "/shared/viralscan-cache"]).data_cache_dir == (
+        assert _parse(["--cache-dir", "/shared/viralscan-cache"]).data_cache_dir == (
             "/shared/viralscan-cache"
         )
 
