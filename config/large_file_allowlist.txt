@@ -1,0 +1,2 @@
+# Tracked files under analysis/ or results/ allowed to exceed 1 MB (one repo-relative path per line).
+# Checked by scripts/check_tracked_file_sizes.py. Keep this empty unless a large file is deliberate.

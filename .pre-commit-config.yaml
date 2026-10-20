@@ -14,6 +14,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=500"]
+        exclude: ^(analysis|results)/  # 1 MB there, via check-tracked-file-sizes below
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.8
@@ -21,3 +22,12 @@ repos:
       - id: ruff
         args: ["--fix"]
       - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: check-tracked-file-sizes
+        name: tracked files under analysis/ and results/ are at most 1 MB
+        entry: python scripts/check_tracked_file_sizes.py
+        language: system
+        pass_filenames: false
+        files: ^(analysis|results|config/large_file_allowlist\.txt)
