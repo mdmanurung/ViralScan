@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+- [ ] `DISC` Kraken2 cell-resolved taxonomic discovery: plan proposed 2026-10-21, **awaiting approval** of the 9
+  decisions in `docs/plans/2026-10-21-kraken2-discovery-plan.md` §16. No code until approved.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7746,3 +7748,31 @@ validation. Receipt filenames refer to the separate local delivery packet.
 Next action: review the six-package local delivery and obtain a permitted real
 existing evidence directory for WP-3 qualification. This does not authorize any
 scientific experiment, scheduler submission or remote publication.
+
+## Kraken2 taxonomic discovery (DISC, new 2026-10-21)
+
+Plan, audit and ADR: `docs/plans/2026-10-21-kraken2-discovery-plan.md` (branch `codex/kraken2-discovery-plan`).
+Design: standalone `viralscan discover --run-dir R -o D` on STAR host-unmapped cDNA mates; separate fingerprint;
+never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf only on request (M3).
+
+- [x] `DISC-00` — repository audit (ViralScan b8e5146; mg2sc a8c01f0 / fork e744c2c; scrna-workflow e0b9533;
+  cellsnake 7adf99d; kraken2 2.17.2 8c190b1), critical review, ADR, contracts, gates, tickets.
+  - Note: mg2sc/Cellsnake join BAM and Kraken2 output positionally (`k2sc.py:71`), vote with hash-order ties
+    (`:119-121`) and count taxid 0 as a feature; none of it is reused.
+  - Note: three barcode spaces exist (raw, kb/bustools-corrected, STARsolo with `--soloCBwhitelist None` without `-w`);
+    `called_cells.tsv` may be in STARsolo space under host filtering. Spike `DISC-05` decides correction mechanics.
+  - Note: the primary manifest does not hash `host_filtered/` outputs; discovery can only record its own hash.
+- [ ] `DISC-01` optional discovery env (kraken2 2.17.2), `doctor --profile discovery`.
+- [ ] `DISC-02` `discover` parser + skeleton (run-dir completeness, `-o` refusal, `.partial/` publish).
+- [ ] `DISC-03` input resolution (primary `host_filtered/` or explicit discovery-only STAR pass).
+- [ ] `DISC-04` spike: DB-derived taxonomy (`k2 inspect` vs `taxo.k2d`).
+- [ ] `DISC-05` spike: bustools fromtext→correct keeps flags; reconciliation >= 99.9 % on EBV.
+- [ ] `DISC-06` streaming ordinal FASTA (R2 only) + raw CB/UMI table.
+- [ ] `DISC-07` Kraken2 wrapper + exactly-once ordinal join.
+- [ ] `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; oracle + invariance tests.
+- [ ] `DISC-09` qc/provenance, discovery fingerprint, resume/no-op/--force.
+- [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
+- [ ] `DISC-11` `discover-collapse` (taxid rank projection).
+- [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
+- [ ] `DISC-13` candidate states + evidence adapter.
+- [ ] `DISC-14` optional Snakemake leaf (only on request).
