@@ -402,7 +402,7 @@ port the kallisto translated-search tutorial with explicit attribution.
   governance/worker27passed. PR76 final CI remains the merge gate.
   Full B11/B30 total-admission policy remains open.
 
-- [~] `NORM-SHIFT-01` (user note, 2026-10-19) — use shifted-log normalization
+- [x] `NORM-SHIFT-01` (user note, 2026-10-19) — use shifted-log normalization
   from [Single-cell best practices](https://www.sc-best-practices.org/preprocessing-visualization/normalization/#shifted-logarithm):
   `normalize_total(target_sum=None)` (median library depth), followed by `log1p`;
   do not use a fixed TP10K target. Four current sites: `umap.py:host_only_pca`,
@@ -424,6 +424,11 @@ port the kallisto translated-search tutorial with explicit attribution.
   dense/CSR default medians with empty rows; exact target_sum=None semantics
   are retained and version/procedure provenance recorded. Native CLI and final
   full PR CI remain merge gates. No production inputs or previous outputs altered.
+  Documented native CLI21passed/no skips, including reference build, visual
+  run, evidence artifacts and validate-run. Governance21passed.
+  Public output documentation is re-pinned to implementation commitdc7855f;
+  preserve non-release tag provenance/shifted-log-2026-10-19 through rebase.
+  No claim status, historical golden values or model/QC thresholds changed.
 
 - [~] `PERF-EXEC-04` (2026-10-19) — authorized performance code delivery:
   B21/B13/B28/B16 accepted and combined on frozen baseline d056986 (tree6e70eda).
