@@ -301,6 +301,11 @@ def _build_evidence_parser(subparsers: Any) -> None:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    p.add_argument(
+        "--review-candidates",
+        action="store_true",
+        help="Review all Anelloviridae candidates, including below-gate and STAR-only rows; write results/evidence_review.tsv.",
+    )
     p.add_argument("--run-dir", required=True, help="A completed ViralScan run output directory.")
     p.add_argument("--output", "-o", required=True, help="Directory for evidence outputs.")
     p.add_argument(

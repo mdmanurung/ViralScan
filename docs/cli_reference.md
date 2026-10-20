@@ -781,6 +781,7 @@ the sections above add context. Do not edit between the markers.
 
 | Flag | Default | Help |
 |------|---------|------|
+| `--review-candidates` | `False` | Review all Anelloviridae candidates, including below-gate and STAR-only rows; write results/evidence_review.tsv. |
 | `--run-dir RUN_DIR` | *required* | A completed ViralScan run output directory. |
 | `--output, -o OUTPUT` | *required* | Directory for evidence outputs. |
 | `--viral-fasta VIRAL_FASTA` | *(none)* | Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). Omit for read-extraction only. |

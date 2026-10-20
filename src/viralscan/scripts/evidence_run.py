@@ -16,7 +16,7 @@ import math
 import os
 import subprocess
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -216,11 +216,85 @@ def _write_evidence_manifest(
     return path
 
 
+def star_evidence(
+    targets: str | Iterable[str], bam_path: str | Path, barcodes: set[str] | None = None
+) -> dict[str, Any]:
+    """Read source-labelled STAR diagnostics without constructing kallisto molecules."""
+    import subprocess
+
+    from viralscan.anello_align import has_reagent, is_complex_body, parse_sam_line
+
+    if not Path(bam_path).is_file():
+        return {
+            "evidence_source": "none",
+            "status": "not_assessed",
+            "reason_codes": "alignment_bam_missing",
+        }
+    targets = {targets} if isinstance(targets, str) else set(targets)
+    seen, keys = set(), set()
+    complex_count = reagent_count = measured = 0
+    missing_tags = False
+    # Stream the retained BAM; no FASTQ replay and no alignment filter changes.
+    with subprocess.Popen(
+        ["samtools", "view", str(bam_path)], stdout=subprocess.PIPE, stderr=None, text=True
+    ) as process:
+        assert process.stdout is not None
+        try:
+            for line in process.stdout:
+                alignment = parse_sam_line(line)
+                if alignment is None or alignment.rname not in targets:
+                    continue
+                cb, umi = alignment.tags.get("CB", ""), alignment.tags.get("UB", "")
+                if barcodes is not None and cb not in barcodes:
+                    continue
+                if cb and umi and cb != "-" and umi != "-":
+                    keys.add((cb, umi))
+                else:
+                    missing_tags = True
+                if alignment.qname in seen:
+                    continue
+                seen.add(alignment.qname)
+                if alignment.seq and alignment.seq != "*":
+                    measured += 1
+                    sequence = alignment.read_seq()
+                    complex_count += is_complex_body(sequence, alignment.query_span())
+                    reagent_count += has_reagent(sequence)
+        except BaseException:
+            process.kill()
+            raise
+        if process.wait():
+            raise RuntimeError(f"samtools view failed for {bam_path}")
+    reasons = ["kallisto_ec_not_assessed"]
+    if missing_tags:
+        reasons.append("corrected_cb_umi_missing")
+    return {
+        "evidence_source": "star_bam",
+        "status": "reviewed",
+        "n_reads": len(seen),
+        "n_unique_cb_umi": "not_assessed" if missing_tags else len(keys),
+        "complex_body_fraction": complex_count / measured if measured else "not_assessed",
+        "reagent_fraction": reagent_count / measured if measured else "not_assessed",
+        "reason_codes": ";".join(reasons),
+    }
+
+
 def run_evidence(args: argparse.Namespace) -> None:
     configure_logging(
         verbose=bool(getattr(args, "verbose", False)),
         quiet=bool(getattr(args, "quiet", False)),
     )
+    if getattr(args, "review_candidates", False):
+        from viralscan.scripts.auto_evidence import review_candidates
+
+        config = RunConfig.from_yaml(Path(args.run_dir) / "config.yaml")
+        review_candidates(
+            Path(args.run_dir),
+            config,
+            Path(args.output),
+            viral_fasta=getattr(args, "viral_fasta", None),
+            host_fasta=getattr(args, "host_fasta", None),
+        )
+        return
     competitor_fasta = getattr(args, "competitor_fasta", None)
     competitor_manifest = getattr(args, "competitor_manifest", None)
     tie_delta = float(getattr(args, "blast_tie_delta", 0.0))

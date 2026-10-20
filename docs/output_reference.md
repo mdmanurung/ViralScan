@@ -1236,3 +1236,26 @@ for empty tracks; `annotation_status` remains available separately. Invalid
 annotation/target inputs raise an error and write a status JSON when a target is
 known. Existing comparison PNGs also show uncovered viral bases correctly; their
 raw and deduplicated depth TSVs and samtools depth policy are unchanged.
+
+### Candidate evidence review
+
+```bash
+viralscan evidence --review-candidates --run-dir completed/sample \
+    --output completed/sample/results/evidence
+```
+
+This opt-in diagnostic writes `results/evidence_review.tsv`, one row per
+Anelloviridae candidate, including below-gate and `alignment_only` candidates.
+Columns are `virus_name`, `detection_source`, `detected`, `evidence_source`,
+`n_reads`, `n_unique_cb_umi`, `complex_body_fraction`, `reagent_fraction`, `status`,
+`reason_codes`. The sample namespace is the containing run directory.
+
+Kallisto candidates use existing exact replay (`kallisto_replay`); STAR-only
+candidates use the retained `anello_align/Aligned.sortedByCoord.out.bam`
+(`star_bam`). Streams are never added together. Missing BAMs yield
+`evidence_source=none`, `status=not_assessed`, `alignment_bam_missing`.
+Unsupported sources yield `unsupported_source`; unavailable corrected tags or
+sequence metrics remain `not_assessed`. STAR evidence never supplies kallisto EC
+metrics. `detected` and primary count files are unchanged. A saved typed config
+may set `review_candidates: true` for an already opt-in auto-evidence run; this
+adds no default DAG rule.

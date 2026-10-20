@@ -178,3 +178,80 @@ def test_anello_genera_respects_gate(tmp_path, value, expected):
     summary = tmp_path / "viral_summary.tsv"
     summary.write_text(f"virus_name\tdetected\nAlphatorquevirus\t{value}\n")
     assert anello_genera(summary, identity) == expected
+
+
+def test_candidate_review_routes_star_and_preserves_primary(tmp_path, monkeypatch):
+    import shutil
+    import subprocess
+    from types import SimpleNamespace
+
+    from viralscan.scripts import auto_evidence as ae
+
+    if not shutil.which("samtools"):
+        pytest.skip("live samtools fixture")
+    identity = VirusIdentityTable(
+        genes=(
+            _gene("A", "Alpha", "Anelloviridae"),
+            _gene("B", "Beta", "Anelloviridae"),
+            _gene("C", "Gamma", "Anelloviridae"),
+        )
+    )
+    identity.write_tsv(tmp_path / "results" / "virus_identity.tsv")
+    summary = tmp_path / "results" / "viral_summary.tsv"
+    summary.write_text(
+        "virus_name\tdetected\tdetection_source\nAlpha\tTrue\tkallisto\nBeta\tFalse\tkallisto\nGamma\tFalse\talignment_only\n"
+    )
+    per_cell = tmp_path / "results" / "per_cell_viral.tsv"
+    per_cell.write_text("unchanged primary count fixture\n")
+    original = summary.read_bytes(), per_cell.read_bytes()
+    assert ae.anello_genera(summary, identity) == ["Alpha"]
+    assert ae.candidate_genera(summary, identity, True, True) == ["Alpha", "Beta", "Gamma"]
+    align = tmp_path / "anello_align"
+    align.mkdir()
+    sam = align / "reads.sam"
+    sam.write_text(
+        "@HD\tVN:1.6\n@SQ\tSN:C.1\tLN:1000\n"
+        + "r1\t0\tC.1\t5\t60\t20M\t*\t0\t0\tACGTACGTACGTACGTACGT\tIIIIIIIIIIIIIIIIIIII\tCB:Z:AAAA\tUB:Z:CCCC\n"
+    )
+    subprocess.run(
+        ["samtools", "view", "-b", "-o", str(align / "Aligned.sortedByCoord.out.bam"), str(sam)],
+        check=True,
+    )
+    replayed = []
+
+    class Extracted:
+        def sequences(self):
+            return {"r": "ACGTACGTACGTACGTACGT"}
+
+        def lineage(self):
+            return [{"cb": "AAAA", "ub": "CCCC"}]
+
+    def replay(run, names, *args, **kwargs):
+        replayed.extend(names)
+        assert "Gamma" not in names
+        return {name: Extracted() for name in names}
+
+    monkeypatch.setattr(ae, "extract_virus_reads", replay)
+    rows = ae.review_candidates(tmp_path, SimpleNamespace(cores=1), tmp_path / "ev")
+    assert replayed == ["Alpha", "Beta"]
+    assert [r["evidence_source"] for r in rows] == [
+        "kallisto_replay",
+        "kallisto_replay",
+        "star_bam",
+    ]
+    assert rows[2]["n_reads"] == rows[2]["n_unique_cb_umi"] == 1
+    assert rows[1]["detected"] == "False"
+    assert original == (summary.read_bytes(), per_cell.read_bytes())
+    (align / "Aligned.sortedByCoord.out.bam").unlink()
+    rows = ae.review_candidates(tmp_path, SimpleNamespace(cores=1), tmp_path / "ev")
+    assert (
+        rows[2]["status"] == "not_assessed" and rows[2]["reason_codes"] == "alignment_bam_missing"
+    )
+    assert rows[2]["evidence_source"] == "none"
+
+
+def test_review_config_roundtrip(tmp_path):
+    cfg = RunConfig.from_snakemake_config(_cfg(tmp_path, review_candidates="true"))
+    assert cfg.review_candidates is True
+    cfg.to_yaml(tmp_path / "config.yaml")
+    assert RunConfig.from_yaml(tmp_path / "config.yaml").review_candidates is True
