@@ -28,6 +28,16 @@ completion.
   Lesson: a row pinned to a PR commit goes stale on rebase-merge; re-pin to the merged commit in a follow-up.
   Check: every `git_sha` in the inventory is an ancestor of `origin/main`.
 
+- [~] `DOCS-PERTPY-01` (2026-10-20, `codex/docs-pertpy`, stacked on `codex/orig-api-docs`): docs site follows
+  pertpy's (https://pertpy.scverse.org/en/stable/) theme and landing structure, on user request. Theme
+  `scanpydoc` (needs `sphinx-book-theme`, which scanpydoc does not declare), `sphinx-design` cards,
+  `sphinx-copybutton`; landing page is intro, six cards, short getting-started, with the sidebar grouped
+  General / Tutorials / About. Replaces `sphinx_clarity_theme` and its `beautifulsoup4==4.13.3` pin (pixi docs
+  feature). Verified: `sphinx -W` build clean in a scratch venv (scanpydoc 0.15.4, Sphinx 9.0.4, book theme
+  1.4.0). NOT done: pertpy-style prose for the other pages (only `docs/index.md` rewritten), a logo, a
+  NumFOCUS-style funding block, `pixi lock`/`pixi install` for the docs env, and the SIF/image was not
+  rebuilt. Row stays `[~]` until the remaining pages are rewritten.
+
 - [x] `DOCS-ORIG-01`: README and Sphinx site restructured on the original upstream
   (mahfouzlab/ViralScan) skeleton: README Introduction / Installation / Input Data / User Guide
   (original-style short-flag examples, multi-sample) / License, with the v3 notice, claim markers

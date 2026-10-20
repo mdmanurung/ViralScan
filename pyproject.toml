@@ -62,7 +62,10 @@ enrichment = [
 ]
 docs = [
     "sphinx>=8.0",
-    "sphinx-clarity-theme>=2.1",
+    "scanpydoc",
+    "sphinx-book-theme",
+    "sphinx-design",
+    "sphinx-copybutton",
     "myst-parser>=2.0",
     "sphinx-autodoc-typehints>=1.23",
     "nbsphinx>=0.9",
