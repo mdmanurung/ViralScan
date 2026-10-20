@@ -31,6 +31,8 @@ extensions = [
     "sphinx_autodoc_typehints",  # render type annotations in docs
     "myst_parser",  # Markdown source files
     "nbsphinx",  # Jupyter notebook vignettes
+    "sphinx_design",  # cards and grids on the landing page
+    "sphinx_copybutton",  # copy button on code blocks
 ]
 
 # MyST extensions
@@ -39,6 +41,7 @@ myst_enable_extensions = [
     "deflist",
     "tasklist",
 ]
+myst_heading_anchors = 3
 
 templates_path = ["_templates"]
 exclude_patterns = [
@@ -91,8 +94,10 @@ linkcheck_ignore = [
 
 # -- Options for HTML output ---------------------------------------------------
 
-html_theme = "sphinx_clarity_theme"  # MIT/community licence: keep the footer attribution
+html_theme = "scanpydoc"  # the scverse theme, as used by pertpy
+html_title = "ViralScan"
 html_static_path = []
+html_show_sphinx = False
 
 html_theme_options = {}
 

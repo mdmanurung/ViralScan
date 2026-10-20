@@ -1,81 +1,102 @@
-# ViralScan
-
-**ViralScan** is a Snakemake-driven Python bioinformatics CLI that quantifies viral
-load from paired-end FASTQ samples using
-[kb-python](https://www.kallistobus.tools/) (kallisto + bustools). It is developed at
-the Leiden University Medical Centre (LUMC).
+# ViralScan - viral load quantification from single-cell RNA-seq
 
 [![CI](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml/badge.svg)](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mdmanurung/ViralScan/branch/main/graph/badge.svg)](https://app.codecov.io/gh/mdmanurung/ViralScan)
 [![PyPI](https://img.shields.io/pypi/v/ViralScan)](https://pypi.org/project/ViralScan/)
 
----
+ViralScan is a Snakemake-driven command-line tool for quantifying viral load in
+single-cell RNA-seq. It pseudoaligns paired-end FASTQ files with
+[kb-python](https://www.kallistobus.tools/) (kallisto | bustools) against a viral or
+combined host + virus reference. It reports per-cell and per-virus molecule estimates, an
+HTML report and optional UMAP plots. ViralScan can build the reference and run
+`kb ref` and `kb count` itself, so one tool covers reference building and detection. It is
+developed at the Leiden University Medical Centre (LUMC).
 
-## Introduction
+::::{grid} 1 2 2 3
+:gutter: 2
 
-ViralScan pseudoaligns reads with kallisto | bustools against a viral or combined
-host + virus reference, then reports per-cell and per-virus molecule estimates, an
-HTML report and optional UMAP plots. It can run `kb ref` and `kb count` for you, so the
-same tool covers reference building and scalable detection of viral load.
+:::{grid-item-card} Installation
+:link: installation
+:link-type: doc
 
-## Installation
+New to ViralScan? Start with the installation guide.
+:::
+
+:::{grid-item-card} Quickstart
+:link: quickstart
+:link-type: doc
+
+Run your first sample from FASTQ to viral load.
+:::
+
+:::{grid-item-card} Tutorials
+:link: vignettes/README
+:link-type: doc
+
+Worked examples, from building a reference to host response.
+:::
+
+:::{grid-item-card} CLI and outputs
+:link: cli_reference
+:link-type: doc
+
+Every command and option, and every file ViralScan writes.
+:::
+
+:::{grid-item-card} API
+:link: api
+:link-type: doc
+
+Use ViralScan from Python.
+:::
+
+:::{grid-item-card} Issues and support
+:link: https://github.com/mdmanurung/ViralScan/issues
+
+Found a bug? Need help? Open an issue on GitHub.
+:::
+::::
+
+## Getting started
 
 ```bash
-conda env create -f environment.yml   # recommended: kb-python, snakemake, dependencies
+conda env create -f environment.yml   # kb-python, snakemake and dependencies
 conda activate viralscan
 python -m pip install -e .
 viralscan --help                       # all commands and options
 ```
 
-See [installation](installation.md) for the pip tier, containers and the tested toolchain.
+ViralScan needs a reference index made with `kb ref`. Provide a pre-built index and
+transcript-to-gene map, or let ViralScan create one from FASTA and GTF files, from NCBI
+accessions, or with `viralscan build-ref` for a combined host + virus reference. The viral
+GTF panel is distributed through Zenodo (`viralscan data fetch`). Samples are paired-end
+FASTQ files, optionally gzipped; both `-s1` (forward) and `-s2` (reverse) are required. See
+[installation](installation.md) for the pip tier, containers and the tested toolchain.
 
----
+All output is written under `-o/--output`, one directory per FASTQ pair.
 
-## Input Data
-
-### Reference index
-
-ViralScan needs an index created with `kb ref`. Either provide your own pre-built
-index and transcript-to-gene map, or let ViralScan create one from FASTA + GTF files,
-from NCBI accessions, or with `viralscan build-ref` (combined host + virus). The viral
-GTF panel is distributed through Zenodo (`viralscan data fetch`).
-
-### Samples
-
-Paired-end FASTQ files, optionally gzipped. Both the forward (`-s1`) and the reverse
-(`-s2`) file are required.
-
----
-
-## User Guide
-
-All output (counts, logs, plots, HTML report) is written under `-o/--output`, one
-directory per FASTQ pair. There are two ways to run ViralScan.
-
-**1. You already have a reference index**
+**With a pre-built index:**
 
 ```bash
 viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
 ```
 
-**2. ViralScan creates the index** (written to `output/index/`)
+**With FASTA and GTF files.** ViralScan writes the index to `output/index/`:
 
 ```bash
 viralscan -o output/ -reference True -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -fasta fasta.fasta -gtf gtf.gtf
 ```
 
-**Multiple samples or reference files** - comma-separated, no spaces:
+**With several samples or reference files.** Separate names with commas, without spaces:
 
 ```bash
 viralscan -t transcripts.txt -i index.idx -o output/ -s1 a_1.fastq.gz,b_1.fastq.gz -s2 a_2.fastq.gz,b_2.fastq.gz
 ```
 
-Stages (multimapping, UMAP, host filtering, evidence, gene programmes, host response)
-are switched on or off with flags; see the [CLI reference](cli_reference.md) and the
-[quickstart](quickstart.md). Output files are described in the
-[output reference](output_reference.md); executable examples are in the
-[vignettes](vignettes/README.md). Upgrading from an earlier release? See
-[migration](migration.md). Project policies:
+Flags switch the optional stages on or off: multimapping, UMAP, host filtering, evidence,
+gene programmes and host response. The [CLI reference](cli_reference.md) lists them, and
+the [output reference](output_reference.md) describes the files. Upgrading from an earlier
+release? See [migration](migration.md). Project policies are in
 [SUPPORT.md](https://github.com/mdmanurung/ViralScan/blob/main/SUPPORT.md) (version and
 support policy) and
 [SECURITY.md](https://github.com/mdmanurung/ViralScan/blob/main/SECURITY.md)
@@ -83,17 +104,23 @@ support policy) and
 
 ## License
 
-MIT; see the LICENSE file.
+ViralScan is released under the MIT license; see the LICENSE file.
 
 ```{toctree}
-:maxdepth: 2
-:caption: Home
+:hidden:
+:maxdepth: 1
+:caption: General
 
 installation
 quickstart
+cli_reference
+output_reference
+api
+api_reference
 ```
 
 ```{toctree}
+:hidden:
 :maxdepth: 1
 :caption: Tutorials
 
@@ -109,24 +136,9 @@ vignettes/host_response_depth_control
 ```
 
 ```{toctree}
+:hidden:
 :maxdepth: 1
-:caption: API
-
-api
-api_reference
-```
-
-```{toctree}
-:maxdepth: 1
-:caption: CLI and outputs
-
-cli_reference
-output_reference
-```
-
-```{toctree}
-:maxdepth: 1
-:caption: More
+:caption: About
 
 reference_panel
 faq
