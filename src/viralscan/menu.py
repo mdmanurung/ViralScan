@@ -508,7 +508,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
 
-    output_dir = Path(args.output).resolve()
+    output_dir = Path(args.run_dir).resolve()
     config_yaml = output_dir / "config.yaml"
     if not config_yaml.exists():
         _die(f"config.yaml not found in {output_dir}. Is this a viralscan output directory?")
@@ -558,7 +558,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
     )
 
-    out_dir = str(output_dir / "hostresponse")
+    out_dir = str(Path(args.output).resolve() if args.output else output_dir / "hostresponse")
     run_hostresponse(
         virus_h5ad=virus_h5ad,
         host_h5ad=args.host_h5ad,

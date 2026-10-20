@@ -41,7 +41,7 @@ def test_boolean_value_form_is_refused(capsys):
     [
         RUN + ["--multi"],  # was a prefix of --multimapping
         ["validate-run", "--run", "r"],
-        ["hostresponse", "-o", "s", "--host-h5ad", "h", "--min-u", "3"],
+        ["hostresponse", "--run-dir", "s", "--host-h5ad", "h", "--min-u", "3"],
     ],
 )
 def test_no_prefix_matching(argv):
@@ -62,3 +62,17 @@ def test_upstream_readme_forms_fail_with_the_replacement(argv, capsys):
         parse_args(argv)
     assert exc.value.code == 2
     assert "was removed; use" in capsys.readouterr().err
+
+
+def test_hostresponse_run_dir_input_and_optional_output(capsys):
+    base = ["hostresponse", "--run-dir", "run", "--host-h5ad", "h"]
+    args = parse_args(base)
+    assert (args.run_dir, args.output) == ("run", None)
+    assert parse_args(base + ["--output", "hr"]).output == "hr"
+    with pytest.raises(SystemExit):
+        parse_args(["hostresponse", "--host-h5ad", "h"])  # --run-dir is required
+    capsys.readouterr()
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["hostresponse", "-o", "run", "--host-h5ad", "h"])
+    assert exc.value.code == 2
+    assert "-o was removed; use --run-dir" in capsys.readouterr().err

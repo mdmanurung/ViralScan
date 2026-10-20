@@ -33,6 +33,7 @@ the replacement named. Configuration keys, `config.yaml` and `run_fingerprint` a
 | `run` | `--cell-types CSV` | `--cell-type-labels CSV` |
 | `run` | `--hostresponse-control-mito` | `--hostresponse-mito-control` |
 | `hostresponse` | `--hostresponse-min-umi`, `--detection-threshold` | `--min-umi` |
+| `hostresponse` | `-o RUN_DIR` (an input run directory) | `--run-dir RUN_DIR`; `--output DIR` now optionally names where hostresponse writes (default `<run-dir>/hostresponse`) |
 | `hostresponse` | `--no-use-hvg` (still valid) | also `--use-hvg` |
 | `validate-run` | positional `RUN_DIR` | `--run-dir RUN_DIR` |
 | `validate-run` | `--json-output PATH` | `--json PATH` |

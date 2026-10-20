@@ -430,11 +430,12 @@ processes in the above-threshold gene set.
 
 The viralscan output directory must already contain `config.yaml` and a
 completed multimap step (`log/multimap.done`). Results are written to
-`<output>/hostresponse/`.
+`<run-dir>/hostresponse/` unless `--output` is given.
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--output PATH` | `-o` | *(required)* | Existing viralscan sample output directory (contains `config.yaml`) |
+| `--run-dir PATH` | | *(required)* | Existing viralscan sample output directory (input; contains `config.yaml`) |
+| `--output DIR` | | `<run-dir>/hostresponse` | Directory hostresponse writes to (`-o` was removed; it meant the run directory) |
 | `--host-h5ad PATH` | | *(required)* | Host gene-expression h5ad (cells × genes, matched barcodes) |
 | `--n-seeds N` | | from config or `6` | Random seeds for multi-seed L2 regression |
 | `--n-stab-iter N` | | from config or `100` | Stability-selection iterations |
@@ -493,7 +494,7 @@ Examples:
 
 ```bash
 # Minimal — run with defaults from config (raw label; still reports the depth baseline)
-viralscan hostresponse -o output/sample/ --host-h5ad host_genes.h5ad
+viralscan hostresponse --run-dir output/sample/ --host-h5ad host_genes.h5ad
 
 # Depth-normalized label + %mito control + gene symbols
 viralscan hostresponse \
@@ -917,7 +918,8 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--output, -o OUTPUT` | *required* | Existing viralscan sample output directory (contains config.yaml). |
+| `--run-dir RUN_DIR` | *required* | Existing viralscan sample output directory (input; contains config.yaml). |
+| `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/hostresponse). |
 | `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
 | `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
 | `--n-stab-iter N` | *(none)* | Selection-frequency (randomized-Lasso) iterations (default: from config or 100). |
