@@ -89,6 +89,13 @@ completion.
   environment: the image installs `-e default`, and `[feature.docs]` pins beautifulsoup4==4.13.3 (a Clarity dependency
   pin). NOT verified: `pixi lock` (uv cache lock held by another process); no pixi.lock committed.
 
+- [x] `DOCS-REV-01` (2026-10-20, `codex/docs-revision`): documentation revision into three tasks (Run ViralScan,
+  Inspect results, Assess the evidence), ported from the uncommitted opencode edits onto `main`. Keeps `main`'s
+  `scanpydoc` theme and `api`/`api_reference` toctree; adds `inspect_results`, `assess_evidence`, `reference_help`,
+  `project_info` (also in `MANIFEST.in` and `config/public_ship_scope.json`); `docs.yml` builds with
+  `-W --keep-going`. `cli_reference.md` was not ported: `main`'s generated copy is current
+  (`gen_cli_reference.py --check` clean). Strict `sphinx -W --keep-going` build passed locally only with the `alabaster` theme and without `sphinx_design`/`sphinx_copybutton` (not installed; no env has `scanpydoc`), so the first CI `docs.yml` run is the theme check. Plan: `docs/plans/2026-10-20-documentation-revision-plan.md`.
+
 - [~] `DOCS-PAGES-01` (2026-10-20, `codex/docs-pages`): publish the Sphinx docs on GitHub Pages (user choice over
   Read the Docs). `.github/workflows/docs.yml` builds on push to `main` (and by hand), installs pandoc for nbsphinx
   and `.[docs]`, and deploys with `actions/upload-pages-artifact` v5.0.0 / `actions/deploy-pages` v5.0.1 (SHA-pinned,
@@ -172,7 +179,7 @@ completion.
   changed; no card newly claimed as benefit-qualified. Tracker:
   `docs/plans/2026-10-17-remaining-performance-candidates.md` (Decision and evidence log).
 
-**2026-10-15 (audit-fix integration, `codex/aud3-integration`):** the independently verified audit findings are fixed in per-unit `codex/aud3-*` branches merged here (`AUD3-01a/01b/02/03/04/05/06a/06b/07/09a/09b`), with one governance re-pin (`AUD3-GOV`). Verification report and per-finding matrix: `analysis/audit_2026-10-verification/`. Open: `AUD3-08` (resume after a purged `kb-python/`, needs a user decision), `AUD3-02-OPEN` (viral-free UMAP null still above nominal), `AUD3-FLAKY`. PR #71 merged. Next: push and open the PR for `codex/aud3-08-resume-guard` (user); AUD3-04 and the `harmonization`-adjacent items land before the G3 signature.
+**2026-10-15 (audit-fix integration, `codex/aud3-integration`):** the independently verified audit findings are fixed in per-unit `codex/aud3-*` branches merged here (`AUD3-01a/01b/02/03/04/05/06a/06b/07/09a/09b`), with one governance re-pin (`AUD3-GOV`). Verification report and per-finding matrix: `analysis/audit_2026-10-verification/`. Open: `AUD3-02-OPEN` (viral-free UMAP null still above nominal), `AUD3-FLAKY`. `AUD3-08` is done (see its `[x]` row below). PR #71 merged. AUD3-04 and the `harmonization`-adjacent items land before the G3 signature.
 
 - [x] `AUD3-01a` — Virus Identity table vs matrix reconcile (audit P9-02, verified). One shared helper
   `virus_grouping.reconcile_identity_to_matrix` (raises `IdentityMatrixMismatch`) now runs in `detection.preprocessing`
@@ -273,7 +280,7 @@ port the kallisto translated-search tutorial with explicit attribution.
   pre-kallisto-0.50.0 `Snakefile` (sha256 `acafbd0a…`); the committed `Snakefile` (sha256 `3f9ba67c…`,
   edited for the kallisto 0.50.0 retry) is the version that built the host-masked index and ran
   AA-02 (SLURM 25772166, both counts COMPLETED). The JSON is intentionally unchanged.
-- [~] `AA-02` — user-authorized bounded exploratory sanity check: build the
+- [!] `AA-02` — **Deferred 2026-10-20 (user parked translated-search work behind Track A on 2026-10-19; a full-depth run is not authorized).** user-authorized bounded exploratory sanity check: build the
   human-genome/cDNA-masked protein index, then search the first 1,000,000 intact
   paired reads from public EBV-positive SRR12682296 (10xv2) and HSV-1-positive
   SRR8315713 (Drop-seq). Keep immutable subsets, input/reference hashes,
@@ -292,7 +299,7 @@ port the kallisto translated-search tutorial with explicit attribution.
   format differences vs a frozen cell list, abort below 90%). Eight tests in
   `tests/test_translated_search_tools.py`. Decision: the manifest already lists ERR13027027's `_2` file (28 bp) as R1, the
   barcode read, so no swap is applied.
-- [~] `AA-04` — first 5' pilot of arm P (first 1,000,000 intact pairs of one 10xv3-reverse-strand institutional
+- [!] `AA-04` — **Deferred 2026-10-20 (user parked translated-search work behind Track A on 2026-10-19; a full-depth run is not authorized); full-depth arm-P runs need explicit approval.** first 5' pilot of arm P (first 1,000,000 intact pairs of one 10xv3-reverse-strand institutional
   library; local only, results not committed): `kb count --aa --parity single -x 10xv3 -w <user whitelist>` runs
   to completion on 2 CPU / 8 GB in minutes with R1 = 28 bp barcode+UMI, so `--parity single` works for 5' reads.
   **Index provenance finding:** the shared kallisto 0.50.0 index used the plain nucleotide host mask, not the
@@ -426,6 +433,7 @@ port the kallisto translated-search tutorial with explicit attribution.
   scientific/worker changes or retained-data deletion. Qualification report and raw
   receipts retain all failed runner/prototype attempts. This row remains partial
   until the gated plan work is resolved; code delivery is a separate completion claim.
+  **Deferred 2026-10-20:** G02 production attribution/whole-run measurement and the B11/B30 CPU-budget follow-ups (manifest worker fields, total-admission policy) are closed as deferred: the user parked performance work behind Track A on 2026-10-19, and the Slurm measurement needs approval before any job is submitted. Row stays `[~]` for the delivered code.
 
 - [~] `PERF-EXEC-03` (2026-10-18, original branch `codex/perf-wave2-b25-b27-b18`,
   historical baseline `faf5667`; finalized on `codex/perf-wave2-final` over merged main
