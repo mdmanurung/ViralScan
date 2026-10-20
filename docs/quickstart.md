@@ -1,8 +1,8 @@
 # Quickstart
 
-This guide shows the shortest path from paired FASTQ files to ViralScan
-results. All examples assume you have activated the `viralscan` conda
-environment and that your files are in the current directory.
+This page shows the shortest path from paired FASTQ files to ViralScan results.
+The examples assume an activated `viralscan` conda environment and input files in
+the current directory.
 
 ---
 
@@ -16,7 +16,7 @@ kb --version
 snakemake --version
 ```
 
-Choose one reference mode:
+ViralScan supports three reference modes. Choose one:
 
 | Use this mode | When you have |
 |---------------|---------------|
@@ -24,14 +24,14 @@ Choose one reference mode:
 | FASTA + GTF | Viral or host+virus FASTA/GTF files and want ViralScan to run `kb ref` |
 | NCBI accession | RefSeq/GenBank accessions and want ViralScan to download the viral reference |
 
-ViralScan writes one output folder per sample under `--output`. The sample
-folder name is inferred from the R1 filename before the first underscore. For
-example, `sample_R1.fastq.gz` writes results under `output/sample/`.
+ViralScan writes one output folder per sample under `--output`. The sample folder
+name is the part of the R1 filename before the first underscore. For example,
+`sample_R1.fastq.gz` writes results under `output/sample/`.
 
 ## Mode 1 — Pre-built index
 
-Use this when you already have a kallisto index (`index.idx`) and
-transcript-to-gene map (`t2g.txt`) created by `kb ref`.
+Use this mode with a kallisto index (`index.idx`) and a transcript-to-gene map
+(`t2g.txt`) created by `kb ref`.
 
 ```bash
 viralscan \
@@ -42,7 +42,7 @@ viralscan \
   -s2 sample_R2.fastq.gz
 ```
 
-Key results are written to:
+The key results are:
 
 ```text
 output/sample/results/viral_summary.tsv
@@ -51,7 +51,7 @@ output/sample/report.html
 output/sample/kb-python/counts_unfiltered/adata_multimap.h5ad
 ```
 
-Confirm the run is complete and its artifacts match their schemas:
+Check that the run is complete and its artifacts match their schemas:
 
 ```bash
 viralscan validate-run output/
@@ -61,16 +61,16 @@ A good run prints a JSON report with `"ok": true` and an empty `"issues"` list.
 The run-level `output/run_manifest.json` and `output/run_complete.json` sit beside
 the per-sample folders.
 
-The default `--cell-calling auto` runs emptyDrops on the host transcriptome only, which needs a realistic number
-of barcodes. On a toy input with only a couple of barcodes it stops with a
-`CellCallingError`; add `--cell-calling none` to report over all barcodes
-deliberately (every ViralScan count then includes empty droplets).
+The default `--cell-calling auto` runs emptyDrops on the host transcriptome only,
+which needs a realistic number of barcodes. On a toy input with only a couple of
+barcodes it stops with a `CellCallingError`. Add `--cell-calling none` to report over
+all barcodes deliberately (every ViralScan count then includes empty droplets).
 
 ---
 
 ## Mode 2 — Build index from FASTA + GTF
 
-Provide FASTA and GTF files and ViralScan will run `kb ref` for you.
+Given FASTA and GTF files, ViralScan runs `kb ref`.
 
 ```bash
 viralscan \
@@ -82,25 +82,24 @@ viralscan \
   -s2    sample_R2.fastq.gz
 ```
 
-Multiple FASTA or GTF files can be supplied as comma-separated paths
-(no spaces):
+Multiple FASTA or GTF files are comma-separated paths (no spaces):
 
 ```bash
 -fasta host.fasta,virus.fasta -gtf host.gtf,virus.gtf
 ```
 
 The index is built under `output/index/` (`index.idx`, `t2g.txt`,
-`index.idx.build_manifest.json`, `reference_manifest.json`); pass those two files
+`index.idx.build_manifest.json`, `reference_manifest.json`). Pass those two files
 to Mode 1 to reuse the reference without rebuilding it.
 
 ---
 
 ## Mode 3 — Download from NCBI by accession
 
-ViralScan fetches the FASTA and GTF automatically from NCBI, builds the index,
-and then runs quantification. NCBI requires a contact email whenever a sequence has
-to be downloaded; pass `--ncbi-email` or set `NCBI_EMAIL`. A run whose accessions are
-all in the local cache (`~/.cache/viralscan/ncbi/`) needs no email.
+ViralScan fetches the FASTA and GTF from NCBI, builds the index, and then runs
+quantification. NCBI requires a contact email whenever a sequence has to be
+downloaded. Pass `--ncbi-email` or set `NCBI_EMAIL`. A run whose accessions are all in
+the local cache (`~/.cache/viralscan/ncbi/`) needs no email.
 
 ```bash
 viralscan \
@@ -111,22 +110,21 @@ viralscan \
   --ncbi-email you@example.org
 ```
 
-Multiple accessions are comma-separated:
+Accessions are comma-separated:
 
 ```bash
 -acc NC_002021.3,NC_001512.1
 ```
 
-Downloaded references are cached in `~/.cache/viralscan/ncbi/` and reused
-on subsequent runs.
+Downloaded references are cached in `~/.cache/viralscan/ncbi/` and reused on later runs.
 
 ---
 
 ## Building a combined host + virus reference
 
-Use `viralscan build-ref` to create a combined kallisto index from an
-Ensembl host transcriptome and NCBI viral genomes. This is the recommended
-host-aware workflow for routine runs:
+`viralscan build-ref` creates a combined kallisto index from an Ensembl host
+transcriptome and NCBI viral genomes. This is the recommended host-aware workflow for
+routine runs:
 
 ```bash
 viralscan build-ref \
@@ -136,7 +134,7 @@ viralscan build-ref \
   --ncbi-email you@example.org
 ```
 
-Then use the resulting files with Mode 1:
+Use the resulting files with Mode 1:
 
 ```bash
 viralscan \
@@ -185,8 +183,7 @@ fail the build on such a pair instead (declared sibling strains are exempt). See
 
 ## Optional cell-type enrichment
 
-If you have cell annotations from Seurat, scanpy, or another workflow, write a
-CSV with two columns:
+Cell annotations from Seurat, scanpy, or another workflow go in a CSV with two columns:
 
 ```text
 barcode,cell_type
@@ -194,7 +191,7 @@ AAACCCAAGAGT-1,T cell
 AAACCCAGTGCA-1,Monocyte
 ```
 
-Then add it to any quantification command:
+Add the file to any quantification command:
 
 ```bash
 viralscan \

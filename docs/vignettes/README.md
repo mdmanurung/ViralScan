@@ -1,13 +1,13 @@
 # ViralScan vignettes
 
-Task-oriented, runnable examples of what ViralScan is for. Each maps to a real
-subcommand/feature and uses only v3 APIs and output columns. All executed cells run
-on small synthetic data and quote no real-library numbers. Each CI notebook includes
-a negative or ambiguous example next to the positive one.
+Task-oriented, runnable examples. Each vignette maps to a real subcommand/feature and
+uses only v3 APIs and output columns. All executed cells run on small synthetic data and
+quote no real-library numbers. Each CI notebook includes a negative or ambiguous example
+next to the positive one.
 
-Most notebooks **execute in CI** on small synthetic or committed data. Two build
-a kallisto index / run `kb count` and are marked `[skip-ci]`; they carry
-copy-paste public-data commands (no institutional paths).
+Most notebooks **execute in CI** on small synthetic or committed data. Two build a
+kallisto index / run `kb count` and are marked `[skip-ci]`. They carry copy-paste
+public-data commands (no institutional paths).
 
 | # | Vignette | Answers | Key command / API | CI |
 |---|----------|---------|-------------------|----|
@@ -37,8 +37,7 @@ PYTHONPATH=src jupyter nbconvert --to notebook --execute \
     docs/vignettes/multimapping_correction.ipynb
 ```
 
-The `[skip-ci]` notebooks additionally require `kb` (kb-python) and `snakemake`,
-and download a public FASTQ sample; edit the `WORKDIR` variable to any local
-directory.
+The `[skip-ci]` notebooks also require `kb` (kb-python) and `snakemake`, and download
+a public FASTQ sample. Set the `WORKDIR` variable to any local directory.
 
-See [vignette design plan](https://github.com/mdmanurung/ViralScan/blob/main/docs/vignettes/VIGNETTES_PLAN.md) for the design rationale and data strategy.
+The [vignette design plan](https://github.com/mdmanurung/ViralScan/blob/main/docs/vignettes/VIGNETTES_PLAN.md) describes the design rationale and data strategy.

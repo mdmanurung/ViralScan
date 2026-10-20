@@ -10,7 +10,7 @@ viralscan data fetch
 ```
 
 The command verifies the Zenodo checksum and unpacks the GTF files to
-`~/.cache/viralscan/data/`. These annotations were generated from RefSeq
+`~/.cache/viralscan/data/`. The annotations were generated from RefSeq
 GenBank entries using the `Viral_GTF_maker.py` script
 (whole-genome-as-gene model: one gene per chromosome, covering the full
 replicon length).
@@ -96,13 +96,13 @@ and note that ViralScan redistributes none of its sequences or annotations (acce
 
 ## When you need this panel
 
-Run `viralscan data fetch` if you want to use ViralScan's bundled viral
-annotations or helper code that expects the cached panel, or if you run against an
-index that has no `<index>.build_manifest.json` (the analysis step then reads the viral
-gene list from the panel). You do not need the cache when the index has a build manifest
-(every index from `viralscan build-ref`), when every run supplies custom GTF files with
-`--reference -gtf ...`, or when a run uses `--ncbi-accession` to fetch a reference on
-demand.
+Run `viralscan data fetch` to use ViralScan's bundled viral annotations or helper
+code that expects the cached panel. Run it also for an index that has no
+`<index>.build_manifest.json`, because the analysis step then reads the viral gene
+list from the panel. The cache is not needed in three cases: the index has a build
+manifest (every index from `viralscan build-ref`), every run supplies custom GTF
+files with `--reference -gtf ...`, or a run uses `--ncbi-accession` to fetch a
+reference on demand.
 
 Check the cache location:
 
@@ -117,8 +117,8 @@ Use a different cache root when running on a shared filesystem:
 viralscan data fetch --cache-dir /shared/viralscan-cache
 ```
 
-The GTF files will be under `/shared/viralscan-cache/data/`. Use the same
-cache during quantification with either:
+The GTF files are written to `/shared/viralscan-cache/data/`. Quantification
+reads the same cache with either:
 
 ```bash
 viralscan --data-cache-dir /shared/viralscan-cache ...
@@ -176,8 +176,8 @@ integrated genome is invisible rather than negative.
 
 ## Adding custom references
 
-You can supplement the cached panel with your own annotation files using the
-`-gtf` flag (comma-separated list) together with `--reference`:
+Supplement the cached panel with your own annotation files. Pass the `-gtf` flag
+(comma-separated list) together with `--reference`:
 
 ```bash
 viralscan --reference \
@@ -187,10 +187,10 @@ viralscan --reference \
   -s1 R1.fastq.gz -s2 R2.fastq.gz
 ```
 
-Alternatively, use `--ncbi-accession` to fetch and build a reference for any
+Alternatively, `--ncbi-accession` fetches and builds a reference for any
 RefSeq nucleotide accession on-the-fly.
 
-For host-aware competitive mapping, prefer `viralscan build-ref` and include
+For host-aware competitive mapping, use `viralscan build-ref` and include
 both the host transcriptome and viral accessions in one index. The default
 `--multimap-method host-conservative` then keeps host-virus ambiguous signal
 out of primary viral counts:
@@ -220,7 +220,7 @@ Anellovirus GTFs produced by `viralscan build-ref --anellovirus` use accession-
 based gene_ids (e.g. `NC_002076.2_gene1`). These are resolved to genus labels
 via the bundled `anellovirus_accessions.tsv` + `merged_name_map()`.
 
-For custom GTFs, use stable and descriptive `gene_id` values. If the prefix is
+Custom GTFs need stable and descriptive `gene_id` values. If the prefix is
 not present in `VIRUS_NAME_MAP`, ViralScan may display the prefix rather than a
 curated full virus name.
 

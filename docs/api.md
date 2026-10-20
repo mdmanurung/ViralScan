@@ -1,13 +1,13 @@
 # API Reference
 
-This page documents the importable ViralScan API. Most users should use the
-`viralscan` CLI; import these functions when you are writing tests, notebooks,
-or small automation around ViralScan outputs.
+This page documents the importable ViralScan API. The `viralscan` CLI covers most
+use. Import these functions to write tests, notebooks, or small automation around
+ViralScan outputs.
 
 Snakemake worker scripts such as `scripts/detection.py`, `scripts/multimap.py`,
 and `scripts/umap.py` depend on Snakemake globals (`snakemake.input`,
-`snakemake.config`, and similar). Treat those files as workflow implementation
-details rather than a stable Python API.
+`snakemake.config`, and similar). These files are workflow implementation
+details, not a stable Python API.
 
 ---
 
@@ -24,8 +24,8 @@ from viralscan.data_fetch import fetch_viral_data, ensure_viral_data
 
 ## Cell-Type Enrichment
 
-Use this API when you already have a ViralScan AnnData object and want to
-compute or re-run enrichment by cell type outside the full Snakemake workflow.
+Use this API to compute or re-run enrichment by cell type outside the full
+Snakemake workflow. It requires an existing ViralScan AnnData object.
 
 ### `cell_type_enrichment`
 
@@ -117,14 +117,14 @@ def _bh_adjust(pvals: list[float] | numpy.ndarray) -> numpy.ndarray: ...
 ```
 
 Internal helper for Benjamini-Hochberg FDR correction. It is documented for
-contributors, but downstream code should prefer `cell_type_enrichment()`.
+contributors. Downstream code should call `cell_type_enrichment()` instead.
 
 ---
 
 ## Reference Downloads
 
-These functions support the CLI reference modes and are useful in automation
-when you want to prepare reference files before running `viralscan`.
+These functions support the CLI reference modes. They also prepare reference
+files before `viralscan` runs, for example in automation.
 
 ### `fetch_reference`
 
@@ -233,8 +233,8 @@ Returned keys:
 
 ## Viral Panel Cache
 
-Use these functions when application code needs to locate or populate the
-external bundled GTF panel.
+Use these functions to locate or populate the external bundled GTF panel from
+application code.
 
 ### `fetch_viral_data`
 
