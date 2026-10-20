@@ -77,6 +77,12 @@ completion.
   environment: the image installs `-e default`, and `[feature.docs]` pins beautifulsoup4==4.13.3 (a Clarity dependency
   pin). NOT verified: `pixi lock` (uv cache lock held by another process); no pixi.lock committed.
 
+- [~] `DOCS-PAGES-01` (2026-10-20, `codex/docs-pages`): publish the Sphinx docs on GitHub Pages (user choice over
+  Read the Docs). `.github/workflows/docs.yml` builds on push to `main` (and by hand), installs pandoc for nbsphinx
+  and `.[docs]`, and deploys with `actions/upload-pages-artifact` v5.0.0 / `actions/deploy-pages` v5.0.1 (SHA-pinned,
+  `check_actions_pinned.py` clean). Not built locally (no env has `scanpydoc`). Left for the user: Settings -> Pages ->
+  Source "GitHub Actions", push, merge; `[x]` once the first deploy is live. `.readthedocs.yaml` is kept.
+
 - [x] `OUT-LAYOUT-01` (2026-10-20, `codex/output-layout`, stacked on `codex/orig-api-docs`): output
   layout kept close to evonk's 2.2.0 (user decisions, grill 2026-10-20). `count_audit.tsv` moves into
   `results/` (path owned by `viralscan.outputs.V3Outputs`); `run_manifest.json` gains `layout_version: 1`
