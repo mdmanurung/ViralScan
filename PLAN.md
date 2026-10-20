@@ -77,6 +77,15 @@ completion.
   environment: the image installs `-e default`, and `[feature.docs]` pins beautifulsoup4==4.13.3 (a Clarity dependency
   pin). NOT verified: `pixi lock` (uv cache lock held by another process); no pixi.lock committed.
 
+- [x] `OUT-LAYOUT-01` (2026-10-20, `codex/output-layout`, stacked on `codex/orig-api-docs`): output
+  layout kept close to evonk's 2.2.0 (user decisions, grill 2026-10-20). `count_audit.tsv` moves into
+  `results/` (path owned by `viralscan.outputs.V3Outputs`); `run_manifest.json` gains `layout_version: 1`
+  (outside the fingerprint); `combined_summary.tsv` at the run root; `summary.txt` opens with the original's
+  block, v3 lines after. Not done by decision: no `v3/` wrapper, manifest stays at the root (pinned by
+  `test_run_manifest_is_at_the_tree_root`), banner untouched (already identical; `prog` and help text still
+  differ from upstream). Decision: candidate-only viruses get no "has a viral load of" line in the original
+  block (would overstate an ungated virus). Old runs: `count_audit.tsv` stays at the sample root there.
+
 - [x] `CLI-ORIG-01`: accept the original upstream (mahfouzlab/ViralScan) invocation forms:
   `-reference` alias and optional True/False values on `--reference`, `--visual`, `--multimapping`
   (strict `_OptionalBool` action, never `type=bool`). Defaults and v3 contracts unchanged. Tests:

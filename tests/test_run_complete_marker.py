@@ -109,6 +109,7 @@ def test_new_manifest_stamps_provisional_defaults_outside_the_fingerprint() -> N
         not in {
             "run_fingerprint",
             "completion_marker",
+            "layout_version",
             "defaults_status",
             "software_identity",
             "input_paths",

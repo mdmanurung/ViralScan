@@ -63,6 +63,9 @@ underscore. For `sample_R1.fastq.gz`, the run directory is `output/sample/`.
 
 ```
 output/
+├── run_manifest.json
+├── run_complete.json
+├── combined_summary.tsv
 └── sample/
     ├── config.yaml
     ├── summary.txt
@@ -89,6 +92,7 @@ output/
     │   ├── umap_binary.html
     │   └── umap_continuous.html
     └── results/
+        ├── count_audit.tsv
         ├── virus_identity.tsv
         ├── viral_summary.tsv
         ├── sensitivity.tsv
@@ -104,6 +108,17 @@ output/
         ├── cell_type_enrichment.tsv
         └── reference_provenance.json
 ```
+
+The sample directory keeps the files the original ViralScan 2.2.0 wrote (`config.yaml`,
+`summary.txt`, `log/`, `kb-python/`, `plots/`, same names); everything v3 added lives under
+`results/` (and `read_filtered/`, `report.html`). `layout_version` in `run_manifest.json` (outside
+`run_fingerprint`) is bumped whenever a published path moves; this layout is version 1.
+`combined_summary.tsv` at the run root stacks every sample's `results/viral_summary.tsv` under a
+leading `sample` column; it is rewritten with `run_complete.json` and holds no recomputed value.
+`summary.txt` opens with the original's block (`Found viral Gene IDs including the count:`,
+`<virus> has a viral load of: N UMIs.` for detected viruses only, the totals line, the cell-matrix
+pointer, then the cell counts); the v3 headline, candidate and gate lines follow after a
+`--- ViralScan v3 ---` line.
 
 `reference_provenance.json` records the viral reference used (index/t2g/GTF,
 technology, multimap settings, and the viral accessions in the reference and
