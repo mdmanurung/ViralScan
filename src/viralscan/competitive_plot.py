@@ -801,6 +801,17 @@ def cross_call_loci(
 
 def run_evidence_plot(args: argparse.Namespace) -> None:
     """``viralscan evidence-plot``: one figure per evidence directory, optionally the cross-call view."""
+    if getattr(args, "coverage_map", False):
+        from viralscan.evidence import coverage_map_figure
+
+        if args.cross_call:
+            raise ValueError("--cross-call cannot be combined with --coverage-map")
+        for directory in map(Path, args.evidence_dir):
+            out = Path(args.output) / directory.name if args.output else None
+            coverage_map_figure(directory, args.target, args.annotation, out)
+        return
+    if getattr(args, "target", None) or getattr(args, "annotation", None):
+        raise ValueError("--target and --annotation require --coverage-map")
     for d in map(Path, args.evidence_dir):
         out = Path(args.output) / d.name if args.output else None
         for path in plot_competitive_alignment(d, out, args.max_lanes, args.layer):

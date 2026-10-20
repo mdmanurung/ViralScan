@@ -812,6 +812,9 @@ the sections above add context. Do not edit between the markers.
 | `--cross-call PREFIX` | *(none)* | Also write PREFIX.tsv and PREFIX.png pooling all --evidence-dir directories. |
 | `--layer LAYER` | `umi` | Count post-alignment UMI representatives (default) or diagnostic raw reads. |
 | `--max-lanes MAX_LANES` | `60` | Draw the lane block (panel A) only up to this many molecules; the aligned-length histogram (panel D) is always drawn. Default: 60. |
+| `--coverage-map` | `False` | Draw coverage and optional gene track from retained BAMs. |
+| `--target TARGET` | *(none)* | Exact BAM reference; optional only for one explicit viral reference. |
+| `--annotation ANNOTATION` | *(none)* | GTF annotation with exact target seqid. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

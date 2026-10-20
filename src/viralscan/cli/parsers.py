@@ -430,6 +430,15 @@ def _build_evidence_plot_parser(subparsers: Any) -> None:
         default=60,
         help="Draw the lane block (panel A) only up to this many molecules; the aligned-length histogram (panel D) is always drawn. Default: 60.",
     )
+    p.add_argument(
+        "--coverage-map",
+        action="store_true",
+        help="Draw coverage and optional gene track from retained BAMs.",
+    )
+    p.add_argument(
+        "--target", help="Exact BAM reference; optional only for one explicit viral reference."
+    )
+    p.add_argument("--annotation", help="GTF annotation with exact target seqid.")
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="evidence-plot")
 

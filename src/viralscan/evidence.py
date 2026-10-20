@@ -27,6 +27,7 @@ import heapq
 import json
 import logging
 import math
+import re
 import shutil
 import subprocess
 import tempfile
@@ -1611,6 +1612,210 @@ def plot_coverage_comparison(raw_bam: str, dedup_bam: str, output: str) -> str:
     figure.savefig(output, dpi=160)
     plt.close(figure)
     return output
+
+
+class CoverageMapError(ValueError):
+    """Invalid coverage-map input, with a machine-readable status."""
+
+    def __init__(self, message: str, status: str) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+def resolve_reference_annotation(
+    annotation_path: str | Path | None, target: str, length: int
+) -> tuple[list[tuple[int, int, str, str, str]], str]:
+    """Validate exact GTF seqid and 1-based bounds; preserve explicit circular splits."""
+    transcript = bool(re.match(r"^(?:[NX][MR]_\d|ENST\d)", target.split("|")[-1]))
+    if annotation_path is None:
+        return [], "transcript_reference" if transcript else "annotation_missing"
+    features: list[tuple[int, int, str, str, str]] = []
+    with open(annotation_path, encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip() or line.startswith("#"):
+                continue
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) != 9:
+                raise CoverageMapError("Expected nine GTF columns", "annotation_mismatch")
+            if fields[0] != target:
+                continue
+            try:
+                start, end = int(fields[3]), int(fields[4])
+            except ValueError as exc:
+                raise CoverageMapError("Invalid GTF coordinates", "annotation_mismatch") from exc
+            attributes: dict[str, str] = dict(re.findall(r'(\w+)\s+"([^"]*)"', fields[8]))
+            features.append(
+                (
+                    start,
+                    end,
+                    fields[6],
+                    attributes.get("gene_name", attributes.get("gene_id", fields[2])),
+                    fields[2],
+                )
+            )
+    placeholder = (
+        len(features) == 1 and features[0][0:2] == (1, length) and features[0][4] == "exon"
+    )
+    if transcript or placeholder:
+        return [], "transcript_reference"
+    if not features:
+        raise CoverageMapError(
+            f"Annotation has no exact seqid {target!r}; reference length {length}",
+            "annotation_mismatch",
+        )
+    maximum = max(max(f[0], f[1]) for f in features)
+    if maximum > length or min(min(f[0], f[1]) for f in features) < 1:
+        raise CoverageMapError(
+            f"annotation span {maximum} exceeds reference bounds 1..{length} (reference length {length})",
+            "annotation_mismatch",
+        )
+    if any(f[2] not in {"+", "-", "."} for f in features):
+        raise CoverageMapError("Invalid GTF strand", "annotation_mismatch")
+    # Prefer gene rows; CDS-only annotations remain genome annotations.
+    genes = [f for f in features if f[4] == "gene"]
+    return genes or [f for f in features if f[4] in {"CDS", "exon"}], "ok"
+
+
+def coverage_map_figure(
+    evidence_dir: str | Path,
+    target: str | None = None,
+    annotation_path: str | Path | None = None,
+    out_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    """Render an opt-in map from retained competitive BAMs; never replay reads."""
+    import csv
+    import gzip
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    from viralscan.run_safety import sha256_file, software_identity
+
+    directory = Path(evidence_dir)
+    raw = directory / "competitive_reads.raw.bam"
+    dedup_options = sorted(directory.glob("competitive_reads.*_dedup.bam"))
+    if len(dedup_options) != 1:
+        raise CoverageMapError(
+            "Expected exactly one competitive_reads.<mode>_dedup.bam", "annotation_mismatch"
+        )
+    dedup = dedup_options[0]
+    raw_lengths, dedup_lengths = reference_lengths(str(raw)), reference_lengths(str(dedup))
+    viral = sorted(r for r in raw_lengths if is_viral_reference(r))
+    if target is None:
+        if len(viral) != 1:
+            raise CoverageMapError(
+                f"Choose --target; available viral references: {viral}", "target_not_in_bam"
+            )
+        target = viral[0]
+    if not target or Path(target).name != target or target in {".", ".."} or "\\" in target:
+        raise CoverageMapError("Target must be a reference name, not a path", "target_not_in_bam")
+    output = Path(out_dir) if out_dir is not None else directory
+    output.mkdir(parents=True, exist_ok=True)
+    stem = output / f"coverage_map.{target}"
+    software = software_identity()
+    metadata: dict[str, Any] = {
+        "target": target,
+        "source_bams": {"raw": str(raw), "deduplicated": str(dedup)},
+        "source_bam_sha256": {"raw": sha256_file(raw), "deduplicated": sha256_file(dedup)},
+        "annotation_sha256": sha256_file(annotation_path) if annotation_path else None,
+        "git_sha": software.get("git_commit"),
+        "software": software,
+    }
+
+    def write_metadata() -> None:
+        Path(str(stem) + ".json").write_text(json.dumps(metadata, indent=2) + "\n")
+
+    try:
+        if target not in raw_lengths or target not in dedup_lengths:
+            raise CoverageMapError(
+                f"Target {target!r} not in both BAMs; available references: raw={sorted(raw_lengths)}, deduplicated={sorted(dedup_lengths)}",
+                "target_not_in_bam",
+            )
+        length = raw_lengths[target]
+        metadata["length"] = length
+        if dedup_lengths[target] != length:
+            raise CoverageMapError(
+                f"BAM reference lengths differ: raw={length}, deduplicated={dedup_lengths[target]}",
+                "annotation_mismatch",
+            )
+        features, annotation_status = resolve_reference_annotation(annotation_path, target, length)
+    except CoverageMapError as exc:
+        metadata.update(status=exc.status, reason=str(exc))
+        write_metadata()
+        raise
+    # Bound map arrays to 50,000 bins for references exceeding five million bp.
+    bin_size = 1 if length <= 5_000_000 else math.ceil(length / 50_000)
+    starts = np.arange(1, length + 1, bin_size)
+    ends = np.minimum(starts + bin_size - 1, length)
+    tracks = []
+    for bam in (raw, dedup):
+        totals = np.zeros(len(starts), dtype=float)
+        for row in coverage_depth_points(str(bam)):
+            if row["reference"] != target:
+                continue
+            position, depth = to_int(row["position"]), to_int(row["depth"])
+            if not 1 <= position <= length or depth < 0:
+                raise CoverageMapError(
+                    f"Invalid coverage coordinate for {target}: {position}", "annotation_mismatch"
+                )
+            totals[(position - 1) // bin_size] += depth
+        tracks.append(totals / (ends - starts + 1))
+    raw_depth, dedup_depth = tracks
+    status = "no_coverage" if not (raw_depth.any() or dedup_depth.any()) else annotation_status
+    metadata.update(
+        status=status,
+        annotation_status=annotation_status,
+        bin_size=bin_size,
+        coordinates="1-based inclusive",
+        depth_policy=list(_SAMTOOLS_DEPTH_POLICY),
+    )
+    with gzip.open(str(stem) + ".tsv.gz", "wt", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(["position", "end", "raw_depth", "dedup_depth"])
+        writer.writerows(zip(starts, ends, raw_depth, dedup_depth))
+    figure, axes = plt.subplots(
+        2 if features else 1, 1, squeeze=False, figsize=(10, 5 if features else 3), sharex=True
+    )
+    axis = axes[0, 0]
+    axis.plot(starts, raw_depth, label="raw")
+    axis.plot(starts, dedup_depth, label="deduplicated")
+    label = (
+        "reference-transcript coverage"
+        if annotation_status == "transcript_reference"
+        else "reference coverage"
+    )
+    axis.set(
+        title=f"{target}: {label} ({status})", ylabel="Mean depth" if bin_size > 1 else "Depth"
+    )
+    axis.legend()
+    if features:
+        gene_axis = axes[1, 0]
+        for track_row, (start, end, strand, name, _) in enumerate(features):
+            blocks = [(start, end)] if start <= end else [(start, length), (1, end)]
+            for left, right in blocks:
+                gene_axis.plot([left, right], [track_row, track_row], linewidth=5)
+                if strand != ".":
+                    a, b = (left, right) if strand == "+" else (right, left)
+                    gene_axis.annotate(
+                        "",
+                        xy=(b, track_row),
+                        xytext=(a, track_row),
+                        arrowprops={"arrowstyle": "->"},
+                    )
+            gene_axis.text(
+                start,
+                track_row + 0.15,
+                name + (" (origin-spanning)" if start > end else ""),
+                fontsize=7,
+            )
+        gene_axis.set(ylim=(-1, len(features)), yticks=[])
+    axes[-1, 0].set(xlabel="Reference position (bp)", xlim=(1, max(2, length)))
+    figure.tight_layout()
+    figure.savefig(str(stem) + ".png", dpi=200)
+    figure.savefig(str(stem) + ".pdf")
+    plt.close(figure)
+    write_metadata()
+    return metadata
 
 
 def interpretation_flags(

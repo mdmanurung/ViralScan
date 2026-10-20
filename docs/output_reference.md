@@ -1208,6 +1208,31 @@ resolves `--cells`, then `<run>/results/called_cells.tsv`, or stops with an erro
 with a warning. Its final `denominator_kind` column distinguishes that statistic
 from a complete called-cell percentage. Empty input still produces the full header.
 
-Coverage comparisons now zero-fill only explicit viral references up to five million
-bases; larger or unknown references use gap breaks. Covered-depth TSVs and the
-samtools depth policy are unchanged. Host references are never densified.
+### Accession coverage map
+
+```bash
+viralscan evidence-plot --coverage-map --evidence-dir results/evidence/target \
+    --target 'VIRUS|accession' --annotation genes.gtf
+```
+
+This opt-in command reads `competitive_reads.raw.bam` and exactly one
+`competitive_reads.<mode>_dedup.bam`; it never replays FASTQs or adds a workflow
+rule. `--target` must equal the BAM reference name. It is optional only when the
+BAM contains one explicitly classified viral reference. `--annotation` is optional;
+its seqid must match exactly and all feature coordinates must lie within the BAM
+reference length. Features need not extend to the final reference base. Both BAMs
+must agree on target length. Known transcript accessions and whole-reference exon
+placeholders are labelled `reference-transcript coverage`; genome tracks are
+omitted for them. Explicit origin-spanning coordinates are split into two blocks.
+
+The evidence directory receives `coverage_map.<target>.png`, `.pdf`, `.tsv.gz`,
+and `.json`. The compressed table uses 1-based inclusive `position`/`end` and
+`raw_depth`/`dedup_depth`, including zeros. Above five million bases, at most
+50,000 bins report mean depth including uncovered bases. JSON records input BAM
+hashes, annotation digest, reference length, bin size, software identity, and status:
+`ok`, `no_coverage`, `annotation_missing`, `annotation_mismatch`,
+`target_not_in_bam`, or `transcript_reference`. `no_coverage` takes precedence
+for empty tracks; `annotation_status` remains available separately. Invalid
+annotation/target inputs raise an error and write a status JSON when a target is
+known. Existing comparison PNGs also show uncovered viral bases correctly; their
+raw and deduplicated depth TSVs and samtools depth policy are unchanged.
