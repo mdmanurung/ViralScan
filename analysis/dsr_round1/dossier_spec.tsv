@@ -10,7 +10,7 @@ A08	A	arm	combined_off,combined_artefact,twostep_v2	{root}/run_manifest.json	jso
 A09	A	arm	combined_off,combined_artefact,twostep_v2	runs/{ds}/{arm}/{sample}.meta/time.txt	exists			slurm_dsr_rerun_array.sh	exact command line and resources
 A10	A	arm	combined_off,combined_artefact,twostep_v2	{root}/run_complete.json	exists	C0		pipeline end	
 B01	B	arm	combined_off,combined_artefact,twostep_v2	{inner}/kb-python/run_info.json	exists	C0		kb count	reads processed and pseudoaligned
-B02	B	arm	combined_off,combined_artefact,twostep_v2	{inner}/count_audit.tsv	exists	C0		multimap	molecule accounting
+B02	B	arm	combined_off,combined_artefact,twostep_v2	{inner}/results/count_audit.tsv|{inner}/count_audit.tsv	exists	C0		multimap	molecule accounting
 B03	B	arm	twostep_v2	{inner}/host_filtered/host_filter_audit.tsv	exists			host_filter	
 B04	B	arm	combined_artefact	{inner}/read_filtered/read_filter_audit.tsv	exists			read_filter	
 C01	C	arm	combined_off,combined_artefact	{inner}/kb-python/counts_unfiltered/emptydrops_cells.tsv	exists	C0		emptydrops.R	per-barcode total, FDR, knee, inflection

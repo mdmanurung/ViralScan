@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import shutil
@@ -13,9 +14,11 @@ from pathlib import Path
 from typing import Any, Optional
 
 from viralscan import __version__
+from viralscan.outputs import LAYOUT_VERSION
 
 RUN_MANIFEST = "run_manifest.json"
 RUN_COMPLETE = "run_complete.json"
+COMBINED_SUMMARY = "combined_summary.tsv"
 #: Per-sample artifacts whose sha256 the completion marker records (each only if
 #: present). Deliberately narrow: the headline tables and the count matrix, not
 #: logs, plots, or every intermediate file.
@@ -263,6 +266,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     payload["run_fingerprint"] = _fingerprint(payload)
     # Added after hashing so --resume still matches manifests written without them.
     payload["completion_marker"] = True
+    payload["layout_version"] = LAYOUT_VERSION
     # Resolved at build time so validate-run finds the inputs from any cwd (C-04).
     payload["input_paths"] = input_paths
     payload["defaults_status"] = DEFAULTS_STATUS
@@ -307,6 +311,38 @@ def build_run_complete(run_root: Path) -> dict[str, Any]:
     }
 
 
+def write_combined_summary(run_root: Path) -> bool:
+    """Stack every sample's ``results/viral_summary.tsv`` into ``combined_summary.tsv``.
+
+    A ``sample`` column leads; no value is recomputed. A valid no-virus run has
+    summaries with a header and no rows; it still gets a header-only file. Returns
+    False (and writes nothing) only when no sample has a viral summary file.
+    """
+    run_root = Path(run_root)
+    rows: list[dict[str, str]] = []
+    columns: list[str] = []
+    seen = False
+    for config in sorted(run_root.glob("*/config.yaml")):
+        sample = config.parent.name
+        path = config.parent / "results" / "viral_summary.tsv"
+        if not path.is_file():
+            continue
+        seen = True
+        with path.open(encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            columns += [c for c in reader.fieldnames or [] if c not in columns and c != "sample"]
+            rows += [{"sample": sample, **row} for row in reader]
+    if not seen:
+        return False
+    staging = run_root / f".{COMBINED_SUMMARY}.tmp"
+    with staging.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["sample", *columns], delimiter="\t", restval="")
+        writer.writeheader()
+        writer.writerows(rows)
+    staging.replace(run_root / COMBINED_SUMMARY)
+    return True
+
+
 def write_run_complete(run_root: Path) -> None:
     """Atomically (re)write ``run_complete.json`` at the run root."""
     run_root = Path(run_root)
@@ -316,6 +352,7 @@ def write_run_complete(run_root: Path) -> None:
         encoding="utf-8",
     )
     staging.replace(run_root / RUN_COMPLETE)
+    write_combined_summary(run_root)
 
 
 def clear_run_complete(run_root: Path) -> None:

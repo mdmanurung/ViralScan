@@ -2341,12 +2341,40 @@ def main():
     n_called_cells = len(host_cells["called"]) if host_cells else int(called_mask.sum())
     found_genes_sorted = dict(sorted(found_genes.items()))
     total_viral_genes = 0
-    counts_per_virus = {}
+    counts_per_virus: dict = {}
     with (
         open(f"{config.output}/summary.txt", "w") as summary,
         open(Path(config.output) / "log" / "found_genes.txt", "w") as found_genes_file,
     ):
+        # First block: evonk's ViralScan 2.2.0 summary.txt, same wording and order, so
+        # parsers written for the original keep working. The v3 block follows it.
+        if len(found_genes_sorted) > 0:
+            summary.write("Found viral Gene IDs including the count:\n")
+            summary.write("Gene ID; Gene Count\n")
+            for g in found_genes_sorted:
+                key = next((k for k, v in group_by_virus.items() if g in v), None)
+                counts_per_virus[key] = counts_per_virus.get(key, 0) + found_genes_sorted[g]
+                write_to_file = f"{g};{found_genes_sorted[g]}\n"
+                total_viral_genes += found_genes_sorted[g]
+                summary.write(write_to_file)
+                found_genes_file.write(write_to_file)
+            # Detected viruses only: a candidate-only virus has not met the called-cell
+            # gate, so "has a viral load" would overstate it (listed in the v3 block).
+            for virus_name in detected_names:
+                summary.write(
+                    f"\n{virus_name} has a viral load of: {counts_per_virus.get(virus_name, 0)} UMIs."
+                )
+            summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
+            summary.write(f"\n\nOfficial name of viral load detected: {','.join(detected_names)}")
+        else:
+            summary.write("No viral gene IDs found in this sample for the viruses in the index.\n")
         summary.write(
+            f"\nIf you want to see the cell gene matrix, go to the kb-python/counts_unfiltered/ folder and look for the cells_x_genes.mtx file.\n"
+        )
+        detect_cells(adata, found_genes, summary, viral_count_matrix=detection_matrix)
+        # v3 block: what the original format cannot say without overstating.
+        summary.write(
+            "\n--- ViralScan v3 ---\n"
             "Headline totals cover detected viruses only (called-cell gate met); candidate-only "
             "viruses are listed below.\n"
             f"Viral molecules in unique-count matrix: {headline['unique']}\n"
@@ -2355,46 +2383,26 @@ def main():
             f"called cells ({headline['cells_with_virus']}/{headline['n_cells']} "
             + ("host-filtered barcodes" if host_cells else "all barcodes, empty droplets included")
             + "), cells holding at least "
-            f"{config.infected_min_molecules:g} molecules of a detected virus\n\n\n"
+            f"{config.infected_min_molecules:g} molecules of a detected virus\n"
         )
         if len(found_genes_sorted) > 0:
             summary.write(
-                "Candidate viral Gene IDs including the count "
-                "(all barcodes, empty droplets included):\n"
+                "Gene counts above cover all barcodes, empty droplets included, and list "
+                "candidate viral genes as well as detected ones.\n"
             )
-            summary.write("Gene ID; Gene Count\n")
-            for g in found_genes_sorted:
-                key = next((k for k, v in group_by_virus.items() if g in v), None)
-                if key not in counts_per_virus:
-                    counts_per_virus[key] = found_genes_sorted[g]
-                else:
-                    counts_per_virus[key] += found_genes_sorted[g]
-
-                write_to_file = f"{g};{found_genes_sorted[g]}\n"
-                total_viral_genes += found_genes_sorted[g]
-                summary.write(write_to_file)
-                found_genes_file.write(write_to_file)
-        if len(found_genes_sorted) > 0:
             for virus_name, stats in virus_stats.items():
                 summary.write("\n" + _virus_summary_line(virus_name, stats))
-            summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
-            summary.write(f"\n\nOfficial name of viral load detected: {','.join(detected_names)}")
             summary.write("\n\n" + _gate_note(config, resolve_method(config), candidate_only))
             if not detected_names:
                 # Candidates only: the negative is a sampling statement, as when nothing is found.
                 summary.write("\n" + sens.interpretation + "\n" + sens.control_line)
         else:
-            summary.write("No viral gene IDs found in this sample for the viruses in the index.\n")
             # A zero is only interpretable next to the limit that produced it.
             # Without this line "no virus found" reads as an absence, which is
             # exactly the inference the depth and capture terms do not support.
             # Same text as report.html: both come from the records.
             summary.write(sens.interpretation + "\n")
             summary.write(sens.control_line + "\n")
-        summary.write(
-            f"\nIf you want to see the cell gene matrix, go to the kb-python/counts_unfiltered/ folder and look for the cells_x_genes.mtx file.\n"
-        )
-        detect_cells(adata, found_genes, summary, viral_count_matrix=detection_matrix)
 
     # Generate HTML report (PR 11 A2)
     generate_html_report(

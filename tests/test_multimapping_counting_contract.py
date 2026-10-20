@@ -204,7 +204,7 @@ def test_gene_role_catalogue_and_count_audit_roundtrip(tmp_path, monkeypatch):
     np.testing.assert_allclose(
         loaded.layers["counts_multimap_sibling_weighted"].toarray(), layers.corrected.toarray()
     )
-    audit = pd.read_csv(tmp_path / "count_audit.tsv", sep="\t")
+    audit = pd.read_csv(tmp_path / "results" / "count_audit.tsv", sep="\t")
     assert audit.loc[0, "host_virus_ambiguous_molecules"] == 1
 
 

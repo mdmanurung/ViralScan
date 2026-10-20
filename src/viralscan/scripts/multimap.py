@@ -20,6 +20,7 @@ import pandas as pd
 
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.multimapping import build_multimap_layers
+from viralscan.outputs import V3Outputs
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.validation import require_schema_valid, tool_path
@@ -478,16 +479,14 @@ def final_results(
     # The count audit is a published artifact with a shipped schema, and until
     # this call the schema had no document to validate. Check before the H5AD is
     # written so a violating record never reaches disk in either form.
-    require_schema_valid(
-        audit, "count_audit.schema.json", str(Path(config.output) / "count_audit.tsv")
-    )
+    count_audit = V3Outputs.from_config_output(config.output).count_audit
+    require_schema_valid(audit, "count_audit.schema.json", str(count_audit))
 
     output_file = str(kb.adata_multimap)
     adata.write(output_file)
 
-    pd.DataFrame([audit]).to_csv(
-        str(Path(config.output) / "count_audit.tsv"), sep="\t", index=False
-    )
+    count_audit.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame([audit]).to_csv(str(count_audit), sep="\t", index=False)
 
     # summary.txt is written by detection, which runs after this rule and opened
     # the same path with mode "w". Writing the totals here destroyed them on every

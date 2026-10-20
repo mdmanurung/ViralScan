@@ -71,9 +71,9 @@ REQUIRED_TOOLS = ["kallisto", "bustools", "kb", "snakemake"]
 #: Artifacts a completed run must publish, relative to the sample directory.
 EXPECTED_ARTIFACTS = (
     "config.yaml",
-    "count_audit.tsv",
     "summary.txt",
     "report.html",
+    "results/count_audit.tsv",
     "results/virus_identity.tsv",
     "results/viral_summary.tsv",
     "results/per_cell_viral.tsv",
