@@ -181,6 +181,7 @@ follow_imports = "skip"
 module = [
     "viralscan.utils",
     "viralscan.constants",
+    "viralscan.scautoqc",
     "viralscan.menu",
     "viralscan.scripts.ncbi_fetch",
     "viralscan.scripts.build_reference",
@@ -199,6 +200,7 @@ module = [
     "viralscan.scripts.host_filter",
     "viralscan.scripts.hostresponse",
     "viralscan.scripts.cellcalling",
+    "viralscan.scripts.scautoqc",
     # research/benchmark tooling, not core pipeline — same relaxed treatment
     "viralscan.reference_strategy",
 ]
