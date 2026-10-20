@@ -27,6 +27,11 @@ downloads the bundled viral annotation panel. A run needs the panel only when it
 index has no `<index>.build_manifest.json`. An index from `viralscan build-ref`
 has one and carries its own viral gene list.
 
+The full environment includes SCTK and pybiomart for the optional `--scautoqc` workflow.
+Ensembl-indexed features are annotated through Scanpy's BioMart queries on the
+first opt-in run, so that run needs access to Ensembl; annotations are cached
+in the sample's `results/scautoqc_gene_annotations.tsv`.
+
 ## Option 2 — pip (pip tier)
 
 ```bash

@@ -1,5 +1,10 @@
 # Output Reference
 
+For the guided path through the main files, see
+[Inspect results](inspect_results.md); for how to weigh a candidate, see
+[Assess the evidence](assess_evidence.md). This page is the exact file, column and
+AnnData-layer dictionary.
+
 Runs record `software_identity` in the root `run_manifest.json` and in
 `results/reference_provenance.json`: the executing package's content digest, plus Git
 commit and dirty-source status when run from its own checkout.
@@ -76,6 +81,7 @@ output/
     │   ├── kb.done
     │   ├── kb_count.log
     │   ├── multimap.done
+    │   ├── scautoqc.done                         # only with --scautoqc
     │   └── umap.done
     ├── kb-python/
     │   ├── counts_unfiltered/
@@ -96,6 +102,7 @@ output/
     └── results/
         ├── count_audit.tsv
         ├── virus_identity.tsv
+        ├── scautoqc_gene_annotations.tsv         # only with --scautoqc
         ├── viral_summary.tsv
         ├── sensitivity.tsv
         ├── positive_control.json
@@ -148,7 +155,10 @@ This provenance is outside the resume fingerprint; drift remains a warning.
 `--auto-evidence`; see `results/evidence/<genus>/` below.
 `anello_alignment_by_accession.tsv` and `anello_alignment_by_virus.tsv` are
 present only when the anellovirus alignment branch ran (see below).
-UMAP files are present only when `--umap` is supplied. `host_filtered/` is
+UMAP files are present only when `--umap` is supplied. scAutoQC annotations are
+added in place to existing count H5ADs only with `--scautoqc`; its QC-space UMAP
+HTML files are written when both `--scautoqc` and `--umap` are enabled. QC flags
+do not remove cells. `host_filtered/` is
 present only when `--host-filter` is supplied.
 `log/kb_count.log` retains the count command's output. Counting writes into a
 unique temporary directory and checks for a non-empty `counts_unfiltered/adata.h5ad` before replacing
@@ -754,6 +764,14 @@ doublets. Virus overlays use the downstream detected-row filter.
 Rows with `detected = false` are excluded. A legacy summary without `detected`
 warns and retains all rows. Malformed flags in a newer summary stop processing.
 Blank flags are retained only for `detection_source = alignment_only` rows.
+
+With `--scautoqc`, the H5AD objects also store `scautoqc_*` per-cell QC metrics,
+cellwise/clusterwise flags, QC cluster labels, and
+`obsm['scautoqc_X_umap_qc']`. The generated `umap_scautoqc_*.html` plots use
+that QC-space embedding and include every cell in the H5AD. Ensembl-indexed
+features are annotated through Scanpy's Ensembl BioMart queries; the resulting
+gene symbols and mitochondrial membership are cached in
+`results/scautoqc_gene_annotations.tsv`.
 
 Open in any modern browser — no internet connection required.
 

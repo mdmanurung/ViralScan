@@ -1,110 +1,51 @@
-# ViralScan - viral load quantification from single-cell RNA-seq
+# ViralScan
+
+**ViralScan quantifies viral RNA at single-cell resolution.** It pseudoaligns
+paired-end FASTQ files against a viral or combined host + virus kallisto index,
+counts corrected (cell barcode, UMI) molecules for each virus and cell, and
+writes a report, per-virus and per-cell tables, and provenance receipts.
+
+ViralScan reports *candidate* evidence with explicit denominators. A `detected`
+row is not a diagnosis, and passing a threshold does not establish infection.
 
 [![CI](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml/badge.svg)](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mdmanurung/ViralScan/branch/main/graph/badge.svg)](https://app.codecov.io/gh/mdmanurung/ViralScan)
 [![PyPI](https://img.shields.io/pypi/v/ViralScan)](https://pypi.org/project/ViralScan/)
 
-ViralScan is a Snakemake-driven command-line tool for quantifying viral load in
-single-cell RNA-seq. It pseudoaligns paired-end FASTQ files with
-[kb-python](https://www.kallistobus.tools/) (kallisto | bustools) against a viral or
-combined host + virus reference. It reports per-cell and per-virus molecule estimates, an
-HTML report and optional UMAP plots. ViralScan can build the reference and run
-`kb ref` and `kb count` itself, so one tool covers reference building and detection. It is
-developed at the Leiden University Medical Centre (LUMC).
+## Choose your next step
 
-::::{grid} 1 2 2 3
-:gutter: 2
+| Task | Start here |
+|---|---|
+| Install ViralScan | [Installation](installation.md) — the recommended conda route, then the pip and container alternatives |
+| Run one sample | [Run ViralScan](quickstart.md) — preflight, reference, quantification, validation |
+| Read the results | [Inspect results](inspect_results.md) — report, tables, units, denominators |
+| Judge a candidate | [Assess the evidence](assess_evidence.md) — five checks from run integrity to conclusion limits |
+| Browse worked examples | [Examples](vignettes/README.md) — notebooks from a full run to host response |
 
-:::{grid-item-card} Installation
-:link: installation
-:link-type: doc
+## Inputs at a glance
 
-New to ViralScan? Start with the installation guide.
-:::
+- **Reads:** paired-end FASTQ, optionally gzipped. R1 carries the cell barcode
+  and UMI. 10x 3′ and 5′ chemistries are detected from the reads before counting;
+  Drop-seq is supported.
+- **Reference:** a kallisto `index.idx` and `t2g.txt`. For host-aware work, build
+  a combined host + virus index with `viralscan build-ref`, or reuse a compatible
+  index that carries its build manifest.
+- **Samples:** one or more FASTQ pairs per run; separate multiple samples with
+  commas.
+- **Toolchain:** the full workflow needs Linux x86-64, Python 3.11, `kb`,
+  `snakemake`, kallisto, bustools and STAR. EmptyDrops cell calling additionally
+  needs R with `DropletUtils`.
 
-:::{grid-item-card} Quickstart
-:link: quickstart
-:link-type: doc
+Reference modes, every flag and every output column are under
+[Reference & help](reference_help.md).
 
-Run your first sample from FASTQ to viral load.
-:::
+## Project information
 
-:::{grid-item-card} Tutorials
-:link: vignettes/README
-:link-type: doc
-
-Worked examples, from building a reference to host response.
-:::
-
-:::{grid-item-card} CLI and outputs
-:link: cli_reference
-:link-type: doc
-
-Every command and option, and every file ViralScan writes.
-:::
-
-:::{grid-item-card} API
-:link: api
-:link-type: doc
-
-Use ViralScan from Python.
-:::
-
-:::{grid-item-card} Issues and support
-:link: https://github.com/mdmanurung/ViralScan/issues
-
-Found a bug? Need help? Open an issue on GitHub.
-:::
-::::
-
-## Getting started
-
-```bash
-conda env create -f environment.yml   # kb-python, snakemake and dependencies
-conda activate viralscan
-python -m pip install -e .
-viralscan --help                       # all commands and options
-```
-
-ViralScan needs a reference index made with `kb ref`. Provide a pre-built index and
-transcript-to-gene map, or let ViralScan create one from FASTA and GTF files, from NCBI
-accessions, or with `viralscan build-ref` for a combined host + virus reference. The viral
-GTF panel is distributed through Zenodo (`viralscan data fetch`). Samples are paired-end
-FASTQ files, optionally gzipped; both `--r1` (forward) and `--r2` (reverse) are required. See
-[installation](installation.md) for the pip tier, containers and the tested toolchain.
-
-All output is written under `-o/--output`, one directory per FASTQ pair.
-
-**With a pre-built index:**
-
-```bash
-viralscan run -t transcripts.txt -i index.idx -o output/ --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz
-```
-
-**With FASTA and GTF files.** ViralScan writes the index to `output/index/`:
-
-```bash
-viralscan run -o output/ --reference --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --fasta fasta.fasta --gtf gtf.gtf
-```
-
-**With several samples or reference files.** Separate names with commas, without spaces:
-
-```bash
-viralscan run -t transcripts.txt -i index.idx -o output/ --r1 a_1.fastq.gz,b_1.fastq.gz --r2 a_2.fastq.gz,b_2.fastq.gz
-```
-
-Flags switch the optional stages on or off: multimapping, UMAP, host filtering, evidence,
-gene programmes and host response. The [CLI reference](cli_reference.md) lists them, and
-the [output reference](output_reference.md) describes the files. Upgrading from an earlier
-release? See [migration](migration.md). Project policies are in
-[SUPPORT.md](https://github.com/mdmanurung/ViralScan/blob/main/SUPPORT.md) (version and
-support policy) and
+Project policies: [SUPPORT.md](https://github.com/mdmanurung/ViralScan/blob/main/SUPPORT.md)
+(version and support policy) and
 [SECURITY.md](https://github.com/mdmanurung/ViralScan/blob/main/SECURITY.md)
-(reporting vulnerabilities).
-
-## License
-
-ViralScan is released under the MIT license; see the LICENSE file.
+(reporting vulnerabilities). Upgrading from an earlier release? See
+[migration](migration.md); v3 does not migrate legacy outputs.
 
 ```{toctree}
 :hidden:
@@ -113,8 +54,11 @@ ViralScan is released under the MIT license; see the LICENSE file.
 
 installation
 quickstart
+inspect_results
+assess_evidence
 cli_reference
 output_reference
+reference_help
 api
 api_reference
 ```
@@ -148,5 +92,6 @@ release_policy
 reference_maintenance
 v3_counting_contract
 panel_integrity
+project_info
 changelog
 ```
