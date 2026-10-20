@@ -20,6 +20,18 @@ completion.
 
 ## Next action
 
+- [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
+  `--soloCBwhitelist None` (chemistries without an on-list, SW-21) when no read mapped: STAR 2.7.11b segfaults (exit
+  139) in the Solo step. Found on 30 hsv1 Drop-seq libraries in Track A; reproduced on a 500k-read subset (no-Solo and
+  a dummy whitelist both exit 0; Unique-only and `Gene` still crash; peak RSS 1.7 GB, so not memory).
+  `scripts/anello_align._run_star` retries once with a one-barcode dummy whitelist and accepts the result only if
+  `Log.final.out` reports zero mapped reads (otherwise it raises, so no barcode is dropped from a library with
+  alignments); the retry is recorded in `anello_align/star139_fallback.txt`. Any other failure, and exit 139 with a
+  real whitelist, still raises. Tests: `tests/test_anello_star139.py` (4). The Track A wrapper
+  `trackA_anello_align.py` carries the same logic and was confirmed end to end on hsv1 GSM3511319 (smoke job
+  25852483: crash, retry, 22.0M reads, 0 mapped, classify completed). NOT tested: a no-whitelist library that has
+  mapped reads and still crashes (it raises); STAR upstream bug report not filed.
+
 - [x] `INV-REPIN-01` (2026-10-20, `codex/fix-inventory-pins`): three `analysis/v3_artifact_inventory.tsv` rows pinned
   pre-rebase commits that the rebase-merges of #77 and #78 left out of `main`'s history (`build-reference-command`
   04562cf, `claim-registry` 4c352b7, `public-readme` ab47b5a), so `test_repository_artifact_inventory_is_valid`
