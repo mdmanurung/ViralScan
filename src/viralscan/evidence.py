@@ -1623,13 +1623,24 @@ class CoverageMapError(ValueError):
 
 
 def resolve_reference_annotation(
-    annotation_path: str | Path | None, target: str, length: int
+    annotation_path: str | Path | None,
+    target: str,
+    length: int,
+    matched: dict[str, Any] | None = None,
 ) -> tuple[list[tuple[int, int, str, str, str]], str]:
-    """Validate exact GTF seqid and 1-based bounds; preserve explicit circular splits."""
+    """Validate GTF seqid and 1-based bounds; preserve explicit circular splits.
+
+    A viral BAM reference ``CLASS|ACC`` also matches a bare GTF seqid ``ACC``; host contigs
+    are never prefix-stripped. ``matched`` (if given) receives the seqid actually used.
+    """
     transcript = bool(re.match(r"^(?:[NX][MR]_\d|ENST\d)", target.split("|")[-1]))
     if annotation_path is None:
         return [], "transcript_reference" if transcript else "annotation_missing"
     features: list[tuple[int, int, str, str, str]] = []
+    seqids = {target}
+    if is_viral_reference(target):
+        seqids.add(target.split("|", 1)[-1])
+    seen: set[str] = set()
     with open(annotation_path, encoding="utf-8") as handle:
         for line in handle:
             if not line.strip() or line.startswith("#"):
@@ -1637,8 +1648,9 @@ def resolve_reference_annotation(
             fields = line.rstrip("\n").split("\t")
             if len(fields) != 9:
                 raise CoverageMapError("Expected nine GTF columns", "annotation_mismatch")
-            if fields[0] != target:
+            if fields[0] not in seqids:
                 continue
+            seen.add(fields[0])
             try:
                 start, end = int(fields[3]), int(fields[4])
             except ValueError as exc:
@@ -1653,6 +1665,9 @@ def resolve_reference_annotation(
                     fields[2],
                 )
             )
+    if matched is not None and seen:
+        seqid = target if target in seen else sorted(seen)[0]
+        matched.update(annotation_seqid=seqid, annotation_seqid_normalised=seqid != target)
     placeholder = (
         len(features) == 1 and features[0][0:2] == (1, length) and features[0][4] == "exon"
     )
@@ -1660,7 +1675,7 @@ def resolve_reference_annotation(
         return [], "transcript_reference"
     if not features:
         raise CoverageMapError(
-            f"Annotation has no exact seqid {target!r}; reference length {length}",
+            f"Annotation has no seqid {sorted(seqids)!r}; reference length {length}",
             "annotation_mismatch",
         )
     maximum = max(max(f[0], f[1]) for f in features)
@@ -1738,7 +1753,9 @@ def coverage_map_figure(
                 f"BAM reference lengths differ: raw={length}, deduplicated={dedup_lengths[target]}",
                 "annotation_mismatch",
             )
-        features, annotation_status = resolve_reference_annotation(annotation_path, target, length)
+        features, annotation_status = resolve_reference_annotation(
+            annotation_path, target, length, matched=metadata
+        )
     except CoverageMapError as exc:
         metadata.update(status=exc.status, reason=str(exc))
         write_metadata()

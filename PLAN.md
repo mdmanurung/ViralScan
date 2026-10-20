@@ -23,6 +23,9 @@ completion.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
+  - Note: real Track A BAMs (`VIRUS|U31784.1`) vs a bare-accession GTF gave `annotation_mismatch`;
+    `resolve_reference_annotation` now also accepts `ACC` for viral-class references only and
+    records `annotation_seqid` / `annotation_seqid_normalised` in the coverage-map JSON.
 - [x] REVIEW-D (WP-4): opt-in candidate-complete source-labelled review.
 - [x] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
 - [x] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.

@@ -443,7 +443,10 @@ def _build_evidence_plot_parser(subparsers: Any) -> None:
     p.add_argument(
         "--target", help="Exact BAM reference; optional only for one explicit viral reference."
     )
-    p.add_argument("--annotation", help="GTF annotation with exact target seqid.")
+    p.add_argument(
+        "--annotation",
+        help="GTF annotation; seqid = target, or the bare accession for viral CLASS|ACC targets.",
+    )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="evidence-plot")
 

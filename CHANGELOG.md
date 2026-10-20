@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Reviewed diagnostic corrections (unreleased)
 
+- `evidence-plot --coverage-map` now accepts a bare GTF seqid `ACC` for a viral BAM
+  reference `CLASS|ACC` (host contigs are never prefix-stripped) and records the matched
+  seqid and whether it was normalised in `coverage_map.<target>.json`.
 - SuperExpressor summaries now require a complete called-cell denominator. In the
   fixture with 1,000 called cells, 50 viral-positive cells and two reaching 10
   allocated molecules, the derived percentage changes from **4.0% to 0.2%**.

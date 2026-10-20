@@ -1219,7 +1219,8 @@ This opt-in command reads `competitive_reads.raw.bam` and exactly one
 `competitive_reads.<mode>_dedup.bam`; it never replays FASTQs or adds a workflow
 rule. `--target` must equal the BAM reference name. It is optional only when the
 BAM contains one explicitly classified viral reference. `--annotation` is optional;
-its seqid must match exactly and all feature coordinates must lie within the BAM
+its seqid must equal the target, or (viral references only) the bare accession
+after `CLASS|`; the matched seqid is recorded in the JSON. All feature coordinates must lie within the BAM
 reference length. Features need not extend to the final reference base. Both BAMs
 must agree on target length. Known transcript accessions and whole-reference exon
 placeholders are labelled `reference-transcript coverage`; genome tracks are

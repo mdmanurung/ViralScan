@@ -125,3 +125,43 @@ def test_transcript_map_suppresses_genome_overlay(evidence_dir, monkeypatch):
     )
     metadata = coverage_map_figure(evidence_dir, "NM_123.1", gtf)
     assert metadata["status"] == metadata["annotation_status"] == "transcript_reference"
+
+
+def _rename_target(d, new):
+    # Rewrite the BAM reference name so the fixture can mimic other reference classes.
+    for name in ["raw", "umi_dedup"]:
+        bam = d / f"competitive_reads.{name}.bam"
+        sam = subprocess.check_output(["samtools", "view", "-h", str(bam)], text=True)
+        sam = sam.replace("TARGET|X", new)
+        subprocess.run(
+            ["samtools", "view", "-b", "-o", str(bam), "-"], input=sam, text=True, check=True
+        )
+
+
+def test_viral_prefixed_reference_accepts_bare_gtf_seqid(evidence_dir):
+    d = evidence_dir
+    gtf = d / "genes.gtf"
+    gtf.write_text('X\tt\tgene\t5\t900\t.\t+\t.\tgene_id "G";\n')
+    meta = coverage_map_figure(d, annotation_path=gtf)
+    assert meta["status"] == "ok"
+    saved = json.loads((d / "coverage_map.TARGET|X.json").read_text())
+    assert saved["annotation_seqid"] == "X" and saved["annotation_seqid_normalised"] is True
+
+
+def test_exact_seqid_not_marked_normalised(evidence_dir):
+    d = evidence_dir
+    gtf = d / "genes.gtf"
+    gtf.write_text('TARGET|X\tt\tgene\t5\t900\t.\t+\t.\tgene_id "G";\n')
+    coverage_map_figure(d, annotation_path=gtf)
+    saved = json.loads((d / "coverage_map.TARGET|X.json").read_text())
+    assert saved["annotation_seqid"] == "TARGET|X" and saved["annotation_seqid_normalised"] is False
+
+
+def test_host_prefixed_reference_is_not_prefix_stripped(evidence_dir):
+    d = evidence_dir
+    _rename_target(d, "HOST|X")
+    gtf = d / "genes.gtf"
+    gtf.write_text('X\tt\tgene\t5\t900\t.\t+\t.\tgene_id "G";\n')
+    with pytest.raises(CoverageMapError) as error:
+        coverage_map_figure(d, "HOST|X", annotation_path=gtf)
+    assert error.value.status == "annotation_mismatch"
