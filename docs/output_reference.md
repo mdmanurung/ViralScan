@@ -1259,3 +1259,27 @@ sequence metrics remain `not_assessed`. STAR evidence never supplies kallisto EC
 metrics. `detected` and primary count files are unchanged. A saved typed config
 may set `review_candidates: true` for an already opt-in auto-evidence run; this
 adds no default DAG rule.
+
+### Pool-scoped tier-2 molecule fingerprint
+
+```bash
+PYTHONPATH=src python scripts/swap_check.py pool_manifest.tsv --tier2 --out fingerprints.tsv
+```
+
+Only distinct libraries with matching declared `pool_id` and `whitelist` are
+compared. The script prefers `kb-python/output.resolved.sorted.bus`, falls back
+to `kb-python/output.corrected.bus`, and resolves corrected CB–UMI compatibility
+using the run's EC map, transcript mapping, and Virus Identity table. A shared key
+must have the same viral target. This is a descriptive shared-origin diagnostic,
+not a definitive swapping label.
+
+The tier-2 TSV reports observed/expected shared keys, an empirical upper-tail
+p-value, status/reasons, and `insert_confirmation=not_assessed`. Insert confirmation
+is not implemented, including when BAMs exist. The `<out>.json` sidecar records
+BUS sources/digests, the seed (default 42), 1,000 permutations, and the null rule:
+permute recipient barcode labels within its observed library, preserving the
+per-barcode molecule loads and UMI/target associations. The p-value is
+`(1 + number of permuted overlaps >= observed) / 1001`. Missing BUS or identity
+inputs and a degenerate collision null yield `not_assessed`, never a zero p-value.
+No count or detection field is changed. Scientific calibration remains deferred;
+none of these diagnostics changes the frozen validation gate.

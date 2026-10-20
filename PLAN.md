@@ -24,8 +24,8 @@ completion.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
 - [x] REVIEW-D (WP-4): opt-in candidate-complete source-labelled review.
-- [~] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
-- [ ] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.
+- [x] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
+- [~] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 

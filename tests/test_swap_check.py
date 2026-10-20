@@ -129,3 +129,92 @@ def test_a_run_dir_that_is_not_finished_is_an_error(tmp_path):
     manifest = _manifest(tmp_path, [("R", "R", "p", "w"), ("D", "R2", "p", "w")])
     with pytest.raises(FileNotFoundError, match="not a finished ViralScan run"):
         mod.swap_rows(mod.read_manifest(manifest))
+
+
+def test_tier2_planted_overlap_null_changes_and_different_target():
+    rec = {
+        "keys": {("C0", "U"): {"V"}, **{(f"C{i}", "H"): set() for i in range(1, 100)}},
+        "barcodes": [f"C{i}" for i in range(100)],
+    }
+    don = {"keys": {("C0", "U"): {"V"}}}
+    result = mod.molecule_overlap(rec, don, "V")
+    assert result["observed_shared_keys"] == 1
+    assert 0 < result["expected_shared_keys"] < 1
+    assert 0 < result["p_value"] < 0.05
+    assert result == mod.molecule_overlap(rec, don, "V")
+    don["keys"][("C0", "U")] = {"other"}
+    result = mod.molecule_overlap(rec, don, "V")
+    assert result["observed_shared_keys"] == 0
+
+
+def test_tier2_unrelated_pools_never_read_bus(monkeypatch):
+    monkeypatch.setattr(mod, "load_molecule_keys", lambda _: pytest.fail("unadmitted run read"))
+    manifest = [
+        {"library_id": name, "pool_id": pool, "whitelist": "w", "run_dir": name}
+        for name, pool in [("A", "one"), ("B", "two")]
+    ]
+    assert mod.tier2_rows(manifest)[0] == []
+    manifest[1].update(pool_id="one", whitelist="other")
+    assert mod.tier2_rows(manifest)[0] == []
+
+
+def test_tier2_missing_bus_and_degenerate_null(tmp_path):
+    assert mod.load_molecule_keys(tmp_path)["reason_codes"] == "bus_missing"
+    run = {"keys": {("A", "U"): {"V"}}, "barcodes": ["A"]}
+    assert mod.molecule_overlap(run, run, "V")["status"] == "not_assessed"
+    assert mod.molecule_overlap(run, run, "V")["p_value"] == "not_assessed"
+
+
+def test_native_tier2_bus_preference_fallback_and_target_resolution(tmp_path):
+    import shutil
+    import struct
+
+    from viralscan.runconfig import RunConfig
+    from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
+
+    if not shutil.which("bustools"):
+        pytest.skip("native bustools required")
+    kb = tmp_path / "kb-python"
+    counts = kb / "counts_unfiltered"
+    counts.mkdir(parents=True)
+    (counts / "cells_x_genes.genes.txt").write_text("V\nH\n")
+    (kb / "transcripts.txt").write_text("tv\nth\n")
+    (kb / "matrix.ec").write_text("0\t0\n1\t1\n")
+    t2g = tmp_path / "t2g.txt"
+    t2g.write_text("tv\tV\nth\tH\n")
+    RunConfig(output=str(tmp_path), transcripts=str(t2g)).to_yaml(tmp_path / "config.yaml")
+    VirusIdentityTable(
+        genes=(
+            GeneIdentity(
+                gene_id="V",
+                genome_accession="V.1",
+                status="catalogued",
+                viral=True,
+                virus_name="Virus",
+                virus_key="v",
+            ),
+        )
+    ).write_tsv(tmp_path / "results" / "virus_identity.tsv")
+    data = b"BUS\x00" + struct.pack("<IIII", 1, 16, 12, 0)
+    data += struct.pack("<QQiIII", 0, 0, 0, 1, 0, 0) + struct.pack("<QQiIII", 1, 1, 1, 1, 0, 0)
+    resolved = kb / "output.resolved.sorted.bus"
+    corrected = kb / "output.corrected.bus"
+    resolved.write_bytes(data)
+    corrected.write_bytes(b"invalid, must not read when resolved exists")
+    run = mod.load_molecule_keys(tmp_path)
+    assert run["bus"] == str(resolved)
+    assert run["keys"][("A" * 16, "A" * 12)] == {"Virus"}
+    assert run["keys"][("A" * 15 + "C", "A" * 11 + "C")] == set()
+    corrected.write_bytes(data)
+    resolved.unlink()
+    assert mod.load_molecule_keys(tmp_path)["bus"] == str(corrected)
+
+
+def test_tier2_receipt_does_not_overwrite_tsv_named_json(tmp_path):
+    a = _run(tmp_path, "A", {"b0"}, [("b2", "V")])
+    b = _run(tmp_path, "B", {"b0"}, [("b2", "V")])
+    manifest = _manifest(tmp_path, [("A", a.name, "p", "w"), ("B", b.name, "p", "w")])
+    out = tmp_path / "fingerprint.json"
+    assert mod.main([str(manifest), "--tier2", "--out", str(out)]) == 0
+    assert out.read_text().startswith("pool_id\t")
+    assert (tmp_path / "fingerprint.json.json").is_file()
