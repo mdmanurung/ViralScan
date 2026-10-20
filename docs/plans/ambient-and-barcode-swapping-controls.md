@@ -1,9 +1,13 @@
 # Ambient RNA and barcode-swapping controls: design note (PLAN AUD-12, finding M-03)
 
-Status: design only, written 2026-10-12. No code, no tests, nothing run: `src/` and `tests/` are
-untouched. Claims about the current code cite the file and function they come from (read, not run).
-Numbers that I could not verify are marked "unverified". Literature is deliberately not cited: no
-reference in this note has been checked, so none is named beyond what the repository already cites.
+Status: implemented descriptive ambient screening (`soup_screen()` in detection.py)
+and tier-1 barcode overlap (`scripts/swap_check.py`), with regression tests in
+`tests/test_ambient_screen.py` and `tests/test_swap_check.py`. Opt-in tier-2
+CB–UMI fingerprints now have synthetic/native-BUS regression tests; empirical
+scientific calibration and insert confirmation remain pending. Counts and
+`detected` are unchanged. This note's original design discussion is retained below;
+implementation details and output statuses are in `docs/output_reference.md`.
+
 
 Source of the finding: Biomni review, `analysis/audit_2026-10/findings.tsv` row `M-03` ("ambient
 RNA and barcode/index swapping need separate controls; keep empty-droplet evidence separate from
@@ -331,13 +335,13 @@ Deliver in this order, stopping when the data stop justifying the next step:
    shows a signal worth the BUS reader.
 4. Calibrate any numeric gate only on frozen training data, after the protocol freeze.
 
-The first step is small enough to implement and test offline; it is not implemented here because
-the task restricts this change to design notes.
+The original design-only restriction is superseded by the implementation status above.
+Ambient screening and barcode-overlap code now exist; scientific calibration remains gated.
 
 ## Documentation rows implied
 
-For the docs owner (pinned files, not edited here): `docs/output_reference.md` rows for the new
-`viral_summary.tsv` columns when implemented; the `background_umis` row should point to them; the
+See `docs/output_reference.md` for implemented diagnostic outputs. Historical design requests
+for `viral_summary.tsv` columns remain below; the `background_umis` row should point to them; the
 `report.html.j2` sentence about clustering and ambient contamination (section 2) needs review; the
 `evidence.interpretation_flags` `contamination` basis text changes with step 1.
 

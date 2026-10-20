@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Reviewed diagnostic corrections (unreleased)
+
+- SuperExpressor summaries now require a complete called-cell denominator. In the
+  fixture with 1,000 called cells, 50 viral-positive cells and two reaching 10
+  allocated molecules, the derived percentage changes from **4.0% to 0.2%**.
+  Explicit legacy subset mode remains available with warning/provenance. Empty
+  summaries retain the full header. Primary counts and detection defaults do not change.
+- High-burden PNGs use called cells and host-only depth, with exact TSV/JSON
+  sidecars, explicit missing-null status, display-floor wording, and labelled
+  figure-only truncation. Coverage comparisons preserve uncovered viral bases.
+- Added opt-in accession coverage maps, source-labelled candidate review, and
+  pool-scoped tier-2 molecule fingerprints. These are diagnostics, with no
+  scientific performance claim or change to the frozen validation gate.
+
 ---
 
 ## [Unreleased]
