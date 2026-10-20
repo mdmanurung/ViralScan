@@ -15,7 +15,7 @@ The two heavy notebooks use public data and are not executed in CI.
 | 2 | [Building a reference: fetch a panel or build your own](building_a_reference.ipynb) | "Where does the reference come from?" | `data fetch`, `build-ref` | Public data (not run in CI) | `[skip-ci]` |
 | 3 | [Multimapping correction](multimapping_correction.ipynb) | "Why does it find more virus than unique counting?" | `--multimap-method em-global`, `rerun-multimap`, `em_gene_abundances`; includes an ambiguous host-virus case | Synthetic | ✅ |
 | 4 | [Cell-calling & denominators](cell_calling_denominators.ipynb) | "Is my infection rate a denominator artifact?" | `--cell-calling external`, `compute_stats`; wrong-list failure example | Synthetic | ✅ |
-| 5 | [Cell-type enrichment](cell_type_enrichment.ipynb) | "Which cell types are infected?" | `--cell-types`, `cell_type_enrichment` | Synthetic | ✅ |
+| 5 | [Cell-type enrichment](cell_type_enrichment.ipynb) | "Which cell types are infected?" | `--cell-type-labels`, `cell_type_enrichment` | Synthetic | ✅ |
 | 6 | [Specificity: true negative](specificity_true_negative.ipynb) | "Will it cry wolf when the virus is absent?" | `check-whitelist`, `whitelist_match_rate` | Synthetic (negative example) | ✅ |
 | 7 | [QC & read evidence](qc_and_read_evidence.ipynb) | "Can I trust this call?" | `evidence`, `check_sibling_crossmapping` (ambiguous EM-bleed example), breadth/ambiguity | Synthetic | ✅ |
 | 8 | [Host-response with depth control](host_response_depth_control.ipynb) | "Do infected cells have a host program (really)?" | `hostresponse`, depth-confound diagnostics (synthetic null) | Synthetic | ✅ |

@@ -95,6 +95,10 @@ completion.
   `project_info` (also in `MANIFEST.in` and `config/public_ship_scope.json`); `docs.yml` builds with
   `-W --keep-going`. `cli_reference.md` was not ported: `main`'s generated copy is current
   (`gen_cli_reference.py --check` clean). Strict `sphinx -W --keep-going` build passed locally only with the `alabaster` theme and without `sphinx_design`/`sphinx_copybutton` (not installed; no env has `scanpydoc`), so the first CI `docs.yml` run is the theme check. Plan: `docs/plans/2026-10-20-documentation-revision-plan.md`.
+  2026-10-21 rebase onto `main` after CLI-UNIFY-01 (#87): every command example in the revised pages, README table and
+  quickstart vignette moved to the `run`/`--r1`/`--r2`/`--cache-dir`/`--cell-type-labels`/`validate-run --run-dir` grammar;
+  `faq-doc`/`output-reference-doc`/`public-readme` inventory rows re-pinned in a final commit. Lesson (INV-REPIN-01): pins
+  name the last content commit of this branch, which survives only a merge-commit PR; after a rebase/squash merge re-pin to the merged commit.
 
 - [~] `DOCS-PAGES-01` (2026-10-20, `codex/docs-pages`): publish the Sphinx docs on GitHub Pages (user choice over
   Read the Docs). `.github/workflows/docs.yml` builds on push to `main` (and by hand), installs pandoc for nbsphinx
