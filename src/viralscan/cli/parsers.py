@@ -301,6 +301,11 @@ def _build_evidence_parser(subparsers: Any) -> None:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    p.add_argument(
+        "--review-candidates",
+        action="store_true",
+        help="Review all Anelloviridae candidates, including below-gate and STAR-only rows; write results/evidence_review.tsv.",
+    )
     p.add_argument("--run-dir", required=True, help="A completed ViralScan run output directory.")
     p.add_argument("--output", "-o", required=True, help="Directory for evidence outputs.")
     p.add_argument(
@@ -429,6 +434,18 @@ def _build_evidence_plot_parser(subparsers: Any) -> None:
         type=int,
         default=60,
         help="Draw the lane block (panel A) only up to this many molecules; the aligned-length histogram (panel D) is always drawn. Default: 60.",
+    )
+    p.add_argument(
+        "--coverage-map",
+        action="store_true",
+        help="Draw coverage and optional gene track from retained BAMs.",
+    )
+    p.add_argument(
+        "--target", help="Exact BAM reference; optional only for one explicit viral reference."
+    )
+    p.add_argument(
+        "--annotation",
+        help="GTF annotation; seqid = target, or the bare accession for viral CLASS|ACC targets.",
     )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="evidence-plot")

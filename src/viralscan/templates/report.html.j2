@@ -484,9 +484,10 @@
         </dd>
         <dt style="font-weight:600;">Super-expressors</dt>
         <dd style="margin-bottom:0.5rem;">
-          Cells with ≥ {{ se_threshold }} viral UMI in the super-expressor plot.  These are
-          candidate productively infected cells.  The null model (grey line) shows the expected
-          distribution if viral reads were distributed proportionally to total cell UMI.
+          Called cells with ≥ {{ se_threshold }} allocated viral molecules in the exploratory
+          high-burden plot; not proof of infection. The grey null curve, when estimable,
+          distributes viral molecules proportionally to host-only depth across the same cells.
+          Exact values and provenance are in the matching TSV and JSON.
         </dd>
         <dt style="font-weight:600;">Nearest-neighbour enrichment</dt>
         <dd>

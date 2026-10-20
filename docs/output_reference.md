@@ -89,6 +89,8 @@ output/
     ├── plots/
     │   ├── <virus>_histogram.png
     │   ├── SuperExpressor_<virus>.png
+    │   ├── SuperExpressor_<virus>.tsv
+    │   ├── SuperExpressor_<virus>.json
     │   ├── umap_binary.html
     │   └── umap_continuous.html
     └── results/
@@ -1180,3 +1182,105 @@ Expected directories:
 output/A/
 output/B/
 ```
+
+## Exploratory high-burden plots and opt-in evidence diagnostics
+
+When visuals are enabled, `plots/SuperExpressor_<virus>.png` shows allocated viral
+molecules across the run's called-cell mask. The exploratory cutoff remains
+10 allocated molecules by default; fractional allocations are compared without
+rounding. This is descriptive high viral burden, not proof of infection.
+
+The matching TSV contains every barcode in that universe, including exact zeros:
+`barcode`, `viral_molecules`, `host_molecules`, `is_called`, `null_expected`,
+`rank_observed`, `rank_null`. Missing host depth and null values are blank. The JSON
+records sample, virus, count layer/allocation method, cutoff, `null_status`,
+`denominator_kind`, universe/display/zero/high-burden sizes, display floor,
+truncation limit, software identity, host partition source, called-mask source,
+and the called-cell file digest when available. The host-depth null excludes all
+viral features and uses the same called cells as the observed curve. Without host
+depth it is `not_estimable` and no null curve is drawn. Standalone callers without
+a mask are explicitly labelled `all_barcodes`.
+
+Only the PNG applies a 0.5 display floor and a 50,000-rank cap, both labelled.
+Neither changes the TSV. The standalone `scripts/super_expressors.py` summary
+resolves `--cells`, then `<run>/results/called_cells.tsv`, or stops with an error.
+`--denominator viral_positive_called` reproduces the historical subset statistic
+with a warning. Its final `denominator_kind` column distinguishes that statistic
+from a complete called-cell percentage. Empty input still produces the full header.
+
+### Accession coverage map
+
+```bash
+viralscan evidence-plot --coverage-map --evidence-dir results/evidence/target \
+    --target 'VIRUS|accession' --annotation genes.gtf
+```
+
+This opt-in command reads `competitive_reads.raw.bam` and exactly one
+`competitive_reads.<mode>_dedup.bam`; it never replays FASTQs or adds a workflow
+rule. `--target` must equal the BAM reference name. It is optional only when the
+BAM contains one explicitly classified viral reference. `--annotation` is optional;
+its seqid must equal the target, or (viral references only) the bare accession
+after `CLASS|`; the matched seqid is recorded in the JSON. All feature coordinates must lie within the BAM
+reference length. Features need not extend to the final reference base. Both BAMs
+must agree on target length. Known transcript accessions and whole-reference exon
+placeholders are labelled `reference-transcript coverage`; genome tracks are
+omitted for them. Explicit origin-spanning coordinates are split into two blocks.
+
+The evidence directory receives `coverage_map.<target>.png`, `.pdf`, `.tsv.gz`,
+and `.json`. The compressed table uses 1-based inclusive `position`/`end` and
+`raw_depth`/`dedup_depth`, including zeros. Above five million bases, at most
+50,000 bins report mean depth including uncovered bases. JSON records input BAM
+hashes, annotation digest, reference length, bin size, software identity, and status:
+`ok`, `no_coverage`, `annotation_missing`, `annotation_mismatch`,
+`target_not_in_bam`, or `transcript_reference`. `no_coverage` takes precedence
+for empty tracks; `annotation_status` remains available separately. Invalid
+annotation/target inputs raise an error and write a status JSON when a target is
+known. Existing comparison PNGs also show uncovered viral bases correctly; their
+raw and deduplicated depth TSVs and samtools depth policy are unchanged.
+
+### Candidate evidence review
+
+```bash
+viralscan evidence --review-candidates --run-dir completed/sample \
+    --output completed/sample/results/evidence
+```
+
+This opt-in diagnostic writes `results/evidence_review.tsv`, one row per
+Anelloviridae candidate, including below-gate and `alignment_only` candidates.
+Columns are `virus_name`, `detection_source`, `detected`, `evidence_source`,
+`n_reads`, `n_unique_cb_umi`, `complex_body_fraction`, `reagent_fraction`, `status`,
+`reason_codes`. The sample namespace is the containing run directory.
+
+Kallisto candidates use existing exact replay (`kallisto_replay`); STAR-only
+candidates use the retained `anello_align/Aligned.sortedByCoord.out.bam`
+(`star_bam`). Streams are never added together. Missing BAMs yield
+`evidence_source=none`, `status=not_assessed`, `alignment_bam_missing`.
+Unsupported sources yield `unsupported_source`; unavailable corrected tags or
+sequence metrics remain `not_assessed`. STAR evidence never supplies kallisto EC
+metrics. `detected` and primary count files are unchanged. A saved typed config
+may set `review_candidates: true` for an already opt-in auto-evidence run; this
+adds no default DAG rule.
+
+### Pool-scoped tier-2 molecule fingerprint
+
+```bash
+PYTHONPATH=src python scripts/swap_check.py pool_manifest.tsv --tier2 --out fingerprints.tsv
+```
+
+Only distinct libraries with matching declared `pool_id` and `whitelist` are
+compared. The script prefers `kb-python/output.resolved.sorted.bus`, falls back
+to `kb-python/output.corrected.bus`, and resolves corrected CB–UMI compatibility
+using the run's EC map, transcript mapping, and Virus Identity table. A shared key
+must have the same viral target. This is a descriptive shared-origin diagnostic,
+not a definitive swapping label.
+
+The tier-2 TSV reports observed/expected shared keys, an empirical upper-tail
+p-value, status/reasons, and `insert_confirmation=not_assessed`. Insert confirmation
+is not implemented, including when BAMs exist. The `<out>.json` sidecar records
+BUS sources/digests, the seed (default 42), 1,000 permutations, and the null rule:
+permute recipient barcode labels within its observed library, preserving the
+per-barcode molecule loads and UMI/target associations. The p-value is
+`(1 + number of permuted overlaps >= observed) / 1001`. Missing BUS or identity
+inputs and a degenerate collision null yield `not_assessed`, never a zero p-value.
+No count or detection field is changed. Scientific calibration remains deferred;
+none of these diagnostics changes the frozen validation gate.

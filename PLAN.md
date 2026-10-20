@@ -20,6 +20,18 @@ completion.
 
 ## Next action
 
+- [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
+- [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
+- [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
+  - Note: real Track A BAMs (`VIRUS|U31784.1`) vs a bare-accession GTF gave `annotation_mismatch`;
+    `resolve_reference_annotation` now also accepts `ACC` for viral-class references only and
+    records `annotation_seqid` / `annotation_seqid_normalised` in the coverage-map JSON.
+- [x] REVIEW-D (WP-4): opt-in candidate-complete source-labelled review.
+- [x] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
+- [x] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.
+- WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
+
+
 - [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
   `--soloCBwhitelist None` (chemistries without an on-list, SW-21) when no read mapped: STAR 2.7.11b segfaults (exit
   139) in the Solo step. Found on 30 hsv1 Drop-seq libraries in Track A; reproduced on a 500k-read subset (no-Solo and
@@ -7637,3 +7649,100 @@ agents and stay `[~]`. Lint cleanup for VR-02 done in the port (E402/SIM115 `noq
   improvement claim. Temporary SAM disk28,626,864 bytes for100,000 fixture reads,
   scaling with input. Instrumented stdout-hash timing attempts retained but excluded
   from benefit claims. Fixed workers/search/scientific settings. C00 pending.
+
+## Reviewed roadmap implementation — 2026-10-20
+
+Scope: revised roadmap and implementation handoff, independently checked against
+`origin/main` `9151da904cb818ad140c3311f51be7dd5803f738`. The supplied two repository
+paths resolve to one dirty, stale checkout; implementation uses an isolated clone.
+The baseline was confirmed against GitHub main before edits. No unrelated work
+was incorporated. Source implementation is frozen at `ecee46c`.
+
+### Acceptance ledger
+
+All PASS entries below are local software/fixture results, not CI or scientific
+validation. Receipt filenames refer to the separate local delivery packet.
+
+| ID | Evidence | Local status |
+|---|---|---|
+| A1 | `test_complete_universe_legacy_and_fractional`; summary before/after TSVs: 4.0% → 0.2% | PASS |
+| A2 | `test_auto_resolution_missing_empty_and_suffix`: full empty header | PASS |
+| A3 | Same test: missing authoritative cells is a hard error | PASS |
+| A4 | Legacy fixture: warning, 4.0%, explicit denominator kind | PASS |
+| A5 | Fractional fixture: 9.6 excluded at 10; 10.0 included | PASS |
+| A6 | `test_host_only_null_and_called_universe`: null expectations 2.5 and 7.5 | PASS |
+| A7 | `test_missing_host_depth`: missing mask and zero host depth; no estimated null | PASS |
+| A8 | Non-called barcode with 100,000 viral molecules excluded in plot fixture | PASS |
+| A9 | Exact zero/fractional sidecar values; zero count metadata | PASS |
+| A10 | `test_figure_only_rank_cap`: 60,000 TSV rows, 50,000 displayed, annotation captured | PASS |
+| A11 | Independent baseline/candidate `detection.run` receipts; exact table/H5AD bytes; mutation test | PASS |
+| B1 | Zero-gap plot-array fixture; native samtools 1M coverage-map fixture and paired rendering benchmark | PASS |
+| B2 | Mixed host/target plot fixture; host is never densified | PASS |
+| B3 | Original OOM regression test unchanged and passing | PASS |
+| B4 | Empty comparison preserves “No aligned coverage” text | PASS |
+| C1 | Native `test_gap_coordinate_parity_missing_annotation` | PASS |
+| C2 | Oversized GTF raises error with both lengths and mismatch JSON | PASS |
+| C3 | Missing annotation still draws depth, with explicit status | PASS |
+| C4 | Missing target reports available references and target status | PASS |
+| C5 | Multiple viral references require target selection | PASS |
+| C6 | Native depths equal samtools depth fixture values | PASS |
+| C7 | Transcript fixture suppresses incompatible genome track and labels status | PASS |
+| C8 | Present zero-depth reference has zero-filled table and no_coverage status | PASS |
+| D1 | Native STAR BAM fixture reviewed without invoking kallisto replay for that target | PASS |
+| D2 | Below-gate candidate retained with detected=False unchanged | PASS |
+| D3 | Missing STAR BAM reports none/not_assessed/alignment_bam_missing | PASS |
+| D4 | Candidate-review fixture asserts primary table bytes unchanged | PASS |
+| E1 | Planted same-target key: nondegenerate reproducible empirical null and p-value | PASS |
+| E2 | Unrelated pool/whitelist pairs do not even load BUS | PASS |
+| E3 | Same CB–UMI with a different target is not counted | PASS |
+| E4 | Missing BUS gives not_assessed; native BUS preference/fallback tested | PASS |
+| F1 | Sphinx HTML build; generated CLI parity and docs consistency tests | PASS |
+| F2 | Stale design-only status replaced; no “design only” match in ambient plan | PASS |
+| G1 | Protocol remains draft, both execution flags false; exact Git diff empty | PASS |
+| G2 | Claims registry unchanged; no scientific performance claim added | PASS |
+
+### Validation and qualification
+
+- Baseline focused suite: 157 passed. Final focused suite: 292 passed, one
+  harmless Matplotlib warning for the empty called-cell fixture.
+- Broad suite before final typing/edge-case edits: 5,917 passed, 15 skipped,
+  163 deselected in 739.39 seconds. Final serial suite on frozen code: **5,921 passed, 15 skipped, 163 deselected**
+  in 696.51 seconds; no failures.
+- Final selected integration suite: 15 passed. This includes existing
+  pipeline-count, rerun-artifact, competitor-evidence, and evidence-chain tests.
+- Ruff, mypy (62 source files), data governance, artifact inventory and built
+  wheel/sdist/Docker-context ship-scope checks pass. Output-reference inventory
+  digest and source commit were refreshed without changing claims.
+- Sphinx uses the repository's configured theme and extensions, with missing
+  docs-only packages installed in a temporary target; project dependencies are
+  unchanged. Intersphinx network fetching and notebook execution were disabled.
+- Coverage benchmark: one 8 kb viral reference and one million covered host
+  positions, one process on an Intel Xeon E5-2690 v3 shared HPC host. Baseline
+  peak RSS 795,848 KiB; candidate 766,828 KiB (0.964×; within the 1.10× limit).
+  Covered-point data hashes and both coverage TSV byte hashes are identical.
+- One 3 kb coverage map rendered in 1.819 seconds on that host. This is a host
+  measurement, not qualification on laptop hardware or a pipeline speed claim.
+- Existing real evidence BAMs were not found in the bounded results folders
+  checked. WP-3's real-evidence-directory qualification remains **pending** even
+  though C1–C8 and the CLI path pass on native synthetic BAMs.
+- CI, publication, push, merge, training, holdout and scientific calibration were
+  not run. WP-6/WP-8 remain deferred; WP-7 remains a read-only gate.
+
+### Resolved specification discrepancies
+
+- GTF features must fit within the BAM length; their maximum feature end need
+  not equal the reference length. This follows the handoff's explicit bound
+  check and avoids rejecting partial annotations.
+- Recognized transcript accessions and whole-reference exon placeholders omit
+  genome tracks before incompatible genome-span validation. CDS-only genome
+  annotations are not automatically treated as transcript references.
+- Zero coverage is the primary status for empty tracks; annotation status is
+  retained separately. Invalid target/annotation inputs raise with status JSON.
+- A sampled collision null with no variation returns not_assessed, not a
+  fabricated p-value. The finite-sample upper tail uses the +1 correction.
+- Insert/start–end confirmation is not implemented; it always remains explicit
+  not_assessed. No swapped/infection interpretation is inferred from fingerprints.
+
+Next action: review the six-package local delivery and obtain a permitted real
+existing evidence directory for WP-3 qualification. This does not authorize any
+scientific experiment, scheduler submission or remote publication.
