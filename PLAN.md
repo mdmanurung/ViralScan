@@ -21,8 +21,8 @@ completion.
 ## Next action
 
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
-- [~] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
-- [ ] REVIEW-C (WP-3): opt-in accession coverage map, after REVIEW-B.
+- [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
+- [~] REVIEW-C (WP-3): opt-in accession coverage map, after REVIEW-B.
 - [ ] REVIEW-D (WP-4): opt-in candidate-complete source-labelled review.
 - [ ] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
 - [ ] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.

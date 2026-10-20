@@ -1207,3 +1207,7 @@ resolves `--cells`, then `<run>/results/called_cells.tsv`, or stops with an erro
 `--denominator viral_positive_called` reproduces the historical subset statistic
 with a warning. Its final `denominator_kind` column distinguishes that statistic
 from a complete called-cell percentage. Empty input still produces the full header.
+
+Coverage comparisons now zero-fill only explicit viral references up to five million
+bases; larger or unknown references use gap breaks. Covered-depth TSVs and the
+samtools depth policy are unchanged. Host references are never densified.

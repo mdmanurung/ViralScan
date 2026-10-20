@@ -709,3 +709,59 @@ def test_hotspot_uses_sliding_50bp_window_b32(starts, expected) -> None:
         assert flags["coverage_hotspot"]["status"] == (
             "flagged" if expected >= 0.5 else "not_flagged"
         )
+
+
+def test_coverage_plot_points_zero_gaps_and_bounded_host():
+    import numpy as np
+
+    from viralscan.evidence import coverage_plot_points
+
+    rows = [
+        {"reference": ref, "position": p, "depth": d}
+        for ref in ["TARGET|X", "chr1"]
+        for p, d in [(5, 2), (900, 1)]
+    ]
+    xs, ys = coverage_plot_points(rows, "TARGET|X", 1000)
+    assert len(xs) == 1000 and ys[4] == 2 and ys[899] == 1
+    assert np.all(ys[5:899] == 0)
+    host_x, host_y = coverage_plot_points(rows, "chr1", 100000000)
+    assert len(host_x) == len(host_y) == 3 and np.isnan(host_y[1])
+    xs, ys = coverage_plot_points(rows, "TARGET|X", 100000000)
+    assert len(xs) == 3 and np.isnan(ys[1])
+
+
+def test_coverage_plot_empty_and_mixed(monkeypatch, tmp_path):
+    import numpy as np
+    from matplotlib.axes import Axes
+
+    import viralscan.evidence as ev
+
+    points, labels = [], []
+    original_plot, original_text = Axes.plot, Axes.text
+
+    def plot(self, x, y, *args, **kwargs):
+        points.append((list(x), list(y)))
+        return original_plot(self, x, y, *args, **kwargs)
+
+    def text(self, x, y, label, *args, **kwargs):
+        labels.append(label)
+        return original_text(self, x, y, label, *args, **kwargs)
+
+    monkeypatch.setattr(Axes, "plot", plot)
+    monkeypatch.setattr(Axes, "text", text)
+    monkeypatch.setattr(ev, "reference_lengths", lambda bam: {"TARGET|X": 1000, "chr1": 100000000})
+    monkeypatch.setattr(
+        ev,
+        "coverage_depth_points",
+        lambda bam: [
+            {"reference": ref, "position": p, "depth": d}
+            for ref in ["TARGET|X", "chr1"]
+            for p, d in [(5, 2), (900, 1)]
+        ],
+    )
+    ev.plot_coverage_comparison("raw", "dedup", str(tmp_path / "plot.png"))
+    assert len(points) == 2
+    assert all(len(x) == 1000 and np.all(np.asarray(y)[5:899] == 0) for x, y in points)
+    monkeypatch.setattr(ev, "coverage_depth_points", lambda bam: [])
+    ev.plot_coverage_comparison("raw", "dedup", str(tmp_path / "empty.png"))
+    assert "No aligned coverage" in labels

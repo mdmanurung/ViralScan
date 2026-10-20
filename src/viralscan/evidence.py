@@ -1524,6 +1524,55 @@ def coverage_depth_points(bam: str) -> list[dict[str, object]]:
     return rows
 
 
+def reference_lengths(bam: str) -> dict[str, int]:
+    """Read exact reference names and lengths without scanning alignments."""
+    header = _run(["samtools", "view", "-H", str(bam)], capture=True).decode()
+    lengths = {}
+    for line in header.splitlines():
+        if line.startswith("@SQ\t"):
+            fields = dict(field.split(":", 1) for field in line.split("\t")[1:] if ":" in field)
+            length = int(fields["LN"])
+            if length <= 0 or fields["SN"] in lengths:
+                raise ValueError(f"Invalid or duplicate BAM reference: {line}")
+            lengths[fields["SN"]] = length
+    return lengths
+
+
+def is_viral_reference(reference: str) -> bool:
+    """Require an explicit viral class; unprefixed host contigs are not viral."""
+    return reference.startswith(("VIRUS|", "TARGET|", "SAMEGROUP|", "RELATED|", "DECOY|"))
+
+
+def coverage_plot_points(
+    rows: list[dict[str, object]], reference: str, length: int | None = None
+) -> tuple[Any, Any]:
+    """Bounded zero-filled viral coordinates, or sparse coordinates with gap breaks."""
+    import numpy as np
+
+    selected = sorted(
+        (to_int(r["position"]), to_int(r["depth"])) for r in rows if r["reference"] == reference
+    )
+    if any(p < 1 or (length is not None and p > length) or d < 0 for p, d in selected):
+        raise ValueError(f"Invalid coverage coordinate/depth for {reference}, length={length}")
+    if is_viral_reference(reference) and length is not None and length <= 5_000_000:
+        xs = np.arange(1, length + 1)
+        ys = np.zeros(length, dtype=float)
+        for position, depth in selected:
+            ys[position - 1] = depth
+        return xs, ys
+    sparse_x: list[float] = []
+    sparse_y: list[float] = []
+    previous = None
+    for position, depth in selected:
+        if previous is not None and position > previous + 1:
+            sparse_x.append(float("nan"))
+            sparse_y.append(float("nan"))
+        sparse_x.append(position)
+        sparse_y.append(depth)
+        previous = position
+    return np.asarray(sparse_x), np.asarray(sparse_y)
+
+
 def plot_coverage_comparison(raw_bam: str, dedup_bam: str, output: str) -> str:
     """Plot raw and deduplicated competitive depth tracks per viral reference."""
     import matplotlib
@@ -1535,18 +1584,13 @@ def plot_coverage_comparison(raw_bam: str, dedup_bam: str, output: str) -> str:
         "raw": coverage_depth_points(raw_bam),
         "deduplicated": coverage_depth_points(dedup_bam),
     }
-    explicit_classes = any(
-        reference_class(str(row["reference"]))
-        in {"target", "same_reporting_group", "related_virus", "decoy"}
-        for rows in layers.values()
-        for row in rows
-    )
+    lengths = {"raw": reference_lengths(raw_bam), "deduplicated": reference_lengths(dedup_bam)}
     references = sorted(
         {
             str(row["reference"])
             for rows in layers.values()
             for row in rows
-            if explicit_classes or str(row["reference"]).startswith("VIRUS|")
+            if is_viral_reference(str(row["reference"]))
         }
     )
     if not references:
@@ -1559,13 +1603,8 @@ def plot_coverage_comparison(raw_bam: str, dedup_bam: str, output: str) -> str:
         axes[0][0].set_axis_off()
     for axis, reference in zip(axes[:, 0], references):
         for layer, rows in layers.items():
-            selected = [row for row in rows if row["reference"] == reference]
-            axis.plot(
-                [to_int(row["position"]) for row in selected],
-                [to_int(row["depth"]) for row in selected],
-                label=layer,
-                linewidth=1,
-            )
+            xs, ys = coverage_plot_points(rows, reference, lengths[layer].get(reference))
+            axis.plot(xs, ys, label=layer, linewidth=1)
         axis.set(title=reference, xlabel="Position (bp)", ylabel="Depth")
         axis.legend(frameon=False)
     figure.tight_layout()
