@@ -1,7 +1,7 @@
 # Migrating from earlier versions
 
 ViralScan v3 does **not** migrate legacy outputs. There is no converter, and
-none is planned: the v3 counting contract, identity table and evidence tiers
+none is planned. The v3 counting contract, identity table and evidence tiers
 are not reconstructable from pre-v3 result files.
 
 - **Rebuild only.** Rebuild the reference with `viralscan build-ref` and rerun
