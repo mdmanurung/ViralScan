@@ -51,3 +51,15 @@ Detailed monitoring receipts live in the shared research checkout at
 `analysis/computational_bottlenecks_2026-10-17/followups/20261019-performance-monitor/`.
 They identify both historical native matrices, exact raw hashes, downstream
 commands and the 40-repeat native probe. The original failed artifacts are retained.
+
+## PR CI fixture correction
+
+The first PR CI run found one failing CLI-plumbing test on workers without Rscript.
+Its default emptyDrops preflight exited before the mocked reference builder.
+The failure was reproduced locally with Rscript discovery disabled. The fixture
+now explicitly selects knee calling and checks the successful stop-hook exit,
+retaining the assertion that the reference builder receives two cores. The affected
+CLI/worker suites pass 184 tests (16 integration cases deselected) with Rscript
+hidden after the correction; Ruff and formatting pass. Production
+code, dependency checks and scientific defaults are unchanged. Final CI results
+are recorded on the PR for the corrected revision.

@@ -178,10 +178,11 @@ def test_main_passes_cli_cores_to_reference_build(tmp_path, monkeypatch):
         "argv",
         ["viralscan", "--reference", "--fasta", str(fasta), "--gtf", str(gtf), "-o", "out"]
         + ["-s1", "R1.fastq.gz", "-s2", "R2.fastq.gz", "-x", "10xv3", "--force-technology"]
-        + ["--yes", "--cores", "2"],
+        + ["--yes", "--cores", "2", "--cell-calling", "knee"],
     )
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as done:
         menu.main()
+    assert done.value.code == 0
     assert seen[0][3] == 2
 
 
