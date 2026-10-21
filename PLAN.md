@@ -7782,8 +7782,10 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     (reusable as the DISC-10 fixture). Kraken2 2.17.2 is in env `conda/envs/viralscan_discovery`.
   - Note: 2.17.2's confidence denominator includes ambiguous k-mers (`562:11 A:45` is unclassified at 0.5),
     contrary to the manual.
-- [~] `DISC-05` spike: bustools fromtext→correct keeps flags (**done**, 2026-10-21); reconciliation >= 99.9 % on EBV
-  pending (needs `_replay_quant_bus` on the EBV kb pair).
+- [x] `DISC-05` spike: bustools fromtext→correct keeps flags (**done**, 2026-10-21); reconciliation on EBV
+  SRR12682296 (**done**, 2026-10-21, Slurm `25860937`): `_replay_quant_bus` on the kb input pair with the virus-only
+  index, 10xv2 on-list; 1,540,822 of 1,540,822 primary BUS records carry the same corrected CB as discovery's
+  `barcodes.tsv.gz` (agreement 1.0, gate >= 0.999). Script and result: `viralscan_work/discovery_ebv_2026-10-21/disc05/`.
   - Note: kallisto 0.52.0 `bus` and `bustools fromtext` both encode `N` as `G` (CB and UMI), so discovery passes `N`
     through to match the primary barcode space instead of rejecting it; plan §6.3 updated. Use kb's bundled bustools
     (same 0.45.1 version as conda, different sha256).
@@ -7846,6 +7848,11 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   Decisions: the fingerprint is computed before Kraken2 (so a no-op costs DB hashing only); `--host-subtract` inputs
   are identified by the manifest's sample fingerprints plus the index path (not its bytes). Taxonomy cache skipped
   (cheap after R1). A crash mid-publish leaves files without the marker and needs a manual clean.
+  - Follow-up (2026-10-21, review minors): `fingerprint_inputs` is a deep copy, so `provenance.json` re-hashes to the
+    marker (tested); resolved paths/counts moved to `provenance.resolved_input`; `provenance.discovery_fingerprint`
+    added; `--force` refuses a marker that lists a non-local name (`../x`); `--minimum-hit-groups` covered by the
+    rerun test. New `kb_input_check`: when the primary `kb count` read a `host_filtered/` pair at another path (a
+    copied run), its sha256 must match the pair discovery classifies, else refused; the outcome is recorded.
 - [x] `DISC-R6` (2026-10-21, plan step R6): `--polya-trim/--no-polya-trim` (default on). `trim_r2` cuts R2 from the first
   run of >= 15 A to the end, then a leading run of >= 15 T (constants `POLYA_MIN_RUN`/`POLYT_MIN_RUN`); applied in
   `stream_reads` before `kraken_input.fa.gz`. `reads.tsv.gz` gains `r2_trim` (none/polyA/polyT/both) and

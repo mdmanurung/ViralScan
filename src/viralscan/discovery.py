@@ -14,6 +14,7 @@ cells x taxa matrix (DISC-08), provenance, fingerprint, publication and resume (
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import gzip
 import hashlib
@@ -1230,6 +1231,31 @@ def _input_identity(sample_dir: Path, run_root: Path, args: argparse.Namespace) 
     }
 
 
+def kb_input_check(config: Any, resolved: dict[str, Any]) -> str:
+    """Whether the primary ``kb count`` read the pair discovery classifies.
+
+    A run directory may have been copied, so ``kb_r1``/``kb_r2`` can name another path; then the
+    contents must match. A different pair under ``host_filtered/`` is refused.
+    """
+    if resolved["source"] != "primary_host_filtered":
+        return "not_applicable"
+    if not (config.kb_r1 and config.kb_r2):
+        return "not_recorded"
+    kb = [Path(config.kb_r1), Path(config.kb_r2)]
+    if any(p.parent.name != "host_filtered" for p in kb):
+        return "kb_reads_other_pair"  # e.g. read_filtered/, a subset of this pair
+    if [p.resolve() for p in kb] == [Path(resolved[k]).resolve() for k in ("r1", "r2")]:
+        return "same_path"
+    if not all(p.is_file() for p in kb):
+        return "kb_input_absent"
+    if [sha256_file(p) for p in kb] != [resolved["sha256"][k] for k in ("r1", "r2")]:
+        raise DiscoveryError(
+            f"The primary kb count read {kb[0]} / {kb[1]}, which differ from "
+            f"{resolved['r1']} / {resolved['r2']}."
+        )
+    return "same_content"
+
+
 def discovery_fingerprint(provenance: dict[str, Any]) -> str:
     """sha256 of the provenance subset that determines the outputs (not threads or paths)."""
     canonical = json.dumps(provenance["fingerprint_inputs"], sort_keys=True, separators=(",", ":"))
@@ -1239,6 +1265,8 @@ def discovery_fingerprint(provenance: dict[str, Any]) -> str:
 def _forget_published(output: Path, complete: dict[str, Any]) -> None:
     """``--force``: remove exactly what a previous publication recorded, then the marker."""
     for name in complete.get("outputs", {}):
+        if Path(name).name != name or name in ("", ".", ".."):
+            raise DiscoveryError(f"{output / COMPLETE_JSON} lists a non-local output {name!r}.")
         path = output / name
         if path.is_dir():
             shutil.rmtree(path)
@@ -1330,7 +1358,7 @@ def run_discover(args: argparse.Namespace) -> None:
         "bustools_sha256": bustools["sha256"] if bustools else None,
         "onlist_sha256": provenance["onlist_sha256"],
         "technology": config.technology,
-        "input_source": provenance["input_source"],
+        "input_source": copy.deepcopy(provenance["input_source"]),
         "called_cells_sha256": cells_info["called_cells_sha256"],
         "called_cells_barcode_space": cells_info["called_cells_barcode_space"],
     }
@@ -1353,6 +1381,7 @@ def run_discover(args: argparse.Namespace) -> None:
         _forget_published(output, previous)
     partial = stage(output)
     resolved = resolve_input(run_root, sample_dir, partial, args)
+    resolved["kb_input_check"] = kb_input_check(config, resolved)
     rf_lineage, default = read_filter_lineage_for(sample_dir, resolved, config.read_filter)
     resolved["stream"] = stream_reads(
         resolved["r1"],
@@ -1401,9 +1430,12 @@ def run_discover(args: argparse.Namespace) -> None:
     log.info("Cells: %s.", resolved["cells"])
     resolved["cells"]["n_candidates"] = build_candidates(partial, tree, called)
     provenance["taxonomy_sha256"] = sha256_file(partial / TAXONOMY_TSV)
-    provenance["input_source"].update(
-        {k: v for k, v in resolved.items() if k in ("r1", "r2", "n_fragments", "primary_verified")}
-    )
+    provenance["resolved_input"] = {
+        k: v
+        for k, v in resolved.items()
+        if k in ("r1", "r2", "n_fragments", "primary_verified", "kb_input_check")
+    }
+    provenance["discovery_fingerprint"] = fingerprint
     _write_json(partial / PROVENANCE_JSON, provenance)
     _write_json(partial / QC_JSON, build_qc(resolved))
     _write_json(

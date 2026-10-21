@@ -258,6 +258,11 @@ def test_cli_publishes_and_leaves_source_run_untouched(tmp_path):
         == hashlib.sha256((out / discovery.QC_JSON).read_bytes()).hexdigest()
     )
     assert set(done["outputs"]) == names - {discovery.COMPLETE_JSON}
+    # The published subset re-hashes to the marker (it is not mutated after fingerprinting).
+    assert discovery.discovery_fingerprint(prov) == done["discovery_fingerprint"]
+    assert prov["discovery_fingerprint"] == done["discovery_fingerprint"]
+    assert "r1" not in prov["fingerprint_inputs"]["input_source"]
+    assert prov["resolved_input"]["n_fragments"] == 3
 
 
 def test_candidates_table_flags_and_counts(tmp_path):
@@ -322,6 +327,7 @@ def test_rerun_is_noop_and_changed_setting_needs_force(published):
     assert _discover.kraken_calls == 0
     assert _discover(root, out, db, "--confidence", "0.5") == 1
     assert _discover(root, out, db, "--no-polya-trim") == 1  # trimming changes the output
+    assert _discover(root, out, db, "--minimum-hit-groups", "9") == 1
     assert marker.read_text() == first  # refused, nothing touched
     assert _discover(root, out, db, "--confidence", "0.5", "--force") == 0
     assert _discover.kraken_calls == 1
@@ -330,6 +336,46 @@ def test_rerun_is_noop_and_changed_setting_needs_force(published):
         != json.loads(first)["discovery_fingerprint"]
     )
     assert not (out / discovery.PARTIAL).exists()
+
+
+def test_force_refuses_a_marker_naming_paths_outside_the_output(published, tmp_path):
+    root, out, db = published
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep")
+    marker = out / discovery.COMPLETE_JSON
+    done = json.loads(marker.read_text())
+    done["outputs"]["../victim.txt"] = "0" * 64
+    marker.write_text(json.dumps(done))
+    assert _discover(root, out, db, "--confidence", "0.5", "--force") == 1
+    assert victim.read_text() == "keep"
+
+
+def test_kb_input_check(tmp_path):
+    hf = tmp_path / "a" / "host_filtered"
+    _host_filtered(hf, 2)
+    resolved = discovery.read_host_filtered(hf)
+    copy_dir = tmp_path / "b" / "host_filtered"
+    copy_dir.mkdir(parents=True)
+    for name in ("R1.fastq.gz", "R2.fastq.gz"):
+        (copy_dir / name).write_bytes((hf / name).read_bytes())
+
+    def check(r1, r2):
+        return discovery.kb_input_check(SimpleNamespace(kb_r1=str(r1), kb_r2=str(r2)), resolved)
+
+    assert check(hf / "R1.fastq.gz", hf / "R2.fastq.gz") == "same_path"
+    assert check(copy_dir / "R1.fastq.gz", copy_dir / "R2.fastq.gz") == "same_content"
+    assert check(tmp_path / "read_filtered" / "R1.fastq.gz", "x/R2.fastq.gz") == (
+        "kb_reads_other_pair"
+    )
+    assert check(tmp_path / "c" / "host_filtered" / "R1.fastq.gz", copy_dir / "R2.fastq.gz") == (
+        "kb_input_absent"
+    )
+    (copy_dir / "R1.fastq.gz").write_bytes(b"other")
+    with pytest.raises(DiscoveryError, match="differ"):
+        check(copy_dir / "R1.fastq.gz", copy_dir / "R2.fastq.gz")
+    assert discovery.kb_input_check(SimpleNamespace(kb_r1="", kb_r2=""), resolved) == (
+        "not_recorded"
+    )
 
 
 def test_fingerprint_changes_with_each_input(published):
