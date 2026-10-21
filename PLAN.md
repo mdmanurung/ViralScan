@@ -103,6 +103,8 @@ completion.
   - Pre-set rules (user "approve all" 2026-10-21): call = >= 3 kb molecules AND >= 1 STAR read on the same contig;
     limit = lowest level recovered in >= 2 of 3 seeds; keep the flank index only if its limit <= the old index's and
     it adds <= 5 unsupported UMIs per null library (3 unspiked replicates per background).
+  - `spikein.py synth` (circular-origin and short-fragment probes, Q4 option b): error-free reads from a circular
+    genome record, origin-spanning vs internal control, and 30/50-nt short reads; unit-tested, not yet run on STAR/kb.
   - Note: one spiked read = one UMI (conservative; real data carry PCR duplicates). Smoke uses the first 5 M pairs,
     not a random subsample. The host-filter arm runs the real `_starsolo_filter` on the spike FASTQ alone (no viral
     competitor), compared with the full host+virus run. The R01 reverse-complement path is unit-tested but not yet

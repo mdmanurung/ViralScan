@@ -229,35 +229,108 @@ def cmd_spike(a):
         mix = {c: len(v) for c, v in by_cls.items()}
         print(f"seed {seed}: pool {len(pool)} class mix {mix}", file=sys.stderr)
         for level in a.levels:
-            rng = random.Random(f"{seed}-{level}")
-            used, rows = set(bg_seen), []
-            i = 0
-            r1_path = out / f"spike_L{level}_s{seed}_R1.fastq.gz"
-            r2_path = out / f"spike_L{level}_s{seed}_R2.fastq.gz"
-            with gzip.open(r1_path, "wt") as r1o, gzip.open(r2_path, "wt") as r2o:
-                for cls, k in allocate(mix, level).items():
-                    for read in rng.sample(by_cls[cls], k):
-                        while True:
-                            umi = "".join(rng.choices("ACGT", k=a.umi_len))
-                            if (cbs[i % len(cbs)], umi) not in used:
-                                break
-                        cb = cbs[i % len(cbs)]
-                        used.add((cb, umi))
-                        name = f"SPIKE:{cls}:{i}"
-                        rec1, rec2 = make_spike(read, name, cb, umi, a.r1_len, a.r2_len, rc)
-                        r1o.write(rec1)
-                        r2o.write(rec2)
-                        rows.append((name, cb, umi, cls, a.contig, read["pos"], read["flag"]))
-                        i += 1
-            with open(out / f"spike_L{level}_s{seed}.truth.tsv", "w") as t:
-                t.write("name\tcb\tumi\tclass\tcontig\tsrc_pos\tsrc_flag\n")
-                t.writelines("\t".join(map(str, r)) + "\n" for r in rows)
-            (out / f"spike_L{level}_s{seed}.json").write_text(
-                json.dumps(
-                    {**vars(a), "seed": seed, "level": level, "rc": rc, "pool_class_mix": mix},
-                    indent=1,
-                )
-            )
+            write_level(a, out, cbs, bg_seen, by_cls, mix, level, seed, rc, mix_meta=mix)
+
+
+def write_level(a, out, cbs, bg_seen, by_cls, mix, level, seed, rc, mix_meta):
+    """Write spike_L<level>_s<seed> FASTQs, truth table and metadata for *level* reads drawn from *by_cls*."""
+    rng = random.Random(f"{seed}-{level}")
+    used, rows = set(bg_seen), []
+    i = 0
+    r1_path = out / f"spike_L{level}_s{seed}_R1.fastq.gz"
+    r2_path = out / f"spike_L{level}_s{seed}_R2.fastq.gz"
+    with gzip.open(r1_path, "wt") as r1o, gzip.open(r2_path, "wt") as r2o:
+        for cls, k in allocate(mix, level).items():
+            for read in rng.sample(by_cls[cls], k):
+                while True:
+                    umi = "".join(rng.choices("ACGT", k=a.umi_len))
+                    if (cbs[i % len(cbs)], umi) not in used:
+                        break
+                cb = cbs[i % len(cbs)]
+                used.add((cb, umi))
+                name = f"SPIKE:{cls}:{i}"
+                rec1, rec2 = make_spike(read, name, cb, umi, a.r1_len, a.r2_len, rc)
+                r1o.write(rec1)
+                r2o.write(rec2)
+                rows.append((name, cb, umi, cls, a.contig, read["pos"], read["flag"]))
+                i += 1
+    with open(out / f"spike_L{level}_s{seed}.truth.tsv", "w") as t:
+        t.write("name\tcb\tumi\tclass\tcontig\tsrc_pos\tsrc_flag\n")
+        t.writelines("\t".join(map(str, r)) + "\n" for r in rows)
+    (out / f"spike_L{level}_s{seed}.json").write_text(
+        json.dumps(
+            {**vars(a), "seed": seed, "level": level, "rc": rc, "pool_class_mix": mix_meta},
+            indent=1,
+        )
+    )
+
+
+def read_fasta_seq(path: str, contig: str) -> str:
+    """Sequence of *contig* (first header token, with or without a VIRUS| prefix), upper case."""
+    want = contig.removeprefix("VIRUS|")
+    seq, hit = [], False
+    with _open_text(path) as fh:
+        for line in fh:
+            if line.startswith(">"):
+                if hit:
+                    break
+                hit = line[1:].split()[0].removeprefix("VIRUS|") == want
+            elif hit:
+                seq.append(line.strip().upper())
+    if not seq:
+        sys.exit(f"synth: contig {contig!r} not found in {path}")
+    return "".join(seq)
+
+
+def synth_pool(
+    genome: str, kind: str, r2_len: int, short_lens: list[int], orient: str, n: int, seed: int
+):
+    """Error-free reads from a circular genome (probes for the STAR/kb loss modes of PLAN Q4 option b).
+
+    origin: reads spanning the end->start junction of the linear record (a linear reference cannot hold them);
+    internal: same-length reads wholly inside the record (control); short: shorter internal reads, one class per
+    length in *short_lens*. orient 'reverse' emits the reverse complement (R2 antisense to the RNA).
+    """
+    rng = random.Random(f"synth-{seed}")
+    size = len(genome)
+    if size < 2 * r2_len:
+        sys.exit(f"synth: genome of {size} bp is too short for {r2_len}-bp reads")
+    specs = {"origin": [("origin_span", r2_len)], "internal": [("internal", r2_len)]}.get(
+        kind, [("internal", r2_len)] + [(f"short_{s}", s) for s in short_lens]
+    )
+    if kind == "origin":
+        specs.append(("internal", r2_len))
+    pool = {}
+    for cls, length in specs:
+        reads = []
+        for _ in range(n):
+            if cls == "origin_span":
+                k = rng.randint(10, length - 10)  # bases taken from the 3' end of the record
+                seq, pos = genome[size - k :] + genome[: length - k], size - k + 1
+            else:
+                pos0 = rng.randint(0, size - length)
+                seq, pos = genome[pos0 : pos0 + length], pos0 + 1
+            if orient == "reverse":
+                seq = revcomp(seq)
+            reads.append({"seq": seq, "qual": "F" * len(seq), "cls": cls, "pos": pos, "flag": 0})
+        pool[cls] = reads
+    return pool
+
+
+def cmd_synth(a):
+    out = Path(a.out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    onlist = load_whitelist(a.whitelist) if a.whitelist else None
+    cbs = top_barcodes(a.bg_r1, a.cb_len, a.cells, onlist=onlist)
+    bg_seen = background_umis(a.bg_r1, a.cb_len, a.umi_len, cbs)
+    genome = read_fasta_seq(a.fasta, a.contig)
+    for seed in a.seeds:
+        by_cls = synth_pool(
+            genome, a.kind, a.r2_len, a.short_lens, a.bg_orient, max(a.levels) * 2, seed
+        )
+        mix = {c: 1 for c in by_cls}  # equal split across classes
+        for level in a.levels:
+            write_level(a, out, cbs, bg_seen, by_cls, mix, level, seed, False, mix_meta=mix)
 
 
 def main(argv=None):
@@ -288,8 +361,27 @@ def main(argv=None):
     s.add_argument("--r2-len", type=int, required=True)
     s.add_argument("--source-orient", choices=("forward", "reverse"), default="reverse")
     s.add_argument("--bg-orient", choices=("forward", "reverse"), required=True)
+    y = sub.add_parser(
+        "synth",
+        help="error-free reads from a circular genome (origin-span / short-fragment probes)",
+    )
+    y.add_argument("--fasta", required=True)
+    y.add_argument("--contig", required=True)
+    y.add_argument("--kind", choices=("origin", "internal", "short"), required=True)
+    y.add_argument("--short-lens", type=lambda x: [int(v) for v in x.split(",")], default=[30, 50])
+    for name in ("bg-r1", "out-dir", "cb-len", "umi-len", "r1-len", "r2-len", "levels"):
+        y.add_argument(f"--{name}", required=True, dest=name.replace("-", "_"))
+    y.set_defaults()
+    y.add_argument("--seeds", type=lambda x: [int(v) for v in x.split(",")], default=[1])
+    y.add_argument("--cells", type=int, default=5)
+    y.add_argument("--whitelist")
+    y.add_argument("--bg-orient", choices=("forward", "reverse"), required=True)
     a = p.parse_args(argv)
-    {"bg": cmd_bg, "spike": cmd_spike}[a.cmd](a)
+    if a.cmd == "synth":
+        for k in ("cb_len", "umi_len", "r1_len", "r2_len"):
+            setattr(a, k, int(getattr(a, k)))
+        a.levels = [int(v) for v in a.levels.split(",")]
+    {"bg": cmd_bg, "spike": cmd_spike, "synth": cmd_synth}[a.cmd](a)
 
 
 if __name__ == "__main__":

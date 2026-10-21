@@ -168,3 +168,41 @@ def test_star_fates_headline_counts_secondary_on_source_contig():
     fate, any_src = score.star_fates(lines, "VIRUS|AF157706.1")
     assert any_src == {"SPIKE:a:0", "SPIKE:a:2"}
     assert fate == {"SPIKE:a:0": "host", "SPIKE:a:1": "other_virus", "SPIKE:a:2": "source"}
+
+
+def test_synth_pool_origin_span_and_internal_reads_are_substrings_of_the_circle():
+    genome = "".join("ACGT"[(i * 7 + i // 3) % 4] for i in range(400))
+    circle = genome + genome  # every read of a circular genome is a substring of the doubled record
+    pool = spikein.synth_pool(genome, "origin", 90, [], "forward", 30, seed=1)
+    assert set(pool) == {"origin_span", "internal"}
+    for r in pool["origin_span"]:
+        assert (
+            len(r["seq"]) == 90 and r["seq"] in circle and r["seq"] not in genome
+        )  # crosses the junction
+    for r in pool["internal"]:
+        assert r["seq"] in genome
+
+
+def test_synth_pool_short_lengths_and_reverse_orientation():
+    genome = "ACGTTGCAAC" * 40
+    pool = spikein.synth_pool(genome, "short", 90, [30, 50], "reverse", 10, seed=2)
+    assert set(pool) == {"internal", "short_30", "short_50"}
+    assert {len(r["seq"]) for r in pool["short_30"]} == {30}
+    assert all(spikein.revcomp(r["seq"]) in genome for r in pool["short_50"])
+
+
+def test_synth_cli_equal_class_split_and_truth(tmp_path, monkeypatch):
+    fa = tmp_path / "g.fa"
+    fa.write_text(">VIRUS|MZ1.1 anello\n" + "ACGTTGCAAC" * 40 + "\n")
+    monkeypatch.setattr(spikein, "top_barcodes", lambda *a, **k: ["A" * 16, "C" * 16])
+    monkeypatch.setattr(spikein, "background_umis", lambda *a, **k: set())
+    spikein.main(
+        ["synth", "--fasta", str(fa), "--contig", "MZ1.1", "--kind", "origin", "--bg-r1", "x",
+         "--out-dir", str(tmp_path), "--levels", "10", "--cb-len", "16", "--umi-len", "10",
+         "--r1-len", "26", "--r2-len", "90", "--bg-orient", "reverse"]
+    )  # fmt: skip
+    rows = [
+        ln.split("\t") for ln in (tmp_path / "spike_L10_s1.truth.tsv").read_text().splitlines()[1:]
+    ]
+    assert len(rows) == 10 and {r[3] for r in rows} == {"origin_span", "internal"}
+    assert sum(r[3] == "origin_span" for r in rows) == 5
