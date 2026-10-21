@@ -56,6 +56,12 @@ completion.
     allowlists carry the three STAR modules, menu wiring/prune-TSV/manifest/run_star tests, docs state the HHV-6/7 telomere
     100-locus loss and the Unique-mode `star_molecules` lower bound. Viruses STAR saw nothing for read 0; alignment-only rows stay blank. Strand = `--strand` or `unstranded` (kb's
     effective default). Docs/CLI-reference/output-reference rows landed in phase 4. No real STAR run.
+- [~] STAR-ACCEPT-01 (2026-10-21): real-library acceptance of `star_confirm` on EBV GSM4796271
+  (`analysis/star_confirm_acceptance/`): the real Snakefile rule + script (`--allowed-rules star_confirm`, so no
+  host_filter/kb_count rerun) on the Track A host-filtered reads, the existing index adopted through a symlink
+  view plus a generated manifest, compared per VIRUS| contig with the earlier manual STAR run. Whitelist and
+  strand change barcode tags and Solo counts only, so alignment record counts must match exactly. Job 25860995
+  submitted; result not yet recorded.
 - [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
   `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
