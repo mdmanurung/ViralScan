@@ -22,6 +22,7 @@ import io
 import json
 import logging
 import os
+import re
 import shutil
 import zlib
 from array import array
@@ -79,6 +80,12 @@ UMI_GROUP_COLUMNS = (
     "conflict",
 )
 HUMAN_TAXID = 9606
+#: R2 trimming before Kraken2 (--polya-trim): the first run of >= POLYA_MIN_RUN A (3' tail) is cut to
+#: the end, and a leading run of >= POLYT_MIN_RUN T (5' of a reverse-strand tail) is cut from the start.
+POLYA_MIN_RUN = 15
+POLYT_MIN_RUN = 15
+_POLYA = re.compile(f"A{{{POLYA_MIN_RUN},}}")
+_POLYT = re.compile(f"^T{{{POLYT_MIN_RUN},}}")
 READS_COLUMNS = (
     "ordinal",
     "read_id",
@@ -88,6 +95,8 @@ READS_COLUMNS = (
     "cb_has_n",
     "umi_has_n",
     "primary_read_filter",
+    "r2_trim",
+    "r2_len_classified",
 )
 
 
@@ -359,6 +368,18 @@ def _read_filter_rows(path: Path):
             yield row["read_id"], decision if decision == "retained" else f"removed:{row['reason']}"
 
 
+def trim_r2(seq: str) -> tuple[str, str]:
+    """Cut a 3' polyA tail and a 5' polyT head; returns the sequence and none/polyA/polyT/both."""
+    kind = []
+    if (m := _POLYA.search(seq)) is not None:
+        seq = seq[: m.start()]
+        kind.append("polyA")
+    if (m := _POLYT.match(seq)) is not None:
+        seq = seq[m.end() :]
+        kind.append("polyT")
+    return seq, ("both" if len(kind) == 2 else kind[0] if kind else "none")
+
+
 def stream_reads(
     r1: str,
     r2: str,
@@ -367,6 +388,7 @@ def stream_reads(
     out_dir: Path,
     read_filter_lineage: Path | None = None,
     read_filter_default: str = "not_run",
+    polya_trim: bool = True,
 ) -> dict[str, int]:
     """One pass over the pair: R2 to ``KRAKEN_INPUT`` as ``>ordinal``, identity to ``READS_TSV``.
 
@@ -374,7 +396,10 @@ def stream_reads(
     Kraken2 output must cover ``[0, n_input)`` exactly once. ``N`` in CB/UMI is kept (kallisto
     and bustools encode it as ``G``, plan §6.3) and flagged. *read_filter_lineage* is the primary
     read filter's per-fragment lineage over this same pair; it is read in lockstep and must
-    match every read ID. Duplicate read IDs, mate mismatches and truncation abort.
+    match every read ID. Duplicate read IDs, mate mismatches and truncation abort. With
+    *polya_trim* the R2 sent to Kraken2 loses its polyA/polyT ends (``trim_r2``); a read trimmed
+    to nothing is sent as ``N`` (no k-mers, so it stays in ``[0, n_input)`` and comes back
+    unclassified).
     """
     need = cb_len + umi_len
     counts: Counter[str] = Counter()
@@ -417,7 +442,9 @@ def stream_reads(
                         f"{read_id!r} vs {step[0] if step else 'end of lineage'!r}"
                     )
                 annotation = step[1]
-            fasta.write(f">{ordinal}\n{rec2[1].rstrip()}\n")
+            full2 = rec2[1].rstrip()
+            seq2, trim = trim_r2(full2) if polya_trim else (full2, "none")
+            fasta.write(f">{ordinal}\n{seq2 or 'N'}\n")
             writer.writerow(
                 [
                     ordinal,
@@ -428,9 +455,14 @@ def stream_reads(
                     int("N" in cb),
                     int("N" in umi),
                     annotation,
+                    trim,
+                    len(seq2),
                 ]
             )
             counts["n_input"] += 1
+            if trim != "none":
+                counts["n_r2_trimmed"] += 1
+                counts["n_r2_bases_trimmed"] += len(full2) - len(seq2)
             counts["n_bad_geometry"] += not geometry_ok
             counts["n_cb_has_n"] += "N" in cb
             counts["n_umi_has_n"] += "N" in umi
@@ -442,7 +474,15 @@ def stream_reads(
     ids.sort()
     if ids.size > 1 and bool((ids[1:] == ids[:-1]).any()):
         raise DiscoveryError(f"Duplicate read IDs in {r1}; fragment identity is ambiguous.")
-    return {"n_input": 0, "n_bad_geometry": 0, "n_cb_has_n": 0, "n_umi_has_n": 0, **counts}
+    return {
+        "n_input": 0,
+        "n_bad_geometry": 0,
+        "n_cb_has_n": 0,
+        "n_umi_has_n": 0,
+        "n_r2_trimmed": 0,
+        "n_r2_bases_trimmed": 0,
+        **counts,
+    }
 
 
 def read_filter_lineage_for(
@@ -1106,6 +1146,11 @@ def run_discover(args: argparse.Namespace) -> None:
             "minimum_hit_groups": args.minimum_hit_groups,
             "memory_mapping": args.memory_mapping,
         },
+        "polya_trim": (
+            {"min_polya_run": POLYA_MIN_RUN, "min_polyt_run": POLYT_MIN_RUN}
+            if args.polya_trim
+            else None
+        ),
         "db_identity": identity,
         "bustools": bustools,
         "onlist": onlist,
@@ -1120,6 +1165,7 @@ def run_discover(args: argparse.Namespace) -> None:
         "primary_run_fingerprint": provenance["primary_run_fingerprint"],
         "viralscan_version": software["version"],
         "kraken2": {k: v for k, v in provenance["kraken2"].items() if k != "memory_mapping"},
+        "polya_trim": provenance["polya_trim"],
         "db_sha256": identity["sha256"],
         "bustools_sha256": bustools["sha256"] if bustools else None,
         "onlist_sha256": provenance["onlist_sha256"],
@@ -1149,7 +1195,14 @@ def run_discover(args: argparse.Namespace) -> None:
     resolved = resolve_input(run_root, sample_dir, partial, args)
     rf_lineage, default = read_filter_lineage_for(sample_dir, resolved, config.read_filter)
     resolved["stream"] = stream_reads(
-        resolved["r1"], resolved["r2"], cb_len, umi_len, partial, rf_lineage, default
+        resolved["r1"],
+        resolved["r2"],
+        cb_len,
+        umi_len,
+        partial,
+        rf_lineage,
+        default,
+        args.polya_trim,
     )
     if resolved["stream"]["n_input"] != resolved["n_fragments"]:
         raise DiscoveryError(

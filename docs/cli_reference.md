@@ -858,6 +858,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 | `--confidence CONFIDENCE` | `0.0` | Kraken2 --confidence (a k-mer fraction threshold, not a probability). Default: 0.0, Kraken2's own default; tune only with a frozen benchmark. |
 | `--minimum-hit-groups MINIMUM_HIT_GROUPS` | `2` | Kraken2 --minimum-hit-groups. Default: 2, Kraken2's own default. |
 | `--memory-mapping` | `False` | Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage). |
+| `--polya-trim, --no-polya-trim` | `True` | Cut a 3' polyA tail (first run of >= 15 A) and a 5' polyT head (leading run of >= 15 T) from R2 before Kraken2 (reads.tsv.gz records r2_trim). Default: on. |
 | `--force` | `False` | Replace a previously published --output whose fingerprint differs. Without it a matching output is a no-op and a differing one is refused. |
 | `--threads THREADS` | `4` | Kraken2 and STAR threads. Default: 4. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |

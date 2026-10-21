@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. Next: R6, R7b, R3.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. Next: R7b, R3.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7845,6 +7845,12 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   Decisions: the fingerprint is computed before Kraken2 (so a no-op costs DB hashing only); `--host-subtract` inputs
   are identified by the manifest's sample fingerprints plus the index path (not its bytes). Taxonomy cache skipped
   (cheap after R1). A crash mid-publish leaves files without the marker and needs a manual clean.
+- [x] `DISC-R6` (2026-10-21, plan step R6): `--polya-trim/--no-polya-trim` (default on). `trim_r2` cuts R2 from the first
+  run of >= 15 A to the end, then a leading run of >= 15 T (constants `POLYA_MIN_RUN`/`POLYT_MIN_RUN`); applied in
+  `stream_reads` before `kraken_input.fa.gz`. `reads.tsv.gz` gains `r2_trim` (none/polyA/polyT/both) and
+  `r2_len_classified`; `qc.json` stream counts `n_r2_trimmed`/`n_r2_bases_trimmed`. Recorded in provenance and the
+  fingerprint (a toggle needs `--force`). Decision: a read trimmed to nothing is sent to Kraken2 as `N` so it keeps its
+  ordinal and returns unclassified (an empty FASTA record is not guaranteed to be emitted). R10 measures the effect.
 - [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
 - [ ] `DISC-11` `discover-collapse` (taxid rank projection).
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.

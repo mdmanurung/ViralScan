@@ -234,6 +234,9 @@ def test_cli_publishes_and_leaves_source_run_untouched(tmp_path):
     assert qc["fractions"]["kraken2_unclassified"] == pytest.approx(1 / 3)
     prov = json.loads((out / discovery.PROVENANCE_JSON).read_text())
     assert prov["kraken2"]["version"] == "Kraken version 2.17.2"
+    assert prov["polya_trim"] == {"min_polya_run": 15, "min_polyt_run": 15}
+    assert prov["polya_trim"] == prov["fingerprint_inputs"]["polya_trim"]
+    assert qc["stream"]["n_r2_trimmed"] == 0
     assert prov["input_source"]["source"] == "primary_host_filtered"
     assert set(prov["db_identity"]["sha256"]) == set(discovery.KRAKEN2_DB_FILES)
     assert (
@@ -259,6 +262,7 @@ def test_rerun_is_noop_and_changed_setting_needs_force(published):
     assert _discover(root, out, db, "--threads", "2", "--memory-mapping") == 0
     assert _discover.kraken_calls == 0
     assert _discover(root, out, db, "--confidence", "0.5") == 1
+    assert _discover(root, out, db, "--no-polya-trim") == 1  # trimming changes the output
     assert marker.read_text() == first  # refused, nothing touched
     assert _discover(root, out, db, "--confidence", "0.5", "--force") == 0
     assert _discover.kraken_calls == 1
@@ -469,6 +473,8 @@ def test_stream_reads_writes_ordinal_fasta_and_identity(tmp_path):
         "n_bad_geometry": 1,
         "n_cb_has_n": 1,
         "n_umi_has_n": 1,
+        "n_r2_trimmed": 0,
+        "n_r2_bases_trimmed": 0,
         "read_filter:not_run": 3,
     }
     with gzip.open(tmp_path / discovery.KRAKEN_INPUT, "rt") as handle:
@@ -478,6 +484,50 @@ def test_stream_reads_writes_ordinal_fasta_and_identity(tmp_path):
     assert (rows[0]["raw_cb"], rows[0]["raw_umi"], rows[0]["geometry_ok"]) == (cb, umi, "1")
     assert (rows[1]["cb_has_n"], rows[1]["umi_has_n"]) == ("1", "1")
     assert (rows[2]["raw_cb"], rows[2]["geometry_ok"]) == ("", "0")
+
+
+@pytest.mark.parametrize(
+    "seq, kept, kind",
+    [
+        ("ACGTACGTCC" + "A" * 20, "ACGTACGTCC", "polyA"),
+        ("ACGTACGTCC" + "A" * 20 + "GGTT", "ACGTACGTCC", "polyA"),  # cut to the end
+        ("T" * 18 + "ACGTACGTCC", "ACGTACGTCC", "polyT"),
+        ("T" * 16 + "ACGTCCGG" + "A" * 15, "ACGTCCGG", "both"),
+        ("ACGTACGTCC" + "A" * 14 + "C", "ACGTACGTCC" + "A" * 14 + "C", "none"),  # 14 nt: kept
+        ("T" * 14 + "ACGTCC", "T" * 14 + "ACGTCC", "none"),
+        ("ACGT" + "T" * 20 + "ACGT", "ACGT" + "T" * 20 + "ACGT", "none"),  # internal polyT
+        ("A" * 30, "", "polyA"),  # trimmed to empty
+    ],
+)
+def test_trim_r2(seq, kept, kind):
+    assert discovery.trim_r2(seq) == (kept, kind)
+
+
+def test_stream_reads_polya_trim_records_and_counts(tmp_path):
+    cb, umi = "AAAACCCCGGGGTTTT", "ACGTACGTACGT"
+    tail = "ACGTCCGGTTAC"
+    r1, r2 = _pair(
+        tmp_path,
+        [(f"f{i}", cb + umi, s) for i, s in enumerate([tail + "A" * 20, tail, "A" * 25])],
+    )
+    counts = discovery.stream_reads(r1, r2, 16, 12, tmp_path)
+    assert (counts["n_r2_trimmed"], counts["n_r2_bases_trimmed"]) == (2, 45)
+    with gzip.open(tmp_path / discovery.KRAKEN_INPUT, "rt") as handle:
+        # Every fragment keeps its ordinal; an emptied read is sent as N (never dropped).
+        assert handle.read() == f">0\n{tail}\n>1\n{tail}\n>2\nN\n"
+    rows = _rows(tmp_path / discovery.READS_TSV)
+    assert [(r["r2_trim"], r["r2_len_classified"]) for r in rows] == [
+        ("polyA", "12"),
+        ("none", "12"),
+        ("polyA", "0"),
+    ]
+    off = tmp_path / "off"
+    off.mkdir()
+    counts = discovery.stream_reads(r1, r2, 16, 12, off, polya_trim=False)
+    assert counts["n_r2_trimmed"] == 0
+    with gzip.open(off / discovery.KRAKEN_INPUT, "rt") as handle:
+        assert handle.read() == f">0\n{tail}{'A' * 20}\n>1\n{tail}\n>2\n{'A' * 25}\n"
+    assert {r["r2_trim"] for r in _rows(off / discovery.READS_TSV)} == {"none"}
 
 
 def test_stream_reads_empty_pair(tmp_path):
@@ -694,7 +744,7 @@ def _stage_reads(out: Path, rows) -> None:
         for i, (cb, umi) in enumerate(rows):
             ok = int(bool(cb))
             handle.write(
-                f"{i}\tr{i}\t{cb}\t{umi}\t{ok}\t{int('N' in cb)}\t{int('N' in umi)}\tnot_run\n"
+                f"{i}\tr{i}\t{cb}\t{umi}\t{ok}\t{int('N' in cb)}\t{int('N' in umi)}\tnot_run\tnone\t0\n"
             )
 
 

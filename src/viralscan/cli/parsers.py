@@ -607,6 +607,15 @@ def _build_discover_parser(subparsers: Any) -> None:
         help="Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage).",
     )
     p.add_argument(
+        "--polya-trim",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Cut a 3' polyA tail (first run of >= 15 A) and a 5' polyT head (leading run of >= 15 T) "
+            "from R2 before Kraken2 (reads.tsv.gz records r2_trim). Default: on."
+        ),
+    )
+    p.add_argument(
         "--force",
         action="store_true",
         help=(
