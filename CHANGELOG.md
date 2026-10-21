@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directory, unlike `-o/--output` elsewhere). `-o` errors with the replacement; `--output DIR` is optional and
   names where hostresponse writes (default `<run-dir>/hostresponse`, so the layout is unchanged).
 
+- Added `viralscan.star_hostvirus` (PLAN STAR-HOSTVIRUS-01): builds one STAR index of the host genome
+  (`HOST|` contigs) plus the viral panel (`VIRUS|`), and aligns host-unmapped read pairs with STARsolo
+  (multimappers kept, CB/UB tags) to a coordinate-sorted, indexed BAM for coverage maps. Diagnostic only;
+  not part of the Snakemake workflow.
 - `evidence-plot --coverage-map` now accepts a bare GTF seqid `ACC` for a viral BAM
   reference `CLASS|ACC` (host contigs are never prefix-stripped) and records the matched
   seqid and whether it was normalised in `coverage_map.<target>.json`.

@@ -33,6 +33,12 @@ completion.
 - [x] REVIEW-D (WP-4): opt-in candidate-complete source-labelled review.
 - [x] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
 - [x] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.
+- [~] STAR-HOSTVIRUS-01: STARsolo alignment of host-unmapped reads to one host + full-viral-panel index
+  (`viralscan.star_hostvirus`: `write_reference` HOST|/VIRUS| FASTA+GTF, `build_star_hostvirus_index`,
+  `align_host_unmapped`; sorted BAM with CB/UB for `plot_coverage_maps`). Code + synthetic tests done; real-library
+  runs (EBV GSM4796271, HHV-6B GSM6416022) are Track A diagnostics, not wired into the Snakefile/CLI.
+  - Note: multimap cap 100 and relaxed score filters are deliberate (keep host competition visible); STAR 2.7.11b
+    still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139), not handled here.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 
