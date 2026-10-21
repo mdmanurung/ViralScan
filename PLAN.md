@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  Next: mg2sc/Cellsnake comparison (requested 2026-10-21); then `DISC-09` provenance/fingerprint/publish.
+  Next: user decision on the per-UMI rule (`DISC-CMP`); then `DISC-09` provenance/fingerprint/publish.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7819,6 +7819,13 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     resolved_umi_group`) and `offcell_taxon.tsv.gz`; matrix total = resolved called groups or abort (G6). Tests: 102.
     Real run (Kraken2 2.17.2, kb bustools, 10x v3 on-list): EBV 2, E. coli 1 (562), human 1 (`host`) in the one
     cell with evidence; ambiguous/unclassified groups excluded; two empty called cells kept.
+- [x] `DISC-CMP` mg2sc/Cellsnake comparison (2026-10-21, user request): `analysis/discovery_mg2sc_comparison/`.
+  Synthetic truth (1,200 UMIs; family-shared and EVE-like homology, collisions, novel genome); Kraken2 0.0/2 vs
+  Cellsnake 0.05/4 vs fallback 0.01/3; ViralScan LCA vs audit deepest-consistent vs mg2sc vote. Results reproduce
+  byte for byte. Settings change at most 8 UMIs. mg2sc vote: 11 % of labels change with the hash seed, 118/121 collisions
+  are claimed as one species, 87 root features. LCA: 606 exact vs mg2sc 752; deepest-consistent: 799.
+  - [!] Open user decision: switch decision 4 to "deepest taxon when all classified reads are lineage-consistent,
+    else LCA" (G7 reworded). Not changed without approval.
 - [ ] `DISC-09` qc/provenance, discovery fingerprint, resume/no-op/--force.
 - [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
 - [ ] `DISC-11` `discover-collapse` (taxid rank projection).

@@ -1,0 +1,10 @@
+setting	aggregation	n_umis	collision_ancestor	collision_species_overcall	collision_unassigned	ebv_homolog_root_label	ebv_homolog_unassigned	novel_correctly_unassigned	single_correct_coarser	single_exact	single_root_label	single_unassigned	vote_unstable_across_hash_seeds
+viralscan_0.0_2	viralscan_lca	1200	25	2	94	0	71	95	231	606	0	76	0
+viralscan_0.0_2	viralscan_deepest_consistent_audit	1200	25	8	88	0	71	95	108	799	0	6	0
+viralscan_0.0_2	mg2sc_vote	1200	3	118	0	71	0	95	144	752	16	1	132
+cellsnake_0.05_4	viralscan_lca	1200	23	5	93	0	71	95	228	606	0	79	0
+cellsnake_0.05_4	viralscan_deepest_consistent_audit	1200	23	12	86	0	71	95	107	796	0	10	0
+cellsnake_0.05_4	mg2sc_vote	1200	3	118	0	71	0	95	137	751	16	9	139
+cellsnake_fallback_0.01_3	viralscan_lca	1200	24	3	94	0	71	95	231	605	0	77	0
+cellsnake_fallback_0.01_3	viralscan_deepest_consistent_audit	1200	24	9	88	0	71	95	109	797	0	7	0
+cellsnake_fallback_0.01_3	mg2sc_vote	1200	3	118	0	71	0	95	142	751	16	4	135
