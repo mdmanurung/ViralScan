@@ -20,6 +20,7 @@ form, no shell=True), matching the rest of the package.
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import gzip
 import hashlib
@@ -1600,23 +1601,86 @@ def _mapped_counts(bam: str) -> dict[str, int]:
     return {f[0]: int(f[2]) for f in (line.split("\t") for line in out.splitlines()) if len(f) >= 3}
 
 
+def _sam_lines(bam: str, *opts: str, region: str | None = None) -> Iterable[str]:
+    """Stream SAM records from ``samtools view`` (constant memory)."""
+    with subprocess.Popen(
+        ["samtools", "view", *opts, bam, *([region] if region else [])],
+        stdout=subprocess.PIPE,
+        text=True,
+        bufsize=1 << 20,
+    ) as proc:
+        assert proc.stdout is not None
+        yield from proc.stdout
+    if proc.returncode:
+        raise subprocess.CalledProcessError(proc.returncode, proc.args)
+
+
+def _star_categories(
+    bam: str, reference: str, qnames: Path, wanted: set[tuple[str, bool]]
+) -> dict[tuple[str, bool], str]:
+    """Category per (QNAME, is_read2) of the target's multimappers, from their other records.
+
+    STAR writes no ``SA``: each locus is its own record (same QNAME, ``NH`` loci). One
+    ``samtools view -N`` pass over the BAM collects the partners' reference names; same-contig
+    hits are not competition.
+    """
+    partners: dict[tuple[str, bool], set[str]] = {k: set() for k in wanted}
+    for line in _sam_lines(bam, "-N", str(qnames)):
+        f = line.split("\t", 3)
+        key = (f[0], bool(int(f[1]) & 0x80))
+        if key in partners and f[2] != reference and f[2] != "*":
+            partners[key].add(f[2])
+    return {k: _read_category(";".join(v)) for k, v in partners.items()}
+
+
 def _split_by_category(bam: str, reference: str, work: Path) -> dict[str, Path]:
-    """Indexed per-category BAMs of the reads aligned to *reference* (empty categories omitted)."""
+    """Indexed per-category BAMs of the reads aligned to *reference* (empty categories omitted).
+
+    minimap2 BAMs: category from each record's ``SA`` tag. STAR BAMs (target records carry
+    ``NH``>1 and no ``SA``): from the other records of the same read, see ``_star_categories``.
+    Memory is bounded by the target's multimapper QNAMEs; records stream through temp files.
+    """
     header = _run(["samtools", "view", "-H", bam], capture=True).decode()
-    text = _run(["samtools", "view", bam, reference], capture=True).decode()
-    buckets: dict[str, list[str]] = {name: [] for name in COVERAGE_CATEGORIES}
-    for line in text.splitlines():
-        sa = next((f[5:] for f in line.split("\t")[11:] if f.startswith("SA:Z:")), None)
-        buckets[_read_category(sa)].append(line)
+    target = work / "target.sam"
+    qnames = work / "multi_qnames.txt"
+    multi: set[tuple[str, bool]] = set()
+    saw_sa = False
+    with open(target, "w", encoding="utf-8") as dst:
+        for line in _sam_lines(bam, region=reference):
+            dst.write(line)
+            tags = line.split("\t")[11:]
+            saw_sa = saw_sa or any(t.startswith("SA:Z:") for t in tags)
+            if any(t.startswith("NH:i:") and int(t[5:]) > 1 for t in tags):
+                f = line.split("\t", 2)
+                multi.add((f[0], bool(int(f[1]) & 0x80)))
+    star = bool(multi) and not saw_sa
+    star_cat: dict[tuple[str, bool], str] = {}
+    if star:
+        qnames.write_text("".join(f"{q}\n" for q in sorted({q for q, _ in multi})))
+        star_cat = _star_categories(bam, reference, qnames, multi)
+    sams = {n: work / f"{n}.sam" for n in COVERAGE_CATEGORIES}
+    counts = dict.fromkeys(COVERAGE_CATEGORIES, 0)
+    with contextlib.ExitStack() as stack:
+        handles = {n: stack.enter_context(open(p, "w", encoding="utf-8")) for n, p in sams.items()}
+        for h in handles.values():
+            h.write(header)
+        with open(target, encoding="utf-8") as src:
+            for line in src:
+                f = line.split("\t", 2)
+                if star:
+                    cat = star_cat.get((f[0], bool(int(f[1]) & 0x80)), "unique")
+                else:
+                    sa = next((t[5:] for t in line.split("\t")[11:] if t.startswith("SA:Z:")), None)
+                    cat = _read_category(sa)
+                handles[cat].write(line)
+                counts[cat] += 1
     paths: dict[str, Path] = {}
-    for name, lines in buckets.items():
-        if not lines:
-            continue
-        sam, out = work / f"{name}.sam", work / f"{name}.bam"
-        sam.write_text(header + "\n".join(lines) + "\n")
-        _run(["samtools", "view", "-b", "-o", str(out), str(sam)])
-        _run(["samtools", "index", str(out)])
-        paths[name] = out
+    for name, n in counts.items():
+        if n:
+            out = work / f"{name}.bam"
+            _run(["samtools", "view", "-b", "-o", str(out), str(sams[name])])
+            _run(["samtools", "index", str(out)])
+            paths[name] = out
     return paths
 
 
@@ -1756,8 +1820,11 @@ def plot_coverage_maps(
       per competition category (unique / other virus / host-competing).
     * ``<ref>_coverage_stacked.<layer>.{png,pdf}``: stacked histogram of those categories.
 
-    Competition comes from each read's ``SA`` partners (see ``COVERAGE_CATEGORIES``); the
-    competitive BAM has no secondary alignments, so cross-virus multimapping is not drawn here.
+    Competition (see ``COVERAGE_CATEGORIES``) comes from each read's other placements: the
+    ``SA`` partners for minimap2 BAMs (no secondary alignments, so cross-virus multimapping is
+    not drawn), or, for STAR/STARsolo BAMs, the other records of reads with ``NH`` > 1
+    (``samtools view -N``; any ``HOST|`` locus gives host_competing, else another ``VIRUS|``
+    contig gives other_virus, same-contig multi-hits stay unique).
     References with no aligned reads are skipped.
     """
     out = Path(out_dir)
