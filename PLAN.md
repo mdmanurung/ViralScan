@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  Next: `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; EBV reconciliation for `DISC-05`.
+  Next: mg2sc/Cellsnake comparison (requested 2026-10-21); then `DISC-09` provenance/fingerprint/publish.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7802,7 +7802,7 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   `--memory-mapping`. Tests: 49 in `tests/test_discovery.py`.
   - Verified end to end with real Kraken2 2.17.2 on the DISC-04 test DB through `viralscan discover`: 6 fragments
     gave 83333, 10376, 9606, 1280, U, 10376, matching their source genomes.
-- [~] `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; oracle + invariance tests.
+- [x] `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; oracle + invariance tests.
   - [x] `DISC-08a` (2026-10-21): taxonomy from `k2 inspect --report-zero-counts` (`taxonomy.tsv` with
     `host_relation`); barcode correction with kb's bustools and the primary's on-list (`resolve_onlist`:
     `-w`, else kb's bundled list, else none), giving `barcodes.tsv.gz` (`onlist / corrected / uncorrectable /
@@ -7812,7 +7812,13 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     across shards 1/2/7 and permuted input.
     - Note: in the real-bustools run, a Hamming-1 variant of an on-list barcode with five on-list neighbours was
       dropped (uncorrectable), as bustools should; the designed truth table had expected a correction.
-  - [ ] `DISC-08b` called/off-cell partition, `cell_taxon.h5ad`, `offcell_taxon.tsv.gz`.
+  - [x] `DISC-08b` (2026-10-21): `load_called_cells` reads the primary `results/called_cells.tsv` (suffix-stripped;
+    refuses if absent) and records the cell-calling receipt's barcode space (`starsolo` when called on
+    `GeneFull.raw`); `build_cell_matrix` writes `cell_taxon.h5ad` (obs = every called cell, zero rows kept; var = resolved
+    taxids with name/rank/parent/`host_relation`; X = int32 CSR of resolved called groups; `uns.discovery.unit =
+    resolved_umi_group`) and `offcell_taxon.tsv.gz`; matrix total = resolved called groups or abort (G6). Tests: 102.
+    Real run (Kraken2 2.17.2, kb bustools, 10x v3 on-list): EBV 2, E. coli 1 (562), human 1 (`host`) in the one
+    cell with evidence; ambiguous/unclassified groups excluded; two empty called cells kept.
 - [ ] `DISC-09` qc/provenance, discovery fingerprint, resume/no-op/--force.
 - [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
 - [ ] `DISC-11` `discover-collapse` (taxid rank projection).

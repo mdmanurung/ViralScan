@@ -20,6 +20,7 @@ def _run(tmp_path: Path, samples=("S1",), complete: bool = True) -> Path:
         (root / sample / "results").mkdir(parents=True)
         (root / sample / "config.yaml").write_text("output: x\n")
         (root / sample / "results" / "viral_summary.tsv").write_text("virus\tdetected\nEBV\tTrue\n")
+        (root / sample / "results" / "called_cells.tsv").write_text("barcode\nAAAAAAAAAAAAAAAA-1\n")
     (root / "run_manifest.json").write_text("{}\n")
     if complete:
         (root / "run_complete.json").write_text("{}\n")
@@ -206,6 +207,8 @@ def test_cli_leaves_source_run_untouched(tmp_path):
     assert (out / discovery.PARTIAL / discovery.KRAKEN_INPUT).is_file()
     assert staged["kraken2"]["version"] == "Kraken version 2.17.2"
     assert (staged["kraken2"]["n_classified"], staged["kraken2"]["n_unclassified"]) == (2, 1)
+    assert staged["cells"]["n_called_cells"] == 1
+    assert (out / discovery.PARTIAL / discovery.CELL_TAXON_H5AD).is_file()
 
 
 def test_run_parser_gains_no_discovery_options():
@@ -759,3 +762,61 @@ def test_umi_groups_match_oracle_and_ignore_order_and_shards(tmp_path, seed):
         for r in _rows(tmp_path / "s1" / discovery.UMI_GROUPS_TSV)
     ]
     assert got == _oracle(fragments)
+
+
+# ── DISC-08b: called-cell partition and matrix ──────────────────────────────
+
+
+def _stage_umi_groups(out: Path, rows) -> None:
+    """UMI_GROUPS_TSV from (cb, umi, group_class, resolved_taxid) rows."""
+    with gzip.open(out / discovery.UMI_GROUPS_TSV, "wt") as handle:
+        handle.write("\t".join(discovery.UMI_GROUP_COLUMNS) + "\n")
+        for cb, umi, cls, tax in sorted(rows):
+            fields = [cb, umi, "1", "1", "0", str(tax or ""), str(tax or ""), cls, "1", "", "0"]
+            handle.write("\t".join(fields) + "\n")
+
+
+def test_cell_matrix_counts_resolved_groups_once_and_keeps_empty_cells(tmp_path):
+    import anndata as ad
+
+    _stage_umi_groups(
+        tmp_path,
+        [
+            ("C1", "u1", "resolved", 562),
+            ("C1", "u2", "resolved", 562),
+            ("C1", "u3", "resolved", 9606),
+            ("C1", "u4", "ambiguous", None),
+            ("C2", "u1", "unclassified", None),
+            ("OFF", "u1", "resolved", 562),
+            ("OFF", "u2", "resolved", 562),
+        ],
+    )
+    summary = discovery.build_cell_matrix(tmp_path, TREE, ["C1", "C2", "C3"])
+    adata = ad.read_h5ad(tmp_path / discovery.CELL_TAXON_H5AD)
+    assert list(adata.obs_names) == ["C1", "C2", "C3"]  # cells without evidence stay in X
+    assert list(adata.var_names) == ["562", "9606"]
+    assert adata.X.toarray().tolist() == [[2, 1], [0, 0], [0, 0]]
+    assert list(adata.var["host_relation"]) == ["other", "host"]
+    assert adata.uns["discovery"]["unit"] == "resolved_umi_group"
+    assert summary["n_groups_called"] == 5 and summary["n_groups_called_ambiguous"] == 1
+    assert (summary["n_called_cells_seen"], summary["n_called_cells_with_resolved"]) == (2, 1)
+    assert _rows(tmp_path / discovery.OFFCELL_TSV) == [
+        {"corrected_cb": "OFF", "taxid": "562", "n_groups": "2"}
+    ]
+
+
+def test_load_called_cells(tmp_path):
+    with pytest.raises(DiscoveryError, match="called cells"):
+        discovery.load_called_cells(tmp_path)
+    results = tmp_path / "results"
+    results.mkdir()
+    (results / "called_cells.tsv").write_text("barcode\nCCC-1\nAAA-1\nAAA\n")
+    (results / "cell_calling_input.json").write_text(
+        json.dumps({"method": "emptydrops", "count_layer": "GeneFull.raw"})
+    )
+    called, info = discovery.load_called_cells(tmp_path)
+    assert called == ["AAA", "CCC"]
+    assert (info["cell_calling_method"], info["called_cells_barcode_space"]) == (
+        "emptydrops",
+        "starsolo",
+    )

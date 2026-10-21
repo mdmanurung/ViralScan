@@ -7,7 +7,8 @@ Kraken2 assignment is a taxonomic observation, never an infection call.
 
 Implemented so far: run, output and database validation, atomic publication (DISC-02),
 host-unmapped input resolution (DISC-03), the streaming identity pass (DISC-06) and Kraken2
-classification with the exactly-once ordinal join (DISC-07). Cell aggregation lands in DISC-08.
+classification with the exactly-once ordinal join (DISC-07), and UMI-group aggregation into a
+cells x taxa matrix (DISC-08). Provenance, fingerprint and publication land in DISC-09.
 """
 
 from __future__ import annotations
@@ -57,6 +58,9 @@ TAXONOMY_TSV = "taxonomy.tsv"
 #: Per fragment: corrected barcode, primary-encoded UMI and barcode status (plan §6.3).
 BARCODES_TSV = "barcodes.tsv.gz"
 UMI_GROUPS_TSV = "umi_groups.tsv.gz"
+#: Cells x resolved taxa (one unit per resolved UMI group) and the off-cell remainder.
+CELL_TAXON_H5AD = "cell_taxon.h5ad"
+OFFCELL_TSV = "offcell_taxon.tsv.gz"
 UMI_GROUP_COLUMNS = (
     "corrected_cb",
     "umi",
@@ -812,6 +816,114 @@ def build_umi_groups(
     }
 
 
+# ── Cell universe and matrix (plan §6.5, §8, §10) ───────────────────────────
+
+
+def load_called_cells(sample_dir: Path) -> tuple[list[str], dict[str, Any]]:
+    """The primary's called barcodes (suffix-stripped, sorted) and its cell-calling receipt."""
+    from viralscan.scripts.cellcalling import CALLED_CELLS_TSV, _strip_suffix
+
+    path = sample_dir / CALLED_CELLS_TSV
+    if not path.is_file():
+        raise DiscoveryError(f"{path} is missing; discovery needs the primary's called cells.")
+    with path.open(encoding="utf-8") as handle:
+        handle.readline()
+        called = sorted({_strip_suffix(line.strip()) for line in handle if line.strip()})
+    receipt_path = sample_dir / "results" / "cell_calling_input.json"
+    receipt = json.loads(receipt_path.read_text()) if receipt_path.is_file() else {}
+    # Two-step EmptyDrops on the host filter's STARsolo matrix calls cells in STAR's barcode
+    # space, which is uncorrected without -w (plan §6.3); the overlap below shows the effect.
+    space = "starsolo" if receipt.get("count_layer") == "GeneFull.raw" else "kb"
+    info = {
+        "called_cells_sha256": sha256_file(path),
+        "n_called_cells": len(called),
+        "cell_calling_method": receipt.get("method"),
+        "called_cells_barcode_space": space,
+    }
+    return called, info
+
+
+def build_cell_matrix(
+    out_dir: Path, tree: dict[int, tuple[int, str, str]], called: list[str]
+) -> dict[str, int]:
+    """Write ``CELL_TAXON_H5AD`` (every called cell, resolved called groups) and ``OFFCELL_TSV``.
+
+    ``X`` counts resolved UMI groups at their resolved taxid: one unit per group, never reads,
+    never ambiguous or unclassified groups. Off-cell resolved groups go to ``OFFCELL_TSV``.
+    """
+    import anndata as ad
+    import pandas as pd
+    from scipy import sparse
+
+    cell_index = {cb: i for i, cb in enumerate(called)}
+    in_cells: Counter[tuple[int, int]] = Counter()
+    off_cells: Counter[tuple[str, int]] = Counter()
+    counts: Counter[str] = Counter()
+    seen_called: set[str] = set()
+    for row in _tsv_rows(out_dir / UMI_GROUPS_TSV):
+        cb, cls = row["corrected_cb"], row["group_class"]
+        where = "called" if cb in cell_index else "offcell"
+        counts[f"n_groups_{where}"] += 1
+        counts[f"n_groups_{where}_{cls}"] += 1
+        if where == "called":
+            seen_called.add(cb)
+        if cls != "resolved":
+            continue
+        taxid = int(row["resolved_taxid"])
+        if where == "called":
+            in_cells[cell_index[cb], taxid] += 1
+        else:
+            off_cells[cb, taxid] += 1
+    taxa = sorted({taxid for _cell, taxid in in_cells})
+    col = {taxid: j for j, taxid in enumerate(taxa)}
+    keys = sorted(in_cells)
+    matrix = sparse.csr_matrix(
+        (
+            np.array([in_cells[k] for k in keys], dtype=np.int32),
+            (
+                np.array([k[0] for k in keys], dtype=np.int64),
+                np.array([col[k[1]] for k in keys], dtype=np.int64),
+            ),
+        ),
+        shape=(len(called), len(taxa)),
+        dtype=np.int32,
+    )
+    if int(matrix.sum()) != counts["n_groups_called_resolved"]:
+        raise DiscoveryError("Matrix total differs from the resolved called-cell groups (gate G6).")
+    var = pd.DataFrame(
+        {
+            "name": [tree[t][2] for t in taxa],
+            "rank": [tree[t][1] for t in taxa],
+            "parent_taxid": [tree[t][0] for t in taxa],
+            "host_relation": [host_relation(tree, t) for t in taxa],
+        },
+        index=pd.Index([str(t) for t in taxa], name="taxid"),
+    )
+    summary = {
+        "n_called_cells": len(called),
+        "n_called_cells_seen": len(seen_called),
+        "n_called_cells_with_resolved": len({cell for cell, _t in in_cells}),
+        "n_taxa": len(taxa),
+        **{
+            f"n_groups_{w}{c}": counts[f"n_groups_{w}{c}"]
+            for w in ("called", "offcell")
+            for c in ("", "_resolved", "_ambiguous", "_unclassified")
+        },
+    }
+    adata = ad.AnnData(X=matrix, obs=pd.DataFrame(index=pd.Index(called, name="barcode")), var=var)
+    adata.uns["discovery"] = {
+        "unit": "resolved_umi_group",
+        "note": "Kraken2 taxonomic observations; not viral molecule counts and not infection calls.",
+        **summary,
+    }
+    adata.write_h5ad(out_dir / CELL_TAXON_H5AD)
+    with _gzip_out(out_dir / OFFCELL_TSV) as handle:
+        handle.write("corrected_cb\ttaxid\tn_groups\n")
+        for cb, taxid in sorted(off_cells):
+            handle.write(f"{cb}\t{taxid}\t{off_cells[cb, taxid]}\n")
+    return summary
+
+
 def run_discover(args: argparse.Namespace) -> None:
     run_root = Path(args.run_dir).resolve()
     output = Path(args.output).resolve()
@@ -866,9 +978,12 @@ def run_discover(args: argparse.Namespace) -> None:
         raise DiscoveryError(
             f"UMI groups hold {resolved['groups']['n_group_reads']} reads, not {eligible}."
         )
-    (partial / "input.json").write_text(json.dumps(resolved, indent=2, sort_keys=True) + "\n")
     log.info("Barcodes: %s. Groups: %s.", resolved["barcodes"], resolved["groups"])
+    called, resolved["cells"] = load_called_cells(sample_dir)
+    resolved["cells"].update(build_cell_matrix(partial, tree, called))
+    (partial / "input.json").write_text(json.dumps(resolved, indent=2, sort_keys=True) + "\n")
+    log.info("Cells: %s.", resolved["cells"])
     raise DiscoveryError(
-        "The cell partition and matrix are not implemented yet (PLAN DISC-08b..09); UMI groups "
-        f"are staged in {partial} and nothing was published."
+        "Provenance and publication are not implemented yet (PLAN DISC-09); outputs are staged "
+        f"in {partial} and nothing was published."
     )
