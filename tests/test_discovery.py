@@ -811,6 +811,7 @@ def test_load_called_cells(tmp_path):
     results = tmp_path / "results"
     results.mkdir()
     (results / "called_cells.tsv").write_text("barcode\nCCC-1\nAAA-1\nAAA\n")
+    assert discovery.load_called_cells(tmp_path)[1]["called_cells_barcode_space"] == "unknown"
     (results / "cell_calling_input.json").write_text(
         json.dumps({"method": "emptydrops", "count_layer": "GeneFull.raw"})
     )

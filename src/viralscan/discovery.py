@@ -833,7 +833,10 @@ def load_called_cells(sample_dir: Path) -> tuple[list[str], dict[str, Any]]:
     receipt = json.loads(receipt_path.read_text()) if receipt_path.is_file() else {}
     # Two-step EmptyDrops on the host filter's STARsolo matrix calls cells in STAR's barcode
     # space, which is uncorrected without -w (plan §6.3); the overlap below shows the effect.
-    space = "starsolo" if receipt.get("count_layer") == "GeneFull.raw" else "kb"
+    if not receipt:
+        space = "unknown"  # runs before the receipt existed; see the overlap counts
+    else:
+        space = "starsolo" if receipt.get("count_layer") == "GeneFull.raw" else "kb"
     info = {
         "called_cells_sha256": sha256_file(path),
         "n_called_cells": len(called),
