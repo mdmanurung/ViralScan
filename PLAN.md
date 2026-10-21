@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. Next: R9 (docs).
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. Next: R10 (real-data validation on Slurm), then R11.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7880,6 +7880,13 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     sequenced small genome has a legitimately tiny distinct/reads ratio (EBV: ~600k reads). The ratio is informational.
     `host_lineage` covers `host` and `host_ancestor`; `viral_only_db` means taxid 9606 is absent from the DB taxonomy.
     No `prioritized`/`sequence_supported` states (need the frozen benchmark, `DISC-12`/`DISC-13`).
+- [x] `DISC-R9` (2026-10-21, plan step R9): `docs/discovery.md` (scope: classification is not infection; manual database download with md5
+  check, no auto-download; command and Slurm example on partition `all`, since `medium` is capped at 4 CPUs / 8 GB by QOS
+  `restrictmedium`; outputs; `qc.json` guide; limits), toctree entry in `docs/index.md`, `output_reference.md` section, CHANGELOG entry.
+  - Note: `docs/output_reference.md` is pinned by inventory row 17 (`output-reference-doc`); re-pinned in a follow-up
+    `chore(inventory)` commit because the pin names the commit that holds the new file.
+  - Note: the only real-data numbers cited are labelled "first EBV run, read level" and "not a performance claim"; R10 replaces them with
+    the validated arms.
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
 - [ ] `DISC-13` candidate states + evidence adapter.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).
