@@ -103,6 +103,16 @@ completion.
   - Pre-set rules (user "approve all" 2026-10-21): call = >= 3 kb molecules AND >= 1 STAR read on the same contig;
     limit = lowest level recovered in >= 2 of 3 seeds; keep the flank index only if its limit <= the old index's and
     it adds <= 5 unsupported UMIs per null library (3 unspiked replicates per background).
+  - SMOKE RESULT (2026-10-21, job 25860984, 20 min, exit 0; D03 first 5 M pairs, HHV-6B spikes at 10 and 100, seed 1, 5 cells;
+    one library, one seed, so descriptive only). STAR host+virus: 10/10 and 99/100 spikes on the source contig, 0 on host,
+    1 lost to "unmapped: too short" (a spliced source read trimmed to 90 nt); the real STAR host filter kept 10/10 and
+    100/100 (no host-homology loss); unspiked base: 0 viral STAR reads. kb, gene-level matrix: old index 6/10 and
+    49/100, flank index 4/10 and 25/100. Per-spike BUS fate (`kb_fate.py`): pseudoaligned old 8/10 and 95/100, flank
+    10/10 and 100/100, but multi-gene equivalence classes (dropped from the unique-gene matrix) old 46/100 vs flank
+    75/100. So the flank index is MORE sensitive at pseudoalignment and LESS at the unique-gene matrix; ViralScan's
+    multimap step redistributes ambiguous molecules, so the kb arm of the grid must be scored at BUS level
+    (unique + ambiguous), not the raw matrix, or the verdict is an artefact of the metric (the pilot's
+    `viral_umis.py` Arm-1 numbers are matrix-level). Unspiked-base viral UMIs: old 0, flank 3 (three anello genes).
   - `spikein.py synth` (circular-origin and short-fragment probes, Q4 option b): error-free reads from a circular
     genome record, origin-spanning vs internal control, and 30/50-nt short reads; unit-tested, not yet run on STAR/kb.
   - Note: one spiked read = one UMI (conservative; real data carry PCR duplicates). Smoke uses the first 5 M pairs,

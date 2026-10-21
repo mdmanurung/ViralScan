@@ -17,6 +17,7 @@ W=$M/viralscan_work; X=$W/trackB_explore_2026-10; S=$W/star_hostvirus
 SRC=$M/vs_work/spikein; A=$SRC/analysis/spikein_detection_limit
 O=$W/spikein_smoke_2026-10; LIB=SRR29320037; HOST=$M/ViralScan/ebv_latest_ref_2026-09-27/star_host_2.7.11b
 CONDA=$M/conda/envs/viralscan_test_full/bin; KB=$M/viralscan_env_pinned/bin
+BUSTOOLS=$M/viralscan_env_pinned/lib/python3.8/site-packages/kb_python/bins/linux/bustools/bustools
 export PATH=$CONDA:$PATH PYTHONPATH=$SRC/src
 mkdir -p $O/runs $O/scores; cd $O
 # 10xv2 barcode on-list (kb-python's copy); spike barcodes must be on it or STARsolo/kb drop them
@@ -77,6 +78,7 @@ for TAG in base L10_s1 L100_s1; do
     else I=$X/ref_flank_v2/panel_flank.idx; T=$X/ref_flank_v2/panel_flank.t2g; fi
     PATH=$KB:$PATH kb count -i $I -g $T -x 10XV2 --parity single --strand unstranded -t 8 --overwrite --tmp $D/tmp_$IDX -o $D/kb_$IDX $D/in_R1.fastq.gz $D/in_R2.fastq.gz
     rm -rf $D/tmp_$IDX
+    [ $TAG = base ] || python -I $A/kb_fate.py --kb-dir $D/kb_$IDX --t2g $T --truth spikes/spike_$TAG.truth.tsv --bustools $BUSTOOLS > scores/kbfate_${IDX}_$TAG.tsv
     [ $TAG = base ] || python -I $A/score.py kb --spiked-dir $D/kb_$IDX/counts_unfiltered --unspiked-dir runs/base/kb_$IDX/counts_unfiltered --truth spikes/spike_$TAG.truth.tsv > scores/kb_${IDX}_$TAG.tsv
   done
   rm -f $D/in_R1.fastq.gz $D/in_R2.fastq.gz
