@@ -53,7 +53,7 @@ PYEOF
   else
     echo "hostfilter $TAG accounting: Log.final.out not found under $D/hf (STAR log location unverified)"
   fi
-  python -m viralscan.star_hostvirus align --r1 spikes/spike_${TAG}_R1.fastq.gz --r2 spikes/spike_${TAG}_R2.fastq.gz --index $S/index --out-dir $D/star --technology 10xv2 --whitelist $D/spike_cbs.txt --threads 8
+  python -m viralscan.star_hostvirus align --r1 spikes/spike_${TAG}_R1.fastq.gz --r2 spikes/spike_${TAG}_R2.fastq.gz --index $S/index --out-dir $D/star --technology 10xv2 --strand reverse --whitelist $D/spike_cbs.txt --threads 8
   python -I $A/score.py star --bam $D/star/Aligned.sortedByCoord.out.bam --truth spikes/spike_$TAG.truth.tsv > scores/star_spikeonly_$TAG.tsv
   rm -rf $D/star/_STARtmp $D/hf/star_tmp
 done
@@ -63,7 +63,7 @@ for TAG in base L10_s1 L100_s1; do
   D=$O/runs/$TAG; mkdir -p $D
   if [ $TAG = base ]; then cat bg_R1.fastq.gz > $D/in_R1.fastq.gz; cat bg_R2.fastq.gz > $D/in_R2.fastq.gz
   else cat bg_R1.fastq.gz spikes/spike_${TAG}_R1.fastq.gz > $D/in_R1.fastq.gz; cat bg_R2.fastq.gz spikes/spike_${TAG}_R2.fastq.gz > $D/in_R2.fastq.gz; fi
-  python -m viralscan.star_hostvirus align --r1 $D/in_R1.fastq.gz --r2 $D/in_R2.fastq.gz --index $S/index --out-dir $D/star --technology 10xv2 --threads 8
+  python -m viralscan.star_hostvirus align --r1 $D/in_R1.fastq.gz --r2 $D/in_R2.fastq.gz --index $S/index --out-dir $D/star --technology 10xv2 --strand reverse --threads 8
   BAM=$D/star/Aligned.sortedByCoord.out.bam
   samtools idxstats $BAM > $D/star/idxstats.tsv
   [ $TAG = base ] || python -I $A/score.py star --bam $BAM --truth spikes/spike_$TAG.truth.tsv > scores/star_$TAG.tsv
