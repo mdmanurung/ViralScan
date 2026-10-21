@@ -22,7 +22,6 @@ def main(argv=None):
     kb = Path(a.kb_dir)
     with open(a.truth) as fh:
         truth = {(r["cb"], r["umi"]): r["class"] for r in csv.DictReader(fh, delimiter="\t")}
-    cbs = {cb for cb, _ in truth}
     tx = (kb / "transcripts.txt").read_text().split()
     t2g = {}
     with open(a.t2g) as fh:
