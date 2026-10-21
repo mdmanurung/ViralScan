@@ -11,8 +11,9 @@ What is compared, with everything else held equal:
 - Kraken2 settings: ViralScan default (confidence 0.0, minimum hit groups 2), Cellsnake's
   documented default (0.05, 4; scrna-workflow config.yaml:50-51) and the Snakefile fallback
   (0.01, 3; scrna-workflow workflow/Snakefile:167-168).
-- Aggregation per (CB, UMI): ViralScan's LCA of classified reads (`viralscan discover`, run end
-  to end), its audit-only `deepest_consistent_taxid` column (not the approved default), versus mg2sc's majority vote `max(set(labels), key=labels.count)` over all reads,
+- Aggregation per (CB, UMI): ViralScan's rule (deepest classified taxon when all lie on one
+  root-to-leaf path, else their LCA; `viralscan discover`, run end to end), the LCA-only rule it
+  replaced (recomputed from the `taxids` column), versus mg2sc's majority vote `max(set(labels), key=labels.count)` over all reads,
   unclassified ("0") included (mg2sc k2sc.py:119-121, Cellsnake fork e744c2c), applied to the
   same classifications and corrected barcodes. The vote runs under several PYTHONHASHSEED values
   because its tie-break follows set iteration order.
@@ -329,21 +330,21 @@ def main(work: Path, output: Path) -> None:
         subprocess.run(
             cmd, capture_output=True
         )  # exits 1 at the DISC-09 stop until publication lands
-        ours, deepest = {}, {}
+        ours, lca_only = {}, {}
         for row in rows(staged(out, "umi_groups.tsv.gz")):
             key = row["corrected_cb"], row["umi"]
             ours[key] = int(row["resolved_taxid"]) if row["resolved_taxid"] else None
-            # Audit-only variant (not the approved default): the deepest taxon when every
-            # classified read lies on one root-to-leaf path, else the LCA.
-            deep = row["deepest_consistent_taxid"]
-            consistent = deep and row["lineage_consistent"] == "1" and int(deep) not in (1, 131567)
-            deepest[key] = int(deep) if consistent else ours[key]
+            # The rule discovery used before 2026-10-21, recomputed: LCA of the classified taxids.
+            taxids = [int(t) for t in row["taxids"].split(";") if t]
+            shared = set.intersection(*(set(lineage(t)) for t in taxids)) if taxids else set()
+            top = max(shared, key=lambda t: len(lineage(t))) if shared else None
+            lca_only[key] = top if top not in (None, 1, 131567) else None
         votes = mg2sc_votes(out)
         first = {tuple(k.split("|")): (int(v) or None) for k, v in votes[0].items()}
         unstable = sum(len({v[k] for v in votes}) > 1 for k in votes[0])
         for aggregation, assignments in (
-            ("viralscan_lca", ours),
-            ("viralscan_deepest_consistent_audit", deepest),
+            ("viralscan_deepest_consistent", ours),
+            ("viralscan_lca_only_previous", lca_only),
             ("mg2sc_vote", first),
         ):
             per_setting[name, aggregation] = assignments

@@ -803,10 +803,11 @@ def _group_shard(path: Path, tree: dict[int, tuple[int, str, str]]) -> list[tupl
     for (cb, umi), (n, n_unclassified, taxids) in reads.items():
         resolved, cls, consistent, deepest = "", "unclassified", "", ""
         if taxids:
-            top = lca(tree, taxids)
             deep = max(taxids, key=lambda t: len(_path(tree, t)))
             consistent = all(t in _path(tree, deep) for t in taxids)
             deepest = deep if consistent else ""
+            # Deepest when every classified taxon lies on one root-to-leaf path, else the LCA.
+            top = deep if consistent else lca(tree, taxids)
             cls = "ambiguous" if tree[top][1].startswith("R") else "resolved"
             resolved = top if cls == "resolved" else ""
         rows.append(

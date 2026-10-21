@@ -775,7 +775,7 @@ def test_umi_groups_designed_cases(tmp_path):
         tmp_path,
         [
             ("A", "u1", 562),
-            ("A", "u1", 83333),  # parent/child -> 562, deepest 83333
+            ("A", "u1", 83333),  # parent/child -> one path, deepest 83333
             ("A", "u2", 562),
             ("A", "u2", 9606),  # cross-domain collision -> LCA R1 -> ambiguous
             ("A", "u3", 0),
@@ -797,9 +797,10 @@ def test_umi_groups_designed_cases(tmp_path):
     }
     rows = {(r["corrected_cb"], r["umi"]): r for r in _rows(tmp_path / discovery.UMI_GROUPS_TSV)}
     assert (rows["A", "u1"]["resolved_taxid"], rows["A", "u1"]["deepest_consistent_taxid"]) == (
-        "562",
+        "83333",
         "83333",
     )
+    assert rows["A", "u1"]["conflict"] == "0"
     assert (rows["A", "u2"]["group_class"], rows["A", "u2"]["conflict"]) == ("ambiguous", "1")
     assert rows["A", "u3"]["group_class"] == "unclassified"
     assert (rows["A", "u4"]["resolved_taxid"], rows["A", "u4"]["n_reads_unclassified"]) == (
@@ -836,8 +837,12 @@ def _oracle(fragments) -> list[tuple]:
         if not classified:
             rows.append((cb, umi, len(taxes), "unclassified", ""))
             continue
-        shared = set.intersection(*(set(up(t)) for t in classified))
-        top = max(shared, key=lambda t: len(up(t)))
+        deep = max(classified, key=lambda t: len(up(t)))
+        if all(t in up(deep) for t in classified):
+            top = deep  # consistent: one root-to-leaf path
+        else:
+            shared = set.intersection(*(set(up(t)) for t in classified))
+            top = max(shared, key=lambda t: len(up(t)))
         cls = "ambiguous" if rank[top].startswith("R") else "resolved"
         rows.append((cb, umi, len(taxes), cls, str(top) if cls == "resolved" else ""))
     return rows

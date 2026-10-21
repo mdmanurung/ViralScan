@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. Next: R5 (per-UMI rule), R6, R7b, R3; user decision on the per-UMI rule (`DISC-CMP`) still open.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. Next: R6, R7b, R3.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7824,8 +7824,16 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   Cellsnake 0.05/4 vs fallback 0.01/3; ViralScan LCA vs audit deepest-consistent vs mg2sc vote. Results reproduce
   byte for byte. Settings change at most 8 UMIs. mg2sc vote: 11 % of labels change with the hash seed, 118/121 collisions
   are claimed as one species, 87 root features. LCA: 606 exact vs mg2sc 752; deepest-consistent: 799.
-  - [!] Open user decision: switch decision 4 to "deepest taxon when all classified reads are lineage-consistent,
-    else LCA" (G7 reworded). Not changed without approval.
+  - [x] Decision 4 changed by the user (2026-10-21) to deepest-consistent: see `DISC-R5`.
+- [x] `DISC-R5` (2026-10-21, plan step R5; user decision 2026-10-21, replaces approved decision 4): per-UMI taxon =
+  deepest classified taxon when all classified taxids lie on one root-to-leaf path, else their LCA; an `R*`-rank result
+  stays `ambiguous`. `lineage_consistent` / `deepest_consistent_taxid` / `conflict` columns unchanged (audit).
+  - G7 reworded: no group is counted below the LCA of its *conflicting* classified reads. Plan doc §6.4, §6.1/§7 tables,
+    §14 (G7, case table) and §16 decision 4 updated; `_oracle` and the designed-case test updated (107 tests pass).
+  - `compare.py` rerun (columns renamed `viralscan_deepest_consistent` / `viralscan_lca_only_previous`, the latter
+    recomputed from `taxids`): exact species 799 vs 606 (LCA-only) vs 752 (mg2sc); collision overcalls 8 vs 2 vs 118.
+    Outputs reproduce byte for byte (`comparison.tsv` `881a98e0…`, `umi_detail.tsv.gz` `7d03ef77…`).
+  - Known limit: a species unit can rest on one species-specific read while the others are ancestral.
 - [x] `DISC-R1` (2026-10-21, plan step R1): taxonomy path cache (root-first tuples memoised per tree, lazy per queried
   taxid); `lca` is a common-prefix walk, `host_relation`/`_group_shard` read the cache. No behaviour change: 40-seed oracle
   and a new all-subsets LCA test pass. Not re-timed on the EBV grouping step (needs Slurm; R10 records it).

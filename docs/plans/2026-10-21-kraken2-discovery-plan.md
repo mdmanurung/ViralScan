@@ -58,7 +58,7 @@ run_dir/ (complete: run_complete.json + run_manifest.json)
   │
   ├─ join by integer ordinal; each ordinal exactly once (bool array)            → classifications.tsv.gz
   ├─ barcode correction: same bustools binary + the primary's resolved on-list → corrected_cb
-  ├─ UMI groups: exact (sample, corrected_cb, raw_umi); taxon = LCA over classified reads (DB's own tree)
+  ├─ UMI groups: exact (sample, corrected_cb, raw_umi); taxon = deepest classified taxon if all lie on one path, else their LCA (DB's own tree)
   ├─ cell universe: primary results/called_cells.tsv (barcode space checked, overlap reported)
   │
   └─ outputs: classifications, umi_groups, taxonomy, cell_taxon.h5ad (cells × assigned taxids),
@@ -309,7 +309,7 @@ original); the code is otherwise identical (§2.3).
 | `grep ^@` / `fgrep -w` / awk last-wins / `sponge` | **Reject** | streamed Python; no shell pipelines |
 | `shell=True`, return codes ignored | **Reject** | `subprocess.run([...], check=True)` via `evidence._run` |
 | CB/UB from BAM tags | Reject | raw CB/UMI from R1 through `cb_umi_geometry`; correction with the same `bustools correct` and on-list |
-| `max(set(labels), key=labels.count)` vote | **Reject** | LCA over classified reads using the DB's own tree (order-independent) |
+| `max(set(labels), key=labels.count)` vote | **Reject** | Deepest-consistent taxon, else LCA, using the DB's own tree (order-independent) |
 | Unclassified (`0`) as a voter and as a feature | **Reject** | unclassified groups counted in QC; never a matrix variable |
 | Name-based rank collapse; drop above-rank UMIs | **Reject** | taxid-based collapse; above-rank groups go to an explicit `above_rank` count |
 | Remove `Homo*` by name | Reject | taxid lineage check against 9606 and its ancestors; reported as residual host |
@@ -501,28 +501,30 @@ than kb did, and the difference is reported.
 - A UMI containing `N` is grouped as its `G`-encoded form, matching the primary; `umi_has_n` is audited.
 - Group taxon is **taxonomy-aware**:
   - let `T` = the set of taxids of *classified* reads in the group;
-  - `resolved_taxid = LCA(T)` on the DB's own tree (§6.6);
+  - `resolved_taxid` (user decision 2026-10-21, replaces the earlier LCA-only rule): if every taxid in `T` lies on one
+    root-to-leaf path, the deepest taxon in `T`; otherwise `LCA(T)` on the DB's own tree (§6.6);
   - unclassified reads do not vote but are counted (`n_reads_unclassified`).
 - Group classes:
   - `unclassified`: T empty.
-  - `resolved`: `LCA(T) ≠ root(1)`, `LCA(T) ≠` cellular-organisms-level, and LCA ≠ 0.
-  - `ambiguous`: the LCA is root, or `|T| > 1` and the taxids are on different lineages *and* the LCA is above the
-    configured `--min-resolution-rank` (default: no floor; recorded).
+  - `resolved`: the taxon above is not root(1) or cellular-organisms-level (an `R*`-rank result) and not 0.
+  - `ambiguous`: the taxon above is an `R*`-rank result (root or cellular organisms), including a conflicting group
+    whose LCA is that high.
   - Also recorded:
     - `lineage_consistent` (bool): all of T lie on one root-to-leaf path. For example, {561, 562} is consistent;
-      `resolved_taxid` is then 561 (the LCA) and `deepest_consistent_taxid` = 562 is stored for audit only;
+      `resolved_taxid` is then 562 (the deepest) and equals `deepest_consistent_taxid`;
     - `n_distinct_taxids` and `conflict` (bool): `conflict=True` when T is not lineage-consistent. A conflicting
       group can still be `resolved` (for example, two strains under one species resolve to that species); the
-      guarantee is only that it is never counted below its LCA.
+      guarantee is only that a conflicting group is never counted below the LCA of its conflicting reads.
 - Two distinct transcripts sharing a CB/UMI, from different organisms: T spans lineages, the LCA climbs, and
   `conflict=True`. It counts as one unit at a high rank or as ambiguous, **never** as two species units. The MVP does
   not split groups.
-- Determinism: LCA is a set function, so it is independent of read order, chunk order and thread count. No tie-break
+- Determinism: deepest-consistent-else-LCA is a set function, so it is independent of read order, chunk order and thread count. No tie-break
   exists or is needed.
 
 **Rejected for the MVP:** majority vote (non-deterministic or arbitrary ties, and it hides conflict); consensus with
-fraction thresholds (an extra uncalibrated parameter). A `deepest_consistent` policy can be offered later as a declared
-sensitivity variant (P1), never as the default.
+fraction thresholds (an extra uncalibrated parameter). Limit of the adopted rule: a species-level unit can rest on a
+single species-specific read while the other reads are ancestral (see
+`analysis/discovery_mg2sc_comparison/DISCOVERY_MG2SC_COMPARISON.md`).
 
 ### 6.5 Counting invariants
 
@@ -638,7 +640,7 @@ file is added only if `discovery.py` passes about 600 lines.
 | Route | MVP handling |
 |---|---|
 | Residual human reads (>20-locus multimappers, partials) | broad DB with human: assignments in the 9606 lineage → `is_host_lineage`, never candidates; **viral-only DB: candidates capped at `observation`** (residual host is invisible) |
-| Human–microbe homology, EVEs, repeats, low complexity | LCA climbs; `deepest_consistent` audit; `primary_read_filter` annotation; minimizer-distinct ratio from the report |
+| Human–microbe homology, EVEs, repeats, low complexity | conflicting reads climb to their LCA; `deepest_consistent` audit; `primary_read_filter` annotation; minimizer-distinct ratio from the report |
 | Adapter/TSO chimeras | `primary_read_filter` annotation; `artefact_supported_only` flag |
 | Reference/reagent contamination, kitome | no built-in facility (VERIFIED: none in ViralScan); `--negative-control DIR` (P1) compares against another discovery output |
 | Ambient RNA / empty droplets | off-cell versus called-cell group distribution per taxon (`offcell_taxon.tsv.gz`); a called-cell fraction not above off-cell is flagged |
@@ -764,7 +766,7 @@ Each case is a fixture with an independent oracle (pure Python, re-derived from 
 |---|---|
 | one read per molecule; multiple reads per UMI; multiple UMIs per cell | groups and units per §6.5 |
 | conflicting reads (562 vs 1280) | LCA, `conflict=True`, never two units |
-| parent/child (561, 562) | resolved 561, `deepest_consistent` 562 |
+| parent/child (561, 562) | resolved 562 (deepest-consistent), `conflict=False` |
 | cross-species UMI collision | one group, LCA above both |
 | unclassified + classified in one group | resolved by the classified reads; unclassified counted |
 | duplicate read ID; missing ordinal; extra ordinal; non-numeric ID | abort (I1–I3) |
@@ -900,7 +902,8 @@ Each ticket is one branch `codex/disc-NN`, touches ≤ 3 files, and updates PLAN
 5. **G5**: no barcode enters `X` unless it is on-list, bustools-corrected or `no_onlist` (declared). Reconciliation is
    reported.
 6. **G6**: one unit per resolved group per resolution; rank projections conserve the total.
-7. **G7**: no group is counted at a taxon more specific than the LCA of its classified reads. Root-level (ambiguous)
+7. **G7**: no group is counted below the LCA of its *conflicting* classified reads (a lineage-consistent group is
+   counted at its deepest taxon). Root-level (ambiguous)
    groups never appear in `X`.
 8. **G8**: output is byte-identical across record order, Kraken2 output order, shard count and threads.
 9. **G9**: a missing or invalid DB, unsupported chemistry, an incomplete run, or corrupt or truncated input → a
@@ -943,8 +946,8 @@ Each ticket is one branch `codex/disc-NN`, touches ≤ 3 files, and updates PLAN
    annotation (§5.2)?
 3. **Barcode space:** correct into the kb/bustools space with the primary's resolved on-list, and only *report* a
    mismatch with STARsolo-space called cells (§6.3)?
-4. **UMI policy:** exact `(CB, UMI)` groups; taxon = LCA of classified reads; no majority vote; `deepest_consistent`
-   is audit only (§6.4)?
+4. **UMI policy (changed 2026-10-21):** exact `(CB, UMI)` groups; taxon = deepest classified taxon when all lie on one
+   path, else LCA; `R*`-rank stays ambiguous; no majority vote (§6.4).
 5. **Kraken2 defaults:** start at the Kraken2 defaults (confidence 0.0, min hit groups 2) and choose by the frozen grid,
    not Cellsnake's 0.05/4?
 6. **DB identity:** full sha256 of `hash.k2d` by default (slow on large DBs), or size+mtime plus the small-file

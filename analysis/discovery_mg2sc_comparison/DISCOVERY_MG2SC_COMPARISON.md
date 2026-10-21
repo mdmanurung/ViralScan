@@ -1,8 +1,9 @@
 # Discovery versus mg2sc/Cellsnake: parameters and per-UMI aggregation
 
-Date: 2026-10-21. Code: `viralscan discover` at `0f219eb` (DISC-08). Script: `scripts/compare.py`.
-Outputs: `outputs/comparison.tsv` (sha256 `1ff9fc46…`), `outputs/umi_detail.tsv.gz` (sha256 `37872351…`).
-A second run from scratch reproduced both files byte for byte.
+Date: 2026-10-21, rerun after plan step R5 (per-UMI rule changed to deepest-consistent) on top of DISC-09 (`ad1a534`).
+Script: `scripts/compare.py`.
+Outputs: `outputs/comparison.tsv` (sha256 `881a98e0…`), `outputs/umi_detail.tsv.gz` (sha256 `7d03ef77…`).
+A second run from scratch reproduced both files byte for byte. (Earlier version at `0f219eb`: `1ff9fc46…` / `37872351…`, columns `viralscan_lca` and `viralscan_deepest_consistent_audit`; the `viralscan_deepest_consistent` numbers are identical to that audit column.)
 
 **Scope.** This is a synthetic benchmark with known truth. It compares *aggregation rules and Kraken2 settings* under
 otherwise identical inputs. It is not an estimate of real-data sensitivity or specificity (plan §12.2, gate G13).
@@ -38,10 +39,11 @@ Kraken2 settings:
 - the Snakefile fallback `0.01 / 3` (`workflow/Snakefile:167-168`).
 
 Aggregation per (CB, UMI):
-1. ViralScan `resolved_taxid`: the LCA of classified reads (the approved rule; `viralscan discover` run end to end).
-2. ViralScan's audit column `deepest_consistent_taxid` used as the assignment: the deepest taxon when every
-   classified read lies on one root-to-leaf path, else the LCA. **Not the approved default**; measured to inform
-   decision 4.
+1. ViralScan `resolved_taxid` (`viralscan discover` run end to end), now the **deepest-consistent** rule (user
+   decision 2026-10-21): the deepest taxon when every classified read lies on one root-to-leaf path, else the LCA;
+   root-level results stay ambiguous. Column `viralscan_deepest_consistent`.
+2. The **previous LCA-only rule**, recomputed from the `taxids` column of `umi_groups.tsv.gz` (no longer what discovery
+   outputs): the LCA of classified reads. Column `viralscan_lca_only_previous`. Kept as a baseline.
 3. mg2sc's vote: `max(set(labels), key=labels.count)` over all reads, unclassified `"0"` included (`k2sc.py:119-121`,
    identical in Cellsnake's fork `e744c2c`). It is applied to discovery's own classifications and corrected
    barcodes, so only the aggregation differs. It is run under 10 `PYTHONHASHSEED` values.
@@ -51,20 +53,20 @@ Not emulated:
 - the fork's optional fastp, bowtie2 and second-Kraken2 host filters;
 - Cellsnake's cell-level filters (`min.features = 3`, `Homo*` name removal).
 
-## Results (setting `0.0 / 2`; the other two settings are within ±7 UMIs on every row)
+## Results (setting `0.0 / 2`; the other two settings are within ±8 UMIs on every row)
 
-| Outcome (of 1,200 UMIs) | ViralScan LCA | deepest-consistent (audit) | mg2sc vote |
+| Outcome (of 1,200 UMIs) | ViralScan deepest-consistent (current) | previous LCA-only | mg2sc vote |
 |---|---:|---:|---:|
-| Single-source UMIs (1,004): exact species | 606 | **799** | 752 |
-| … correct but coarser (an ancestor of the truth) | 231 | 108 | 144 |
-| … no taxon (unclassified / ambiguous) | 76 | 6 | 1 |
+| Single-source UMIs (1,004): exact species | **799** | 606 | 752 |
+| … correct but coarser (an ancestor of the truth) | 108 | 231 | 144 |
+| … no taxon (unclassified / ambiguous) | 6 | 76 | 1 |
 | … **root-level taxon reported as a feature** | 0 | 0 | 16 |
 | … wrong lineage | 0 | 0 | 0 |
 | EBV-homolog-only UMIs (71): no taxon | 71 | 71 | 0 |
 | … **root-level taxon reported as a feature** | 0 | 0 | 71 |
-| Collision UMIs (121): **one species claimed for both transcripts** | 2 | 8 | **118** |
+| Collision UMIs (121): **one species claimed for both transcripts** | 8 | 2 | **118** |
 | … resolved to a common ancestor | 25 | 25 | 3 |
-| … no taxon | 94 | 88 | 0 |
+| … no taxon | 88 | 94 | 0 |
 | Novel-genome UMIs (95): any taxon assigned | 0 | 0 | 0 |
 | UMIs whose label changes with the hash seed | 0 | 0 | **132** (11 %) |
 
@@ -84,34 +86,28 @@ Full grid in `outputs/comparison.tsv`; one row per UMI in `outputs/umi_detail.ts
    - ViralScan output was byte-identical across reruns.
 3. **mg2sc claims one species for colliding transcripts.**
    - It did so for 118 of 121 two-species UMIs.
-   - ViralScan's LCA did so for 2 to 5. These happen when one transcript's reads were all unclassified, so nothing
-     contradicts the other.
+   - ViralScan's deepest-consistent rule did so for 8 to 12 (the previous LCA-only rule: 2 to 5). These happen when
+     one transcript's reads were all unclassified or ancestral, so nothing contradicts the other. The new rule trades
+     about 6 more collision overcalls for 193 more exact calls.
 4. **mg2sc reports root as a taxon.**
    - 87 UMIs became a "root" feature: all 71 human-homolog EBV UMIs, plus 16 others.
    - Cellsnake's `Homo*` name filter would not remove them. ViralScan marks them ambiguous and keeps them out of
      the matrix.
-5. **The approved LCA rule is conservative, and it costs exact calls.**
-   - It made 606 exact calls against mg2sc's 752.
-   - Most of the gap is lineage-*consistent* UMIs: one read is root- or family-level, from the human-identical EBV
-     segment or the E. coli/Shigella shared region, and another is species-level. The LCA then climbs to that
-     ancestor, even though no read contradicts the species.
-   - The audit column `deepest_consistent_taxid` resolves these. It gave 799 exact calls (more than mg2sc), 6 with
-     no taxon, 0 root features and 8 collision overcalls (mg2sc: 118).
-   - Truly conflicting reads still go to their LCA under that rule.
+5. **The deepest-consistent rule recovers the exact calls the LCA-only rule gave up.**
+   - LCA-only made 606 exact calls against mg2sc's 752. Most of the gap was lineage-*consistent* UMIs: one read is
+     root- or family-level, from the human-identical EBV segment or the E. coli/Shigella shared region, and another is
+     species-level. The LCA climbed to that ancestor, although no read contradicts the species.
+   - Deepest-consistent gives 799 exact calls (more than mg2sc), 6 with no taxon, 0 root features and 8 collision
+     overcalls (mg2sc: 118).
+   - Truly conflicting reads still go to their LCA.
+   - Limit: a species unit can rest on a single species-specific read when the other reads are ancestral.
 6. **The novel-genome test is uninformative.** A random genome shares no k-mers with the database, so nothing
    assigned it. A related-but-absent organism (for example a species withheld from its genus) is needed to test
    false discovery.
 
-## Decision for the user
+## Decision
 
-Decision 4 approved "taxon = LCA of classified reads; `deepest_consistent` audit only". This benchmark suggests a
-different default:
-- resolve to the **deepest taxon when all classified reads are lineage-consistent**;
-- otherwise use the LCA;
-- root-level results stay ambiguous.
-
-Effect on gate G7: it would become "no group is counted below the LCA of *conflicting* reads". A species unit could
-then rest on a single species-specific read when the other reads are ancestral.
-
-The code change is one line in `_group_shard`, plus the G7 wording and the oracle test. Nothing changes until the
-user decides.
+Decision 4 was changed by the user on 2026-10-21: the per-UMI taxon is the deepest classified taxon when all
+classified reads lie on one root-to-leaf path, else their LCA; root-level results stay ambiguous. Gate G7 is now "no
+group is counted below the LCA of its *conflicting* classified reads". Implemented in `_group_shard` (plan step R5);
+the numbers above are from that code. This benchmark is synthetic; it does not estimate real-data accuracy.
