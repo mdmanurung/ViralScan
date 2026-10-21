@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  Next: `DISC-04` (DB taxonomy; needs kraken2 installed), EBV reconciliation for `DISC-05`, then `DISC-02`.
+  Next: `DISC-02` skeleton, EBV reconciliation for `DISC-05`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7765,7 +7765,11 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
 - [ ] `DISC-01` optional discovery env (kraken2 2.17.2), `doctor --profile discovery`.
 - [ ] `DISC-02` `discover` parser + skeleton (run-dir completeness, `-o` refusal, `.partial/` publish).
 - [ ] `DISC-03` input resolution (primary `host_filtered/` or explicit discovery-only STAR pass).
-- [ ] `DISC-04` spike: DB-derived taxonomy (`k2 inspect` vs `taxo.k2d`).
+- [x] `DISC-04` spike: DB-derived taxonomy = `k2 inspect --report-zero-counts` parsed by indentation (2026-10-21).
+  - Note: NCBI rsync is refused from the login node; the test DB uses a hand-written 15-taxon `nodes.dmp`/`names.dmp`
+    (reusable as the DISC-10 fixture). Kraken2 2.17.2 is in env `conda/envs/viralscan_discovery`.
+  - Note: 2.17.2's confidence denominator includes ambiguous k-mers (`562:11 A:45` is unclassified at 0.5),
+    contrary to the manual.
 - [~] `DISC-05` spike: bustools fromtext→correct keeps flags (**done**, 2026-10-21); reconciliation >= 99.9 % on EBV
   pending (needs `_replay_quant_bus` on the EBV kb pair).
   - Note: kallisto 0.52.0 `bus` and `bustools fromtext` both encode `N` as `G` (CB and UMI), so discovery passes `N`

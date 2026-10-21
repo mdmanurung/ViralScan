@@ -281,8 +281,10 @@ original); the code is otherwise identical (§2.3).
 - **`--confidence` is not a probability.** The manual (`docs/MANUAL.markdown:997-1003`) says "we have not yet
   developed a confidence score with a probabilistic interpretation". The score is C/Q, and the label climbs the tree
   until C/Q reaches the threshold.
-  - The external-audit agent reports a code/doc discrepancy: the code's denominator includes ambiguous k-mers. This is
-    UNRESOLVED and must be settled by the M1 synthetic test.
+  - **Code/doc discrepancy, VERIFIED by running 2.17.2 (DISC-04):** the code's denominator includes ambiguous k-mers.
+    A 90 bp read with 11 k-mers on taxid 562 and 45 ambiguous (`562:11 A:45`) is classified at `--confidence 0.0`
+    but unclassified at 0.5 (11/56 = 0.20; the manual's rule gives 11/11 = 1.0). Reads with many `N` are therefore
+    penalised at any confidence above 0. The M5 grid must report this, and DISC-10 pins it.
 - `--minimum-hit-groups` (wrapper default 2) voids a call that lacks enough distinct minimizer hit groups.
   `--report-minimizer-data` adds per-taxon minimizer counts to the report, per run and not per cell.
   `--memory-mapping` avoids loading the DB into RAM.
@@ -545,8 +547,14 @@ No group contributes more than one unit at any resolution:
 
 The tree, with ranks and names, comes **from the same DB**:
 
-- `k2 inspect --db DB` (full, not `--skip-counts`), parsed by indentation;
-- or a direct `taxo.k2d` parser (decided in DISC-04);
+- `k2 inspect --db DB --report-zero-counts`, parsed by indentation (**decided in DISC-04**; no `taxo.k2d` parser);
+  - verified on a 15-taxon test DB: every taxo node is listed, including those with zero minimizers, and without
+    `--report-zero-counts` such nodes are omitted;
+  - the format is `pct, clade_count, own_count, rank_code, taxid, name`, with two spaces of name indentation per
+    depth. Parent = the nearest preceding line at depth − 1;
+  - rank codes seen: `R`, `R1` (cellular organisms, "no rank"), `D` (superkingdom), `F`, `G`, `S`, `S1` (strain).
+    Canonical rank letters are `D K P C O F G S`; numbered codes are intermediates and are never rank-collapse
+    targets;
 - cached by DB identity (a full `k2 inspect` scans the hash table), copied to `-o/taxonomy.tsv` and hashed into
   `provenance.json`.
 
@@ -919,7 +927,7 @@ Each ticket is one branch `codex/disc-NN`, touches ≤ 3 files, and updates PLAN
 | `hash.k2d` sha256 cost (tens of GB) | Med | full by default; `quick` mode only by approval | decision §16 |
 | Residual host via >20-locus multimappers and partials | High | broad DB with human; host-lineage flag; viral-only capped | designed |
 | EVE / host-homologous viral loss in host subtraction | High | measured (G12); never claimed absent | open (HOST-05) |
-| Kraken2 confidence denominator doc/code mismatch | Low | synthetic test pins the behaviour | M1 |
+| Kraken2 confidence denominator includes ambiguous k-mers (VERIFIED, contradicts manual) | Med | report in the M5 grid; DISC-10 pins it | measured |
 | `host_filtered/` not hashed by primary | Med | discovery-time hash; `primary_verified:false` stated | accepted limitation; optional P1 primary change |
 | Track A FASTQ deletion removes inputs | Med | fail closed; explicit message | designed |
 | DB on NFS without memory mapping → OOM / slow | Med | `--memory-mapping` documented; user stages to `$TMPDIR` | docs |
