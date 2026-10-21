@@ -989,3 +989,54 @@ def test_load_called_cells(tmp_path):
         "emptydrops",
         "starsolo",
     )
+
+
+# ── DISC-11: rank views ─────────────────────────────────────────────────────
+
+
+def _collapse_fixture(tmp_path):
+    import anndata as ad
+    import numpy as np
+    import pandas as pd
+    from scipy import sparse
+
+    discovery.write_taxonomy(TREE, tmp_path)
+    taxa = ["83333", "562", "561", "9606", "2"]  # strain, species, genus, human, domain
+    X = sparse.csr_matrix(
+        np.array([[1, 2, 3, 4, 5], [0, 0, 6, 0, 0], [0, 0, 0, 0, 0]], dtype=np.int32)
+    )
+    adata = ad.AnnData(
+        X=X,
+        obs=pd.DataFrame(index=pd.Index(["C1", "C2", "C3"], name="barcode")),
+        var=pd.DataFrame(index=pd.Index(taxa, name="taxid")),
+    )
+    adata.write_h5ad(tmp_path / discovery.CELL_TAXON_H5AD)
+
+
+def test_collapse_rank_projects_conserves_and_flags_above_rank(tmp_path):
+    import anndata as ad
+
+    _collapse_fixture(tmp_path)
+    out = ad.read_h5ad(discovery.collapse_rank(tmp_path, "species"))
+    assert sorted(out.var_names) == ["2", "561", "562", "9606"]
+    sp = out[:, "562"].X.toarray().ravel().tolist()
+    assert sp == [3, 0, 0]  # strain + species
+    assert out.var.loc["561", "above_rank"] and not out.var.loc["562", "above_rank"]
+    # Homo sapiens is rank S in the fixture, so it is a species column itself.
+    assert not out.var.loc["9606", "above_rank"]
+    src = ad.read_h5ad(tmp_path / discovery.CELL_TAXON_H5AD)
+    assert out.X.sum(axis=1).A1.tolist() == src.X.sum(axis=1).A1.tolist()  # gate G6
+    genus = ad.read_h5ad(discovery.collapse_rank(tmp_path, "genus", tmp_path / "g.h5ad"))
+    assert genus[:, "561"].X.toarray().ravel().tolist() == [6, 6, 0]
+    assert genus.var.loc["2", "above_rank"] and genus.X.sum() == src.X.sum()
+
+
+def test_collapse_rank_errors_and_cli(tmp_path):
+    from viralscan.menu import build_parser
+
+    with pytest.raises(DiscoveryError, match="not found"):
+        discovery.collapse_rank(tmp_path, "genus")
+    ns = build_parser().parse_args(["discover-collapse", "o", "--rank", "family"])
+    assert (ns._subcommand, ns.rank, ns.output_file) == ("discover-collapse", "family", None)
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["discover-collapse", "o", "--rank", "order"])

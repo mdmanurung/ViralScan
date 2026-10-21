@@ -632,6 +632,34 @@ def _build_discover_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="discover")
 
 
+def _build_discover_collapse_parser(subparsers: Any) -> None:
+    """Register the 'discover-collapse' subcommand (PLAN DISC-11)."""
+    p = subparsers.add_parser(
+        "discover-collapse",
+        help="(In development) Project a discovery's cell_taxon.h5ad onto species, genus or family.",
+        description=(
+            "Sum each cell_taxon.h5ad column into its ancestor at the chosen rank, using the\n"
+            "published taxonomy.tsv. Taxa above the rank stay as themselves (above_rank = True);\n"
+            "nothing is reclassified and every cell's total is conserved.\n\n"
+            "Example:\n"
+            "  viralscan discover-collapse out_discovery/S1/ --rank genus"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("discovery_dir", metavar="OUT", help="A published discovery output directory.")
+    p.add_argument("--rank", required=True, choices=("species", "genus", "family"))
+    p.add_argument(
+        "-o",
+        "--output",
+        dest="output_file",
+        metavar="FILE",
+        default=None,
+        help="Output .h5ad. Default: OUT/cell_taxon_<rank>.h5ad.",
+    )
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="discover-collapse")
+
+
 def _build_rerun_programs_parser(subparsers: Any) -> None:
     """Register the 'rerun-programs' subcommand."""
     p = subparsers.add_parser(
@@ -991,6 +1019,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  evidence        Trace/extract the reads behind viral calls.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
             "  discover        (In development) Kraken2 taxonomic discovery on a completed run.\n"
+            "  discover-collapse  (In development) Project a discovery to species/genus/family.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
             "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
             "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n\n"
@@ -1019,6 +1048,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_rerun_multimap_parser(subparsers)
     _build_rerun_programs_parser(subparsers)
     _build_discover_parser(subparsers)
+    _build_discover_collapse_parser(subparsers)
     _build_doctor_parser(subparsers)
     _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)

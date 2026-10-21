@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. Next: R7.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. Next: R8.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7864,7 +7864,12 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   `562:11 A:45` is unclassified at 0.5 and classified at 0.05 (ambiguous k-mers count in the denominator). Passes
   in 27 s with kraken2 2.17.2. A one-substitution barcode was dropped from the fixture: bustools left it
   uncorrectable, which tests bustools rather than discovery.
-- [ ] `DISC-11` `discover-collapse` (taxid rank projection).
+- [x] `DISC-11` (2026-10-21, plan step R7): `viralscan discover-collapse OUT --rank {species,genus,family} [-o FILE]`
+  (default `OUT/cell_taxon_<rank>.h5ad`). Each `cell_taxon.h5ad` column moves to its nearest ancestor-or-self at the
+  Kraken2 rank code S/G/F via `taxonomy.tsv` (subspecies collapse to species); taxa with no ancestor at the rank stay
+  as themselves with `above_rank = True`. No reclassification; row sums conserved (gate G6, tested and enforced at
+  run time). Non-obvious: a taxon already at the rank is `above_rank = False`; the default output sits inside the
+  published dir but is not listed in `discovery_complete.json`.
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
 - [ ] `DISC-13` candidate states + evidence adapter.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).

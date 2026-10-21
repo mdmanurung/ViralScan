@@ -866,6 +866,24 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 
 <!-- END GENERATED -->
 
+### viralscan discover-collapse
+
+(In development, PLAN DISC-11.) Sums a published discovery's `cell_taxon.h5ad` columns into their
+species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay as themselves
+(`above_rank = True`); no group is reclassified and each cell's total is conserved.
+
+<!-- BEGIN GENERATED: discover-collapse -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `discovery_dir` | *required* | A published discovery output directory. |
+| `--rank RANK` | *required* |  |
+| `-o, --output FILE` | *(none)* | Output .h5ad. Default: OUT/cell_taxon_<rank>.h5ad. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
 ### viralscan rerun-programs
 
 <!-- BEGIN GENERATED: rerun-programs -->

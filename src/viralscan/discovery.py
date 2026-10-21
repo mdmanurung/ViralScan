@@ -1007,6 +1007,74 @@ def build_cell_matrix(
     return summary
 
 
+# ── Rank views (DISC-11) ─────────────────────────────────────────────────────
+
+COLLAPSE_RANKS = {"species": "S", "genus": "G", "family": "F"}
+
+
+def collapse_rank(discovery_dir: Path, rank: str, output: Path | None = None) -> Path:
+    """Project a published ``CELL_TAXON_H5AD`` onto ``rank`` ancestors (plan DISC-11).
+
+    Each column moves to its nearest ancestor-or-self at ``rank`` (Kraken2 code S/G/F, so
+    subspecies S1.. collapse to their species). Columns with no such ancestor (above the rank,
+    or on a path that skips it) stay as themselves with ``above_rank = True``: nothing is
+    reclassified, and every cell's row sum is conserved (gate G6).
+    """
+    import anndata as ad
+    import pandas as pd
+    from scipy import sparse
+
+    if rank not in COLLAPSE_RANKS:
+        raise DiscoveryError(f"--rank must be one of {sorted(COLLAPSE_RANKS)}.")
+    code = COLLAPSE_RANKS[rank]
+    tax_path, h5ad = discovery_dir / TAXONOMY_TSV, discovery_dir / CELL_TAXON_H5AD
+    for path in (tax_path, h5ad):
+        if not path.is_file():
+            raise DiscoveryError(f"{path} not found; is {discovery_dir} a published discovery?")
+    with tax_path.open(newline="") as handle:
+        tree = {
+            int(row["taxid"]): (int(row["parent_taxid"]), row["rank"], row["name"])
+            for row in csv.DictReader(handle, delimiter="\t")
+        }
+    adata = ad.read_h5ad(h5ad)
+    target: list[int] = []
+    above: list[bool] = []
+    for name in adata.var_names:
+        taxid = int(name)
+        if taxid not in tree:
+            raise DiscoveryError(f"taxid {taxid} of {h5ad.name} is missing from {tax_path.name}.")
+        hit = next((t for t in reversed(_path(tree, taxid)) if tree[t][1] == code), None)
+        target.append(taxid if hit is None else hit)
+        above.append(hit is None)
+    new_taxa = sorted(set(target))
+    col = {t: j for j, t in enumerate(new_taxa)}
+    project = sparse.csr_matrix(
+        (np.ones(len(target), dtype=np.int32), (np.arange(len(target)), [col[t] for t in target])),
+        shape=(len(target), len(new_taxa)),
+        dtype=np.int32,
+    )
+    matrix = (adata.X @ project).tocsr()
+    if int(matrix.sum()) != int(adata.X.sum()):
+        raise DiscoveryError("Collapsed total differs from the source matrix (gate G6).")
+    above_by_taxon = dict(zip(target, above, strict=True))
+    var = pd.DataFrame(
+        {
+            "name": [tree[t][2] for t in new_taxa],
+            "rank": [tree[t][1] for t in new_taxa],
+            "parent_taxid": [tree[t][0] for t in new_taxa],
+            "host_relation": [host_relation(tree, t) for t in new_taxa],
+            "above_rank": [above_by_taxon[t] for t in new_taxa],
+            "n_source_taxa": np.bincount(project.indices, minlength=len(new_taxa)),
+        },
+        index=pd.Index([str(t) for t in new_taxa], name="taxid"),
+    )
+    out = ad.AnnData(X=matrix, obs=adata.obs.copy(), var=var)
+    out.uns["discovery"] = {**adata.uns.get("discovery", {}), "collapsed_to_rank": rank}
+    output = output or discovery_dir / f"cell_taxon_{rank}.h5ad"
+    out.write_h5ad(output)
+    return output
+
+
 # ── Provenance, fingerprint and resume (DISC-09, plan §11.2) ────────────────
 
 
