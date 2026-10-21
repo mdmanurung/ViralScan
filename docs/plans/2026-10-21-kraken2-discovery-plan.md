@@ -404,7 +404,7 @@ than kb did, and the difference is reported.
 | Stage | Unit | Universe and audit |
 |---|---|---|
 | S0 input | fragment | `n_input` = host-unmapped pairs |
-| S1 barcode parse | fragment | `n_input = n_parsed + n_bad_geometry` (short R1, N in CB/UMI) |
+| S1 barcode parse | fragment | `n_input = n_parsed + n_bad_geometry` (R1 shorter than CB+UMI) |
 | S2 Kraken2 | fragment (R2) | `n_parsed = n_classified + n_unclassified`; every ordinal exactly once |
 | S3 barcode correction | fragment | `n_parsed = n_cb_onlist + n_cb_corrected + n_cb_uncorrectable` (+ `n_cb_no_onlist` mode) |
 | S4 UMI grouping | (sample, corrected CB, UMI) group | built from S3 on-list/corrected fragments only |
@@ -456,11 +456,22 @@ than kb did, and the difference is reported.
 - `corrected_cb` is produced in the **kb/bustools space**, using the primary's resolved on-list, read from the primary
   `config.yaml` and the `kb_whitelist_arg` resolution and recorded with its sha256, and the same `bustools` binary
   (version recorded).
-- Mechanism (spike DISC-05):
+- Mechanism (spike DISC-05, **resolved 2026-10-21**):
   - write the S1 fragments as BUS text `(raw_cb, raw_umi, ec=0, count=1, flag=ordinal)`;
-  - run `bustools fromtext → sort → correct -w → text -f` and read `corrected_cb` by flag.
-  - If the flag column does not survive, fall back to a Python Hamming-1 corrector with a property test against
-    `bustools correct`.
+  - run `bustools fromtext → sort → correct -w → sort → text -f` and read `corrected_cb` by flag;
+  - a flag absent from the output means `uncorrectable`, because `correct` drops those records. The counts must
+    reconcile: `in = on-list + corrected + uncorrected`, as `correct` reports on stderr.
+  - Verified on a synthetic case table with kb's bundled bustools 0.45.1 (sha256 `019e38e9…`) and the conda
+    bustools 0.45.1 (`58f32fbe…`); both give identical results. Flags survive; exact on-list is kept; a unique
+    Hamming-1 neighbour is corrected; a Hamming-1 tie between two on-list barcodes, Hamming-2 and off-list are dropped.
+  - Use kb's bundled binary (the one the primary `kb count` ran), and record its path and sha256.
+  - The Python Hamming-1 fallback is not needed.
+- **`N` in CB or UMI (spike finding).** kallisto 0.52.0 `bus` and `bustools fromtext` both 2-bit-encode `N` as `G`,
+  in the barcode and in the UMI (verified: `AAAAAAAAAAAAAAAN` → `…G`, `NAAA…` → `GAAA…`, UMI `…N` → `…G`). The
+  primary therefore treats an `N` barcode as its `G` variant and may correct it onto the on-list. To stay in the
+  primary's barcode space, discovery passes `N` through unchanged (same encoding). It does **not** reject it, which
+  supersedes the earlier `bad_geometry` rule for `N`. `reads.tsv.gz` gets `cb_has_n` and `umi_has_n` audit columns,
+  and `qc.json` counts them. `bad_geometry` is now only for an R1 shorter than CB+UMI.
 - Reconciliation gate (DISC-05). The primary `kb count` never runs with `-n`, so the run directory holds no read-number
   lineage. The gate runs `_replay_quant_bus` once on the kb input pair, which needs the primary kallisto index. It is a
   validation step, not part of every `discover` run:
@@ -485,7 +496,7 @@ than kb did, and the difference is reported.
 
 - Group key: exact `(corrected_cb, raw_umi)`. There is no UMI error correction, which matches the v3 contract, where
   UMI identity is the exact string after bustools.
-- Groups with an `N` in the UMI are `bad_geometry`.
+- A UMI containing `N` is grouped as its `G`-encoded form, matching the primary; `umi_has_n` is audited.
 - Group taxon is **taxonomy-aware**:
   - let `T` = the set of taxids of *classified* reads in the group;
   - `resolved_taxid = LCA(T)` on the DB's own tree (§6.6);
@@ -749,7 +760,8 @@ Each case is a fixture with an independent oracle (pure Python, re-derived from 
 | cross-species UMI collision | one group, LCA above both |
 | unclassified + classified in one group | resolved by the classified reads; unclassified counted |
 | duplicate read ID; missing ordinal; extra ordinal; non-numeric ID | abort (I1–I3) |
-| missing/short barcode; N in CB or UMI | `bad_geometry` |
+| missing/short barcode | `bad_geometry` |
+| N in CB or UMI | encoded as `G` (primary-identical), flagged `cb_has_n`/`umi_has_n` |
 | correctable / uncorrectable CB; Drop-seq (no on-list) | `corrected` / `uncorrectable` / `no_onlist` |
 | unsupported chemistry (10xv1, offset geometry) | abort |
 | host-lineage taxid (9606 subtree) | `is_host_lineage`, not a candidate |

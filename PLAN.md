@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  Next: spikes `DISC-05` (bustools flags) and `DISC-04` (DB taxonomy; needs kraken2 installed), then `DISC-02`.
+  Next: `DISC-04` (DB taxonomy; needs kraken2 installed), EBV reconciliation for `DISC-05`, then `DISC-02`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7766,7 +7766,11 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
 - [ ] `DISC-02` `discover` parser + skeleton (run-dir completeness, `-o` refusal, `.partial/` publish).
 - [ ] `DISC-03` input resolution (primary `host_filtered/` or explicit discovery-only STAR pass).
 - [ ] `DISC-04` spike: DB-derived taxonomy (`k2 inspect` vs `taxo.k2d`).
-- [ ] `DISC-05` spike: bustools fromtext→correct keeps flags; reconciliation >= 99.9 % on EBV.
+- [~] `DISC-05` spike: bustools fromtext→correct keeps flags (**done**, 2026-10-21); reconciliation >= 99.9 % on EBV
+  pending (needs `_replay_quant_bus` on the EBV kb pair).
+  - Note: kallisto 0.52.0 `bus` and `bustools fromtext` both encode `N` as `G` (CB and UMI), so discovery passes `N`
+    through to match the primary barcode space instead of rejecting it; plan §6.3 updated. Use kb's bundled bustools
+    (same 0.45.1 version as conda, different sha256).
 - [ ] `DISC-06` streaming ordinal FASTA (R2 only) + raw CB/UMI table.
 - [ ] `DISC-07` Kraken2 wrapper + exactly-once ordinal join.
 - [ ] `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; oracle + invariance tests.
