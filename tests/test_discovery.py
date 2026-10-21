@@ -170,46 +170,148 @@ def test_stage_and_publish(tmp_path):
     assert sorted(p.name for p in out.iterdir()) == ["qc.json"]
 
 
-def test_cli_leaves_source_run_untouched(tmp_path):
-    """G2: the source inventory is byte-identical and the skeleton publishes nothing."""
+def _discover(root: Path, out: Path, db: Path, *extra: str, kraken=_fake_kraken2) -> int:
+    """Run `viralscan discover` against the stand-in Kraken2; returns the exit code."""
     from viralscan.menu import main
+
+    argv = ["viralscan", "discover", "--run-dir", str(root), "-o", str(out)]
+    argv += ["--kraken2-db", str(db), *extra]
+    with (
+        patch("sys.argv", argv),
+        patch("viralscan.discovery.shutil.which", return_value="/bin/true"),
+        patch("viralscan.discovery._run", side_effect=kraken) as run,
+    ):
+        try:
+            main()
+            code = 0
+        except SystemExit as exc:
+            code = exc.code or 0
+    _discover.kraken_calls = sum(
+        1 for c in run.call_args_list if c.args[0][0] == "kraken2" and "--db" in c.args[0]
+    )
+    return code
+
+
+@pytest.fixture
+def published(tmp_path):
     from viralscan.validation import tool_path
 
     if tool_path("bustools") is None:
         pytest.skip("kb-python's bustools is not available")
+    root = _run(tmp_path)
+    _host_filtered(root / "S1" / "host_filtered", 3)
+    db, out = _db(tmp_path), tmp_path / "disc"
+    assert _discover(root, out, db) == 0
+    return root, out, db
 
+
+def test_cli_publishes_and_leaves_source_run_untouched(tmp_path):
+    """G2: the source inventory is byte-identical and the outputs are published atomically."""
+    from viralscan.validation import tool_path
+
+    if tool_path("bustools") is None:
+        pytest.skip("kb-python's bustools is not available")
     root = _run(tmp_path)
     _host_filtered(root / "S1" / "host_filtered", 3)
     before = _inventory(root)
     out = tmp_path / "disc"
-    argv = [
-        "viralscan",
-        "discover",
-        "--run-dir",
-        str(root),
-        "-o",
-        str(out),
-        "--kraken2-db",
-        str(_db(tmp_path)),
-    ]
-    with (
-        patch("sys.argv", argv),
-        patch("viralscan.discovery.shutil.which", return_value="/bin/true"),
-        patch("viralscan.discovery._run", side_effect=_fake_kraken2),
-        pytest.raises(SystemExit) as exit_info,
-    ):
-        main()
-    assert exit_info.value.code == 1
+    assert _discover(root, out, _db(tmp_path)) == 0
     assert _inventory(root) == before
-    assert [p.name for p in out.iterdir()] == [discovery.PARTIAL]  # staged, never published
-    staged = json.loads((out / discovery.PARTIAL / "input.json").read_text())
-    assert (staged["source"], staged["n_fragments"]) == ("primary_host_filtered", 3)
-    assert staged["stream"]["n_input"] == 3
-    assert (out / discovery.PARTIAL / discovery.KRAKEN_INPUT).is_file()
-    assert staged["kraken2"]["version"] == "Kraken version 2.17.2"
-    assert (staged["kraken2"]["n_classified"], staged["kraken2"]["n_unclassified"]) == (2, 1)
-    assert staged["cells"]["n_called_cells"] == 1
-    assert (out / discovery.PARTIAL / discovery.CELL_TAXON_H5AD).is_file()
+    names = {p.name for p in out.iterdir()}
+    assert not {discovery.PARTIAL, "input.json"} & names
+    assert {
+        discovery.KRAKEN_INPUT,
+        discovery.CELL_TAXON_H5AD,
+        discovery.PROVENANCE_JSON,
+        discovery.QC_JSON,
+        discovery.COMPLETE_JSON,
+    } <= names
+    qc = json.loads((out / discovery.QC_JSON).read_text())
+    assert (qc["stream"]["n_input"], qc["n_fragments"]) == (3, 3)
+    assert (qc["kraken2"]["n_classified"], qc["kraken2"]["n_unclassified"]) == (2, 1)
+    assert qc["cells"]["n_called_cells"] == 1
+    assert qc["called_cells_overlap"] == 0.0  # the fixture reads carry no called barcode
+    assert qc["fractions"]["kraken2_unclassified"] == pytest.approx(1 / 3)
+    prov = json.loads((out / discovery.PROVENANCE_JSON).read_text())
+    assert prov["kraken2"]["version"] == "Kraken version 2.17.2"
+    assert prov["input_source"]["source"] == "primary_host_filtered"
+    assert set(prov["db_identity"]["sha256"]) == set(discovery.KRAKEN2_DB_FILES)
+    assert (
+        prov["taxonomy_sha256"] == hashlib.sha256((out / "taxonomy.tsv").read_bytes()).hexdigest()
+    )
+    done = json.loads((out / discovery.COMPLETE_JSON).read_text())
+    assert len(done["discovery_fingerprint"]) == 64
+    assert (
+        done["outputs"][discovery.QC_JSON]
+        == hashlib.sha256((out / discovery.QC_JSON).read_bytes()).hexdigest()
+    )
+    assert set(done["outputs"]) == names - {discovery.COMPLETE_JSON}
+
+
+def test_rerun_is_noop_and_changed_setting_needs_force(published):
+    root, out, db = published
+    marker = out / discovery.COMPLETE_JSON
+    first = marker.read_text()
+    assert _discover(root, out, db) == 0
+    assert _discover.kraken_calls == 0  # no-op: Kraken2 never ran again
+    assert marker.read_text() == first
+    # --threads and --memory-mapping change speed, not output, so they stay a no-op.
+    assert _discover(root, out, db, "--threads", "2", "--memory-mapping") == 0
+    assert _discover.kraken_calls == 0
+    assert _discover(root, out, db, "--confidence", "0.5") == 1
+    assert marker.read_text() == first  # refused, nothing touched
+    assert _discover(root, out, db, "--confidence", "0.5", "--force") == 0
+    assert _discover.kraken_calls == 1
+    assert (
+        json.loads(marker.read_text())["discovery_fingerprint"]
+        != json.loads(first)["discovery_fingerprint"]
+    )
+    assert not (out / discovery.PARTIAL).exists()
+
+
+def test_fingerprint_changes_with_each_input(published):
+    root, out, db = published
+    fp = json.loads((out / discovery.COMPLETE_JSON).read_text())["discovery_fingerprint"]
+
+    def refused() -> bool:
+        return _discover(root, out, db) == 1
+
+    assert not refused()
+    (db / "opts.k2d").write_bytes(b"y")
+    assert refused()
+    (db / "opts.k2d").write_bytes(b"x")
+    (root / "S1" / "results" / "called_cells.tsv").write_text("barcode\nCCCCCCCCCCCCCCCC-1\n")
+    assert refused()
+    (root / "S1" / "results" / "called_cells.tsv").write_text("barcode\nAAAAAAAAAAAAAAAA-1\n")
+    (root / "run_manifest.json").write_text('{"run_fingerprint": "new"}\n')
+    assert refused()
+    (root / "run_manifest.json").write_text("{}\n")
+    assert not refused()
+    assert json.loads((out / discovery.COMPLETE_JSON).read_text())["discovery_fingerprint"] == fp
+
+
+def test_md5_manifest_mismatch_is_refused(tmp_path):
+    db = _db(tmp_path)
+    good = hashlib.md5(b"x", usedforsecurity=False).hexdigest()
+    (db / "db.md5").write_text(f"{good}  hash.k2d\n")
+    assert discovery.db_identity(db)["md5_manifest"]["checked"] == {"hash.k2d": "ok"}
+    (db / "db.md5").write_text(f"{'0' * 32}  hash.k2d\n")
+    with pytest.raises(DiscoveryError, match="md5"):
+        discovery.db_identity(db)
+
+
+def test_leftover_partial_restarts(tmp_path):
+    from viralscan.validation import tool_path
+
+    if tool_path("bustools") is None:
+        pytest.skip("kb-python's bustools is not available")
+    root = _run(tmp_path)
+    _host_filtered(root / "S1" / "host_filtered", 3)
+    out = tmp_path / "disc"
+    (out / discovery.PARTIAL).mkdir(parents=True)
+    (out / discovery.PARTIAL / "junk").write_text("interrupted")
+    assert _discover(root, out, _db(tmp_path)) == 0
+    assert not (out / "junk").exists()
 
 
 def test_run_parser_gains_no_discovery_options():

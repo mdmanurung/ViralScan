@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. Next: R2 (`DISC-09` provenance/fingerprint/publish); user decision on the per-UMI rule (`DISC-CMP`) still open.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. Next: R5 (per-UMI rule), R6, R7b, R3; user decision on the per-UMI rule (`DISC-CMP`) still open.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7829,7 +7829,14 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
 - [x] `DISC-R1` (2026-10-21, plan step R1): taxonomy path cache (root-first tuples memoised per tree, lazy per queried
   taxid); `lca` is a common-prefix walk, `host_relation`/`_group_shard` read the cache. No behaviour change: 40-seed oracle
   and a new all-subsets LCA test pass. Not re-timed on the EBV grouping step (needs Slurm; R10 records it).
-- [ ] `DISC-09` qc/provenance, discovery fingerprint, resume/no-op/--force.
+- [x] `DISC-09` (2026-10-21, plan step R2): `provenance.json`, `qc.json` (all counts, called-cell overlap, fractions),
+  `discovery_fingerprint` (sha256 of the output-determining subset), `discovery_complete.json` (output sha256s)
+  published last; `input.json` removed; `discover` now exits 0. Same fingerprint on rerun is a no-op; a different one
+  is refused unless `--force` (removes only what the marker lists). `--threads`/`--memory-mapping` are not
+  fingerprinted. `db_identity` is the sha256 of the three `.k2d` files (+ a refused md5-manifest mismatch).
+  Decisions: the fingerprint is computed before Kraken2 (so a no-op costs DB hashing only); `--host-subtract` inputs
+  are identified by the manifest's sample fingerprints plus the index path (not its bytes). Taxonomy cache skipped
+  (cheap after R1). A crash mid-publish leaves files without the marker and needs a manual clean.
 - [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
 - [ ] `DISC-11` `discover-collapse` (taxid rank projection).
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.

@@ -8,7 +8,7 @@ Kraken2 assignment is a taxonomic observation, never an infection call.
 Implemented so far: run, output and database validation, atomic publication (DISC-02),
 host-unmapped input resolution (DISC-03), the streaming identity pass (DISC-06) and Kraken2
 classification with the exactly-once ordinal join (DISC-07), and UMI-group aggregation into a
-cells x taxa matrix (DISC-08). Provenance, fingerprint and publication land in DISC-09.
+cells x taxa matrix (DISC-08), provenance, fingerprint, publication and resume (DISC-09).
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ import numpy as np
 
 from viralscan.chemistry import cb_umi_geometry, kb_whitelist_arg, onlist_path
 from viralscan.evidence import _canonical_fastq_id, _open_maybe_gzip, _run
-from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file
+from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file, sha256_path
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +61,10 @@ UMI_GROUPS_TSV = "umi_groups.tsv.gz"
 #: Cells x resolved taxa (one unit per resolved UMI group) and the off-cell remainder.
 CELL_TAXON_H5AD = "cell_taxon.h5ad"
 OFFCELL_TSV = "offcell_taxon.tsv.gz"
+#: Provenance, invariant counts and the completion marker (written last, plan §11.2).
+PROVENANCE_JSON = "provenance.json"
+QC_JSON = "qc.json"
+COMPLETE_JSON = "discovery_complete.json"
 UMI_GROUP_COLUMNS = (
     "corrected_cb",
     "umi",
@@ -130,13 +134,21 @@ def resolve_sample_dir(run_root: Path, sample: str | None) -> Path:
 
 
 def check_output_dir(output: Path, run_root: Path) -> None:
-    """Refuse an output inside the run, or one that already holds results."""
+    """Refuse an output inside the run, or one that already holds unfinished results.
+
+    A published output (``COMPLETE_JSON``) is allowed through; ``run_discover`` then compares
+    fingerprints to decide between a no-op and a refusal.
+    """
     if output == run_root or run_root in output.parents:
         raise DiscoveryError(
             f"--output must be outside --run-dir: {output} is inside {run_root}. "
             "Discovery never writes into a primary run."
         )
-    if output.exists() and any(p.name != PARTIAL for p in output.iterdir()):
+    if (
+        output.exists()
+        and not (output / COMPLETE_JSON).is_file()
+        and any(p.name != PARTIAL for p in output.iterdir())
+    ):
         raise DiscoveryError(f"--output must be empty or absent: {output}")
 
 
@@ -163,9 +175,12 @@ def stage(output: Path) -> Path:
 
 
 def publish(output: Path) -> None:
-    """Move every staged file into *output* (same filesystem, so each move is atomic)."""
+    """Move every staged file into *output* (same filesystem, so each move is atomic).
+
+    ``COMPLETE_JSON`` moves last: its presence means every other output is in place.
+    """
     partial = output / PARTIAL
-    for path in sorted(partial.iterdir()):
+    for path in sorted(partial.iterdir(), key=lambda p: p.name == COMPLETE_JSON):
         os.replace(path, output / path.name)
     partial.rmdir()
 
@@ -951,6 +966,111 @@ def build_cell_matrix(
     return summary
 
 
+# ── Provenance, fingerprint and resume (DISC-09, plan §11.2) ────────────────
+
+
+def _md5_file(path: Path) -> str:
+    digest = hashlib.md5(usedforsecurity=False)
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def db_identity(db: Path) -> dict[str, Any]:
+    """sha256 of the three database files, plus the provider md5 check when a manifest ships.
+
+    A manifest is any ``*.md5`` or ``md5sum.txt`` of ``<md5>  <file>`` lines; listed files that
+    are present are verified and a mismatch is refused (a damaged download, not a setting).
+    """
+    identity: dict[str, Any] = {"sha256": {n: sha256_file(db / n) for n in KRAKEN2_DB_FILES}}
+    manifests = sorted([*db.glob("*.md5"), *db.glob("md5sum.txt")])
+    if manifests:
+        checked: dict[str, str] = {}
+        for manifest in manifests:
+            for line in manifest.read_text(encoding="utf-8", errors="replace").splitlines():
+                fields = line.split()
+                if len(fields) == 2 and (db / fields[1].lstrip("*")).is_file():
+                    name = fields[1].lstrip("*")
+                    ok = _md5_file(db / name) == fields[0].lower()
+                    checked[name] = "ok" if ok else "mismatch"
+        if "mismatch" in checked.values():
+            raise DiscoveryError(f"Kraken2 database {db} fails its md5 manifest: {checked}")
+        identity["md5_manifest"] = {"files": manifests[0].name, "checked": checked}
+    else:
+        identity["md5_manifest"] = None
+    return identity
+
+
+def _input_identity(sample_dir: Path, run_root: Path, args: argparse.Namespace) -> dict[str, Any]:
+    """What determines the classified reads, known before any expensive work."""
+    if args.host_subtract:
+        manifest = json.loads((run_root / RUN_MANIFEST).read_text(encoding="utf-8"))
+        return {
+            "source": "discovery_star_pass",
+            "sample_input_fingerprints": {
+                key: manifest.get("input_fingerprints", {}).get(key)
+                for key in sorted(manifest.get("input_fingerprints", {}))
+                if key.startswith(("sample1:", "sample2:"))
+            },
+            "star_param_set": args.host_filter_star_params,
+            # ponytail: the index path, not its bytes (hashing a genome is minutes); hash it if
+            # indices get rebuilt in place.
+            "host_index": str(Path(args.host_index).resolve()) if args.host_index else None,
+        }
+    primary = read_host_filtered(sample_dir / "host_filtered")
+    if primary is None:
+        return {"source": None}  # resolve_input refuses with the actionable message
+    return {
+        "source": primary["source"],
+        "sha256": primary["sha256"],
+        "star_param_set": primary["star_param_set"],
+        "star_args": primary["star_args"],
+    }
+
+
+def discovery_fingerprint(provenance: dict[str, Any]) -> str:
+    """sha256 of the provenance subset that determines the outputs (not threads or paths)."""
+    canonical = json.dumps(provenance["fingerprint_inputs"], sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _forget_published(output: Path, complete: dict[str, Any]) -> None:
+    """``--force``: remove exactly what a previous publication recorded, then the marker."""
+    for name in complete.get("outputs", {}):
+        path = output / name
+        if path.is_dir():
+            shutil.rmtree(path)
+        elif path.exists():
+            path.unlink()
+    (output / COMPLETE_JSON).unlink()
+
+
+def build_qc(resolved: dict[str, Any]) -> dict[str, Any]:
+    """Every invariant count of the run, plus barcode-space overlap and fractions."""
+    kraken, cells = resolved["kraken2"], resolved["cells"]
+    n_input = resolved["stream"]["n_input"]
+    return {
+        "n_fragments": resolved["n_fragments"],
+        "stream": resolved["stream"],
+        "kraken2": {k: v for k, v in kraken.items() if k.startswith("n_")},
+        "barcodes": {k: v for k, v in resolved["barcodes"].items() if k.startswith("n_")},
+        "groups": resolved["groups"],
+        "cells": cells,
+        "called_cells_overlap": cells["n_called_cells_seen"] / cells["n_called_cells"]
+        if cells["n_called_cells"]
+        else None,
+        "fractions": {
+            "kraken2_classified": kraken["n_classified"] / n_input if n_input else None,
+            "kraken2_unclassified": kraken["n_unclassified"] / n_input if n_input else None,
+        },
+    }
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
 def run_discover(args: argparse.Namespace) -> None:
     run_root = Path(args.run_dir).resolve()
     output = Path(args.output).resolve()
@@ -964,6 +1084,66 @@ def run_discover(args: argparse.Namespace) -> None:
     validate_kraken2_db(db)
     config = RunConfig.from_yaml(str(sample_dir / "config.yaml"))
     cb_len, umi_len = barcode_geometry(config.technology)
+
+    from viralscan.run_safety import software_identity
+    from viralscan.validation import tool_provenance
+
+    called, cells_info = load_called_cells(sample_dir)
+    onlist = resolve_onlist(config.technology, config.whitelist)
+    bustools = tool_provenance(("bustools",))["bustools"]
+    manifest = json.loads((run_root / RUN_MANIFEST).read_text(encoding="utf-8"))
+    version = kraken2_version()
+    identity = db_identity(db)
+    software = software_identity()
+    provenance: dict[str, Any] = {
+        "schema_version": 1,
+        "primary_run_fingerprint": manifest.get("run_fingerprint"),
+        "viralscan": software,
+        "kraken2": {
+            "version": version,
+            "confidence": args.confidence,
+            "minimum_hit_groups": args.minimum_hit_groups,
+            "memory_mapping": args.memory_mapping,
+        },
+        "db_identity": identity,
+        "bustools": bustools,
+        "onlist": onlist,
+        "onlist_sha256": sha256_file(onlist) if onlist else None,
+        "technology": config.technology,
+        "input_source": _input_identity(sample_dir, run_root, args),
+        "host_subtract": args.host_subtract,
+        **{k: cells_info[k] for k in ("called_cells_sha256", "called_cells_barcode_space")},
+    }
+    # memory_mapping, threads, paths and the software build change speed or location, not output.
+    provenance["fingerprint_inputs"] = {
+        "primary_run_fingerprint": provenance["primary_run_fingerprint"],
+        "viralscan_version": software["version"],
+        "kraken2": {k: v for k, v in provenance["kraken2"].items() if k != "memory_mapping"},
+        "db_sha256": identity["sha256"],
+        "bustools_sha256": bustools["sha256"] if bustools else None,
+        "onlist_sha256": provenance["onlist_sha256"],
+        "technology": config.technology,
+        "input_source": provenance["input_source"],
+        "called_cells_sha256": cells_info["called_cells_sha256"],
+        "called_cells_barcode_space": cells_info["called_cells_barcode_space"],
+    }
+    fingerprint = discovery_fingerprint(provenance)
+    marker = output / COMPLETE_JSON
+    if marker.is_file():
+        try:
+            previous = json.loads(marker.read_text(encoding="utf-8"))
+        except ValueError as exc:
+            raise DiscoveryError(f"{marker} is unreadable: {exc}") from exc
+        if previous.get("discovery_fingerprint") == fingerprint:
+            log.info("Discovery already published with the same fingerprint; nothing to do.")
+            return
+        if not args.force:
+            raise DiscoveryError(
+                f"{output} holds a discovery with a different fingerprint "
+                f"({previous.get('discovery_fingerprint')} != {fingerprint}). "
+                "Use a new --output, or --force to replace it."
+            )
+        _forget_published(output, previous)
     partial = stage(output)
     resolved = resolve_input(run_root, sample_dir, partial, args)
     rf_lineage, default = read_filter_lineage_for(sample_dir, resolved, config.read_filter)
@@ -980,7 +1160,7 @@ def run_discover(args: argparse.Namespace) -> None:
         db, partial, args.threads, args.confidence, args.minimum_hit_groups, args.memory_mapping
     )
     resolved["kraken2"] = {
-        "version": kraken2_version(),
+        "version": version,
         "confidence": args.confidence,
         "minimum_hit_groups": args.minimum_hit_groups,
         "memory_mapping": args.memory_mapping,
@@ -988,15 +1168,12 @@ def run_discover(args: argparse.Namespace) -> None:
     }
     log.info("Kraken2: %s.", resolved["kraken2"])
 
-    from viralscan.validation import tool_provenance
-
     tree = load_taxonomy(db, args.memory_mapping)
     write_taxonomy(tree, partial)
-    onlist = resolve_onlist(config.technology, config.whitelist)
     resolved["barcodes"] = {
         "onlist": onlist,
-        "onlist_sha256": sha256_file(onlist) if onlist else None,
-        "bustools": tool_provenance(("bustools",))["bustools"],
+        "onlist_sha256": provenance["onlist_sha256"],
+        "bustools": bustools,
         **correct_barcodes(partial, onlist, args.threads),
     }
     resolved["groups"] = build_umi_groups(partial, tree)
@@ -1006,11 +1183,20 @@ def run_discover(args: argparse.Namespace) -> None:
             f"UMI groups hold {resolved['groups']['n_group_reads']} reads, not {eligible}."
         )
     log.info("Barcodes: %s. Groups: %s.", resolved["barcodes"], resolved["groups"])
-    called, resolved["cells"] = load_called_cells(sample_dir)
-    resolved["cells"].update(build_cell_matrix(partial, tree, called))
-    (partial / "input.json").write_text(json.dumps(resolved, indent=2, sort_keys=True) + "\n")
+    resolved["cells"] = {**cells_info, **build_cell_matrix(partial, tree, called)}
     log.info("Cells: %s.", resolved["cells"])
-    raise DiscoveryError(
-        "Provenance and publication are not implemented yet (PLAN DISC-09); outputs are staged "
-        f"in {partial} and nothing was published."
+    provenance["taxonomy_sha256"] = sha256_file(partial / TAXONOMY_TSV)
+    provenance["input_source"].update(
+        {k: v for k, v in resolved.items() if k in ("r1", "r2", "n_fragments", "primary_verified")}
     )
+    _write_json(partial / PROVENANCE_JSON, provenance)
+    _write_json(partial / QC_JSON, build_qc(resolved))
+    _write_json(
+        partial / COMPLETE_JSON,
+        {
+            "discovery_fingerprint": fingerprint,
+            "outputs": {p.name: sha256_path(p) for p in sorted(partial.iterdir())},
+        },
+    )
+    publish(output)
+    log.info("Discovery published to %s (fingerprint %s).", output, fingerprint)

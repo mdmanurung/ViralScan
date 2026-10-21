@@ -850,7 +850,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 |------|---------|------|
 | `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). It is never modified. |
 | `--sample SAMPLE` | *(none)* | Sample subdirectory to classify; required when the run has more than one. |
-| `--output, -o OUTPUT` | *required* | Discovery output directory, outside --run-dir; must be empty or absent. |
+| `--output, -o OUTPUT` | *required* | Discovery output directory, outside --run-dir; must be empty, absent or a previous publication. |
 | `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
 | `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
 | `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |
@@ -858,6 +858,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 | `--confidence CONFIDENCE` | `0.0` | Kraken2 --confidence (a k-mer fraction threshold, not a probability). Default: 0.0, Kraken2's own default; tune only with a frozen benchmark. |
 | `--minimum-hit-groups MINIMUM_HIT_GROUPS` | `2` | Kraken2 --minimum-hit-groups. Default: 2, Kraken2's own default. |
 | `--memory-mapping` | `False` | Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage). |
+| `--force` | `False` | Replace a previously published --output whose fingerprint differs. Without it a matching output is a no-op and a differing one is refused. |
 | `--threads THREADS` | `4` | Kraken2 and STAR threads. Default: 4. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |

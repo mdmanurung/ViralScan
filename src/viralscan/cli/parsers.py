@@ -563,7 +563,7 @@ def _build_discover_parser(subparsers: Any) -> None:
         "--output",
         "-o",
         required=True,
-        help="Discovery output directory, outside --run-dir; must be empty or absent.",
+        help="Discovery output directory, outside --run-dir; must be empty, absent or a previous publication.",
     )
     p.add_argument(
         "--kraken2-db",
@@ -605,6 +605,14 @@ def _build_discover_parser(subparsers: Any) -> None:
         "--memory-mapping",
         action="store_true",
         help="Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage).",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Replace a previously published --output whose fingerprint differs. Without it a "
+            "matching output is a no-op and a differing one is refused."
+        ),
     )
     p.add_argument("--threads", type=int, default=4, help="Kraken2 and STAR threads. Default: 4.")
     _add_verbosity_args(p)
