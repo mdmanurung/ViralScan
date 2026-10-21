@@ -589,17 +589,21 @@ def _build_discover_parser(subparsers: Any) -> None:
     p.add_argument(
         "--confidence",
         type=_unit_interval,
-        default=0.0,
+        default=0.05,
         help=(
             "Kraken2 --confidence (a k-mer fraction threshold, not a probability). "
-            "Default: 0.0, Kraken2's own default; tune only with a frozen benchmark."
+            "Default: 0.05, the Cellsnake documented default; not calibrated here "
+            "(Kraken2's own default is 0.0)."
         ),
     )
     p.add_argument(
         "--minimum-hit-groups",
         type=_positive_int,
-        default=2,
-        help="Kraken2 --minimum-hit-groups. Default: 2, Kraken2's own default.",
+        default=4,
+        help=(
+            "Kraken2 --minimum-hit-groups. Default: 4, the Cellsnake documented default; "
+            "not calibrated here (Kraken2's own default is 2)."
+        ),
     )
     p.add_argument(
         "--memory-mapping",

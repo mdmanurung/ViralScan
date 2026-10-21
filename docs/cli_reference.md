@@ -855,8 +855,8 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 | `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
 | `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | `pinned` | STAR filter parameter set for --host-subtract (as in the main run). Default: pinned. |
-| `--confidence CONFIDENCE` | `0.0` | Kraken2 --confidence (a k-mer fraction threshold, not a probability). Default: 0.0, Kraken2's own default; tune only with a frozen benchmark. |
-| `--minimum-hit-groups MINIMUM_HIT_GROUPS` | `2` | Kraken2 --minimum-hit-groups. Default: 2, Kraken2's own default. |
+| `--confidence CONFIDENCE` | `0.05` | Kraken2 --confidence (a k-mer fraction threshold, not a probability). Default: 0.05, the Cellsnake documented default; not calibrated here (Kraken2's own default is 0.0). |
+| `--minimum-hit-groups MINIMUM_HIT_GROUPS` | `4` | Kraken2 --minimum-hit-groups. Default: 4, the Cellsnake documented default; not calibrated here (Kraken2's own default is 2). |
 | `--memory-mapping` | `False` | Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage). |
 | `--polya-trim, --no-polya-trim` | `True` | Cut a 3' polyA tail (first run of >= 15 A) and a 5' polyT head (leading run of >= 15 T) from R2 before Kraken2 (reads.tsv.gz records r2_trim). Default: on. |
 | `--force` | `False` | Replace a previously published --output whose fingerprint differs. Without it a matching output is a no-op and a differing one is refused. |

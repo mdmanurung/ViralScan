@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. Next: R7b, R3.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. Next: R3.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7798,7 +7798,7 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   --threads --confidence --minimum-hit-groups --report --report-minimizer-data --output [--memory-mapping]`; never
   `--use-names/--paired/--quick`) and `join_kraken2`, which aborts on a duplicate, missing, out-of-range or
   non-integer ordinal, `C` with taxid 0 or `U` with taxid > 0, and writes ordinal-sorted `classifications.tsv.gz`
-  plus raw `kraken.out.gz`. CLI: `--confidence` (default 0.0, [0, 1]), `--minimum-hit-groups` (default 2, >= 1),
+  plus raw `kraken.out.gz`. CLI: `--confidence` (default 0.05 since `DISC-R7b`, [0, 1]), `--minimum-hit-groups` (default 4 since `DISC-R7b`, >= 1),
   `--memory-mapping`. Tests: 49 in `tests/test_discovery.py`.
   - Verified end to end with real Kraken2 2.17.2 on the DISC-04 test DB through `viralscan discover`: 6 fragments
     gave 83333, 10376, 9606, 1280, U, 10376, matching their source genomes.
@@ -7851,6 +7851,10 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   `r2_len_classified`; `qc.json` stream counts `n_r2_trimmed`/`n_r2_bases_trimmed`. Recorded in provenance and the
   fingerprint (a toggle needs `--force`). Decision: a read trimmed to nothing is sent to Kraken2 as `N` so it keeps its
   ordinal and returns unclassified (an empty FASTA record is not guaranteed to be emitted). R10 measures the effect.
+- [x] `DISC-R7b` (2026-10-21, plan step R7b; user decision 2026-10-21, replaces approved decision 5): `--confidence`
+  default 0.05 and `--minimum-hit-groups` default 4 (Cellsnake documented defaults); help text says they are not
+  calibrated and gives Kraken2's own 0.0 / 2. Design doc §2.3/§4/§16 and `docs/cli_reference.md` updated. R10 still
+  reports EBV at both 0.05/4 and 0.0/2. Tests pass explicit values, so none assumed the old defaults.
 - [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
 - [ ] `DISC-11` `discover-collapse` (taxid rank projection).
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.

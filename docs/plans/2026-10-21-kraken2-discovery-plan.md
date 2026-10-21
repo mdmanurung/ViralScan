@@ -285,7 +285,7 @@ original); the code is otherwise identical (§2.3).
     A 90 bp read with 11 k-mers on taxid 562 and 45 ambiguous (`562:11 A:45`) is classified at `--confidence 0.0`
     but unclassified at 0.5 (11/56 = 0.20; the manual's rule gives 11/11 = 1.0). Reads with many `N` are therefore
     penalised at any confidence above 0. The M5 grid must report this, and DISC-10 pins it.
-- `--minimum-hit-groups` (wrapper default 2) voids a call that lacks enough distinct minimizer hit groups.
+- `--minimum-hit-groups` (Kraken2 default 2; the CLI default is Cellsnake's 4) voids a call that lacks enough distinct minimizer hit groups.
   `--report-minimizer-data` adds per-taxon minimizer counts to the report, per run and not per cell.
   `--memory-mapping` avoids loading the DB into RAM.
 - Output columns: `C/U`, sequence ID (first whitespace token; `/1`/`/2` stripped only with `--paired`), taxid, length,
@@ -314,7 +314,7 @@ original); the code is otherwise identical (§2.3).
 | Name-based rank collapse; drop above-rank UMIs | **Reject** | taxid-based collapse; above-rank groups go to an explicit `above_rank` count |
 | Remove `Homo*` by name | Reject | taxid lineage check against 9606 and its ancestors; reported as residual host |
 | Dense matrices / `min.features=3` cell drop | Reject | sparse cells × taxa; called cells with zero counts kept |
-| `--confidence 0.05 --minimum-hit-groups 4` defaults | **Do not adopt** | Kraken2's own defaults (0.0 / 2) as the baseline, tuned only by the M5 grid |
+| `--confidence 0.05 --minimum-hit-groups 4` defaults | **Adopt (user decision 2026-10-21)** | CLI defaults are Cellsnake's documented 0.05 / 4, stated as not calibrated; the M5 grid still spans 0.0/2 and the EBV run reports both |
 | fastp low-complexity filter | Modify → P1 | report `read_filter` decisions as an annotation; no extra tool in the MVP |
 | `--predb` / `--bowtie` second host filter | Defer (P1/P2) | broad DB with human sequences gives a 9606 assignment, which is reported |
 | `--report-minimizer-data` | **Retain** | per-run distinct-minimizer counts, used in candidate QC |
@@ -575,7 +575,7 @@ collapse uses the canonical rank letters only.
 # reuse the primary's STAR host-unmapped pair
 viralscan discover --run-dir out/ --sample S1 -o out_discovery/S1/ \
     --kraken2-db /shared/k2/k2_pluspf_20260XYZ/ \
-    --confidence 0.0 --minimum-hit-groups 2 --memory-mapping --threads 16
+    --confidence 0.05 --minimum-hit-groups 4 --memory-mapping --threads 16
 
 # primary ran without host filtering → explicit discovery-only STAR pass
 viralscan discover --run-dir out/ --sample S1 -o out_discovery/S1/ \
@@ -948,8 +948,8 @@ Each ticket is one branch `codex/disc-NN`, touches ≤ 3 files, and updates PLAN
    mismatch with STARsolo-space called cells (§6.3)?
 4. **UMI policy (changed 2026-10-21):** exact `(CB, UMI)` groups; taxon = deepest classified taxon when all lie on one
    path, else LCA; `R*`-rank stays ambiguous; no majority vote (§6.4).
-5. **Kraken2 defaults:** start at the Kraken2 defaults (confidence 0.0, min hit groups 2) and choose by the frozen grid,
-   not Cellsnake's 0.05/4?
+5. **Kraken2 defaults (changed 2026-10-21):** Cellsnake's documented 0.05 / 4 (user decision), stated as not
+   calibrated; the frozen grid still decides any change, and the EBV run reports 0.05/4 against 0.0/2.
 6. **DB identity:** full sha256 of `hash.k2d` by default (slow on large DBs), or size+mtime plus the small-file
    hashes?
 7. **Viral-only DB policy:** cap at `observation` (G15)?
