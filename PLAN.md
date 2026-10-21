@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. Next: R3.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. Next: R4.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7762,7 +7762,8 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   - Note: three barcode spaces exist (raw, kb/bustools-corrected, STARsolo with `--soloCBwhitelist None` without `-w`);
     `called_cells.tsv` may be in STARsolo space under host filtering. Spike `DISC-05` decides correction mechanics.
   - Note: the primary manifest does not hash `host_filtered/` outputs; discovery can only record its own hash.
-- [ ] `DISC-01` optional discovery env (kraken2 2.17.2), `doctor --profile discovery`.
+- [x] `DISC-01` optional discovery env (kraken2 2.17.2), `doctor --profile discovery` (2026-10-21): `environment.discovery.yml`,
+  pixi feature/env `discovery`, `DISCOVERY_TOOLS` (kraken2, k2, bustools; `FULL_TOOLS` untouched), CI integration job gains kraken2.
 - [x] `DISC-02` `discover` parser + skeleton (2026-10-21): `src/viralscan/discovery.py`, `tests/test_discovery.py` (10).
   Refuses an incomplete run, an ambiguous or unknown `--sample`, `-o` inside the run or non-empty, an incomplete DB,
   and missing `kraken2`/`k2`. G2 test: source-run sha256 inventory unchanged. G1 test: the main parser gains no

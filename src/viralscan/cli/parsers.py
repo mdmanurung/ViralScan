@@ -694,7 +694,7 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
 
 def _build_doctor_parser(subparsers: Any) -> None:
     p = subparsers.add_parser("doctor", help="Check Python and full-workflow dependencies.")
-    p.add_argument("--profile", choices=("pip", "full"), default="full")
+    p.add_argument("--profile", choices=("pip", "full", "discovery"), default="full")
     p.add_argument("--json", action="store_true", default=False)
     p.set_defaults(_subcommand="doctor")
 
