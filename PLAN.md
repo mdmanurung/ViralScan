@@ -20,8 +20,8 @@ completion.
 
 ## Next action
 
-- [ ] `DISC` Kraken2 cell-resolved taxonomic discovery: plan proposed 2026-10-21, **awaiting approval** of the 9
-  decisions in `docs/plans/2026-10-21-kraken2-discovery-plan.md` §16. No code until approved.
+- [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
+  Next: spikes `DISC-05` (bustools flags) and `DISC-04` (DB taxonomy; needs kraken2 installed), then `DISC-02`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.

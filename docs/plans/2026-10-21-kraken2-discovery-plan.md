@@ -1,6 +1,7 @@
 # ViralScan × Kraken2: cell-resolved taxonomic discovery — critical review and implementation plan
 
-Status: **proposal, not approved.** No source code changes until the decisions in §16 are approved.
+Status: **approved 2026-10-21** (user: "approve"; all nine §16 decisions as proposed). Implementation
+proceeds ticket by ticket (§13.3), spikes DISC-04 and DISC-05 first.
 Date: 2026-10-21. Branch: `codex/kraken2-discovery-plan` (from `origin/main` `b8e5146`).
 PLAN rows: `DISC-00` (this document) and `DISC-01`…`DISC-14` (tickets, §13).
 
@@ -206,6 +207,9 @@ reference panel. A Kraken2 result never creates an infection claim.
 
 ### 2.2 mg2sc, original (`a8c01f0`, VERIFIED)
 
+`k2sc.py` line numbers below use the **fork's** numbering (its added shebang shifts them by +1 versus the
+original); the code is otherwise identical (§2.3).
+
 - `src/scMeG-kraken.py:61` runs `samtools view -b -f 4`: read-level unmapped flag, no `-F 0x900`, no mate or MAPQ
   logic.
 - `:68` runs `samtools fastq -n` (which drops 0x900 by default, so record counts can diverge; INFERRED). `:76` runs
@@ -272,7 +276,7 @@ reference panel. A Kraken2 result never creates an infection claim.
   - removes `Homo*` **by name prefix**, so higher human ranks survive;
   - joins to the Seurat object by barcode string.
 
-### 2.5 Kraken2 (`2.17.2` docs and source at HEAD, VERIFIED)
+### 2.5 Kraken2 (VERIFIED at the pinned tag `2.17.2` = `8c190b1`; manual line numbers are identical at `8e35df5`)
 
 - **`--confidence` is not a probability.** The manual (`docs/MANUAL.markdown:997-1003`) says "we have not yet
   developed a confidence score with a probabilistic interpretation". The score is C/Q, and the label climbs the tree
@@ -285,7 +289,7 @@ reference panel. A Kraken2 result never creates an infection claim.
 - Output columns: `C/U`, sequence ID (first whitespace token; `/1`/`/2` stripped only with `--paired`), taxid, length,
   LCA hitlist.
 - Output order equals input order regardless of threads: a priority queue reorders blocks by `block_id`
-  (`src/classify.cc:681-808`). The design does **not** rely on this.
+  (`src/classify.cc:499-686` at 2.17.2). The design does **not** rely on this.
 - `k2 inspect --skip-counts` "only print[s] database summary statistics" (`MANUAL.markdown:307`), so a full taxonomy
   tree with ranks requires `k2 inspect` without `--skip-counts`, or parsing `taxo.k2d`.
 - DB files: `hash.k2d`, `opts.k2d` (k, l, mask, db_version), `taxo.k2d`. There is no embedded build date or source,
@@ -457,7 +461,9 @@ than kb did, and the difference is reported.
   - run `bustools fromtext → sort → correct -w → text -f` and read `corrected_cb` by flag.
   - If the flag column does not survive, fall back to a Python Hamming-1 corrector with a property test against
     `bustools correct`.
-- Reconciliation gate (DISC-05):
+- Reconciliation gate (DISC-05). The primary `kb count` never runs with `-n`, so the run directory holds no read-number
+  lineage. The gate runs `_replay_quant_bus` once on the kb input pair, which needs the primary kallisto index. It is a
+  validation step, not part of every `discover` run:
   - on fragments that also appear in the primary BUS lineage, join by **canonical `read_id`**, not by read number,
     because read numbers shift when `read_filter` ran;
   - discovery `corrected_cb` must equal the primary corrected CB for ≥ 99.9 % of joined fragments;
@@ -492,7 +498,9 @@ than kb did, and the difference is reported.
   - Also recorded:
     - `lineage_consistent` (bool): all of T lie on one root-to-leaf path. For example, {561, 562} is consistent;
       `resolved_taxid` is then 561 (the LCA) and `deepest_consistent_taxid` = 562 is stored for audit only;
-    - `n_distinct_taxids` and `conflict` (bool).
+    - `n_distinct_taxids` and `conflict` (bool): `conflict=True` when T is not lineage-consistent. A conflicting
+      group can still be `resolved` (for example, two strains under one species resolve to that species); the
+      guarantee is only that it is never counted below its LCA.
 - Two distinct transcripts sharing a CB/UMI, from different organisms: T spans lineages, the LCA climbs, and
   `conflict=True`. It counts as one unit at a high rank or as ambiguous, **never** as two species units. The MVP does
   not split groups.
@@ -528,7 +536,11 @@ The tree, with ranks and names, comes **from the same DB**:
 
 - `k2 inspect --db DB` (full, not `--skip-counts`), parsed by indentation;
 - or a direct `taxo.k2d` parser (decided in DISC-04);
-- cached in `-o/taxonomy.tsv` and hashed into `provenance.json`.
+- cached by DB identity (a full `k2 inspect` scans the hash table), copied to `-o/taxonomy.tsv` and hashed into
+  `provenance.json`.
+
+`k2` exists at 2.17.2 (`scripts/k2`). For an older Kraken2, fall back to `kraken2-inspect`; the minimum
+supported version is decided in DISC-01.
 
 Never use a separate NCBI taxdump: merged or deleted taxids can disagree with the DB, and many DBs are built with
 `--clean`, which removes `taxonomy/`. Ranks include `no rank` and intermediate codes such as `S1` or `G2`. Rank
@@ -868,7 +880,8 @@ Each ticket is one branch `codex/disc-NN`, touches ≤ 3 files, and updates PLAN
 5. **G5**: no barcode enters `X` unless it is on-list, bustools-corrected or `no_onlist` (declared). Reconciliation is
    reported.
 6. **G6**: one unit per resolved group per resolution; rank projections conserve the total.
-7. **G7**: ambiguous or conflicting groups never appear as species-level units.
+7. **G7**: no group is counted at a taxon more specific than the LCA of its classified reads. Root-level (ambiguous)
+   groups never appear in `X`.
 8. **G8**: output is byte-identical across record order, Kraken2 output order, shard count and threads.
 9. **G9**: a missing or invalid DB, unsupported chemistry, an incomplete run, or corrupt or truncated input → a
    non-zero exit with a named cause and no published outputs.
@@ -898,7 +911,7 @@ Each ticket is one branch `codex/disc-NN`, touches ≤ 3 files, and updates PLAN
 | `host_filtered/` not hashed by primary | Med | discovery-time hash; `primary_verified:false` stated | accepted limitation; optional P1 primary change |
 | Track A FASTQ deletion removes inputs | Med | fail closed; explicit message | designed |
 | DB on NFS without memory mapping → OOM / slow | Med | `--memory-mapping` documented; user stages to `$TMPDIR` | docs |
-| Bioconda lacks kraken2 2.17.2 | Low | pin the newest available ≥ 2.1.3 and record it | DISC-01 |
+| Bioconda lacks kraken2 2.17.2 | Low | pin the newest available, record it; `kraken2-inspect` fallback if `k2` is absent | DISC-01 |
 | Sample namespace collisions on later aggregation | Low | single-sample scope; `sample_id` in provenance | P2 |
 
 ---
