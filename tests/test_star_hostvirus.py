@@ -424,3 +424,133 @@ def test_validate_index_manifest_reports_problems(monkeypatch, tmp_path):
     problems = star_hostvirus.validate_index_manifest(index, verify_inputs=True)
     assert any("SA missing" in p for p in problems)
     assert any("viral_gtf changed" in p for p in problems)
+
+
+@pytest.mark.parametrize(
+    "tamper,expect",
+    [
+        (lambda m, p, ins: p.write_text("{"), "not valid JSON"),
+        (lambda m, p, ins: m.update(schema="other/9"), "schema 'other/9'"),
+        (lambda m, p, ins: m.pop("threads"), "manifest field 'threads' missing"),
+        (lambda m, p, ins: m.update(contigs={"host": 0, "virus": 3}), "no HOST| contigs"),
+        (lambda m, p, ins: m.update(contigs={"host": 3, "virus": 0}), "no VIRUS| contigs"),
+        (lambda m, p, ins: Path(ins["viral_gtf"]).unlink(), "viral_gtf not readable"),
+    ],
+)
+def test_validate_index_manifest_problem_branches(monkeypatch, tmp_path, tamper, expect):
+    import json
+
+    _fake_build(monkeypatch)
+    ins = _run_verb(monkeypatch, tmp_path)
+    index = tmp_path / "out" / "index"
+    assert star_hostvirus.validate_index_manifest(index, verify_inputs=True) == []
+    path = index / star_hostvirus.INDEX_MANIFEST
+    m = json.loads(path.read_text())
+    tamper(m, path, ins)
+    if path.read_text() != "{":
+        path.write_text(json.dumps(m))
+    problems = star_hostvirus.validate_index_manifest(index, verify_inputs=True)
+    assert any(expect in p for p in problems), problems
+
+
+def test_write_index_manifest_rejects_wrong_input_keys(tmp_path):
+    with pytest.raises(ValueError, match="exactly the keys"):
+        star_hostvirus.write_index_manifest(
+            tmp_path, {"host_fasta": "x"}, {"host": 1, "virus": 1}, ["STAR"], "2.7", 1, 1
+        )
+
+
+def _bam_from(tmp_path, recs, contigs):
+    head = "@HD\tVN:1.6\tSO:coordinate\n" + "".join(f"@SQ\tSN:{c}\tLN:1000\n" for c in contigs)
+    sam = tmp_path / "y.sam"
+    sam.write_text(head + "".join(recs))
+    bam = tmp_path / "Aligned.sortedByCoord.out.bam"
+    subprocess.run(["samtools", "sort", "-o", str(bam), str(sam)], check=True)
+    subprocess.run(["samtools", "index", str(bam)], check=True)
+    return bam
+
+
+def _strain_bam(tmp_path):
+    """V1a and V1b are two accessions of virus V1; V2 is another virus; V3 is not in the map."""
+    recs = [
+        _rec("d1", 0, "VIRUS|V1a", 10, 2, 1, "AAAA", "U1"),  # same-virus pair: not "other virus"
+        _rec("d1", 256, "VIRUS|V1b", 5, 2, 2, "AAAA", "U1"),
+        _rec("d2", 0, "VIRUS|V1a", 20, 2, 1, "BBBB", "U2"),  # V1 primary, V2 secondary
+        _rec("d2", 256, "VIRUS|V2", 20, 2, 2, "BBBB", "U2"),
+        _rec("m1", 0, "VIRUS|V1a", 30, 1, 1, "-", "U9"),  # UB but no CB: not a molecule
+        _rec("m2", 0, "VIRUS|V1a", 40, 1, 1, "GGGG", "-"),  # CB but no UB: not a molecule
+        _rec("m3", 0, "VIRUS|V1a", 50, 1, 1, "HHHH", "U8"),
+        _rec("lo", 256, "VIRUS|V1a", 6, 2, 2, "CCCC", "U3"),  # secondary sorts before its primary
+        _rec("lo", 0, "VIRUS|V2", 500, 2, 1, "CCCC", "U3"),
+        _rec("x", 0, "VIRUS|V3", 60, 1, 1, "DDDD", "U4"),
+    ]
+    return _bam_from(
+        tmp_path, recs, ("HOST|chr1", "VIRUS|V1a", "VIRUS|V1b", "VIRUS|V2", "VIRUS|V3")
+    )
+
+
+@needs_samtools
+def test_summarise_by_virus_counts_each_read_once_per_virus(tmp_path):
+    rows = summarise_by_virus(_strain_bam(tmp_path), virus_of={"V1a": "V1", "V1b": "V1"})
+    got = {r["accession"]: [r[c] for c in STAR_SUMMARY_COLUMNS[1:]] for r in rows}
+    # columns: primary, any, molecules, host_competing, other_virus
+    assert got == {
+        "V1": [5, 6, 4, 0, 2],  # d1 counted once; other_virus = d2, lo (not d1)
+        "V2": [1, 2, 2, 0, 2],
+        "V3": [1, 1, 1, 0, 0],  # accession missing from the map keeps its own name
+    }
+    assert [r["accession"] for r in rows] == ["V1", "V2", "V3"]
+
+
+@needs_samtools
+def test_summarise_by_virus_per_accession_default(tmp_path):
+    got = {r["accession"]: r for r in summarise_by_virus(_strain_bam(tmp_path))}
+    assert got["V1a"]["star_other_virus"] == 3 and got["V1a"]["star_molecules"] == 4
+    assert got["V1b"]["star_reads_any"] == 1
+
+
+@needs_samtools
+def test_align_host_unmapped_prune_writes_summary_before_pruning(tmp_path, monkeypatch):
+    out = tmp_path / "o"
+    src = _strain_bam(tmp_path)
+
+    def fake_run_star(cmd, work, cb_len=12):
+        shutil.copy(src, work / "Aligned.sortedByCoord.out.bam")
+
+    monkeypatch.setattr(star_hostvirus, "run_star", fake_run_star)
+    viral = align_host_unmapped(
+        "r1", "r2", "idx", out, "10xv3", whitelist="wl.txt", prune=True,
+        virus_of={"V1a": "V1", "V1b": "V1"},
+    )  # fmt: skip
+    assert viral.name == "Aligned.viral.bam" and viral.is_file()
+    assert not (out / "Aligned.sortedByCoord.out.bam").exists()
+    tsv = (out / "star_support_by_virus.tsv").read_text().splitlines()
+    assert tsv[0].split("\t") == list(STAR_SUMMARY_COLUMNS)
+    assert [ln.split("\t")[0] for ln in tsv[1:]] == ["V1", "V2", "V3"]
+    assert tsv[1].split("\t") == ["V1", "5", "6", "4", "0", "2"]
+
+
+FINAL_MULTI = "Uniquely mapped reads number |\t0\nNumber of reads mapped to multiple loci |\t5\n"
+
+
+def test_star139_retry_that_maps_only_multimappers_is_refused(tmp_path, monkeypatch):
+    _fake_run(monkeypatch, tmp_path, [139, 0], FINAL_MULTI)
+    with pytest.raises(RuntimeError, match="mapped 5 reads"):
+        star_run.run_star(["STAR", "--soloCBwhitelist", "None"], tmp_path)
+
+
+def test_star139_retry_clears_the_crashed_runs_leftovers(tmp_path, monkeypatch):
+    for leftover in ("_STARtmp", "_STARgenome", "_STARpass1", "Solo.out"):
+        (tmp_path / leftover).mkdir()
+    seen = []
+    codes = iter([139, 0])
+
+    def run(cmd, check=True):
+        seen.append([(tmp_path / n).exists() for n in ("_STARtmp", "Solo.out")])
+        if next(codes):
+            raise subprocess.CalledProcessError(139, cmd)
+        (tmp_path / "Log.final.out").write_text(FINAL_ZERO)
+
+    monkeypatch.setattr(star_run.subprocess, "run", run)
+    star_run.run_star(["STAR", "--soloCBwhitelist", "None"], tmp_path)
+    assert seen == [[True, True], [False, False]]  # gone before the retry started

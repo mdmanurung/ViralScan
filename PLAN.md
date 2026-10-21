@@ -51,8 +51,10 @@ completion.
   `detection` appends `star_reads_primary, star_reads_any, star_molecules, star_host_competing, star_other_virus` to
   `viral_summary.tsv` only when the flag is on. Labels only: no call, tier or threshold changes.
   - Note: menu dies without the index, without `--host-filter`, on a failing `validate_index_manifest`, on missing STAR/samtools,
-    or on an index without the flag. Counts are summed over a virus's accessions (a read on two accessions of one virus counts
-    twice). Viruses STAR saw nothing for read 0; alignment-only rows stay blank. Strand = `--strand` or `unstranded` (kb's
+    or on an index without the flag. `summarise_by_virus(virus_of=...)` aggregates per virus (a read on several accessions of one
+    virus counts once; `star_other_virus` needs a different virus). Review fixes: mypy on `read_index_manifest`, wheel/sdist
+    allowlists carry the three STAR modules, menu wiring/prune-TSV/manifest/run_star tests, docs state the HHV-6/7 telomere
+    100-locus loss and the Unique-mode `star_molecules` lower bound. Viruses STAR saw nothing for read 0; alignment-only rows stay blank. Strand = `--strand` or `unstranded` (kb's
     effective default). Docs/CLI-reference/output-reference rows landed in phase 4. No real STAR run.
 - [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps

@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   --star-hostvirus-index DIR` (PLAN STAR-04; needs `--host-filter starsolo`) aligns the host-filtered reads
   to it and adds `star_reads_primary`, `star_reads_any`, `star_molecules`, `star_host_competing`,
   `star_other_virus` to `viral_summary.tsv` plus `results/star_support_by_virus.tsv`. Labels only: no call
-  changes. STAR can miss short fragments, drops reads over 100 loci and does not wrap circular genomes; the
+  changes. STAR can miss short fragments, drops reads over 100 loci (HHV-6A/6B/7 telomeric repeats, so `star_host_competing` is a lower bound) and does not wrap circular genomes; the
   spike-in detection-limit experiment (SPIKE-01) has not been run.
 - `star_hostvirus` hardening (PLAN STAR-02): barcodes are corrected against the chemistry's on-list by
   default (raw barcodes only for list-less chemistries); `--strand forward|reverse|unstranded` maps to

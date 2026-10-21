@@ -19,9 +19,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO, cast
 
 from viralscan.chemistry import cb_umi_geometry, onlist_path
 from viralscan.star_run import plain_whitelist, run_star
@@ -236,9 +236,12 @@ def write_index_manifest(
     return path
 
 
-def read_index_manifest(index_dir: str | Path) -> dict:
+def read_index_manifest(index_dir: str | Path) -> dict[str, Any]:
     """The manifest dict of *index_dir*; ``FileNotFoundError`` if the build never finished."""
-    return json.loads((Path(index_dir) / INDEX_MANIFEST).read_text(encoding="utf-8"))
+    return cast(
+        dict[str, Any],
+        json.loads((Path(index_dir) / INDEX_MANIFEST).read_text(encoding="utf-8")),
+    )
 
 
 def validate_index_manifest(index_dir: str | Path, verify_inputs: bool = False) -> list[str]:
@@ -390,6 +393,7 @@ def align_host_unmapped(
     strand: str = "unstranded",
     prune: bool = False,
     bam_sort_ram: int = 30_000_000_000,
+    virus_of: Mapping[str, str] | None = None,
 ) -> Path:
     """Align host-unmapped pairs; returns the indexed ``Aligned.sortedByCoord.out.bam``.
 
@@ -406,7 +410,9 @@ def align_host_unmapped(
     bam = out / "Aligned.sortedByCoord.out.bam"
     subprocess.run([samtools, "index", str(bam)], check=True)
     if prune:
-        write_summary(summarise_by_virus(bam, samtools), out / "star_support_by_virus.tsv")
+        write_summary(
+            summarise_by_virus(bam, samtools, virus_of), out / "star_support_by_virus.tsv"
+        )
         return prune_to_viral(bam, samtools)
     return bam
 
@@ -453,8 +459,15 @@ def _tag(fields: list[str], key: str) -> str | None:
     return None
 
 
-def summarise_by_virus(bam: str | Path, samtools: str = "samtools") -> list[dict[str, object]]:
+def summarise_by_virus(
+    bam: str | Path, samtools: str = "samtools", virus_of: Mapping[str, str] | None = None
+) -> list[dict[str, object]]:
     """Per-``VIRUS|`` contig support of a STAR host+virus BAM (rows keyed by STAR_SUMMARY_COLUMNS).
+
+    With *virus_of* (accession -> virus name) rows are per virus instead: the ``accession``
+    field holds the virus name (an accession missing from the map keeps its own name), each
+    read counts once per virus however many of its accessions it hits, and
+    ``star_other_virus`` means a record on a different virus, not a sibling accession.
 
     Unit is the read (QNAME; the STAR BAM is single-end, only the cDNA mate is aligned). STAR
     writes one record per locus (NH records, same QNAME). For a read with a record on contig
@@ -497,10 +510,16 @@ def summarise_by_virus(bam: str | Path, samtools: str = "samtools") -> list[dict
                     r["contigs"].add(f[2])  # type: ignore[attr-defined]
                     if not int(f[1]) & 0x100:
                         r["primary"] = f[2]
+
+    def name(contig: str) -> str:
+        acc = contig.removeprefix("VIRUS|")
+        return virus_of.get(acc, acc) if virus_of else acc
+
     acc: dict[str, dict[str, object]] = {}
     for r in reads.values():
         contigs: set[str] = r["contigs"]  # type: ignore[assignment]
-        viral = {c for c in contigs if c.startswith("VIRUS|")}
+        viral = {name(c) for c in contigs if c.startswith("VIRUS|")}
+        primary = name(r["primary"]) if r["primary"] else None  # type: ignore[arg-type]
         host = any(c.startswith("HOST|") for c in contigs)
         for c in viral:
             row = acc.setdefault(
@@ -508,7 +527,7 @@ def summarise_by_virus(bam: str | Path, samtools: str = "samtools") -> list[dict
                 {k: 0 for k in STAR_SUMMARY_COLUMNS[1:]} | {"_mol": set()},
             )
             row["star_reads_any"] += 1  # type: ignore[operator]
-            row["star_reads_primary"] += r["primary"] == c  # type: ignore[operator]
+            row["star_reads_primary"] += primary == c  # type: ignore[operator]
             row["star_host_competing"] += host  # type: ignore[operator]
             row["star_other_virus"] += len(viral) > 1  # type: ignore[operator]
             if r["cb"] not in (None, "-") and r["ub"] not in (None, "-"):
@@ -517,9 +536,7 @@ def summarise_by_virus(bam: str | Path, samtools: str = "samtools") -> list[dict
     for c in sorted(acc):
         row = acc[c]
         row["star_molecules"] = len(row.pop("_mol"))  # type: ignore[arg-type]
-        out.append(
-            {"accession": c.removeprefix("VIRUS|")} | {k: row[k] for k in STAR_SUMMARY_COLUMNS[1:]}
-        )
+        out.append({"accession": c} | {k: row[k] for k in STAR_SUMMARY_COLUMNS[1:]})
     return out
 
 

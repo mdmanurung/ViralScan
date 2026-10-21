@@ -311,11 +311,11 @@ alignment branch below.
 | `alignment_breadth_unique` | The same, counting only single-placement (NH = 1) records, so secondary placements cannot make related genomes look covered. Same caveats; not a gate | diagnostic flag |
 | `alignment_breadth_max` | Breadth of the single best-covered genome of this virus (maximum of the per-accession `breadth`, circular-safe: positions are taken modulo the genome length). The read-weighted mean in `alignment_breadth` dilutes a well-covered genome among many sparsely covered relatives; this does not. Reporting only: not a gate, no call changes. Anellovirus alignment branch only; empty otherwise | diagnostic flag |
 | `alignment_breadth_unique_max` | The same, counting only single-placement (NH = 1) records (maximum of `breadth_unique`). Reporting only | diagnostic flag |
-| `star_reads_primary` | `--star-confirm` only. Host-filtered reads whose primary STAR record (host+virus index) lies on one of this virus's contigs, summed over its accessions. Empty when the flag is off | observation |
-| `star_reads_any` | `--star-confirm` only. Reads with any record (primary or secondary) on this virus's contigs. A read on two accessions of one virus counts once per accession. 0 when STAR placed nothing; empty when the flag is off | observation |
-| `star_molecules` | `--star-confirm` only. Distinct (CB, UB) pairs STARsolo itself assigned to a GeneFull feature on this virus's contigs (Unique mode, strand respected). This is not read support: STAR leaves multimapping, intergenic and wrong-strand reads out of it, so use `star_reads_any` for read counts | observation |
+| `star_reads_primary` | `--star-confirm` only. Host-filtered reads whose primary STAR record (host+virus index) lies on one of this virus's contigs (counted once per read, however many accessions of the virus it hits). Empty when the flag is off | observation |
+| `star_reads_any` | `--star-confirm` only. Reads with any record (primary or secondary) on this virus's contigs. A read on several accessions of one virus counts once. 0 when STAR placed nothing; empty when the flag is off | observation |
+| `star_molecules` | `--star-confirm` only. Distinct (CB, UB) pairs STARsolo itself assigned to a GeneFull feature on this virus's contigs (Unique mode, strand respected). This is not read support: STAR leaves multimapping, intergenic and wrong-strand reads out of it, so use `star_reads_any` for read counts. It is a Unique-mode, repeat-depleted lower bound: a read with NH > 1 gets no UB even when every placement is on the same viral contig, so reads in terminal or internal repeats (herpesvirus direct repeats, repetitive anellovirus regions) drop out and `star_molecules` can be 0 or tiny next to a large `star_reads_any`. Not comparable to the kallisto molecule counts and not usable as a per-cell infection count | observation |
 | `star_host_competing` | `--star-confirm` only. Reads with a viral record that also have a `HOST\|` record: the host-competition count the kallisto call cannot see | diagnostic flag |
-| `star_other_virus` | `--star-confirm` only. Reads with a record on this virus that also have a record on a different virus | diagnostic flag |
+| `star_other_virus` | `--star-confirm` only. Reads with a record on this virus that also have a record on a different virus (another accession of the same virus does not count) | diagnostic flag |
 
 **Reading the artefact columns (F-019, update 2026-10-04).** The pileup
 position, the homopolymer fraction and the identity are each equally consistent
@@ -1011,7 +1011,13 @@ These are **labels, not a gate**: no call, tier, threshold or `detection_source`
   there are not re-tested.
 - STAR can miss short fragments and divergent reads kallisto places, so `star_reads_any = 0` is not evidence
   against a call.
-- A read with more than 100 loci is dropped by STAR (`--outFilterMultimapNmax 100`).
+- A read with more than 100 loci is dropped by STAR (`--outFilterMultimapNmax 100`). HHV-6A/6B/7 terminal and
+  telomeric repeat reads (TTAGGG, identical to human telomeres) exceed that cap, never reach the BAM and are
+  absent from every `star_*` column, including `star_host_competing`, which is therefore a lower bound that
+  excludes them. A telomere-driven call can show `star_reads_any` and `star_host_competing` near 0 without
+  the reads lacking host homology.
+- `star_molecules` is a Unique-mode, repeat-depleted lower bound (see its column row); reads in direct or
+  internal repeats of a viral genome are in `star_reads_any` only.
 - Circular genomes are not wrapped: reads across the origin split or soft-clip.
 - The spike-in detection-limit experiment (PLAN `SPIKE-01`) has **not been run**, so there is no measured
   sensitivity or specificity for this arm. Gating calls on it (`STAR-GATE-01`) is undecided.

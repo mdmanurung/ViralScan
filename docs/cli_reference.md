@@ -596,7 +596,7 @@ viralscan star-index --host-fasta GRCh38.fa --host-gtf GRCh38.gtf \
 | `--ram-bytes N` | | `85000000000` | STAR `--limitGenomeGenerateRAM` |
 | `--force` | | off | Rebuild over an existing `<out-dir>/index` (only if it holds a star-index manifest) |
 
-See the Output reference for what `--star-confirm` adds and does not do.
+See the Output reference for what `--star-confirm` adds and does not do. In particular, HHV-6A/6B/7 telomeric repeat reads exceed STAR's 100-locus cap and are absent from every `star_*` column (`star_host_competing` is a lower bound), and `star_molecules` is a Unique-mode, repeat-depleted lower bound.
 
 ---
 

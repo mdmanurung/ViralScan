@@ -2074,3 +2074,8 @@ two accessions of one virus; accepted because the columns are labels. No call ch
 STAR confirmation docs live in `docs/output_reference.md` (pinned, re-pinned in a follow-up commit) and `cli_reference.md`; the
 pointer went into `quickstart.md` instead of `faq.md` to avoid another pinned file. Docs state SPIKE-01 is unrun and make no
 sensitivity claim; STAR-GATE-01 stays open.
+
+## 2026-10-21: star_confirm aggregates per virus inside summarise_by_virus (STAR-04 review)
+Supersedes the earlier "summed per virus_name" decision: `align_host_unmapped(virus_of=acc_to_virus)` makes `summarise_by_virus`
+key rows by virus name, so a read counts once per virus and `star_other_virus` means a different virus (not a sibling
+accession). `scripts/star_confirm.read_summary` now only reads the TSV. Without `virus_of` (standalone CLI) rows stay per accession.
