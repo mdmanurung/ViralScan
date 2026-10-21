@@ -550,7 +550,7 @@ def _build_discover_parser(subparsers: Any) -> None:
     """Register the 'discover' subcommand (PLAN DISC; in development)."""
     p = subparsers.add_parser(
         "discover",
-        help="(In development) Kraken2 taxonomic discovery on a completed run's host-unmapped reads.",
+        help="Kraken2 taxonomic discovery on a completed run's host-unmapped reads.",
         description=(
             "Classify a completed run's STAR host-unmapped cDNA reads with Kraken2 and attribute\n"
             "them to cells. The source run is never modified; results are candidate taxonomic\n"
@@ -648,7 +648,7 @@ def _build_discover_collapse_parser(subparsers: Any) -> None:
     """Register the 'discover-collapse' subcommand (PLAN DISC-11)."""
     p = subparsers.add_parser(
         "discover-collapse",
-        help="(In development) Project a discovery's cell_taxon.h5ad onto species, genus or family.",
+        help="Project a discovery's cell_taxon.h5ad onto species, genus or family.",
         description=(
             "Sum each cell_taxon.h5ad column into its ancestor at the chosen rank, using the\n"
             "published taxonomy.tsv. Taxa above the rank stay as themselves (above_rank = True);\n"
@@ -1034,8 +1034,8 @@ def build_parser() -> argparse.ArgumentParser:
             "  evidence-plot   Plot molecule-level host versus virus alignments.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
             "  rerun-programs  Re-score gene programmes on a completed run.\n"
-            "  discover        (In development) Kraken2 taxonomic discovery on a completed run.\n"
-            "  discover-collapse  (In development) Project a discovery to species/genus/family.\n"
+            "  discover        Kraken2 taxonomic discovery on a completed run.\n"
+            "  discover-collapse  Project a discovery to species/genus/family.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
             "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
             "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n"

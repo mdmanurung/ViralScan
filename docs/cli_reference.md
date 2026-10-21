@@ -852,7 +852,7 @@ the sections above add context. Do not edit between the markers.
 
 ### viralscan discover
 
-(In development, PLAN DISC.) Kraken2 taxonomic discovery on a completed run's STAR
+Kraken2 taxonomic discovery on a completed run's STAR
 host-unmapped reads. It never modifies the source run; its results are candidate taxonomic observations, not
 infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 
@@ -880,7 +880,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 
 ### viralscan discover-collapse
 
-(In development, PLAN DISC-11.) Sums a published discovery's `cell_taxon.h5ad` columns into their
+Sums a published discovery's `cell_taxon.h5ad` columns into their
 species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay as themselves
 (`above_rank = True`); no group is reclassified and each cell's total is conserved.
 

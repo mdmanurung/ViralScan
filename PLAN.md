@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. Next: R10 (real-data validation on Slurm), then R11.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Next: user review of the default settings in light of R10 (0.05 / 4 drops ~60% of EBV groups), push and PR; then `DISC-12`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7911,6 +7911,27 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     `chore(inventory)` commit because the pin names the commit that holds the new file.
   - Note: the only real-data numbers cited are labelled "first EBV run, read level" and "not a performance claim"; R10 replaces them with
     the validated arms.
+- [x] `DISC-R10` (2026-10-22, plan step R10): EBV SRR12682296, PlusPF-16 2026-06-26, code `c41e330`, Slurm array
+  `25862538` (partition `all`, 8 CPUs). Arms: default 0.05/4 + trim; 0.0/2 + trim; 0.05/4 `--no-polya-trim`. All three
+  published `discovery_complete.json`; the same-input rerun logged "nothing to do" (7.7 min, 0.2 GB: DB hashing);
+  the source run's sha256 inventory (76 files) was unchanged before/after (G2). All 2,524 called cells seen.
+  Per arm (default / 0.0-2 / notrim): unclassified 93.4 / 71.3 / 92.9 %; human clade 4.1 / 20.9 / 4.5 %; EBV clade
+  2.3 / 6.8 / 2.3 %; EBV groups in called cells 246,233 / 623,096 / 246,882; EBV+ cells 2,224 / 2,471 / 2,227 (primary
+  2,524); per-cell Spearman vs primary EBV molecules 0.890 / 0.966 / 0.891; median ratio 0.26 / 0.82 / 0.27;
+  candidates 47 / 1,906 / 56 (low-minimizer 26 / 1,680 / 34). Run 1: 35-37 min, 15.2 GB. Trim touched 2.03 M reads.
+  Outputs, inventories, `summarize.py` and `r10_summary.tsv`: `viralscan_work/discovery_ebv_2026-10-21/r10/`.
+  - Note: the defaults (user decision R7b) trade ~60 % of EBV groups for a 5x smaller human fraction and a 40x
+    shorter candidate list; documented in `docs/discovery.md` with the 0.0/2 alternative. Not changed: the user's call.
+  - Note: R1 grouping was not timed separately; whole runs at 0.0/2 took 37 min against 26 min for the pre-R1 run,
+    of which ~8 min is now DB hashing for the fingerprint, so grouping no longer stalls. Taxonomy cache still skipped.
+  - Called-cells discrepancy (2,524 vs 2,764) explained earlier: `viral_summary.tsv` uses `host_called_cells.tsv`;
+    discovery uses `called_cells.tsv`, as intended. The Drop-seq `no_onlist` library (R10.5) was skipped: that run
+    has no `called_cells.tsv`.
+- [x] `DISC-R11` (2026-10-22, plan step R11): merged `origin/main` (CLI-UNIFY-01) at `5ff8011`, inventory re-pinned;
+  full suite in 3 foreground chunks 6,037 passed / 0 failed; `pytest -m integration tests/test_discovery_integration.py`
+  2 passed (discovery env); `ruff check .` / `ruff format --check .` clean; `gen_cli_reference.py --check` clean;
+  `doctor --profile discovery` ok in the discovery env, fails on missing kraken2/k2 in the main env. "(In development)"
+  labels dropped. Branch handed over for push / PR.
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
 - [ ] `DISC-13` candidate states + evidence adapter.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).

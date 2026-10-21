@@ -98,10 +98,33 @@ viralscan discover --run-dir run/ --sample SAMPLE -o discovery/ \
     --kraken2-db k2_pluspf_16/ --threads "$SLURM_CPUS_PER_TASK"
 ```
 
-For scale, the first EBV run (one library, 17.76 M host-unmapped reads, PlusPF-16, 8 CPUs,
-confidence 0.0 and 2 hit groups) took 26 minutes and 15.9 GB peak memory. That is one
-observation to size a job, not a performance claim. Use `--memory-mapping` only on fast
-local storage.
+For scale, one EBV library (17.76 M host-unmapped reads, PlusPF-16, 8 CPUs) took 35 to 37
+minutes and 15.2 GB peak memory per run. A rerun that finds the same fingerprint still
+hashes the database (about 8 minutes, 0.2 GB). These are single observations to size a
+job, not performance claims. Use `--memory-mapping` only on fast local storage.
+
+## Real-data check: one EBV library
+
+EBV-positive 10x 3' v2 library SRR12682296 (PlusPF-16 2026-06-26, 2,524 called cells), run
+three ways with the source run's files byte-identical before and after. Read level and one
+library only; this describes the settings, it does not measure accuracy.
+
+| | default 0.05 / 4, trim | 0.0 / 2, trim | 0.05 / 4, no trim |
+|---|---:|---:|---:|
+| Reads unclassified | 93.4% | 71.3% | 92.9% |
+| Reads human (clade) | 4.1% | 20.9% | 4.5% |
+| Reads EBV (clade) | 2.3% | 6.8% | 2.3% |
+| EBV UMI groups in called cells | 246,233 | 623,096 | 246,882 |
+| Called cells with EBV (ViralScan: 2,524) | 2,224 | 2,471 | 2,227 |
+| Per-cell Spearman with ViralScan EBV molecules | 0.890 | 0.966 | 0.891 |
+| Median discovery / ViralScan EBV per cell | 0.26 | 0.82 | 0.27 |
+| Candidate taxa (flagged low minimizer diversity) | 47 (26) | 1,906 (1,680) | 56 (34) |
+
+The default settings cut the human-labelled reads by a factor of five and the candidate
+list by a factor of forty, and they also drop about 60% of the EBV signal. Use
+`--confidence 0.0 --minimum-hit-groups 2` when sensitivity matters more than a short
+candidate list. PolyA/T trimming changed 2.03 M reads (11%) but moved the human fraction
+only from 4.5% to 4.1%.
 
 ## Outputs
 
@@ -169,8 +192,8 @@ whether a rerun is the same.
 ## Limits
 
 - **Residual host reads.** STAR leaves reads it could not align well, so Kraken2 still
-  labels many reads human. In the first EBV run about 23% of host-unmapped reads were
-  human, and a relaxed realignment of a 5,000-read sample put 97.8% on GRCh38, mostly as
+  labels many reads human. In the EBV library above, 4.1% (default settings) to 20.9%
+  (0.0 / 2) of host-unmapped reads were human, and a relaxed realignment of a 5,000-read sample put 97.8% on GRCh38, mostly as
   partial alignments (median 71% of the read). PolyA/T trimming removes only a minority
   (17.5% polyA and 5.3% polyT in that sample). Host-lineage taxa are labelled
   (`host_relation`) and kept out of candidates, but the human fraction is not zero.
@@ -182,15 +205,13 @@ whether a rerun is the same.
 - **Read level, not molecule level.** Each read is classified alone. A UMI group is the
   unit counted in `cell_taxon.h5ad`, so counts are not comparable one to one with the
   molecule counts of the primary run, which resolve multimapping against its own
-  reference. In the first EBV run (read level, one library, not a performance claim) the
-  per-cell EBV counts of the two methods had Spearman 0.966 across called cells, and
-  discovery found EBV in 2,474 of 2,524 called cells against 2,524 for ViralScan.
+  reference. See the EBV table above for how the two compare on one library.
 - **Database size.** A 16 GB-capped database keeps only part of the full library, so a
   taxon can be missed or placed at a higher rank than a larger database would. Another
   database or another build date gives different results; the database hashes are
   recorded for that reason.
 - **Low-complexity and repeated sequence.** A taxon supported by few distinct minimizers
-  can be a single repeated locus. In the first EBV run the bacterial hits looked like
+  can be a single repeated locus. In the EBV library most bacterial candidates looked like
   this; `low_minimizer_diversity` flags them.
 - **A negative result is not absence.** No resolved group in a cell, or no taxon in the
   table, does not show the organism is absent: it may be missing from the database,
