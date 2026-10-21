@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. Next: R4.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. Next: R7.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7856,7 +7856,14 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   default 0.05 and `--minimum-hit-groups` default 4 (Cellsnake documented defaults); help text says they are not
   calibrated and gives Kraken2's own 0.0 / 2. Design doc §2.3/§4/§16 and `docs/cli_reference.md` updated. R10 still
   reports EBV at both 0.05/4 and 0.0/2. Tests pass explicit values, so none assumed the old defaults.
-- [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
+- [x] `DISC-10` (2026-10-21, plan step R4): `tests/test_discovery_integration.py` (`-m integration`; skips without
+  `kraken2-build`, `kraken2`, `k2`, `bustools`). Builds the hand-taxonomy DB at test time (`--no-masking`, seeded, no
+  network), runs `viralscan discover` end to end on a fixture run with real 10x v3 on-list barcodes at 0.5 / 2, and
+  asserts `umi_groups`, `cell_taxon.h5ad` and `offcell_taxon.tsv.gz` equal designed truth (exact, parent/child ->
+  deepest, conflicting -> LCA, root-LCA -> ambiguous, novel -> unclassified). Pins the confidence denominator: a read
+  `562:11 A:45` is unclassified at 0.5 and classified at 0.05 (ambiguous k-mers count in the denominator). Passes
+  in 27 s with kraken2 2.17.2. A one-substitution barcode was dropped from the fixture: bustools left it
+  uncorrectable, which tests bustools rather than discovery.
 - [ ] `DISC-11` `discover-collapse` (taxid rank projection).
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
 - [ ] `DISC-13` candidate states + evidence adapter.
