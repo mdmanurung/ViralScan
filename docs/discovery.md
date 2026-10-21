@@ -66,6 +66,19 @@ database, an input or a setting changes the fingerprint; the command then refuse
 overwrite unless you pass `--force`. A `.partial/` directory left by an interrupted run is
 cleared and the run restarts.
 
+What the fingerprint does and does not cover:
+
+- `--threads`, `--memory-mapping` and file paths are not in it, so changing them is still
+  a no-op.
+- The ViralScan version is in it, so after an upgrade a rerun needs `--force` or a new
+  `-o`.
+- With `--host-subtract`, the STAR index is identified by its path, not its contents. If
+  you rebuild an index in place, use a new `-o`.
+- `--force` deletes the previous outputs before the new run starts. If that run fails, the
+  old results are gone.
+- A crash during the final move of files into `-o` leaves outputs without
+  `discovery_complete.json`. The next run refuses that directory, so empty it by hand.
+
 ### Slurm
 
 Kraken2 loads the database into memory unless `--memory-mapping` is set, so request
@@ -161,10 +174,11 @@ whether a rerun is the same.
   partial alignments (median 71% of the read). PolyA/T trimming removes only a minority
   (17.5% polyA and 5.3% polyT in that sample). Host-lineage taxa are labelled
   (`host_relation`) and kept out of candidates, but the human fraction is not zero.
-- **The confidence denominator.** Kraken2's `--confidence` divides by the k-mers of the
-  read that fall in the database taxonomy, not by all k-mers. A read with few usable
-  k-mers can fail or pass the threshold for reasons unrelated to the organism.
-  `--confidence` is a k-mer fraction, not a probability.
+- **The confidence denominator.** Kraken2 2.17.2 divides by all k-mers of the read,
+  including those with an ambiguous base (`N`), although its manual says they are
+  excluded. A read with 11 k-mers on a taxon and 45 ambiguous ones is unclassified at
+  `--confidence 0.5`. A read with `N` bases can fail the threshold for reasons unrelated to
+  the organism. `--confidence` is a k-mer fraction, not a probability.
 - **Read level, not molecule level.** Each read is classified alone. A UMI group is the
   unit counted in `cell_taxon.h5ad`, so counts are not comparable one to one with the
   molecule counts of the primary run, which resolve multimapping against its own

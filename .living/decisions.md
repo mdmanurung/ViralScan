@@ -2031,3 +2031,25 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Decision: `viralscan discover` defaults to `--confidence 0.05` and `--minimum-hit-groups 4` (Cellsnake documented defaults), replacing the earlier Kraken2-own 0.0 / 2 baseline (user decision 2026-10-21).
 - Help text states they are not calibrated; the M5 grid still spans 0.0/2 and R10 reports EBV at both settings.
 - Tags: discovery, defaults
+
+### [2026-10-21] Discovery per-UMI rule: deepest-consistent
+
+- Decision: a UMI group resolves to the deepest classified taxon when all its classified reads lie on one root-to-leaf path, else to their LCA; root-level results stay ambiguous (user decision 2026-10-21, replaces approved decision 4 "LCA").
+- Why: on the synthetic benchmark (`analysis/discovery_mg2sc_comparison/`) it gave 799 exact species calls against 606 for LCA-only and 752 for the mg2sc vote, with 8 collision overcalls against mg2sc's 118. Cost: a species call can rest on one species-specific read when the others are ancestral.
+- Tags: discovery, aggregation
+
+### [2026-10-21] Discovery polyA/T trim before Kraken2
+
+- Decision: R2 is cut at the first run of >= 15 A and a leading run of >= 15 T before classification; default on, `--no-polya-trim` turns it off, and the setting is in the fingerprint.
+- Why: residual human reads that survive STAR were 99 % "too short" partial alignments; 17.5 % carry polyA and 5.3 % polyT. The trim is expected to remove only that minority; R10 measures it.
+- Tags: discovery, host
+
+### [2026-10-21] Discovery candidates: observation state only
+
+- Decision: `candidates.tsv` has one row per resolved taxon with counts and flags (`low_minimizer_diversity`, `offcell_dominant`, `host_lineage`, `viral_only_db`) and `state = observation` only; no prioritised or sequence-supported tiers until a frozen benchmark exists (plan §12.2).
+- Tags: discovery, claims
+
+### [2026-10-21] Discovery fingerprint and resume
+
+- Decision: `discovery_fingerprint` is the sha256 of the output-determining provenance subset, computed before Kraken2 runs. A matching published output is a no-op; a different one is refused unless `--force`. Threads, memory mapping and paths are excluded; the ViralScan version is included. The `--host-subtract` STAR index is identified by path only (hashing a genome takes minutes).
+- Tags: discovery, provenance
