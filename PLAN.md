@@ -92,6 +92,21 @@ completion.
     broke the 139 retry for 16-base chemistries); `star_molecules` documented as Solo-assigned (CB, UB) only
     (not read support; use `star_reads_any`); tests for the on-list default and `cb_len` wiring through
     `align_host_unmapped`.
+    still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139), not handled here.
+- [~] SPIKE-01 (2026-10-21, exploratory under the Q21/LOCK-01 A2 override; branch `codex/spikein-detection-limit`,
+  stacked on the unpushed `codex/star-hostvirus-align`): empirical detection limit of the old kb index, the flank
+  index v2 and STARsolo host+virus, by spiking real HHV-6B reads (GSM6416022 BAM, stratified by flank-audit class)
+  into null background libraries. Tooling written and unit-tested (`analysis/spikein_detection_limit/spikein.py`,
+  `score.py`, `smoke.sbatch`; `tests/test_spikein_detection_limit.py`, 4). NOT run: the smoke job
+  (1 background D03 SRR29320037, levels 10/100, seed 1, 5 cells, first 5 M pairs) is unsubmitted. Next: smoke,
+  then the 60-run grid (levels 3/10/30/100/300 x 3 seeds x 2 layouts x D03/R01_SOC4 at ~45 M pairs).
+  - Pre-set rules (user "approve all" 2026-10-21): call = >= 3 kb molecules AND >= 1 STAR read on the same contig;
+    limit = lowest level recovered in >= 2 of 3 seeds; keep the flank index only if its limit <= the old index's and
+    it adds <= 5 unsupported UMIs per null library (3 unspiked replicates per background).
+  - Note: one spiked read = one UMI (conservative; real data carry PCR duplicates). Smoke uses the first 5 M pairs,
+    not a random subsample. The host-filter arm runs the real `_starsolo_filter` on the spike FASTQ alone (no viral
+    competitor), compared with the full host+virus run. The R01 reverse-complement path is unit-tested but not yet
+    run on real data.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 

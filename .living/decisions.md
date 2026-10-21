@@ -2079,3 +2079,10 @@ sensitivity claim; STAR-GATE-01 stays open.
 Supersedes the earlier "summed per virus_name" decision: `align_host_unmapped(virus_of=acc_to_virus)` makes `summarise_by_virus`
 key rows by virus name, so a read counts once per virus and `star_other_virus` means a different virus (not a sibling
 accession). `scripts/star_confirm.read_summary` now only reads the TSV. Without `virus_of` (standalone CLI) rows stay per accession.
+### [2026-10-21] Detection-limit spike-in design approved (user: "approve all"; Q1-Q4, Q6-Q8)
+- Question: what could the Track B pilot have detected? Method: spike real HHV-6B reads (GSM6416022, stratified by flank-audit class at real proportions) into null libraries; score old kb, flank kb, STARsolo host+virus.
+- Rules: call = >= 3 kb molecules AND >= 1 STAR read on one contig; limit = lowest level recovered in >= 2 of 3 seeds; keep flank index only if limit <= old index's and <= 5 unsupported UMIs per null library.
+- Grid: HHV-6B source; backgrounds D03 SRR29320037 + R01_SOC4 at ~45 M pairs, >= 3 unspiked replicates; levels 3/10/30/100/300 x 3 seeds x (5 cells | 100 cells) = 60 runs, after a smoke test (1 background, levels 10/100, 1 seed).
+- Exploratory under the Q21/LOCK-01 A2 override; no held-out cohort used. EBV spike waits for its flank audit.
+- Tooling: `analysis/spikein_detection_limit/` on `codex/spikein-detection-limit` (stacked on `codex/star-hostvirus-align`, unpushed). Correction found while building: the pilot STAR arm ran on raw inputs (arm2_star.sbatch), Track A used host_filtered reads.
+- Tags: methods, detection-limit, exploratory
