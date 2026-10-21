@@ -40,6 +40,11 @@ completion.
   - Note: multimap cap 100 and relaxed score filters are deliberate (keep host competition visible); STAR 2.7.11b
     still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139); handled since
     STAR-02 (shared `star_run.run_star`).
+- [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
+  `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
+  writes `star_hostvirus_index.json` (`write_index_manifest` / `read_index_manifest` / `validate_index_manifest`).
+  - Note: manifest is written last (absent = unfinished build). Refuses a non-empty index dir; `--force` deletes it only
+    if it holds a manifest. No real STAR build run (tests monkeypatch it). Next: STAR-04 (phase 3) validates the manifest.
 - [x] STAR-02: harden `star_hostvirus` (branch `codex/star-confirm`): on-list default via
   `resolve_whitelist` (kb on-list gunzipped; literal `None` only for list-less chemistries, explicit list wins),
   `--soloStrand` from a viralscan strand (`SOLO_STRAND`, out of `ALIGN_ARGS`), exit-139 fallback lifted from

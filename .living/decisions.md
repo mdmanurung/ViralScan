@@ -2059,3 +2059,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Decision: the on-list default sits in `align_host_unmapped` (`resolve_whitelist`), not `align_cmd`, so `align_cmd` stays pure and gz lists are gunzipped where a work dir exists. viralscan strand maps 1:1 to `--soloStrand` (STAR help: Forward = read strand same as the RNA; the aligned read is the cDNA R2; 5' kits whose R2 is antisense are `reverse`). The 139 fallback moved to `viralscan/star_run.py`; `anello_align._run_star` takes `cb_len` (review fix: it was a hardcoded 12-base wrapper, wrong for 16-base chemistries).
 - Summary rules: unit = QNAME (single-end BAM), per VIRUS| contig; `star_molecules` counts Solo-assigned (CB, UB) over reads with any record on the contig (UB is `-` for intergenic/wrong-strand/multimapping reads, so it is not read support; `star_reads_any` is); primary = the read's flag-0x100-clear record. Pruned BAM drops HOST| partners (competition categories cannot be rebuilt from it).
 - Tags: star, scope
+
+### [2026-10-21] STAR-03: star-index layout and manifest
+
+- Decision: `viralscan star-index --out-dir D` writes the prefixed reference to `D/reference/` and the STAR index to `D/index/`; the manifest `star_hostvirus_index.json` lives in `D/index/` and is written only after genomeGenerate succeeds, so its absence marks an unfinished build. `--force` rmtree's only `D/index` + `D/reference`, and only when `D/index` already holds a manifest (never a foreign directory). Inputs are hashed by streaming (`run_safety.sha256_file`). The parser keeps the 85 GB RAM default as a literal (light import) with a test tying it to `DEFAULT_RAM_BYTES`.
+- Tags: star, scope

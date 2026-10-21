@@ -13,6 +13,7 @@ Command line: ``python -m viralscan.star_hostvirus {reference,index,align} ...``
 
 import argparse
 import csv
+import datetime
 import json
 import shutil
 import subprocess
@@ -36,6 +37,9 @@ GENOME_GENERATE_ARGS: tuple[str, ...] = (
     "--sjdbOverhang",
     "100",
 )
+
+#: ``--limitGenomeGenerateRAM``. Observed for GRCh38 + 2,343 viral genomes: about 77 GB RAM, ~50 min.
+DEFAULT_RAM_BYTES = 85_000_000_000
 
 #: Alignment settings. Host-unmapped reads are the input, so the aim is to keep every
 #: placement a read has: ``--outFilterMultimapNmax 100`` (host filter used 20) with
@@ -146,7 +150,7 @@ def build_star_hostvirus_index(
     gtf: str | Path,
     index_dir: str | Path,
     threads: int = 8,
-    ram_bytes: int = 85_000_000_000,
+    ram_bytes: int = DEFAULT_RAM_BYTES,
     star: str = "STAR",
     sa_index_nbases: int = 14,
 ) -> Path:
@@ -157,6 +161,161 @@ def build_star_hostvirus_index(
         genome_generate_cmd(star, index, fasta, gtf, threads, ram_bytes, sa_index_nbases),
         check=True,
     )
+    return index
+
+
+# ── index orchestration + manifest (STAR-03) ────────────────────────────────────────
+INDEX_MANIFEST = "star_hostvirus_index.json"
+INDEX_MANIFEST_SCHEMA = "viralscan.star_hostvirus_index/1"
+_INPUT_KEYS = ("host_fasta", "host_gtf", "viral_fasta", "viral_gtf")
+_MANIFEST_KEYS = (
+    "schema", "viralscan_version", "created_utc", "star_version", "genome_generate_args",
+    "inputs", "contigs", "threads", "ram_bytes",
+)  # fmt: skip
+#: Files a finished ``genomeGenerate`` always leaves in the index directory.
+_INDEX_FILES = ("Genome", "SA", "SAindex", "chrName.txt")
+
+
+def star_version(star: str = "STAR") -> str:
+    """``STAR --version`` (e.g. ``2.7.11b``)."""
+    out = subprocess.run([star, "--version"], capture_output=True, text=True, check=True)
+    return out.stdout.strip()
+
+
+def count_contigs(fasta: str | Path) -> dict[str, int]:
+    """FASTA headers per prefix: ``{"host": n(HOST|), "virus": n(VIRUS|)}``."""
+    counts = {"host": 0, "virus": 0}
+    with open(fasta, encoding="utf-8") as handle:
+        for line in handle:
+            if line.startswith(">HOST|"):
+                counts["host"] += 1
+            elif line.startswith(">VIRUS|"):
+                counts["virus"] += 1
+    return counts
+
+
+def write_index_manifest(
+    index_dir: str | Path,
+    inputs: dict[str, str | Path],
+    contigs: dict[str, int],
+    cmd: Sequence[str],
+    version: str,
+    threads: int,
+    ram_bytes: int,
+    now: datetime.datetime | None = None,
+) -> Path:
+    """Write ``star_hostvirus_index.json`` into *index_dir*; returns its path.
+
+    *inputs* maps ``host_fasta``/``host_gtf``/``viral_fasta``/``viral_gtf`` to paths; each is
+    recorded with its streamed sha256. *cmd* is the exact ``genomeGenerate`` command.
+    """
+    from viralscan import __version__
+    from viralscan.run_safety import sha256_file
+
+    if set(inputs) != set(_INPUT_KEYS):
+        raise ValueError(f"inputs must have exactly the keys {_INPUT_KEYS}, got {sorted(inputs)}")
+    stamp = now or datetime.datetime.now(datetime.timezone.utc)
+    manifest = {
+        "schema": INDEX_MANIFEST_SCHEMA,
+        "viralscan_version": __version__,
+        "created_utc": stamp.isoformat(timespec="seconds"),
+        "star_version": version,
+        "genome_generate_args": list(cmd),
+        "inputs": {
+            k: {"path": str(Path(inputs[k]).resolve()), "sha256": sha256_file(inputs[k])}
+            for k in _INPUT_KEYS
+        },
+        "contigs": contigs,
+        "threads": threads,
+        "ram_bytes": ram_bytes,
+    }
+    path = Path(index_dir) / INDEX_MANIFEST
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.replace(path)
+    return path
+
+
+def read_index_manifest(index_dir: str | Path) -> dict:
+    """The manifest dict of *index_dir*; ``FileNotFoundError`` if the build never finished."""
+    return json.loads((Path(index_dir) / INDEX_MANIFEST).read_text(encoding="utf-8"))
+
+
+def validate_index_manifest(index_dir: str | Path, verify_inputs: bool = False) -> list[str]:
+    """Problems with *index_dir* as a finished host+virus index (empty list = usable).
+
+    Checks the manifest exists and has its fields, both contig classes are non-empty, and
+    the STAR index files exist. ``verify_inputs`` also re-hashes the recorded input files
+    (slow: the host FASTA is ~3 GB) and reports any that moved or changed.
+    """
+    index = Path(index_dir)
+    try:
+        m = read_index_manifest(index)
+    except FileNotFoundError:
+        return [f"{INDEX_MANIFEST} missing in {index} (build unfinished or not a viralscan index)"]
+    except ValueError as exc:
+        return [f"{INDEX_MANIFEST} is not valid JSON: {exc}"]
+    problems = [f"manifest field {k!r} missing" for k in _MANIFEST_KEYS if k not in m]
+    if m.get("schema") != INDEX_MANIFEST_SCHEMA:
+        problems.append(f"schema {m.get('schema')!r} != {INDEX_MANIFEST_SCHEMA!r}")
+    for k in ("host", "virus"):
+        if not m.get("contigs", {}).get(k):
+            problems.append(f"manifest records no {k.upper()}| contigs")
+    problems += [f"index file {f} missing" for f in _INDEX_FILES if not (index / f).exists()]
+    if verify_inputs:
+        from viralscan.run_safety import sha256_file
+
+        for k, rec in (m.get("inputs") or {}).items():
+            try:
+                if sha256_file(rec["path"]) != rec["sha256"]:
+                    problems.append(f"input {k} changed since the index was built")
+            except OSError:
+                problems.append(f"input {k} not readable at {rec.get('path')}")
+    return problems
+
+
+def star_index(
+    host_fasta: str | Path,
+    host_gtf: str | Path,
+    viral_fasta: str | Path,
+    viral_gtf: str | Path,
+    out_dir: str | Path,
+    threads: int = 8,
+    ram_bytes: int = DEFAULT_RAM_BYTES,
+    force: bool = False,
+    star: str = "STAR",
+    now: datetime.datetime | None = None,
+) -> Path:
+    """Build the host+virus index under ``out_dir/index`` (reference in ``out_dir/reference``).
+
+    The manifest is written last, so a missing manifest means an unfinished build. An existing
+    ``out_dir/index`` raises ``FileExistsError`` unless *force*, which removes it (and
+    ``out_dir/reference``) only if it holds one of our manifests.
+    """
+    out = Path(out_dir)
+    index, ref = out / "index", out / "reference"
+    if index.exists() and any(index.iterdir()):
+        if not force:
+            raise FileExistsError(f"{index} is not empty; pass --force to rebuild it")
+        if not (index / INDEX_MANIFEST).exists():
+            raise FileExistsError(f"{index} has no {INDEX_MANIFEST}; refusing to delete it")
+        shutil.rmtree(index)
+        shutil.rmtree(ref, ignore_errors=True)
+    fasta, gtf = write_reference(host_fasta, viral_fasta, host_gtf, viral_gtf, ref)
+    build_star_hostvirus_index(fasta, gtf, index, threads, ram_bytes, star)
+    write_index_manifest(
+        index,
+        {
+            "host_fasta": host_fasta, "host_gtf": host_gtf,
+            "viral_fasta": viral_fasta, "viral_gtf": viral_gtf,
+        },
+        count_contigs(fasta),
+        genome_generate_cmd(star, index, fasta, gtf, threads, ram_bytes),
+        star_version(star),
+        threads,
+        ram_bytes,
+        now,
+    )  # fmt: skip
     return index
 
 
@@ -405,7 +564,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for a in ("fasta", "gtf", "index-dir"):
         i.add_argument(f"--{a}", required=True)
     i.add_argument("--threads", type=int, default=8)
-    i.add_argument("--ram-bytes", type=int, default=85_000_000_000)
+    i.add_argument("--ram-bytes", type=int, default=DEFAULT_RAM_BYTES)
     a_ = sub.add_parser("align")
     for a in ("r1", "r2", "index", "out-dir"):
         a_.add_argument(f"--{a}", required=True)

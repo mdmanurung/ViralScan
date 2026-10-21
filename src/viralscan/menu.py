@@ -959,6 +959,24 @@ def _check_host_filter_tools(aligner: str) -> None:
         _die("ViralScan v3 supports only --host-filter starsolo.")
 
 
+def _run_star_index(args: argparse.Namespace) -> None:
+    from viralscan import star_hostvirus
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    if shutil.which("STAR") is None:
+        _die(
+            "'viralscan star-index' requires 'STAR' on PATH. See https://github.com/alexdobin/STAR"
+        )
+    try:
+        index = star_hostvirus.star_index(
+            args.host_fasta, args.host_gtf, args.viral_fasta, args.viral_gtf, args.out_dir,
+            args.threads, args.ram_bytes, args.force,
+        )  # fmt: skip
+    except (FileExistsError, FileNotFoundError, ValueError) as exc:
+        _die(str(exc))
+    log.info("STAR host+virus index written to %s", index)
+
+
 def _count_lines(path: str) -> int:
     with open(path, encoding="utf-8", errors="replace") as f:
         return sum(1 for _ in f)
@@ -1300,6 +1318,10 @@ def main() -> None:
         from viralscan.scripts.build_reference import build_ref_main
 
         build_ref_main(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "star-index":
+        _run_star_index(args)
         return
 
     if getattr(args, "_subcommand", None) == "evidence":

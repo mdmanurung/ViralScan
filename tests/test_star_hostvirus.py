@@ -4,6 +4,7 @@ import gzip
 import random
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -298,3 +299,128 @@ def test_end_to_end_viral_and_host_reads(tmp_path):
     pruned = prune_to_viral(bam)
     view = subprocess.run(["samtools", "view", str(pruned)], capture_output=True, text=True)
     assert [ln.split("\t")[2] for ln in view.stdout.splitlines()] == ["VIRUS|V1.1"] * 3
+
+
+# ── star-index verb + manifest (STAR-03) ────────────────────────────────────────────
+def _inputs(tmp_path):
+    files = {
+        "host_fasta": (">chr1\nACGTACGTAC\n>chr2\nTTGGCCAATT\n", "h.fa"),
+        "host_gtf": ('chr1\tx\tgene\t1\t9\t.\t+\t.\tgene_id "g";\n', "h.gtf"),
+        "viral_fasta": (">NC_1.1\nACGTACGTAC\n", "v.fa"),
+        "viral_gtf": ('NC_1.1\tx\tgene\t1\t9\t.\t+\t.\tgene_id "v";\n', "v.gtf"),
+    }
+    out = {}
+    for key, (text, name) in files.items():
+        (tmp_path / name).write_text(text)
+        out[key] = str(tmp_path / name)
+    return out
+
+
+def _fake_build(monkeypatch):
+    def build(fasta, gtf, index_dir, threads=8, ram_bytes=0, star="STAR", sa_index_nbases=14):
+        index_dir.mkdir(parents=True, exist_ok=True)
+        for f in star_hostvirus._INDEX_FILES:
+            (index_dir / f).write_text("x")
+        return index_dir
+
+    monkeypatch.setattr(star_hostvirus, "build_star_hostvirus_index", build)
+    monkeypatch.setattr(star_hostvirus, "star_version", lambda star="STAR": "2.7.11b")
+
+
+def _run_verb(monkeypatch, tmp_path, *extra, which="/usr/bin/STAR"):
+    import shutil as _shutil
+
+    from viralscan import menu
+
+    ins = _inputs(tmp_path)
+    argv = ["viralscan", "star-index", "--out-dir", str(tmp_path / "out"), *extra]
+    for key, path in ins.items():
+        argv += ["--" + key.replace("_", "-"), path]
+    monkeypatch.setattr("sys.argv", argv)
+    monkeypatch.setattr(_shutil, "which", lambda name: which)
+    menu.main()
+    return ins
+
+
+def test_star_index_parser_options():
+    from viralscan.cli.parsers import build_parser
+
+    ns = build_parser().parse_args(
+        [
+            "star-index",
+            "--host-fasta",
+            "a",
+            "--host-gtf",
+            "b",
+            "--viral-fasta",
+            "c",
+            "--viral-gtf",
+            "d",
+            "--out-dir",
+            "o",
+        ]  # fmt: skip
+    )
+    assert ns._subcommand == "star-index"
+    assert (ns.threads, ns.force) == (8, False)
+    assert ns.ram_bytes == star_hostvirus.DEFAULT_RAM_BYTES
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["star-index", "--out-dir", "o"])
+
+
+def test_star_index_verb_writes_manifest(monkeypatch, tmp_path):
+    _fake_build(monkeypatch)
+    ins = _run_verb(monkeypatch, tmp_path, "--threads", "3")
+    index = tmp_path / "out" / "index"
+    m = star_hostvirus.read_index_manifest(index)
+    assert star_hostvirus.validate_index_manifest(index, verify_inputs=True) == []
+    assert m["contigs"] == {"host": 2, "virus": 1}
+    assert m["star_version"] == "2.7.11b" and m["threads"] == 3
+    import hashlib
+
+    digest = hashlib.sha256(Path(ins["host_fasta"]).read_bytes()).hexdigest()
+    assert m["inputs"]["host_fasta"]["sha256"] == digest
+    cmd = m["genome_generate_args"]
+    assert cmd[cmd.index("--runMode") + 1] == "genomeGenerate"
+    assert cmd[cmd.index("--runThreadN") + 1] == "3"
+    assert cmd[cmd.index("--genomeDir") + 1] == str(index)
+
+
+def test_star_index_verb_requires_star(monkeypatch, tmp_path, capsys):
+    _fake_build(monkeypatch)
+    with pytest.raises(SystemExit) as exc:
+        _run_verb(monkeypatch, tmp_path, which=None)
+    assert exc.value.code == 1
+    assert "STAR" in capsys.readouterr().err
+    assert not (tmp_path / "out").exists()
+
+
+def test_star_index_refuses_overwrite_then_force(monkeypatch, tmp_path):
+    _fake_build(monkeypatch)
+    _run_verb(monkeypatch, tmp_path)
+    with pytest.raises(SystemExit):
+        _run_verb(monkeypatch, tmp_path)
+    _run_verb(monkeypatch, tmp_path, "--force")
+    assert star_hostvirus.validate_index_manifest(tmp_path / "out" / "index") == []
+
+
+def test_star_index_force_spares_foreign_dir(monkeypatch, tmp_path):
+    _fake_build(monkeypatch)
+    foreign = tmp_path / "out" / "index"
+    foreign.mkdir(parents=True)
+    (foreign / "precious.txt").write_text("keep")
+    with pytest.raises(SystemExit):
+        _run_verb(monkeypatch, tmp_path, "--force")
+    assert (foreign / "precious.txt").exists()
+
+
+def test_validate_index_manifest_reports_problems(monkeypatch, tmp_path):
+    assert "missing" in star_hostvirus.validate_index_manifest(tmp_path)[0]
+    _fake_build(monkeypatch)
+    ins = _run_verb(monkeypatch, tmp_path)
+    index = tmp_path / "out" / "index"
+    (index / "SA").unlink()
+    with Path(ins["viral_gtf"]).open("a") as handle:
+        handle.write("# changed\n")
+    problems = star_hostvirus.validate_index_manifest(index, verify_inputs=True)
+    assert any("SA missing" in p for p in problems)
+    assert any("viral_gtf changed" in p for p in problems)
