@@ -3,6 +3,7 @@ resolves the host-unmapped pair fail-closed."""
 
 import gzip
 import hashlib
+import itertools
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -565,6 +566,16 @@ def test_parse_inspect_refuses_indentation_jump():
 )
 def test_lca(taxids, expected):
     assert discovery.lca(TREE, taxids) == expected
+
+
+def test_lca_matches_set_intersection_on_all_subsets():
+    taxa = sorted(TREE)
+    for r in (1, 2, 3):
+        for combo in itertools.combinations(taxa, r):
+            common = set.intersection(*(set(discovery.lineage(TREE, t)) for t in combo))
+            assert discovery.lca(TREE, set(combo)) == max(
+                common, key=lambda t: len(discovery.lineage(TREE, t))
+            )
 
 
 def test_host_relation():

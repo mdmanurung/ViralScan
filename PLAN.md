@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  Next: user decision on the per-UMI rule (`DISC-CMP`); then `DISC-09` provenance/fingerprint/publish.
+  `DISC-R1` (grouping perf) done. Next: R2 (`DISC-09` provenance/fingerprint/publish); user decision on the per-UMI rule (`DISC-CMP`) still open.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7826,6 +7826,9 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   are claimed as one species, 87 root features. LCA: 606 exact vs mg2sc 752; deepest-consistent: 799.
   - [!] Open user decision: switch decision 4 to "deepest taxon when all classified reads are lineage-consistent,
     else LCA" (G7 reworded). Not changed without approval.
+- [x] `DISC-R1` (2026-10-21, plan step R1): taxonomy path cache (root-first tuples memoised per tree, lazy per queried
+  taxid); `lca` is a common-prefix walk, `host_relation`/`_group_shard` read the cache. No behaviour change: 40-seed oracle
+  and a new all-subsets LCA test pass. Not re-timed on the EBV grouping step (needs Slurm; R10 records it).
 - [ ] `DISC-09` qc/provenance, discovery fingerprint, resume/no-op/--force.
 - [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
 - [ ] `DISC-11` `discover-collapse` (taxid rank projection).

@@ -575,29 +575,53 @@ def load_taxonomy(db: Path, memory_mapping: bool = False) -> dict[int, tuple[int
         raise DiscoveryError(str(exc)) from exc
 
 
-def lineage(tree: dict[int, tuple[int, str, str]], taxid: int) -> list[int]:
-    """``taxid`` up to the root, inclusive."""
-    path = [taxid]
-    while tree[path[-1]][0] != path[-1]:
-        path.append(tree[path[-1]][0])
+# One memo per taxonomy tree (identity-checked; the tree is built once per run). Paths are
+# root-first tuples filled lazily for the taxids actually queried, so a 2M-node tree costs nothing.
+_PATHS: tuple[dict, dict[int, tuple[int, ...]]] = ({}, {})
+
+
+def _path(tree: dict[int, tuple[int, str, str]], taxid: int) -> tuple[int, ...]:
+    """Root-first ancestor path of ``taxid`` (root and ``taxid`` inclusive), memoised per tree."""
+    global _PATHS
+    if _PATHS[0] is not tree:
+        _PATHS = (tree, {})
+    memo = _PATHS[1]
+    todo = []
+    while taxid not in memo:
+        parent = tree[taxid][0]
+        if parent == taxid:
+            memo[taxid] = (taxid,)
+            break
+        todo.append(taxid)
+        taxid = parent
+    path = memo[taxid]
+    for node in reversed(todo):
+        path = memo[node] = (*path, node)
     return path
 
 
+def lineage(tree: dict[int, tuple[int, str, str]], taxid: int) -> list[int]:
+    """``taxid`` up to the root, inclusive."""
+    return list(reversed(_path(tree, taxid)))
+
+
 def lca(tree: dict[int, tuple[int, str, str]], taxids: set[int]) -> int:
-    common: set[int] | None = None
-    for taxid in taxids:
-        common = set(lineage(tree, taxid)) if common is None else common & set(lineage(tree, taxid))
-    assert common, "taxids share at least the root"
-    return max(common, key=lambda t: len(lineage(tree, t)))
+    paths = [_path(tree, taxid) for taxid in taxids]
+    common = paths[0][0]  # the root, shared by every path
+    for nodes in zip(*paths):
+        if len(set(nodes)) > 1:
+            break
+        common = nodes[0]
+    return common
 
 
 def host_relation(tree: dict[int, tuple[int, str, str]], taxid: int) -> str:
     """``host`` (9606 or below), ``host_ancestor`` (a non-root ancestor of 9606) or ``other``."""
-    if HUMAN_TAXID in lineage(tree, taxid):
+    if HUMAN_TAXID in _path(tree, taxid):
         return "host"
     if (
         HUMAN_TAXID in tree
-        and taxid in lineage(tree, HUMAN_TAXID)
+        and taxid in _path(tree, HUMAN_TAXID)
         and not tree[taxid][1].startswith("R")
     ):
         return "host_ancestor"
@@ -610,7 +634,7 @@ def write_taxonomy(tree: dict[int, tuple[int, str, str]], out_dir: Path) -> None
         writer.writerow(["taxid", "parent_taxid", "rank", "name", "depth", "host_relation"])
         for taxid in sorted(tree):
             parent, rank, name = tree[taxid]
-            depth = len(lineage(tree, taxid)) - 1
+            depth = len(_path(tree, taxid)) - 1
             writer.writerow([taxid, parent, rank, name, depth, host_relation(tree, taxid)])
 
 
@@ -765,8 +789,8 @@ def _group_shard(path: Path, tree: dict[int, tuple[int, str, str]]) -> list[tupl
         resolved, cls, consistent, deepest = "", "unclassified", "", ""
         if taxids:
             top = lca(tree, taxids)
-            deep = max(taxids, key=lambda t: len(lineage(tree, t)))
-            consistent = all(t in lineage(tree, deep) for t in taxids)
+            deep = max(taxids, key=lambda t: len(_path(tree, t)))
+            consistent = all(t in _path(tree, deep) for t in taxids)
             deepest = deep if consistent else ""
             cls = "ambiguous" if tree[top][1].startswith("R") else "resolved"
             resolved = top if cls == "resolved" else ""
