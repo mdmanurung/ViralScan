@@ -556,7 +556,23 @@ def _build_discover_parser(subparsers: Any) -> None:
         required=True,
         help="Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified.",
     )
-    p.add_argument("--threads", type=int, default=4, help="Kraken2 threads. Default: 4.")
+    p.add_argument(
+        "--host-subtract",
+        choices=["starsolo"],
+        default=None,
+        help=(
+            "Run a discovery-only STAR host subtraction when the source run has no "
+            "host_filtered/ output. Its reads go under --output; the source run is not changed."
+        ),
+    )
+    p.add_argument("--host-index", default=None, help="STAR genomeDir for --host-subtract.")
+    p.add_argument(
+        "--host-filter-star-params",
+        choices=["pinned", "star-default"],
+        default="pinned",
+        help="STAR filter parameter set for --host-subtract (as in the main run). Default: pinned.",
+    )
+    p.add_argument("--threads", type=int, default=4, help="Kraken2 and STAR threads. Default: 4.")
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="discover")
 

@@ -5,19 +5,23 @@ post-hoc layer: it reads a completed run and writes only into its own output dir
 cannot change primary inputs, count matrices, ``detected``, tiers or the run fingerprint. A
 Kraken2 assignment is a taxonomic observation, never an infection call.
 
-This module currently holds the DISC-02 skeleton: run, output and database validation plus
-atomic publication. The classification stages land in DISC-03..09.
+Implemented so far: run, output and database validation, atomic publication (DISC-02) and
+host-unmapped input resolution (DISC-03). The classification stages land in DISC-06..09.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
+import gzip
+import json
 import logging
 import os
 import shutil
 from pathlib import Path
+from typing import Any
 
-from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST
+from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file
 
 log = logging.getLogger(__name__)
 
@@ -107,6 +111,161 @@ def publish(output: Path) -> None:
     partial.rmdir()
 
 
+def _host_filter_audit(path: Path) -> dict[str, str]:
+    """``category -> fragments`` column of ``host_filter_audit.tsv``."""
+    with path.open(newline="") as handle:
+        return {row["category"]: row["fragments"] for row in csv.DictReader(handle, delimiter="\t")}
+
+
+def _lineage_retained(path: Path) -> int:
+    with gzip.open(path, "rt", newline="") as handle:
+        return sum(
+            row["filter_decision"] == "retained" for row in csv.DictReader(handle, delimiter="\t")
+        )
+
+
+def read_host_filtered(hf: Path) -> dict[str, Any] | None:
+    """A STAR host-unmapped pair in the host-filter layout, cross-checked against its own audit.
+
+    Returns None when *hf* holds none of the files (the primary ran without ``--host-filter``).
+    The primary manifest does not hash ``host_filtered/``, so the pair can only be hashed now
+    (``primary_verified: False``).
+    """
+    files = {
+        "r1": hf / "R1.fastq.gz",
+        "r2": hf / "R2.fastq.gz",
+        "audit": hf / "host_filter_audit.tsv",
+        "lineage": hf / "fragment_lineage.tsv.gz",
+    }
+    present = {key for key, path in files.items() if path.is_file()}
+    if not present:
+        return None
+    if present != set(files):
+        missing = sorted(str(files[key]) for key in set(files) - present)
+        raise DiscoveryError(f"Incomplete primary host filter output; missing {missing}.")
+
+    from viralscan.scripts.host_filter import validate_paired_fastq_ids
+
+    try:
+        n_fragments = validate_paired_fastq_ids(str(files["r1"]), str(files["r2"]))
+    except (ValueError, OSError, EOFError) as exc:
+        raise DiscoveryError(f"Primary host-filtered FASTQs are unreadable: {exc}") from exc
+    audit = _host_filter_audit(files["audit"])
+    counts = {
+        "fastq_pairs": n_fragments,
+        "audit_retained": int(audit.get("retained_host_unmapped", -1)),
+        "lineage_retained": _lineage_retained(files["lineage"]),
+    }
+    if len(set(counts.values())) != 1:
+        raise DiscoveryError(
+            f"Primary host filter outputs disagree on retained fragments: {counts}"
+        )
+    return {
+        "source": "primary_host_filtered",
+        "r1": str(files["r1"]),
+        "r2": str(files["r2"]),
+        "n_fragments": n_fragments,
+        "star_param_set": audit.get("star_param_set"),
+        "star_args": {
+            k.split(":", 1)[1]: v for k, v in audit.items() if k.startswith("star_param:")
+        },
+        "sha256": {key: sha256_file(files[key]) for key in ("r1", "r2")},
+        "primary_verified": False,
+    }
+
+
+def discovery_star_pass(
+    run_root: Path,
+    sample_dir: Path,
+    out_dir: Path,
+    host_index: Path,
+    param_set: str,
+    threads: int,
+) -> dict[str, Any]:
+    """Discovery-only STAR host subtraction of the primary's sample FASTQs into *out_dir*.
+
+    Reuses the primary host filter (same STARsolo command and parameter sets); the primary's
+    own inputs and outputs are only read. The sample FASTQs must match the primary manifest.
+    """
+    from viralscan.runconfig import RunConfig
+    from viralscan.scripts.host_filter import _starsolo_filter, check_host_filter_tools
+
+    config = RunConfig.from_yaml(str(sample_dir / "config.yaml"))
+    manifest = json.loads((run_root / RUN_MANIFEST).read_text(encoding="utf-8"))
+    recorded = {
+        path: manifest.get("input_fingerprints", {}).get(key)
+        for key, path in (manifest.get("input_paths") or {}).items()
+        if key.startswith(("sample1:", "sample2:"))
+    }
+    for fastq in (config.sample1, config.sample2):
+        path = Path(fastq).resolve()
+        if not path.is_file():
+            raise DiscoveryError(
+                f"Sample FASTQ {path} is absent (deleted after the run?); a discovery-only "
+                "host subtraction needs the original reads."
+            )
+        if str(path) not in recorded:
+            raise DiscoveryError(f"{path} is not among the primary manifest's sample inputs.")
+        if sha256_file(path) != recorded[str(path)]:
+            raise DiscoveryError(f"{path} changed since the primary run (sha256 differs).")
+    try:
+        check_host_filter_tools("starsolo")
+    except RuntimeError as exc:
+        raise DiscoveryError(str(exc)) from exc
+    if not host_index.is_dir():
+        raise DiscoveryError(f"--host-index is not a directory: {host_index}")
+
+    out_dir.mkdir(parents=True)
+    r1, r2 = out_dir / "R1.fastq.gz", out_dir / "R2.fastq.gz"
+    _starsolo_filter(
+        config.sample1,
+        config.sample2,
+        str(host_index),
+        config.technology,
+        config.whitelist,
+        out_dir,
+        str(r1),
+        str(r2),
+        threads,
+        param_set,
+    )
+    resolved = read_host_filtered(out_dir)
+    if resolved is None:
+        raise DiscoveryError(f"STAR host subtraction wrote no output to {out_dir}.")
+    resolved.update(source="discovery_star_pass", host_index=str(host_index))
+    return resolved
+
+
+def resolve_input(
+    run_root: Path, sample_dir: Path, partial: Path, args: argparse.Namespace
+) -> dict[str, Any]:
+    """Pick the host-unmapped pair (plan §5.2): the primary's, else an explicit STAR pass."""
+    primary = read_host_filtered(sample_dir / "host_filtered")
+    if primary is not None:
+        if args.host_subtract:
+            raise DiscoveryError(
+                "The primary run already has host_filtered/ output; drop --host-subtract "
+                "(discovery reuses it)."
+            )
+        return primary
+    if not args.host_subtract:
+        raise DiscoveryError(
+            "The primary run has no host_filtered/ output. Kraken2 discovery needs host-"
+            "subtracted reads: pass --host-subtract starsolo --host-index <STAR genomeDir> for "
+            "a discovery-only STAR pass (the primary run is not changed)."
+        )
+    if not args.host_index:
+        raise DiscoveryError("--host-subtract starsolo requires --host-index.")
+    return discovery_star_pass(
+        run_root,
+        sample_dir,
+        partial / "host_subtraction",
+        Path(args.host_index).resolve(),
+        args.host_filter_star_params,
+        args.threads,
+    )
+
+
 def run_discover(args: argparse.Namespace) -> None:
     run_root = Path(args.run_dir).resolve()
     output = Path(args.output).resolve()
@@ -116,8 +275,15 @@ def run_discover(args: argparse.Namespace) -> None:
     sample_dir = resolve_sample_dir(run_root, args.sample)
     check_output_dir(output, run_root)
     validate_kraken2_db(db)
-    log.info("Discovery inputs valid: sample %s, database %s.", sample_dir.name, db)
+    partial = stage(output)
+    resolved = resolve_input(run_root, sample_dir, partial, args)
+    (partial / "input.json").write_text(json.dumps(resolved, indent=2, sort_keys=True) + "\n")
+    log.info(
+        "Discovery input: %s, %d host-unmapped fragments.",
+        resolved["source"],
+        resolved["n_fragments"],
+    )
     raise DiscoveryError(
-        "Classification stages are not implemented yet (PLAN DISC-03..09); inputs were "
-        "validated and nothing was written."
+        "Classification stages are not implemented yet (PLAN DISC-06..09); the resolved input "
+        f"is staged in {partial} and nothing was published."
     )

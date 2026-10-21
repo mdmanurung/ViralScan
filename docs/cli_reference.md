@@ -852,7 +852,10 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 | `--sample SAMPLE` | *(none)* | Sample subdirectory to classify; required when the run has more than one. |
 | `--output, -o OUTPUT` | *required* | Discovery output directory, outside --run-dir; must be empty or absent. |
 | `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
-| `--threads THREADS` | `4` | Kraken2 threads. Default: 4. |
+| `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
+| `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |
+| `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | `pinned` | STAR filter parameter set for --host-subtract (as in the main run). Default: pinned. |
+| `--threads THREADS` | `4` | Kraken2 and STAR threads. Default: 4. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  Next: `DISC-03` input resolution, `DISC-06` streaming pass; EBV reconciliation for `DISC-05`.
+  Next: `DISC-06` streaming pass (ordinal FASTA + raw CB/UMI); EBV reconciliation for `DISC-05`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7769,7 +7769,13 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   discovery option. After validation it exits 1 with "not implemented yet" until DISC-03..09.
   - Note: `--run-dir` is the run root (where `run_manifest.json` lives), plus `--sample`; the plan's example
     `--run-dir out/S1/` was wrong about the layout.
-- [ ] `DISC-03` input resolution (primary `host_filtered/` or explicit discovery-only STAR pass).
+- [x] `DISC-03` input resolution (2026-10-21): reuse the primary `host_filtered/` pair only when the FASTQ pair count,
+  the audit's `retained_host_unmapped` and the lineage's retained rows agree (else refuse); otherwise an explicit
+  `--host-subtract starsolo --host-index DIR [--host-filter-star-params]` runs `_starsolo_filter` into
+  `-o/.partial/host_subtraction/`, after checking the sample FASTQs exist and match the primary manifest sha256.
+  The resolved input is staged as `.partial/input.json`; nothing is published yet. Tests: 21 in `tests/test_discovery.py`.
+  - Note: `src/viralscan/discovery.py` added to `config/public_ship_scope.json` (wheel + sdist); DISC-02 broke
+    `test_tracked_package_files_are_in_every_allowlist` without it.
 - [x] `DISC-04` spike: DB-derived taxonomy = `k2 inspect --report-zero-counts` parsed by indentation (2026-10-21).
   - Note: NCBI rsync is refused from the login node; the test DB uses a hand-written 15-taxon `nodes.dmp`/`names.dmp`
     (reusable as the DISC-10 fixture). Kraken2 2.17.2 is in env `conda/envs/viralscan_discovery`.
