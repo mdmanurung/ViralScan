@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`HOST|` contigs) plus the viral panel (`VIRUS|`), and aligns host-unmapped read pairs with STARsolo
   (multimappers kept, CB/UB tags) to a coordinate-sorted, indexed BAM for coverage maps. Diagnostic only;
   not part of the Snakemake workflow.
+- `star_hostvirus` hardening (PLAN STAR-02): barcodes are corrected against the chemistry's on-list by
+  default (raw barcodes only for list-less chemistries); `--strand forward|reverse|unstranded` maps to
+  `--soloStrand` (it was fixed to Unstranded); STAR 2.7.11b's exit-139 zero-mapped crash is recovered through a
+  shared `viralscan.star_run` (also used by `anello_align`); new per-virus summary
+  (`star_reads_primary/any`, `star_molecules`, `star_host_competing`, `star_other_virus`) and an optional
+  prune to a VIRUS|-only BAM.
 - `evidence-plot --coverage-map` now accepts a bare GTF seqid `ACC` for a viral BAM
   reference `CLASS|ACC` (host contigs are never prefix-stripped) and records the matched
   seqid and whether it was normalised in `coverage_map.<target>.json`.

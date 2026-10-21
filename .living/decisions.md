@@ -2054,3 +2054,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 
 - Decision: `discovery_fingerprint` is the sha256 of the output-determining provenance subset, computed before Kraken2 runs. A matching published output is a no-op; a different one is refused unless `--force`. Threads, memory mapping and paths are excluded; the ViralScan version is included. The `--host-subtract` STAR index is identified by path only (hashing a genome takes minutes).
 - Tags: discovery, provenance
+### [2026-10-21] STAR-02: star_hostvirus hardening choices
+
+- Decision: the on-list default sits in `align_host_unmapped` (`resolve_whitelist`), not `align_cmd`, so `align_cmd` stays pure and gz lists are gunzipped where a work dir exists. viralscan strand maps 1:1 to `--soloStrand` (STAR help: Forward = read strand same as the RNA; the aligned read is the cDNA R2; 5' kits whose R2 is antisense are `reverse`). The 139 fallback moved to `viralscan/star_run.py`; `anello_align._run_star` is a 12-base wrapper so its tests are unchanged.
+- Summary rules: unit = QNAME (single-end BAM), per VIRUS| contig; `star_molecules` counts (CB, UB) over all reads with any record on the contig; primary = the read's flag-0x100-clear record. Pruned BAM drops HOST| partners (competition categories cannot be rebuilt from it).
+- Tags: star, scope

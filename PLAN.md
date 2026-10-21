@@ -38,7 +38,17 @@ completion.
   `align_host_unmapped`; sorted BAM with CB/UB for `plot_coverage_maps`). Code + synthetic tests done; real-library
   runs (EBV GSM4796271, HHV-6B GSM6416022) are Track A diagnostics, not wired into the Snakefile/CLI.
   - Note: multimap cap 100 and relaxed score filters are deliberate (keep host competition visible); STAR 2.7.11b
-    still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139), not handled here.
+    still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139); handled since
+    STAR-02 (shared `star_run.run_star`).
+- [x] STAR-02: harden `star_hostvirus` (branch `codex/star-confirm`): on-list default via
+  `resolve_whitelist` (kb on-list gunzipped; literal `None` only for list-less chemistries, explicit list wins),
+  `--soloStrand` from a viralscan strand (`SOLO_STRAND`, out of `ALIGN_ARGS`), exit-139 fallback lifted from
+  `anello_align` into `viralscan/star_run.py` (both callers; dummy barcode = `cb_len` As), `summarise_by_virus`
+  / `write_summary` / `STAR_SUMMARY_COLUMNS`, `prune_to_viral` (`prune=` option, default off).
+  - Note: `align_cmd` stays pure (whitelist `None` -> literal `None`; the on-list default lives in
+    `align_host_unmapped`) so the existing `align_cmd` test holds. Summary keys are the VIRUS| contig without
+    its prefix. A pruned BAM no longer holds the HOST| partners of viral multimappers, so coverage-map
+    competition categories need the full BAM or must be taken from the summary TSV.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 

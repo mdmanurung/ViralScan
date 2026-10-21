@@ -12,7 +12,6 @@ The BAM and STARsolo matrices stay in ``anello_align/`` for read review.
 
 import csv
 import logging
-import re
 import shutil
 import subprocess
 from collections.abc import Iterator
@@ -33,7 +32,8 @@ from viralscan.anello_align import (
 )
 from viralscan.chemistry import onlist_path
 from viralscan.runconfig import RunConfig
-from viralscan.scripts.host_filter import _plain_whitelist, starsolo_barcode_args
+from viralscan.scripts.host_filter import starsolo_barcode_args
+from viralscan.star_run import plain_whitelist, run_star
 
 log = logging.getLogger(__name__)
 
@@ -78,49 +78,9 @@ def _star_version() -> str:
     ).stdout.strip()
 
 
-_MAPPED_LINE = re.compile(
-    r"(?:Uniquely mapped reads number|Number of reads mapped to multiple loci)\s*\|\s*(\d+)"
-)
-
-
 def _run_star(cmd: list[str], work: Path) -> None:
-    """Run STAR; recover from its Solo crash on a no-whitelist run that mapped nothing.
-
-    STAR 2.7.11b segfaults (exit 139) in the Solo step with ``--soloCBwhitelist None``
-    when no read maps. The retry gives it a one-barcode dummy whitelist and is accepted
-    only if ``Log.final.out`` reports zero mapped reads, so no barcode is dropped from a
-    library that has alignments. A retry is recorded in ``star139_fallback.txt``.
-    """
-    try:
-        subprocess.run(cmd, check=True)
-        return
-    except subprocess.CalledProcessError as exc:
-        no_whitelist = (
-            "--soloCBwhitelist" in cmd and cmd[cmd.index("--soloCBwhitelist") + 1] == "None"
-        )
-        if exc.returncode != 139 or not no_whitelist:
-            raise
-    for leftover in ("_STARtmp", "_STARgenome", "_STARpass1", "Solo.out"):
-        shutil.rmtree(work / leftover, ignore_errors=True)
-    dummy = work / "dummy_whitelist.txt"
-    dummy.write_text("AAAAAAAAAAAA\n", encoding="utf-8")
-    retry = list(cmd)
-    retry[retry.index("--soloCBwhitelist") + 1] = str(dummy)
-    subprocess.run(retry, check=True)
-    mapped = sum(
-        int(n) for n in _MAPPED_LINE.findall((work / "Log.final.out").read_text(encoding="utf-8"))
-    )
-    if mapped:
-        raise RuntimeError(
-            f"STAR exited 139 with no whitelist and the dummy-whitelist retry mapped {mapped} "
-            "reads; refusing to drop barcodes"
-        )
-    (work / "star139_fallback.txt").write_text(
-        "STAR exited 139 with --soloCBwhitelist None; retried with a dummy whitelist; "
-        "zero reads mapped, so the result is empty\n",
-        encoding="utf-8",
-    )
-    log.warning("anello_align: STAR crashed with no whitelist and no mapped reads; empty result")
+    """STAR with the shared exit-139 fallback (12-base dummy barcode, see ``star_run``)."""
+    run_star(cmd, work, cb_len=12)
 
 
 def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -> None:
@@ -132,7 +92,7 @@ def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -
 
     # Correct barcodes against the list kb uses, so molecules line up with the
     # kallisto matrix. With no list (SW-21 chemistries) STARsolo keeps raw CBs.
-    whitelist = _plain_whitelist(config.whitelist or _onlist(config.technology), work)
+    whitelist = plain_whitelist(config.whitelist or _onlist(config.technology), work)
     cmd = align_cmd(
         "STAR",
         index,

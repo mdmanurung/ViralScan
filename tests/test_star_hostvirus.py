@@ -1,17 +1,26 @@
 """STARsolo host-unmapped alignment against a combined HOST|/VIRUS| index (STAR-HOSTVIRUS-01)."""
 
+import gzip
 import random
 import shutil
 import subprocess
 
 import pytest
 
+from viralscan import star_hostvirus, star_run
 from viralscan.star_hostvirus import (
+    STAR_SUMMARY_COLUMNS,
     align_cmd,
     align_host_unmapped,
     build_star_hostvirus_index,
+    prune_to_viral,
+    resolve_whitelist,
+    summarise_by_virus,
     write_reference,
+    write_summary,
 )
+
+needs_samtools = pytest.mark.skipif(shutil.which("samtools") is None, reason="needs samtools")
 
 
 def _seq(n, seed):
@@ -43,6 +52,160 @@ def test_align_cmd_geometry_and_multimappers():
     assert cmd[cmd.index("--soloCBlen") + 1] == "16" and cmd[cmd.index("--soloUMIlen") + 1] == "10"
     assert cmd[cmd.index("--outFilterMultimapNmax") + 1] == "100"
     assert cmd[cmd.index("--soloCBwhitelist") + 1] == "None"
+    assert cmd[cmd.index("--soloStrand") + 1] == "Unstranded"
+
+
+@pytest.mark.parametrize(
+    "strand,solo", [("forward", "Forward"), ("reverse", "Reverse"), ("unstranded", "Unstranded")]
+)
+def test_align_cmd_strand(strand, solo):
+    cmd = align_cmd("STAR", "idx", "r1", "r2", "10xv2", "o/", 1, strand=strand)
+    assert cmd.count("--soloStrand") == 1 and cmd[cmd.index("--soloStrand") + 1] == solo
+
+
+def test_align_cmd_rejects_unknown_strand():
+    with pytest.raises(ValueError, match="strand"):
+        align_cmd("STAR", "idx", "r1", "r2", "10xv2", "o/", 1, strand="Forward")
+
+
+def test_resolve_whitelist_default_explicit_and_none(tmp_path, monkeypatch):
+    gz = tmp_path / "list.txt.gz"
+    with gzip.open(gz, "wt") as fh:
+        fh.write("ACGT\nTTTT\n")
+    monkeypatch.setattr(star_hostvirus, "onlist_path", lambda tech: str(gz))
+    plain = resolve_whitelist("10xv2", None, tmp_path)
+    assert plain == str(tmp_path / "whitelist.txt")  # gunzipped: STAR cannot read .gz
+    assert (tmp_path / "whitelist.txt").read_text() == "ACGT\nTTTT\n"
+    assert resolve_whitelist("10xv2", "/x/mine.txt", tmp_path) == "/x/mine.txt"  # explicit wins
+
+
+def test_resolve_whitelist_none_without_list(tmp_path):
+    # Drop-seq has no on-list; a geometry string is not a named chemistry (SW-21).
+    assert resolve_whitelist("dropseq", None, tmp_path) is None
+    assert resolve_whitelist("0,0,12:0,12,20:1,0,0", None, tmp_path) is None
+
+
+FINAL_ZERO = "Uniquely mapped reads number |\t0\nNumber of reads mapped to multiple loci |\t0\n"
+FINAL_MAPPED = "Uniquely mapped reads number |\t3\nNumber of reads mapped to multiple loci |\t0\n"
+
+
+def _fake_run(monkeypatch, work, codes, final):
+    calls = []
+
+    def run(cmd, check=True):
+        calls.append(list(cmd))
+        code = codes[len(calls) - 1]
+        if code:
+            raise subprocess.CalledProcessError(code, cmd)
+        (work / "Log.final.out").write_text(final)
+
+    monkeypatch.setattr(star_run.subprocess, "run", run)
+    return calls
+
+
+def test_star139_retry_uses_barcode_length_dummy(tmp_path, monkeypatch):
+    calls = _fake_run(monkeypatch, tmp_path, [139, 0], FINAL_ZERO)
+    star_run.run_star(["STAR", "--soloCBwhitelist", "None"], tmp_path, cb_len=16)
+    assert len(calls) == 2
+    dummy = tmp_path / "dummy_whitelist.txt"
+    assert calls[1][calls[1].index("--soloCBwhitelist") + 1] == str(dummy)
+    assert dummy.read_text() == "A" * 16 + "\n"
+    assert (tmp_path / "star139_fallback.txt").is_file()
+
+
+def test_star139_retry_that_maps_reads_is_refused(tmp_path, monkeypatch):
+    _fake_run(monkeypatch, tmp_path, [139, 0], FINAL_MAPPED)
+    with pytest.raises(RuntimeError, match="refusing to drop barcodes"):
+        star_run.run_star(["STAR", "--soloCBwhitelist", "None"], tmp_path)
+
+
+@pytest.mark.parametrize("code,whitelist", [(139, "wl.txt"), (1, "None")])
+def test_star139_other_failures_reraised(tmp_path, monkeypatch, code, whitelist):
+    calls = _fake_run(monkeypatch, tmp_path, [code], FINAL_ZERO)
+    with pytest.raises(subprocess.CalledProcessError):
+        star_run.run_star(["STAR", "--soloCBwhitelist", whitelist], tmp_path)
+    assert len(calls) == 1
+
+
+def _rec(q, flag, ref, pos, nh, hi, cb, ub):
+    return (
+        f"{q}\t{flag}\t{ref}\t{pos}\t255\t10M\t*\t0\t0\t{'A' * 10}\t{'I' * 10}"
+        f"\tNH:i:{nh}\tHI:i:{hi}\tCB:Z:{cb}\tUB:Z:{ub}\n"
+    )
+
+
+def _synthetic_bam(tmp_path):
+    """Hand-computable STAR-style BAM; see test_summarise_by_virus for the expected counts."""
+    head = "@HD\tVN:1.6\tSO:coordinate\n" + "".join(
+        f"@SQ\tSN:{c}\tLN:1000\n" for c in ("HOST|chr1", "VIRUS|V1", "VIRUS|V2")
+    )
+    recs = [
+        _rec("u1", 0, "VIRUS|V1", 10, 1, 1, "AAAA", "UUU1"),
+        _rec("u2", 16, "VIRUS|V1", 20, 1, 1, "AAAA", "UUU1"),  # same molecule as u1
+        _rec("u3", 0, "VIRUS|V1", 30, 1, 1, "BBBB", "UUU2"),
+        _rec("mh", 0, "VIRUS|V1", 40, 2, 1, "CCCC", "UUU3"),  # V1 primary, host partner
+        _rec("mh", 256, "HOST|chr1", 50, 2, 2, "CCCC", "UUU3"),
+        _rec("mv", 0, "VIRUS|V1", 60, 2, 1, "DDDD", "UUU4"),  # V1 primary, V2 secondary
+        _rec("mv", 256, "VIRUS|V2", 60, 2, 2, "DDDD", "UUU4"),
+        _rec("nocb", 0, "VIRUS|V2", 70, 1, 1, "-", "-"),
+        _rec("sh", 0, "HOST|chr1", 80, 2, 1, "EEEE", "UUU5"),  # host primary, V2 secondary
+        _rec("sh", 256, "VIRUS|V2", 90, 2, 2, "EEEE", "UUU5"),
+        _rec("hostonly", 0, "HOST|chr1", 100, 1, 1, "FFFF", "UUU6"),
+    ]
+    sam = tmp_path / "x.sam"
+    sam.write_text(head + "".join(recs))
+    bam = tmp_path / "Aligned.sortedByCoord.out.bam"
+    subprocess.run(["samtools", "sort", "-o", str(bam), str(sam)], check=True)
+    subprocess.run(["samtools", "index", str(bam)], check=True)
+    return bam
+
+
+@needs_samtools
+def test_summarise_by_virus(tmp_path):
+    rows = summarise_by_virus(_synthetic_bam(tmp_path))
+    # V1: u1 u2 u3 mh mv (all primary on V1); molecules (A,1) (B,2) (C,3) (D,4);
+    #     host_competing = mh; other_virus = mv.
+    # V2: mv (secondary), nocb (primary, CB "-"), sh (secondary); molecules (D,4) (E,5);
+    #     host_competing = sh; other_virus = mv.
+    assert rows == [
+        {"accession": "V1", "star_reads_primary": 5, "star_reads_any": 5, "star_molecules": 4,
+         "star_host_competing": 1, "star_other_virus": 1},
+        {"accession": "V2", "star_reads_primary": 1, "star_reads_any": 3, "star_molecules": 2,
+         "star_host_competing": 1, "star_other_virus": 1},
+    ]  # fmt: skip
+    tsv = write_summary(rows, tmp_path / "s.tsv").read_text().splitlines()
+    assert tsv[0].split("\t") == list(STAR_SUMMARY_COLUMNS)
+    assert tsv[1].split("\t") == ["V1", "5", "5", "4", "1", "1"]
+
+
+@needs_samtools
+def test_summarise_by_virus_without_viral_reads(tmp_path):
+    sam = tmp_path / "h.sam"
+    sam.write_text(
+        "@HD\tVN:1.6\tSO:coordinate\n@SQ\tSN:HOST|chr1\tLN:1000\n@SQ\tSN:VIRUS|V1\tLN:1000\n"
+        + _rec("h", 0, "HOST|chr1", 5, 1, 1, "AAAA", "UUU1")
+    )
+    bam = tmp_path / "h.bam"
+    subprocess.run(["samtools", "sort", "-o", str(bam), str(sam)], check=True)
+    subprocess.run(["samtools", "index", str(bam)], check=True)
+    assert summarise_by_virus(bam) == []
+    viral = prune_to_viral(bam)
+    out = subprocess.run(["samtools", "view", str(viral)], capture_output=True, text=True)
+    assert out.stdout == "" and not bam.exists()
+
+
+@needs_samtools
+def test_prune_keeps_only_viral_records(tmp_path):
+    bam = _synthetic_bam(tmp_path)
+    (tmp_path / "_STARtmp").mkdir()
+    (tmp_path / "_STARtmp" / "junk").write_text("x")
+    viral = prune_to_viral(bam)
+    assert viral.is_file() and viral.with_name(viral.name + ".bai").is_file()
+    assert not bam.exists() and not bam.with_name(bam.name + ".bai").exists()
+    assert not (tmp_path / "_STARtmp").exists()
+    view = subprocess.run(["samtools", "view", str(viral)], capture_output=True, text=True)
+    refs = [ln.split("\t")[2] for ln in view.stdout.splitlines()]
+    assert len(refs) == 8 and all(r.startswith("VIRUS|") for r in refs)
 
 
 @pytest.mark.skipif(
@@ -74,17 +237,27 @@ def test_end_to_end_viral_and_host_reads(tmp_path):
         r1.append(f"@r{i}\n{cb}{umi}\n+\n{'I' * 26}\n")
     (tmp_path / "R1.fq").write_text("".join(r1))
     (tmp_path / "R2.fq").write_text("".join(r2))
+    (tmp_path / "wl.txt").write_text(f"{cb}\n")
     bam = align_host_unmapped(
         tmp_path / "R1.fq",
         tmp_path / "R2.fq",
         index,
         tmp_path / "aln",
         "10xv2",
-        whitelist=None,
+        whitelist=tmp_path / "wl.txt",
         threads=1,
+        strand="forward",
     )
     assert bam.with_name(bam.name + ".bai").exists()
     sam = subprocess.run(["samtools", "view", str(bam)], capture_output=True, text=True, check=True)
     rows = [line.split("\t") for line in sam.stdout.splitlines()]
     assert sorted(r[2] for r in rows) == ["HOST|chr1"] * 2 + ["VIRUS|V1.1"] * 3
     assert all(f"CB:Z:{cb}" in r and f"UB:Z:{umi}" in r for r in rows)
+    # The same BAM through the summary and the prune path.
+    assert summarise_by_virus(bam) == [{
+        "accession": "V1.1", "star_reads_primary": 3, "star_reads_any": 3, "star_molecules": 1,
+        "star_host_competing": 0, "star_other_virus": 0,
+    }]  # fmt: skip
+    pruned = prune_to_viral(bam)
+    view = subprocess.run(["samtools", "view", str(pruned)], capture_output=True, text=True)
+    assert [ln.split("\t")[2] for ln in view.stdout.splitlines()] == ["VIRUS|V1.1"] * 3
