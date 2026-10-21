@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. Next: R8.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. Next: R9 (docs).
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7870,6 +7870,16 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   as themselves with `above_rank = True`. No reclassification; row sums conserved (gate G6, tested and enforced at
   run time). Non-obvious: a taxon already at the rank is `above_rank = False`; the default output sits inside the
   published dir but is not listed in `discovery_complete.json`.
+- [x] `DISC-R8` (2026-10-21, plan step R8): `candidates.tsv` (observation state only), written by `discover` before
+  provenance and published (listed in `discovery_complete.json`). One row per taxon with a resolved group: `groups_called`,
+  `groups_offcell`, `n_cells`, `reads` (Kraken2 report own reads), `distinct_minimizers`, `minimizer_per_read`,
+  `host_relation`, `db_has_9606`, `state = observation`, 0/1 flags `low_minimizer_diversity`, `offcell_dominant`,
+  `host_lineage`, `viral_only_db`. Thresholds are documented constants, not calibrated: `LOW_MINIMIZER_DISTINCT = 20`,
+  `OFFCELL_DOMINANT_FRACTION = 0.5`.
+  - Note: the low-diversity flag uses the absolute distinct-minimizer count, not the ratio, because a deeply
+    sequenced small genome has a legitimately tiny distinct/reads ratio (EBV: ~600k reads). The ratio is informational.
+    `host_lineage` covers `host` and `host_ancestor`; `viral_only_db` means taxid 9606 is absent from the DB taxonomy.
+    No `prioritized`/`sequence_supported` states (need the frozen benchmark, `DISC-12`/`DISC-13`).
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
 - [ ] `DISC-13` candidate states + evidence adapter.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).

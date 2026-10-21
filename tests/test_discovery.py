@@ -74,6 +74,14 @@ INSPECT = """# Database options: nucleotide db, k = 35, l = 31
 """
 
 
+#: `--report-minimizer-data` columns: pct, clade reads, own reads, minimizers, distinct, rank, taxid, name.
+REPORT = (
+    "33.33\t1\t1\t0\t0\tU\t0\tunclassified\n"
+    "66.67\t2\t0\t0\t0\tR\t1\troot\n"
+    "66.67\t2\t2\t112\t25\tS\t562\t  Escherichia coli\n"
+)
+
+
 def _fake_kraken2(cmd, capture=False, **kw):
     """Stand-in for `kraken2`/`k2`: ordinal 0 unclassified, the rest taxid 562, reverse order.
 
@@ -92,7 +100,7 @@ def _fake_kraken2(cmd, capture=False, **kw):
     out = Path(cmd[cmd.index("--output") + 1])
     lines = [f"U\t{o}\t0\t90\t0:56" if o == 0 else f"C\t{o}\t562\t90\t562:56" for o in ordinals]
     out.write_text("".join(line + "\n" for line in reversed(lines)))
-    Path(cmd[cmd.index("--report") + 1]).write_text("report\n")
+    Path(cmd[cmd.index("--report") + 1]).write_text(REPORT)
     return b""
 
 
@@ -222,6 +230,7 @@ def test_cli_publishes_and_leaves_source_run_untouched(tmp_path):
     assert {
         discovery.KRAKEN_INPUT,
         discovery.CELL_TAXON_H5AD,
+        discovery.CANDIDATES_TSV,
         discovery.PROVENANCE_JSON,
         discovery.QC_JSON,
         discovery.COMPLETE_JSON,
@@ -249,6 +258,56 @@ def test_cli_publishes_and_leaves_source_run_untouched(tmp_path):
         == hashlib.sha256((out / discovery.QC_JSON).read_bytes()).hexdigest()
     )
     assert set(done["outputs"]) == names - {discovery.COMPLETE_JSON}
+
+
+def test_candidates_table_flags_and_counts(tmp_path):
+    tree = discovery.parse_inspect(INSPECT)
+    (tmp_path / discovery.KRAKEN_REPORT).write_text(
+        REPORT + "10.00\t5\t5\t50\t5\tS\t9606\t  Homo sapiens\n"
+    )
+    header = "\t".join(discovery.UMI_GROUP_COLUMNS)
+
+    def group(cb, taxid, cls="resolved"):
+        return f"{cb}\tACGT\t1\t1\t0\t{taxid}\t{taxid}\t{cls}\t1\t\t0\n"
+
+    rows = [group("C1", 562), group("C2", 562), group("C2", 562), group("X", 562)] + [
+        group("X", 9606),
+        group("Y", 9606),
+        group("C1", 9606, "ambiguous"),
+    ]
+    with gzip.open(tmp_path / discovery.UMI_GROUPS_TSV, "wt") as handle:
+        handle.write(header + "\n" + "".join(rows))
+    assert discovery.build_candidates(tmp_path, tree, ["C1", "C2"]) == 2
+    lines = (tmp_path / discovery.CANDIDATES_TSV).read_text().splitlines()
+    assert lines[0].split("\t") == list(discovery.CANDIDATE_COLUMNS)
+    ecoli, human = (dict(zip(discovery.CANDIDATE_COLUMNS, ln.split("\t"))) for ln in lines[1:])
+    assert (ecoli["taxid"], ecoli["groups_called"], ecoli["groups_offcell"]) == ("562", "3", "1")
+    assert (ecoli["n_cells"], ecoli["reads"], ecoli["distinct_minimizers"]) == ("2", "2", "25")
+    assert (ecoli["minimizer_per_read"], ecoli["state"], ecoli["db_has_9606"]) == (
+        "12.5",
+        "observation",
+        "1",
+    )
+    assert [ecoli[c] for c in ("low_minimizer_diversity", "offcell_dominant")] == ["0", "0"]
+    assert [ecoli[c] for c in ("host_lineage", "viral_only_db")] == ["0", "0"]
+    # Human: both resolved groups off-cell (the ambiguous called one is not counted), 5 distinct.
+    assert (human["groups_called"], human["groups_offcell"], human["n_cells"]) == ("0", "2", "0")
+    assert [human[c] for c in ("low_minimizer_diversity", "offcell_dominant")] == ["1", "1"]
+    assert (human["host_relation"], human["host_lineage"]) == ("host", "1")
+    # A database without 9606 is flagged viral_only_db and nothing is host.
+    no_human = {t: v for t, v in tree.items() if t != 9606}
+    (tmp_path / discovery.UMI_GROUPS_TSV).unlink()
+    with gzip.open(tmp_path / discovery.UMI_GROUPS_TSV, "wt") as handle:
+        handle.write(header + "\n" + group("C1", 562))
+    discovery.build_candidates(tmp_path, no_human, ["C1"])
+    last = (tmp_path / discovery.CANDIDATES_TSV).read_text().splitlines()[1].split("\t")
+    assert last[-1] == "1" and last[10] == "0"
+
+
+def test_parse_kraken_report_rejects_malformed(tmp_path):
+    (tmp_path / "r.txt").write_text("report\n")
+    with pytest.raises(DiscoveryError, match="8 report columns"):
+        discovery.parse_kraken_report(tmp_path / "r.txt")
 
 
 def test_rerun_is_noop_and_changed_setting_needs_force(published):

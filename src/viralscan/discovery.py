@@ -62,6 +62,32 @@ UMI_GROUPS_TSV = "umi_groups.tsv.gz"
 #: Cells x resolved taxa (one unit per resolved UMI group) and the off-cell remainder.
 CELL_TAXON_H5AD = "cell_taxon.h5ad"
 OFFCELL_TSV = "offcell_taxon.tsv.gz"
+#: One row per resolved taxon: observation state only (plan R8); no calibrated tiers.
+CANDIDATES_TSV = "candidates.tsv"
+#: Candidate flag thresholds. Documented constants, not calibrated against a benchmark (plan §12.2).
+#: Fewer distinct Kraken2 minimizers than this is a handful of reads or one repeated locus
+#: (one 90-nt read carries roughly ten).
+LOW_MINIMIZER_DISTINCT = 20
+#: More than this fraction of a taxon's resolved groups outside the called cells.
+OFFCELL_DOMINANT_FRACTION = 0.5
+CANDIDATE_COLUMNS = (
+    "taxid",
+    "name",
+    "rank",
+    "groups_called",
+    "groups_offcell",
+    "n_cells",
+    "reads",
+    "distinct_minimizers",
+    "minimizer_per_read",
+    "host_relation",
+    "db_has_9606",
+    "state",
+    "low_minimizer_diversity",
+    "offcell_dominant",
+    "host_lineage",
+    "viral_only_db",
+)
 #: Provenance, invariant counts and the completion marker (written last, plan §11.2).
 PROVENANCE_JSON = "provenance.json"
 QC_JSON = "qc.json"
@@ -1007,6 +1033,72 @@ def build_cell_matrix(
     return summary
 
 
+def parse_kraken_report(path: Path) -> dict[int, tuple[int, int]]:
+    """``{taxid: (reads assigned directly, distinct minimizers)}`` from a minimizer-data report.
+
+    Columns: pct, clade reads, own reads, minimizers, distinct minimizers, rank, taxid, name.
+    """
+    report = {}
+    for line in path.read_text().splitlines():
+        cols = line.split("\t")
+        if len(cols) != 8:
+            raise DiscoveryError(f"{path}: expected 8 report columns, got {len(cols)}: {line!r}")
+        if cols[6] != "0":
+            report[int(cols[6])] = (int(cols[2]), int(cols[4]))
+    return report
+
+
+def build_candidates(
+    out_dir: Path, tree: dict[int, tuple[int, str, str]], called: list[str]
+) -> int:
+    """Write ``CANDIDATES_TSV`` (one row per resolved taxon, ``state = observation``); returns its rows."""
+    report = parse_kraken_report(out_dir / KRAKEN_REPORT)
+    called_set = set(called)
+    groups: dict[int, list[int]] = {}  # taxid -> [called groups, off-cell groups]
+    cells: dict[int, set[str]] = {}
+    for row in _tsv_rows(out_dir / UMI_GROUPS_TSV):
+        if row["group_class"] != "resolved":
+            continue
+        taxid, cb = int(row["resolved_taxid"]), row["corrected_cb"]
+        entry = groups.setdefault(taxid, [0, 0])
+        if cb in called_set:
+            entry[0] += 1
+            cells.setdefault(taxid, set()).add(cb)
+        else:
+            entry[1] += 1
+    has_human = HUMAN_TAXID in tree
+    rows = []
+    for taxid, (n_called, n_off) in groups.items():
+        reads, distinct = report.get(taxid, (None, None))
+        relation = host_relation(tree, taxid)
+        rows.append(
+            (
+                taxid,
+                tree[taxid][2],
+                tree[taxid][1],
+                n_called,
+                n_off,
+                len(cells.get(taxid, ())),
+                "" if reads is None else reads,
+                "" if distinct is None else distinct,
+                "" if not reads else f"{distinct / reads:.4g}",
+                relation,
+                int(has_human),
+                "observation",
+                int(distinct is None or distinct < LOW_MINIMIZER_DISTINCT),
+                int(n_off / (n_called + n_off) > OFFCELL_DOMINANT_FRACTION),
+                int(relation != "other"),
+                int(not has_human),
+            )
+        )
+    rows.sort(key=lambda r: (-(r[3] + r[4]), r[0]))
+    with (out_dir / CANDIDATES_TSV).open("w", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(CANDIDATE_COLUMNS)
+        writer.writerows(rows)
+    return len(rows)
+
+
 # ── Rank views (DISC-11) ─────────────────────────────────────────────────────
 
 COLLAPSE_RANKS = {"species": "S", "genus": "G", "family": "F"}
@@ -1307,6 +1399,7 @@ def run_discover(args: argparse.Namespace) -> None:
     log.info("Barcodes: %s. Groups: %s.", resolved["barcodes"], resolved["groups"])
     resolved["cells"] = {**cells_info, **build_cell_matrix(partial, tree, called)}
     log.info("Cells: %s.", resolved["cells"])
+    resolved["cells"]["n_candidates"] = build_candidates(partial, tree, called)
     provenance["taxonomy_sha256"] = sha256_file(partial / TAXONOMY_TSV)
     provenance["input_source"].update(
         {k: v for k, v in resolved.items() if k in ("r1", "r2", "n_fragments", "primary_verified")}
