@@ -2,11 +2,18 @@ import gzip
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 _spec = importlib.util.spec_from_file_location(
     "spikein", Path(__file__).parent.parent / "analysis" / "spikein_detection_limit" / "spikein.py"
 )
 spikein = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(spikein)
+_sspec = importlib.util.spec_from_file_location(
+    "spike_score", Path(_spec.origin).with_name("score.py")
+)
+score = importlib.util.module_from_spec(_sspec)
+_sspec.loader.exec_module(score)
 
 
 def test_allocate_sums_to_level_and_keeps_proportions():
@@ -48,6 +55,7 @@ def test_spike_cli_unique_umis_and_truth(tmp_path, monkeypatch):
     monkeypatch.setattr(spikein, "source_pool", lambda *a, **k: pool)
     monkeypatch.setattr(spikein, "top_barcodes", lambda *a, **k: ["A" * 16, "C" * 16])
     monkeypatch.setattr(spikein, "load_genes", lambda *a, **k: [])
+    monkeypatch.setattr(spikein, "background_umis", lambda *a, **k: set())
     spikein.main(
         [
             "spike",
@@ -83,3 +91,80 @@ def test_spike_cli_unique_umis_and_truth(tmp_path, monkeypatch):
     assert r2[1] == ("ACGT" * 30)[:90][::-1].translate(
         str.maketrans("ACGT", "TGCA")
     )  # source reverse vs bg forward -> RC
+
+
+def _write_fq(path, n, tag):
+    with gzip.open(path, "wt") as fh:
+        for i in range(n):
+            fh.write(f"@r{i}\n{tag * 8}\n+\n{'F' * 8}\n")
+
+
+def _bg(tmp_path, name, *extra):
+    pre = str(tmp_path / name)
+    spikein.main(
+        [
+            "bg",
+            "--r1",
+            str(tmp_path / "a_R1.fq.gz"),
+            "--r2",
+            str(tmp_path / "a_R2.fq.gz"),
+            "--out-prefix",
+            pre,
+            *extra,
+        ]
+    )
+
+    def ids(r):
+        with gzip.open(f"{pre}_{r}.fastq.gz", "rt") as fh:
+            return [ln.strip() for ln in fh][0::4]
+
+    return ids("R1"), ids("R2")
+
+
+def test_bg_frac_lockstep_and_seed(tmp_path):
+    _write_fq(tmp_path / "a_R1.fq.gz", 400, "A")
+    _write_fq(tmp_path / "a_R2.fq.gz", 400, "C")
+    r1a, r2a = _bg(tmp_path, "s1", "--frac", "0.25", "--seed", "1")
+    r1a2, _ = _bg(tmp_path, "s1b", "--frac", "0.25", "--seed", "1")
+    r1b, r2b = _bg(tmp_path, "s2", "--frac", "0.25", "--seed", "2")
+    assert r1a == r2a and r1b == r2b  # mates stay in lockstep
+    assert r1a == r1a2  # same seed reproduces
+    assert r1a != r1b and 40 < len(r1a) < 160  # different seed differs; ~25% kept
+    r1n, r2n = _bg(tmp_path, "n", "--n-pairs", "7")
+    assert r1n == r2n == [f"@r{i}" for i in range(7)]
+
+
+def test_spike_barcodes_onlist_and_umis_avoid_background(tmp_path):
+    with gzip.open(tmp_path / "bg_R1.fq.gz", "wt") as fh:
+        for cb, n in (
+            ("T" * 16, 9),
+            ("A" * 16, 5),
+            ("C" * 16, 3),
+        ):  # T is the top barcode but off-list
+            for _ in range(n):
+                fh.write(f"@x\n{cb}{'G' * 10}\n+\n{'F' * 26}\n")
+    (tmp_path / "wl.txt").write_text(f"{'A' * 16}\n{'C' * 16}\n")
+    assert spikein.top_barcodes(
+        str(tmp_path / "bg_R1.fq.gz"),
+        16,
+        2,
+        onlist=spikein.load_whitelist(str(tmp_path / "wl.txt")),
+    ) == ["A" * 16, "C" * 16]
+    with pytest.raises(SystemExit):
+        spikein.top_barcodes(str(tmp_path / "bg_R1.fq.gz"), 16, 3, onlist={"A" * 16})
+    assert spikein.background_umis(str(tmp_path / "bg_R1.fq.gz"), 16, 10, ["A" * 16]) == {
+        ("A" * 16, "G" * 10)
+    }
+
+
+def test_star_fates_headline_counts_secondary_on_source_contig():
+    lines = [
+        "SPIKE:a:0\t256\tVIRUS|AF157706.1\t1\n",  # secondary on source only
+        "SPIKE:a:0\t0\tHOST|chr1\t1\n",
+        "SPIKE:a:1\t0\tVIRUS|OTHER.1\t1\n",
+        "SPIKE:a:2\t16\tVIRUS|AF157706.1\t1\n",
+        "bg\t0\tVIRUS|AF157706.1\t1\n",
+    ]
+    fate, any_src = score.star_fates(lines, "VIRUS|AF157706.1")
+    assert any_src == {"SPIKE:a:0", "SPIKE:a:2"}
+    assert fate == {"SPIKE:a:0": "host", "SPIKE:a:1": "other_virus", "SPIKE:a:2": "source"}

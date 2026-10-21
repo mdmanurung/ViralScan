@@ -2086,3 +2086,10 @@ accession). `scripts/star_confirm.read_summary` now only reads the TSV. Without 
 - Exploratory under the Q21/LOCK-01 A2 override; no held-out cohort used. EBV spike waits for its flank audit.
 - Tooling: `analysis/spikein_detection_limit/` on `codex/spikein-detection-limit` (stacked on `codex/star-hostvirus-align`, unpushed). Correction found while building: the pilot STAR arm ran on raw inputs (arm2_star.sbatch), Track A used host_filtered reads.
 - Tags: methods, detection-limit, exploratory
+
+## [2026-10-21] Spike-in tooling: n_source_contig_any is the headline; spikes avoid background UMIs; spike-only arms get a barcode whitelist
+
+**Context**: Phase 5 review of SPIKE-01 tooling (not yet run).
+**Decision**: score.py counts any alignment (incl. secondary) on the truth contig as the call, matching the pre-set ">= 1 STAR read on the same contig" rule; spike barcodes come from the on-list top background barcodes and spike UMIs skip background (cb, UMI) pairs; `bg --frac --seed` replaces first-N for the grid; spike-only STAR arms pass a plain whitelist of spike barcodes to avoid the STAR 2.7.11b exit 139 with `--soloCBwhitelist None` and zero mapped reads.
+**Alternatives considered**: keep primary-only counting (would undercount multimappers); dummy one-barcode whitelist (ANDET-09-STAR139 route) rejected since the real spike barcodes are known.
+**Consequences**: spike over-writes nothing in the background; one extra full pass over bg R1 per spike call. Tags: spikein, SPIKE-01

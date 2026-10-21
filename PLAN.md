@@ -107,6 +107,16 @@ completion.
     not a random subsample. The host-filter arm runs the real `_starsolo_filter` on the spike FASTQ alone (no viral
     competitor), compared with the full host+virus run. The R01 reverse-complement path is unit-tested but not yet
     run on real data.
+  - Phase 5 code fixes (tooling only, still no compute run): `score.py star` adds `n_source_contig_any` (any
+    alignment incl. secondary on `--contig`, the headline for the ">= 1 STAR read on the same contig" rule) and
+    `n_other_virus`; `spike` takes `--whitelist` (on-list barcodes only) and avoids background UMIs of the chosen
+    barcodes (one extra pass over bg R1, ~45 M pairs); `bg` gains seeded random `--frac`/`--seed` (`--n-pairs` stays
+    first-N, smoke only); smoke.sbatch runs the spike-only arms first with a spike-barcode whitelist (STAR 139
+    guard), prints host-filter accounting, and keeps VIRUS| + SPIKE BAMs before deleting full BAMs.
+  - Caveats to settle before the grid: the NH:1-only source pool makes the limit optimistic (multimapping viral
+    reads are excluded); the R01 arm places 5-prime-profile reads (GSM6416022 is 5-prime 10xv2, reverse) into a
+    3-prime v3 background, so the +1 kb 3-prime flank class is under-exercised (decide before the grid); one spike
+    read = one UMI; the smoke background is first-N, not random.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 

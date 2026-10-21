@@ -1,6 +1,7 @@
 """Score a spike-in run against its truth table (exploratory; see spikein.py).
 
-``star``        fate of each spiked read in a STARsolo host+virus BAM: virus / host / absent (unmapped), per class.
+``star``        fate of each spiked read in a STARsolo host+virus BAM, per class: any alignment on the truth contig
+                (headline), primary on a virus / another virus / host, or absent (unmapped).
 ``hostfilter``  how many spiked reads survive the real STAR host filter (``host_filtered/R2.fastq.gz``).
 ``kb``          viral UMIs in the spike barcodes, spiked run minus the unspiked run on the same background.
 """
@@ -24,30 +25,44 @@ def by_class(rows, hit):
     return n, k
 
 
-def cmd_star(a):
-    rows = truth(a.truth)
-    fate = {}
-    p = subprocess.Popen(["samtools", "view", a.bam], stdout=subprocess.PIPE, text=True)
-    for line in p.stdout:
+def star_fates(lines, contig):
+    """(primary-fate per spiked read, names with ANY alignment, secondary included, on *contig*)."""
+    fate, on_contig = {}, set()
+    for line in lines:
         if not line.startswith("SPIKE"):
             continue
         f = line.split("\t", 4)
+        if f[2] == contig:
+            on_contig.add(f[0])
         if int(f[1]) & 0x100:
             continue
         fate[f[0]] = (
-            "virus"
+            "source"
+            if f[2] == contig
+            else "other_virus"
             if f[2].startswith("VIRUS|")
             else "host"
             if f[2].startswith("HOST|")
             else "other"
         )
+    return fate, on_contig
+
+
+def cmd_star(a):
+    rows = truth(a.truth)
+    p = subprocess.Popen(["samtools", "view", a.bam], stdout=subprocess.PIPE, text=True)
+    fate, on_contig = star_fates(p.stdout, a.contig)
     p.wait()
-    print("class\tn_spiked\tn_virus\tn_host\tn_absent")
+    # n_source_contig_any is the headline column (pre-set rule: >= 1 STAR read on the same contig);
+    # n_virus = primary on any VIRUS| contig (source or other).
+    print("class\tn_spiked\tn_source_contig_any\tn_virus\tn_other_virus\tn_host\tn_absent")
     for c in sorted({r["class"] for r in rows}) + ["ALL"]:
         names = [r["name"] for r in rows if c == "ALL" or r["class"] == c]
-        v = sum(fate.get(n) == "virus" for n in names)
-        h = sum(fate.get(n) == "host" for n in names)
-        print(f"{c}\t{len(names)}\t{v}\t{h}\t{sum(n not in fate for n in names)}")
+        cnt = collections.Counter(fate.get(n, "absent") for n in names)
+        print(
+            f"{c}\t{len(names)}\t{sum(n in on_contig for n in names)}\t"
+            f"{cnt['source'] + cnt['other_virus']}\t{cnt['other_virus']}\t{cnt['host']}\t{cnt['absent']}"
+        )
 
 
 def cmd_hostfilter(a):
@@ -91,6 +106,7 @@ def main(argv=None):
     s = sub.add_parser("star")
     s.add_argument("--bam", required=True)
     s.add_argument("--truth", required=True)
+    s.add_argument("--contig", default="VIRUS|AF157706.1", help="truth contig (HHV-6B source)")
     h = sub.add_parser("hostfilter")
     h.add_argument("--filtered-r2", required=True)
     h.add_argument("--truth", required=True)

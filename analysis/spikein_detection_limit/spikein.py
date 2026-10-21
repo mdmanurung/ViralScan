@@ -2,7 +2,8 @@
 
 EXPLORATORY (user override of discovery Q21 / LOCK-01 A2, 2026-10-21). Standard library only; calls ``samtools``.
 
-``bg``     keep the first N read pairs of a background library (once; the spikes are layered on it).
+``bg``     subsample a background library (once; the spikes are layered on it): seeded random ``--frac`` (grid),
+           or the first ``--n-pairs`` (smoke test only).
 ``spike``  draw viral R2 reads from a STARsolo BAM, stratified by flank-audit class at the source's real
            proportions, give each its own random UMI in one of K background barcodes, and write
            ``spike_L<level>_s<seed>_R{1,2}.fastq.gz`` plus a truth table. Spikes are separate files:
@@ -122,12 +123,37 @@ def source_pool(
     return pool
 
 
-def top_barcodes(r1: str, cb_len: int, k: int, n: int = 1_000_000) -> list[str]:
+def _open_text(path: str):
+    return gzip.open(path, "rt") if str(path).endswith(".gz") else open(path)
+
+
+def load_whitelist(path: str) -> set[str]:
+    with _open_text(path) as fh:
+        return {ln.split()[0] for ln in fh if ln.strip()}
+
+
+def top_barcodes(
+    r1: str, cb_len: int, k: int, n: int = 1_000_000, onlist: set[str] | None = None
+) -> list[str]:
+    """Top-*k* background barcodes from the first *n* reads; only on-list ones when *onlist* is given."""
     c = collections.Counter()
     with gzip.open(r1, "rt") as fh:
         for seq in itertools.islice(itertools.islice(fh, 1, None, 4), n):
             c[seq[:cb_len]] += 1
-    return [b for b, _ in c.most_common(k)]
+    out = [b for b, _ in c.most_common() if onlist is None or b in onlist][:k]
+    if len(out) < k:
+        sys.exit(f"only {len(out)} on-list barcodes among the first {n} background reads, need {k}")
+    return out
+
+
+def background_umis(r1: str, cb_len: int, umi_len: int, cbs) -> set[tuple[str, str]]:
+    """(barcode, UMI) pairs already present in the background for *cbs* (one full pass over R1)."""
+    cbs, seen = set(cbs), set()
+    with gzip.open(r1, "rt") as fh:
+        for seq in itertools.islice(fh, 1, None, 4):
+            if seq[:cb_len] in cbs:
+                seen.add((seq[:cb_len], seq[cb_len : cb_len + umi_len]))
+    return seen
 
 
 def make_spike(read: dict, name: str, cb: str, umi: str, r1_len: int, r2_len: int, rc: bool):
@@ -140,15 +166,49 @@ def make_spike(read: dict, name: str, cb: str, umi: str, r1_len: int, r2_len: in
 
 
 def cmd_bg(a):
-    for src, dst in ((a.r1, a.out_prefix + "_R1.fastq.gz"), (a.r2, a.out_prefix + "_R2.fastq.gz")):
-        with gzip.open(src, "rt") as fi, gzip.open(dst, "wt", compresslevel=3) as fo:
-            fo.writelines(itertools.islice(fi, 4 * a.n_pairs))
+    if (a.frac is None) == (a.n_pairs is None):
+        sys.exit(
+            "bg: give exactly one of --frac (random, seeded) or --n-pairs (first N, smoke only)"
+        )
+    if a.n_pairs is not None:
+        print(
+            "NOTE: --n-pairs keeps the FIRST N pairs, not a random subsample (smoke test only; "
+            "use --frac --seed for the grid)",
+            file=sys.stderr,
+        )
+    rng = random.Random(a.seed)
+    kept = total = 0
+    with (
+        gzip.open(a.r1, "rt") as f1,
+        gzip.open(a.r2, "rt") as f2,
+        gzip.open(a.out_prefix + "_R1.fastq.gz", "wt", compresslevel=3) as o1,
+        gzip.open(a.out_prefix + "_R2.fastq.gz", "wt", compresslevel=3) as o2,
+    ):
+        while True:
+            rec1 = list(itertools.islice(f1, 4))
+            rec2 = list(itertools.islice(f2, 4))
+            if not rec1 or not rec2:
+                if bool(rec1) != bool(rec2):
+                    sys.exit("bg: R1 and R2 have different numbers of reads")
+                break
+            total += 1
+            # one draw per pair (also in first-N mode, harmlessly) keeps R1 and R2 in lockstep
+            if a.n_pairs is not None:
+                if total > a.n_pairs:
+                    break
+            elif rng.random() >= a.frac:
+                continue
+            o1.writelines(rec1)
+            o2.writelines(rec2)
+            kept += 1
     print(
         json.dumps(
             {
-                "n_pairs": a.n_pairs,
+                "n_pairs": kept,
+                "frac": a.frac,
+                "seed": a.seed,
                 "out_prefix": a.out_prefix,
-                "note": "first N reads, not a random subsample",
+                "mode": "first_n" if a.n_pairs is not None else "random",
             }
         )
     )
@@ -158,7 +218,10 @@ def cmd_spike(a):
     out = Path(a.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     genes = load_genes(a.gtf, a.contig)
-    cbs = top_barcodes(a.bg_r1, a.cb_len, a.cells)
+    onlist = load_whitelist(a.whitelist) if a.whitelist else None
+    cbs = top_barcodes(a.bg_r1, a.cb_len, a.cells, onlist=onlist)
+    # spike UMIs must not collide with background UMIs of the same barcode (extra full pass over bg R1)
+    bg_seen = background_umis(a.bg_r1, a.cb_len, a.umi_len, cbs)
     rc = a.source_orient != a.bg_orient
     for seed in a.seeds:
         pool = source_pool(a.bam, a.contig, genes, a.source_orient, a.r2_len, seed)
@@ -167,7 +230,7 @@ def cmd_spike(a):
         print(f"seed {seed}: pool {len(pool)} class mix {mix}", file=sys.stderr)
         for level in a.levels:
             rng = random.Random(f"{seed}-{level}")
-            used, rows = set(), []
+            used, rows = set(bg_seen), []
             i = 0
             r1_path = out / f"spike_L{level}_s{seed}_R1.fastq.gz"
             r2_path = out / f"spike_L{level}_s{seed}_R2.fastq.gz"
@@ -203,7 +266,9 @@ def main(argv=None):
     b = sub.add_parser("bg")
     b.add_argument("--r1", required=True)
     b.add_argument("--r2", required=True)
-    b.add_argument("--n-pairs", type=int, required=True)
+    b.add_argument("--n-pairs", type=int, help="first N pairs (smoke test only)")
+    b.add_argument("--frac", type=float, help="keep each pair with this probability (seeded)")
+    b.add_argument("--seed", type=int, default=1)
     b.add_argument("--out-prefix", required=True)
     s = sub.add_parser("spike")
     s.add_argument("--bam", required=True)
@@ -214,6 +279,9 @@ def main(argv=None):
     s.add_argument("--levels", type=lambda x: [int(v) for v in x.split(",")], required=True)
     s.add_argument("--seeds", type=lambda x: [int(v) for v in x.split(",")], default=[1])
     s.add_argument("--cells", type=int, default=5)
+    s.add_argument(
+        "--whitelist", help="chemistry on-list (plain or .gz); spike barcodes are drawn from it"
+    )
     s.add_argument("--cb-len", type=int, required=True)
     s.add_argument("--umi-len", type=int, required=True)
     s.add_argument("--r1-len", type=int, required=True)
