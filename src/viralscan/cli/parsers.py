@@ -520,6 +520,20 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="rerun-multimap")
 
 
+def _unit_interval(value: str) -> float:
+    number = float(value)
+    if not 0.0 <= number <= 1.0:
+        raise argparse.ArgumentTypeError(f"must be in [0, 1], got {value}")
+    return number
+
+
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {value}")
+    return number
+
+
 def _build_discover_parser(subparsers: Any) -> None:
     """Register the 'discover' subcommand (PLAN DISC; in development)."""
     p = subparsers.add_parser(
@@ -571,6 +585,26 @@ def _build_discover_parser(subparsers: Any) -> None:
         choices=["pinned", "star-default"],
         default="pinned",
         help="STAR filter parameter set for --host-subtract (as in the main run). Default: pinned.",
+    )
+    p.add_argument(
+        "--confidence",
+        type=_unit_interval,
+        default=0.0,
+        help=(
+            "Kraken2 --confidence (a k-mer fraction threshold, not a probability). "
+            "Default: 0.0, Kraken2's own default; tune only with a frozen benchmark."
+        ),
+    )
+    p.add_argument(
+        "--minimum-hit-groups",
+        type=_positive_int,
+        default=2,
+        help="Kraken2 --minimum-hit-groups. Default: 2, Kraken2's own default.",
+    )
+    p.add_argument(
+        "--memory-mapping",
+        action="store_true",
+        help="Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage).",
     )
     p.add_argument("--threads", type=int, default=4, help="Kraken2 and STAR threads. Default: 4.")
     _add_verbosity_args(p)

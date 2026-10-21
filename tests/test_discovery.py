@@ -1,4 +1,4 @@
-"""DISC-02/03/06: `viralscan discover` refuses unsafe inputs, never touches the source run, and
+"""DISC-02/03/06/07: `viralscan discover` refuses unsafe inputs, never touches the source run, and
 resolves the host-unmapped pair fail-closed."""
 
 import gzip
@@ -55,6 +55,19 @@ def _host_filtered(
 def _args(**kw) -> SimpleNamespace:
     base = dict(host_subtract=None, host_index=None, host_filter_star_params="pinned", threads=1)
     return SimpleNamespace(**{**base, **kw})
+
+
+def _fake_kraken2(cmd, capture=False, **_kw):
+    """Stand-in for `kraken2`: ordinal 0 unclassified, the rest taxid 562, in reverse order."""
+    if "--version" in cmd:
+        return b"Kraken version 2.17.2\nCopyright\n"
+    with gzip.open(cmd[-1], "rt") as fasta:
+        ordinals = [int(line[1:]) for line in fasta if line.startswith(">")]
+    out = Path(cmd[cmd.index("--output") + 1])
+    lines = [f"U\t{o}\t0\t90\t0:56" if o == 0 else f"C\t{o}\t562\t90\t562:56" for o in ordinals]
+    out.write_text("".join(line + "\n" for line in reversed(lines)))
+    Path(cmd[cmd.index("--report") + 1]).write_text("report\n")
+    return b""
 
 
 def _db(tmp_path: Path, empty: str | None = None) -> Path:
@@ -152,6 +165,7 @@ def test_cli_leaves_source_run_untouched(tmp_path):
     with (
         patch("sys.argv", argv),
         patch("viralscan.discovery.shutil.which", return_value="/bin/true"),
+        patch("viralscan.discovery._run", side_effect=_fake_kraken2),
         pytest.raises(SystemExit) as exit_info,
     ):
         main()
@@ -162,6 +176,8 @@ def test_cli_leaves_source_run_untouched(tmp_path):
     assert (staged["source"], staged["n_fragments"]) == ("primary_host_filtered", 3)
     assert staged["stream"]["n_input"] == 3
     assert (out / discovery.PARTIAL / discovery.KRAKEN_INPUT).is_file()
+    assert staged["kraken2"]["version"] == "Kraken version 2.17.2"
+    assert (staged["kraken2"]["n_classified"], staged["kraken2"]["n_unclassified"]) == (2, 1)
 
 
 def test_run_parser_gains_no_discovery_options():
@@ -423,3 +439,72 @@ def test_read_filter_lineage_choice(tmp_path):
     (tmp_path / "read_filtered").mkdir()
     path.rename(tmp_path / "read_filtered" / "fragment_lineage.tsv.gz")
     assert discovery.read_filter_lineage_for(tmp_path, primary, "artefact")[0] is not None
+
+
+def _kraken_out(tmp_path: Path, lines) -> Path:
+    path = tmp_path / "kraken.out"
+    path.write_text("".join(line + "\n" for line in lines))
+    return path
+
+
+def test_join_kraken2_is_order_free_and_writes_sorted_calls(tmp_path):
+    plain = _kraken_out(
+        tmp_path, ["C\t2\t562\t90\t562:56", "U\t0\t0\t90\t0:56", "C\t1\t9606\t90\t9606:56"]
+    )
+    assert discovery.join_kraken2(plain, 3, tmp_path) == {"n_classified": 2, "n_unclassified": 1}
+    assert not plain.exists()
+    rows = _rows(tmp_path / discovery.CLASSIFICATIONS_TSV)
+    assert [(r["ordinal"], r["kraken_status"], r["taxid"]) for r in rows] == [
+        ("0", "U", "0"),
+        ("1", "C", "9606"),
+        ("2", "C", "562"),
+    ]
+    with gzip.open(tmp_path / discovery.KRAKEN_OUT, "rt") as raw:
+        assert raw.readline().startswith("C\t2\t562")  # raw output kept as written
+
+
+@pytest.mark.parametrize(
+    "lines,match",
+    [
+        (["C\t0\t562\t90\tx", "C\t0\t562\t90\tx"], "twice"),
+        (["C\t0\t562\t90\tx"], "lacks 1 ordinals"),
+        (["C\t0\t562\t90\tx", "C\t2\t562\t90\tx"], "outside"),
+        (["C\tread0\t562\t90\tx", "C\t1\t562\t90\tx"], "non-integer"),
+        (["C\t0\tEscherichia coli (taxid 562)\t90\tx", "U\t1\t0\t90\tx"], "non-integer"),
+        (["C\t0\t0\t90\tx", "U\t1\t0\t90\tx"], "status"),
+        (["U\t0\t562\t90\tx", "U\t1\t0\t90\tx"], "status"),
+        (["C\t0\t562", "U\t1\t0\t90\tx"], "columns"),
+    ],
+)
+def test_join_kraken2_refuses_identity_violations(tmp_path, lines, match):
+    with pytest.raises(DiscoveryError, match=match):
+        discovery.join_kraken2(_kraken_out(tmp_path, lines), 2, tmp_path)
+
+
+def test_run_kraken2_command(tmp_path):
+    with patch("viralscan.discovery._run") as run:
+        plain = discovery.run_kraken2(tmp_path / "db", tmp_path, 8, 0.1, 3, memory_mapping=True)
+    cmd = run.call_args.args[0]
+    assert cmd[0] == "kraken2" and cmd[-1] == str(tmp_path / discovery.KRAKEN_INPUT)
+    assert cmd[cmd.index("--confidence") + 1] == "0.1"
+    assert cmd[cmd.index("--minimum-hit-groups") + 1] == "3"
+    assert cmd[cmd.index("--output") + 1] == str(plain)
+    assert "--report-minimizer-data" in cmd and "--memory-mapping" in cmd
+    assert not {"--use-names", "--paired", "--quick"} & set(cmd)
+
+
+def test_run_kraken2_failure_is_a_discovery_error(tmp_path):
+    with (
+        patch("viralscan.discovery._run", side_effect=RuntimeError("kraken2 failed (exit 1): x")),
+        pytest.raises(DiscoveryError, match="kraken2 failed"),
+    ):
+        discovery.run_kraken2(tmp_path / "db", tmp_path, 1, 0.0, 2)
+
+
+@pytest.mark.parametrize("flag,value", [("--confidence", "1.5"), ("--minimum-hit-groups", "0")])
+def test_discover_parser_rejects_bad_kraken2_settings(tmp_path, flag, value):
+    from viralscan.menu import build_parser
+
+    argv = ["discover", "--run-dir", "r", "-o", "o", "--kraken2-db", "d", flag, value]
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(argv)

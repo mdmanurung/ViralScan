@@ -6,8 +6,8 @@ cannot change primary inputs, count matrices, ``detected``, tiers or the run fin
 Kraken2 assignment is a taxonomic observation, never an infection call.
 
 Implemented so far: run, output and database validation, atomic publication (DISC-02),
-host-unmapped input resolution (DISC-03) and the streaming identity pass (DISC-06). The
-classification stages land in DISC-07..09.
+host-unmapped input resolution (DISC-03), the streaming identity pass (DISC-06) and Kraken2
+classification with the exactly-once ordinal join (DISC-07). Cell aggregation lands in DISC-08.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from typing import Any
 import numpy as np
 
 from viralscan.chemistry import cb_umi_geometry
-from viralscan.evidence import _canonical_fastq_id, _open_maybe_gzip
+from viralscan.evidence import _canonical_fastq_id, _open_maybe_gzip, _run
 from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file
 
 log = logging.getLogger(__name__)
@@ -45,6 +45,10 @@ UNSUPPORTED_CHEMISTRIES = frozenset({"10xv1"})
 KRAKEN_INPUT = "kraken_input.fa.gz"
 #: One row per fragment, keyed by ``ordinal`` (plan §6.1; later stages add their own tables).
 READS_TSV = "reads.tsv.gz"
+#: Raw Kraken2 output (audit; hitlists kept) and report, and the ordinal-sorted calls.
+KRAKEN_OUT = "kraken.out.gz"
+KRAKEN_REPORT = "kraken_report.txt"
+CLASSIFICATIONS_TSV = "classifications.tsv.gz"
 READS_COLUMNS = (
     "ordinal",
     "read_id",
@@ -410,6 +414,93 @@ def read_filter_lineage_for(
     return path, "not_run"
 
 
+def kraken2_version() -> str:
+    return _run(["kraken2", "--version"], capture=True).decode().splitlines()[0].strip()
+
+
+def run_kraken2(
+    db: Path,
+    out_dir: Path,
+    threads: int,
+    confidence: float,
+    minimum_hit_groups: int,
+    memory_mapping: bool = False,
+) -> Path:
+    """Classify ``KRAKEN_INPUT``; returns the plain per-read output (``KRAKEN_REPORT`` beside it).
+
+    No ``--use-names`` (IDs must stay integers), no ``--paired`` and no ``--quick``.
+    ``--confidence`` is Kraken2's k-mer fraction threshold, not a probability (plan §2.5).
+    """
+    plain = out_dir / "kraken.out"
+    cmd = [
+        "kraken2",
+        "--db",
+        str(db),
+        "--threads",
+        str(threads),
+        "--confidence",
+        str(confidence),
+        "--minimum-hit-groups",
+        str(minimum_hit_groups),
+        "--report",
+        str(out_dir / KRAKEN_REPORT),
+        "--report-minimizer-data",
+        "--output",
+        str(plain),
+    ]
+    if memory_mapping:
+        cmd.append("--memory-mapping")
+    cmd.append(str(out_dir / KRAKEN_INPUT))
+    try:
+        _run(cmd)
+    except RuntimeError as exc:
+        raise DiscoveryError(str(exc)) from exc
+    return plain
+
+
+def join_kraken2(plain: Path, n_input: int, out_dir: Path) -> dict[str, int]:
+    """Check Kraken2's output covers every ordinal exactly once; write the ordinal-sorted calls.
+
+    Kraken2 keeps input order, but the join does not rely on it: each sequence ID must be an
+    integer in ``[0, n_input)`` seen once, ``C`` rows carry a taxid > 0 and ``U`` rows 0. Any
+    violation aborts (plan §6.2, I2/I3). The raw output is kept gzipped as ``KRAKEN_OUT``.
+    """
+    seen = np.zeros(n_input, dtype=bool)
+    taxid = np.zeros(n_input, dtype=np.uint32)
+    with plain.open() as handle, gzip.open(out_dir / KRAKEN_OUT, "wt", compresslevel=1) as raw:
+        for line_number, line in enumerate(handle, 1):
+            raw.write(line)
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 5:
+                raise DiscoveryError(
+                    f"Kraken2 output line {line_number} has {len(fields)} columns."
+                )
+            status, seq_id, tax = fields[0], fields[1], fields[2]
+            if not seq_id.isdigit() or not tax.isdigit():
+                raise DiscoveryError(f"Kraken2 output line {line_number}: non-integer ID or taxid.")
+            ordinal, tax_int = int(seq_id), int(tax)
+            if ordinal >= n_input:
+                raise DiscoveryError(f"Kraken2 returned ordinal {ordinal} outside [0, {n_input}).")
+            if seen[ordinal]:
+                raise DiscoveryError(f"Kraken2 returned ordinal {ordinal} twice.")
+            if (status, tax_int == 0) not in (("C", False), ("U", True)):
+                raise DiscoveryError(
+                    f"Kraken2 line {line_number}: status {status!r} with taxid {tax}."
+                )
+            seen[ordinal] = True
+            taxid[ordinal] = tax_int
+    if not seen.all():
+        missing = np.flatnonzero(~seen)
+        raise DiscoveryError(f"Kraken2 output lacks {missing.size} ordinals (first {missing[0]}).")
+    plain.unlink()
+    with gzip.open(out_dir / CLASSIFICATIONS_TSV, "wt", compresslevel=1) as out:
+        out.write("ordinal\tkraken_status\ttaxid\n")
+        for ordinal, tax_int in enumerate(taxid.tolist()):
+            out.write(f"{ordinal}\t{'C' if tax_int else 'U'}\t{tax_int}\n")
+    n_classified = int(np.count_nonzero(taxid))
+    return {"n_classified": n_classified, "n_unclassified": n_input - n_classified}
+
+
 def run_discover(args: argparse.Namespace) -> None:
     run_root = Path(args.run_dir).resolve()
     output = Path(args.output).resolve()
@@ -434,9 +525,20 @@ def run_discover(args: argparse.Namespace) -> None:
             f"Streamed {resolved['stream']} but resolved {resolved['n_fragments']} fragments."
         )
     resolved.update(technology=config.technology, cb_len=cb_len, umi_len=umi_len)
-    (partial / "input.json").write_text(json.dumps(resolved, indent=2, sort_keys=True) + "\n")
     log.info("Discovery input: %s, %s.", resolved["source"], resolved["stream"])
+    plain = run_kraken2(
+        db, partial, args.threads, args.confidence, args.minimum_hit_groups, args.memory_mapping
+    )
+    resolved["kraken2"] = {
+        "version": kraken2_version(),
+        "confidence": args.confidence,
+        "minimum_hit_groups": args.minimum_hit_groups,
+        "memory_mapping": args.memory_mapping,
+        **join_kraken2(plain, resolved["stream"]["n_input"], partial),
+    }
+    (partial / "input.json").write_text(json.dumps(resolved, indent=2, sort_keys=True) + "\n")
+    log.info("Kraken2: %s.", resolved["kraken2"])
     raise DiscoveryError(
-        "Classification stages are not implemented yet (PLAN DISC-07..09); the resolved input "
-        f"and Kraken2 FASTA are staged in {partial} and nothing was published."
+        "Cell aggregation is not implemented yet (PLAN DISC-08..09); the classifications are "
+        f"staged in {partial} and nothing was published."
     )

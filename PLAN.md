@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  Next: `DISC-07` Kraken2 wrapper + exactly-once ordinal join; EBV reconciliation for `DISC-05`.
+  Next: `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; EBV reconciliation for `DISC-05`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7794,7 +7794,14 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   are refused before any STAR work. Tests: 36 in `tests/test_discovery.py`.
   - Note: every fragment is classified (ordinals cover `[0, n_input)`); bad barcode geometry is excluded later, by
     ordinal. Plan §5.3/§6.2 updated.
-- [ ] `DISC-07` Kraken2 wrapper + exactly-once ordinal join.
+- [x] `DISC-07` Kraken2 wrapper + exactly-once ordinal join (2026-10-21): `run_kraken2` (list-form `kraken2 --db
+  --threads --confidence --minimum-hit-groups --report --report-minimizer-data --output [--memory-mapping]`; never
+  `--use-names/--paired/--quick`) and `join_kraken2`, which aborts on a duplicate, missing, out-of-range or
+  non-integer ordinal, `C` with taxid 0 or `U` with taxid > 0, and writes ordinal-sorted `classifications.tsv.gz`
+  plus raw `kraken.out.gz`. CLI: `--confidence` (default 0.0, [0, 1]), `--minimum-hit-groups` (default 2, >= 1),
+  `--memory-mapping`. Tests: 49 in `tests/test_discovery.py`.
+  - Verified end to end with real Kraken2 2.17.2 on the DISC-04 test DB through `viralscan discover`: 6 fragments
+    gave 83333, 10376, 9606, 1280, U, 10376, matching their source genomes.
 - [ ] `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; oracle + invariance tests.
 - [ ] `DISC-09` qc/provenance, discovery fingerprint, resume/no-op/--force.
 - [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
