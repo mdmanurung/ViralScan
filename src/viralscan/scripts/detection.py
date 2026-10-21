@@ -46,6 +46,7 @@ from viralscan.sensitivity import (
     sensitivity_statement,
     verify_exact_control,
 )
+from viralscan.star_hostvirus import STAR_SUMMARY_COLUMNS
 from viralscan.tier_measures import features_supported
 from viralscan.utils import (
     INFECTED_RELATIVE_TOLERANCE,
@@ -1847,6 +1848,25 @@ def anello_evidence(config, outputpath, identity_table):
     return evidence, names, status
 
 
+# Columns of results/star_support_by_virus.tsv after virus_name (PLAN STAR-04).
+STAR_COLUMNS = STAR_SUMMARY_COLUMNS[1:]
+STAR_TSV = "star_support_by_virus.tsv"
+
+
+def star_evidence(config, outputpath):
+    """``{virus_name: {star_* column: value}}`` from the star_confirm rule, or ``None`` when off."""
+    if str(getattr(config, "star_confirm", False)).lower() != "true":
+        return None
+    path = os.path.join(outputpath, "results", STAR_TSV)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(
+            f"star_confirm is enabled but {path} is missing. Rerun the sample so the "
+            "star_confirm rule writes it, or rerun without --star-confirm."
+        )
+    with open(path, encoding="utf-8") as fh:
+        return {r.pop("virus_name"): r for r in csv.DictReader(fh, delimiter="\t")}
+
+
 def write_tsv_outputs(
     virus_stats,
     per_cell_df,
@@ -1857,6 +1877,7 @@ def write_tsv_outputs(
     homology=None,
     homology_loci=None,
     assignment=None,
+    star=None,
 ):
     """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder.
 
@@ -1995,6 +2016,14 @@ def write_tsv_outputs(
                 row["claim_scope"] = facts[v].claim_scope if v in facts else legacy_claim_scope(v)
                 row.update(homology.get(v, HOST_HOMOLOGY_NOT_MEASURED))
         columns += list(anello_align.SUMMARY_COLUMNS)
+    if star is not None:
+        # Labels only (PLAN STAR-04): viruses STAR saw nothing for get 0; alignment-only rows stay blank.
+        for row in summary_rows:
+            ev = star.get(str(row["virus_name"]))
+            zero = row.get("detection_source") != "alignment_only"
+            for c in STAR_COLUMNS:
+                row[c] = ev[c] if ev else (0 if zero else "")
+        columns += list(STAR_COLUMNS)
     virus_df = pd.DataFrame(summary_rows, columns=columns)
     virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)
     locus_rows = []
@@ -2350,6 +2379,7 @@ def main():
         homology=host_homology_by_virus(identity, config.index) if identity is not None else {},
         homology_loci=host_homology_loci(identity, config.index) if identity is not None else [],
         assignment=assignment_columns(rollup, identity),
+        star=star_evidence(config, outputpath),
     )
     write_group_summaries(rollup, outputpath)
     write_sensitivity_table(sensitivity_df, outputpath)

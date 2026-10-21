@@ -795,6 +795,23 @@ def errorhandler(args: argparse.Namespace) -> None:
         if not os.path.exists(host_index_path):
             _die(f"Host index path does not exist: {host_index_path}.")
 
+    star_index_path = getattr(args, "star_hostvirus_index", None)
+    if getattr(args, "star_confirm", False):
+        if not star_index_path:
+            _die("--star-confirm requires --star-hostvirus-index.")
+        if not host_filter:
+            _die("--star-confirm requires --host-filter (it aligns the host-filtered reads).")
+        from viralscan import star_hostvirus
+
+        problems = star_hostvirus.validate_index_manifest(star_index_path)
+        if problems:
+            _die(
+                f"--star-hostvirus-index {star_index_path} is not a finished viralscan "
+                f"star-index: {'; '.join(problems)}."
+            )
+    elif star_index_path:
+        _die("--star-hostvirus-index requires --star-confirm.")
+
     technology = getattr(args, "technology", None)
     if (
         technology
@@ -1107,6 +1124,8 @@ def _build_run_config(
             ),
             "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
             "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
+            "star_confirm": getattr(args, "star_confirm", DEFAULTS["star_confirm"]),
+            "star_hostvirus_index": getattr(args, "star_hostvirus_index", None),
             "auto_evidence": getattr(args, "auto_evidence", None),
             "host_capture": getattr(args, "host_capture", None),
             "host_fasta": getattr(args, "host_fasta", None),
@@ -1409,6 +1428,10 @@ def main() -> None:
 
     if args.host_filter:
         _check_host_filter_tools(args.host_filter)
+    if getattr(args, "star_confirm", False):
+        missing = [t for t in ("STAR", "samtools") if shutil.which(t) is None]
+        if missing:
+            _die(f"--star-confirm requires {', '.join(missing)} on PATH.")
 
     _check_cell_caller_tools(
         _resolve_cell_calling(

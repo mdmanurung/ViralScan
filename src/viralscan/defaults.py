@@ -107,6 +107,9 @@ DEFAULTS: dict[str, Any] = {
     # re-enable once the filters are recalibrated (pre-registered user decision,
     # grill 2026-10-03).
     "anello_align": False,
+    # STARsolo confirmation arm on host-filtered reads against a `viralscan star-index`
+    # host+virus index (PLAN STAR-04). Adds star_* columns to viral_summary.tsv; changes no call.
+    "star_confirm": False,
     # Read-level host confirmation (viralscan evidence) for each detected
     # anellovirus genus (PLAN ANDET-04). Opt-in, and stays opt-in until
     # ANELLO-PRIOR.3 closes. Needs --host-fasta and a viral-only FASTA.

@@ -2064,3 +2064,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 
 - Decision: `viralscan star-index --out-dir D` writes the prefixed reference to `D/reference/` and the STAR index to `D/index/`; the manifest `star_hostvirus_index.json` lives in `D/index/` and is written only after genomeGenerate succeeds, so its absence marks an unfinished build. `--force` rmtree's only `D/index` + `D/reference`, and only when `D/index` already holds a manifest (never a foreign directory). Inputs are hashed by streaming (`run_safety.sha256_file`). The parser keeps the 85 GB RAM default as a literal (light import) with a test tying it to `DEFAULT_RAM_BYTES`.
 - Tags: star, scope
+
+## 2026-10-21: star_confirm columns are labels, summed per virus_name (STAR-04)
+`results/star_support_by_virus.tsv` sums the per-accession `star_hostvirus` summary over each virus's accessions via
+`virus_identity.tsv`, so detection merges by `virus_name` like `anello_align`. Summing double counts a read that lands on
+two accessions of one virus; accepted because the columns are labels. No call changes until STAR-GATE-01 (after SPIKE-01).

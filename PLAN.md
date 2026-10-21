@@ -40,6 +40,17 @@ completion.
   - Note: multimap cap 100 and relaxed score filters are deliberate (keep host competition visible); STAR 2.7.11b
     still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139); handled since
     STAR-02 (shared `star_run.run_star`).
+- [x] STAR-04: `viralscan run --star-confirm --star-hostvirus-index DIR` (branch `codex/star-confirm`): rule `star_confirm`
+  (`scripts/star_confirm.py`) aligns the kb input pair (host-filtered reads) with `star_hostvirus.align_host_unmapped(prune=True)`,
+  writes `star_hostvirus/viral.bam(.bai)`, `results/star_support_by_virus.tsv` (per `virus_name`) and `log/star_confirm.done`;
+  `detection` appends `star_reads_primary, star_reads_any, star_molecules, star_host_competing, star_other_virus` to
+  `viral_summary.tsv` only when the flag is on. Labels only: no call, tier or threshold changes.
+  - Note: menu dies without the index, without `--host-filter`, on a failing `validate_index_manifest`, on missing STAR/samtools,
+    or on an index without the flag. Counts are summed over a virus's accessions (a read on two accessions of one virus counts
+    twice). Viruses STAR saw nothing for read 0; alignment-only rows stay blank. Strand = `--strand` or `unstranded` (kb's
+    effective default). Docs/CLI-reference/output-reference rows are phase 4 (`test_cli_reference_parity` is red until then,
+    also for the STAR-03 flags). No real STAR run.
+- [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
   `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
   writes `star_hostvirus_index.json` (`write_index_manifest` / `read_index_manifest` / `validate_index_manifest`).

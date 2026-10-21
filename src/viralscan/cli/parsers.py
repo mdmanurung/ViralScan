@@ -1467,6 +1467,28 @@ def _build_run_parser(subparsers: Any) -> None:
         ),
     )
     parser.add_argument(
+        "--star-confirm",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["star_confirm"],
+        help=(
+            "STARsolo confirmation arm (PLAN STAR-04): align the host-filtered reads to the "
+            "host+virus index given by --star-hostvirus-index (built by `viralscan "
+            "star-index`) and add star_* per-virus support columns to viral_summary.tsv, "
+            "plus results/star_support_by_virus.tsv. Labels only: no call, tier or "
+            "threshold changes. Requires --host-filter starsolo and STAR/samtools on PATH. "
+            f"Default: {DEFAULTS['star_confirm']}."
+        ),
+    )
+    parser.add_argument(
+        "--star-hostvirus-index",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Directory of a finished `viralscan star-index` index (must hold "
+            "star_hostvirus_index.json). Required by --star-confirm."
+        ),
+    )
+    parser.add_argument(
         "--auto-evidence",
         action=argparse.BooleanOptionalAction,
         # None (not False) when unset, so default runs keep their --resume fingerprint.
