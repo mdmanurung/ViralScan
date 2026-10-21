@@ -7922,8 +7922,9 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   Outputs, inventories, `summarize.py` and `r10_summary.tsv`: `viralscan_work/discovery_ebv_2026-10-21/r10/`.
   - Note: the defaults (user decision R7b) trade ~60 % of EBV groups for a 5x smaller human fraction and a 40x
     shorter candidate list; documented in `docs/discovery.md` with the 0.0/2 alternative. Not changed: the user's call.
-  - Note: R1 grouping was not timed separately; whole runs at 0.0/2 took 37 min against 26 min for the pre-R1 run,
-    of which ~8 min is now DB hashing for the fingerprint, so grouping no longer stalls. Taxonomy cache still skipped.
+  - Note: R1 grouping was not timed separately (the log has no timestamps). Whole runs took 35-37 min (the pre-R1
+    run, 26 min, stopped before grouping finished and before publication; ~8 min is now DB hashing). No grouping
+    speed-up is claimed beyond the runs completing. Taxonomy cache still skipped.
   - Called-cells discrepancy (2,524 vs 2,764) explained earlier: `viral_summary.tsv` uses `host_called_cells.tsv`;
     discovery uses `called_cells.tsv`, as intended. The Drop-seq `no_onlist` library (R10.5) was skipped: that run
     has no `called_cells.tsv`.

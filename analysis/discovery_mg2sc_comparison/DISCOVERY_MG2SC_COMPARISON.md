@@ -80,6 +80,8 @@ Full grid in `outputs/comparison.tsv`; one row per UMI in `outputs/umi_detail.ts
    - Random genomes with 1 % error are not where these thresholds bite. This benchmark gives no reason to adopt
      Cellsnake's `0.05/4`, nor to reject it.
    - The real-data grid (plan §12.2, M5) is still needed.
+   - On real data they do matter: on EBV SRR12682296, 0.05/4 kept 246,233 EBV groups in called cells against
+     623,096 at 0.0/2 (PLAN `DISC-R10`, `docs/discovery.md`).
 2. **mg2sc's vote is non-deterministic.**
    - 132–139 of 1,200 UMIs (11 %) changed label across 10 `PYTHONHASHSEED` values.
    - Ties follow `set` iteration order, which Python randomises per process for strings.
