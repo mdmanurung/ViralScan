@@ -7802,7 +7802,17 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   `--memory-mapping`. Tests: 49 in `tests/test_discovery.py`.
   - Verified end to end with real Kraken2 2.17.2 on the DISC-04 test DB through `viralscan discover`: 6 fragments
     gave 83333, 10376, 9606, 1280, U, 10376, matching their source genomes.
-- [ ] `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; oracle + invariance tests.
+- [~] `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; oracle + invariance tests.
+  - [x] `DISC-08a` (2026-10-21): taxonomy from `k2 inspect --report-zero-counts` (`taxonomy.tsv` with
+    `host_relation`); barcode correction with kb's bustools and the primary's on-list (`resolve_onlist`:
+    `-w`, else kb's bundled list, else none), giving `barcodes.tsv.gz` (`onlist / corrected / uncorrectable /
+    no_onlist / bad_geometry`); `umi_groups.tsv.gz`: exact (corrected CB, primary-encoded UMI) groups, taxon =
+    LCA of classified reads, `R*`-rank LCA = ambiguous, CRC32-sharded and globally sorted. Gzip outputs use
+    mtime 0, so they are byte-identical (G8). Tests: 100, including a 40-seed independent oracle checked byte-identical
+    across shards 1/2/7 and permuted input.
+    - Note: in the real-bustools run, a Hamming-1 variant of an on-list barcode with five on-list neighbours was
+      dropped (uncorrectable), as bustools should; the designed truth table had expected a correction.
+  - [ ] `DISC-08b` called/off-cell partition, `cell_taxon.h5ad`, `offcell_taxon.tsv.gz`.
 - [ ] `DISC-09` qc/provenance, discovery fingerprint, resume/no-op/--force.
 - [ ] `DISC-10` real-Kraken2 integration test on a tiny synthetic DB.
 - [ ] `DISC-11` `discover-collapse` (taxid rank projection).

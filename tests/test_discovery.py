@@ -57,8 +57,32 @@ def _args(**kw) -> SimpleNamespace:
     return SimpleNamespace(**{**base, **kw})
 
 
-def _fake_kraken2(cmd, capture=False, **_kw):
-    """Stand-in for `kraken2`: ordinal 0 unclassified, the rest taxid 562, in reverse order."""
+#: A `k2 inspect --report-zero-counts` tree: root > cellular organisms > Bacteria > ... > 562.
+INSPECT = """# Database options: nucleotide db, k = 35, l = 31
+  0.00\t0\t0\tU\t0\tunclassified
+100.00\t9\t0\tR\t1\troot
+ 90.00\t8\t0\tR1\t131567\t  cellular organisms
+ 80.00\t7\t0\tD\t2\t    Bacteria
+ 70.00\t6\t0\tG\t561\t      Escherichia
+ 60.00\t5\t5\tS\t562\t        Escherichia coli
+ 10.00\t1\t1\tS1\t83333\t          Escherichia coli K-12
+ 10.00\t1\t0\tD\t2759\t    Eukaryota
+ 10.00\t1\t1\tS\t9606\t      Homo sapiens
+ 10.00\t1\t1\tD\t10239\t  Viruses
+"""
+
+
+def _fake_kraken2(cmd, capture=False, **kw):
+    """Stand-in for `kraken2`/`k2`: ordinal 0 unclassified, the rest taxid 562, reverse order.
+
+    bustools calls go to the real binary (kb's), so barcode correction is exercised for real.
+    """
+    if cmd[0] not in ("kraken2", "k2"):
+        from viralscan.evidence import _run
+
+        return _run(cmd, capture=capture, **kw)
+    if cmd[:2] == ["k2", "inspect"]:
+        return INSPECT.encode()
     if "--version" in cmd:
         return b"Kraken version 2.17.2\nCopyright\n"
     with gzip.open(cmd[-1], "rt") as fasta:
@@ -147,6 +171,10 @@ def test_stage_and_publish(tmp_path):
 def test_cli_leaves_source_run_untouched(tmp_path):
     """G2: the source inventory is byte-identical and the skeleton publishes nothing."""
     from viralscan.menu import main
+    from viralscan.validation import tool_path
+
+    if tool_path("bustools") is None:
+        pytest.skip("kb-python's bustools is not available")
 
     root = _run(tmp_path)
     _host_filtered(root / "S1" / "host_filtered", 3)
@@ -508,3 +536,226 @@ def test_discover_parser_rejects_bad_kraken2_settings(tmp_path, flag, value):
     argv = ["discover", "--run-dir", "r", "-o", "o", "--kraken2-db", "d", flag, value]
     with pytest.raises(SystemExit):
         build_parser().parse_args(argv)
+
+
+# ── DISC-08a: taxonomy, barcode correction, UMI groups ──────────────────────
+
+TREE = discovery.parse_inspect(INSPECT)
+
+
+def test_parse_inspect_tree():
+    assert TREE[1] == (1, "R", "root")
+    assert TREE[83333] == (562, "S1", "Escherichia coli K-12")
+    assert TREE[9606] == (2759, "S", "Homo sapiens")
+    assert TREE[10239][0] == 1 and 0 not in TREE
+    assert discovery.lineage(TREE, 83333) == [83333, 562, 561, 2, 131567, 1]
+
+
+def test_parse_inspect_refuses_indentation_jump():
+    with pytest.raises(DiscoveryError, match="indentation"):
+        discovery.parse_inspect("100\t1\t0\tR\t1\troot\n 1\t1\t1\tS\t5\t      deep\n")
+
+
+@pytest.mark.parametrize(
+    "taxids,expected",
+    [({562, 83333}, 562), ({83333}, 83333), ({562, 9606}, 131567), ({10239, 9606}, 1)],
+)
+def test_lca(taxids, expected):
+    assert discovery.lca(TREE, taxids) == expected
+
+
+def test_host_relation():
+    assert discovery.host_relation(TREE, 9606) == "host"
+    assert discovery.host_relation(TREE, 2759) == "host_ancestor"
+    assert discovery.host_relation(TREE, 131567) == "other"  # root-level, not a host call
+    assert discovery.host_relation(TREE, 562) == "other"
+
+
+def _stage_reads(out: Path, rows) -> None:
+    """Write READS_TSV rows of (raw_cb, raw_umi); geometry_ok when both are present."""
+    with gzip.open(out / discovery.READS_TSV, "wt") as handle:
+        handle.write("\t".join(discovery.READS_COLUMNS) + "\n")
+        for i, (cb, umi) in enumerate(rows):
+            ok = int(bool(cb))
+            handle.write(
+                f"{i}\tr{i}\t{cb}\t{umi}\t{ok}\t{int('N' in cb)}\t{int('N' in umi)}\tnot_run\n"
+            )
+
+
+ONLIST = ["AAAAAAAAAAAAAAAA", "CCCCCCCCCCCCCCCC", "GGGGGGGGGGGGGGGA", "GGGGGGGGGGGGGGGC"]
+
+
+@pytest.fixture
+def bustools_available():
+    from viralscan.validation import tool_path
+
+    if tool_path("bustools") is None:
+        pytest.skip("kb-python's bustools is not available")
+
+
+def test_correct_barcodes_matches_bustools(tmp_path, bustools_available):
+    onlist = tmp_path / "onlist.txt"
+    onlist.write_text("\n".join(ONLIST) + "\n")
+    _stage_reads(
+        tmp_path,
+        [
+            ("AAAAAAAAAAAAAAAA", "ACGTACGTACGT"),  # on-list
+            ("AAAAAAAAAAAAAAAT", "ACGTACGTACGT"),  # unique Hamming-1 -> corrected
+            ("GGGGGGGGGGGGGGGT", "ACGTACGTACGT"),  # Hamming-1 to two on-list codes -> dropped
+            ("TTTTTTTTTTTTTTTT", "ACGTACGTACGT"),  # off-list
+            ("", ""),  # bad geometry
+            ("CCCCCCCCCCCCCCCN", "ACGTACGTACGN"),  # N encodes as G, then corrects to C...C
+        ],
+    )
+    counts = discovery.correct_barcodes(tmp_path, str(onlist), 1)
+    assert counts == {
+        "n_cb_onlist": 1,
+        "n_cb_corrected": 2,
+        "n_cb_uncorrectable": 2,
+        "n_cb_no_onlist": 0,
+        "n_cb_bad_geometry": 1,
+    }
+    rows = _rows(tmp_path / discovery.BARCODES_TSV)
+    assert [r["cb_status"] for r in rows] == [
+        "onlist",
+        "corrected",
+        "uncorrectable",
+        "uncorrectable",
+        "bad_geometry",
+        "corrected",
+    ]
+    assert rows[1]["corrected_cb"] == "AAAAAAAAAAAAAAAA"
+    assert (rows[5]["corrected_cb"], rows[5]["umi"]) == ("CCCCCCCCCCCCCCCC", "ACGTACGTACGG")
+    assert not (tmp_path / "bus").exists()
+
+
+def test_correct_barcodes_without_onlist_only_encodes(tmp_path, bustools_available):
+    _stage_reads(tmp_path, [("ACGTACGTACGN", "ACGTACGN"), ("TTTTGGGGCCCC", "AAAACCCC")])
+    counts = discovery.correct_barcodes(tmp_path, None, 1)
+    assert counts["n_cb_no_onlist"] == 2
+    rows = _rows(tmp_path / discovery.BARCODES_TSV)
+    assert [(r["corrected_cb"], r["umi"]) for r in rows] == [
+        ("ACGTACGTACGG", "ACGTACGG"),
+        ("TTTTGGGGCCCC", "AAAACCCC"),
+    ]
+
+
+def _stage_groups(out: Path, fragments) -> None:
+    """BARCODES_TSV + CLASSIFICATIONS_TSV for (cb, umi, taxid) fragments, all eligible."""
+    with (
+        gzip.open(out / discovery.BARCODES_TSV, "wt") as bc,
+        gzip.open(out / discovery.CLASSIFICATIONS_TSV, "wt") as cl,
+    ):
+        bc.write("ordinal\tcorrected_cb\tumi\tcb_status\n")
+        cl.write("ordinal\tkraken_status\ttaxid\n")
+        for i, (cb, umi, tax) in enumerate(fragments):
+            status = "uncorrectable" if cb is None else "onlist"
+            bc.write(f"{i}\t{cb or ''}\t{umi}\t{status}\n")
+            cl.write(f"{i}\t{'C' if tax else 'U'}\t{tax}\n")
+
+
+def test_umi_groups_designed_cases(tmp_path):
+    _stage_groups(
+        tmp_path,
+        [
+            ("A", "u1", 562),
+            ("A", "u1", 83333),  # parent/child -> 562, deepest 83333
+            ("A", "u2", 562),
+            ("A", "u2", 9606),  # cross-domain collision -> LCA R1 -> ambiguous
+            ("A", "u3", 0),
+            ("A", "u3", 0),  # unclassified
+            ("A", "u4", 83333),
+            ("A", "u4", 0),
+            ("A", "u4", 0),  # unclassified reads do not vote
+            ("B", "u1", 10239),
+            ("B", "u1", 9606),  # LCA root -> ambiguous
+            (None, "u9", 562),  # ineligible barcode -> no group
+        ],
+    )
+    counts = discovery.build_umi_groups(tmp_path, TREE, n_shards=3)
+    assert counts == {
+        "n_groups_resolved": 2,
+        "n_groups_ambiguous": 2,
+        "n_groups_unclassified": 1,
+        "n_group_reads": 11,
+    }
+    rows = {(r["corrected_cb"], r["umi"]): r for r in _rows(tmp_path / discovery.UMI_GROUPS_TSV)}
+    assert (rows["A", "u1"]["resolved_taxid"], rows["A", "u1"]["deepest_consistent_taxid"]) == (
+        "562",
+        "83333",
+    )
+    assert (rows["A", "u2"]["group_class"], rows["A", "u2"]["conflict"]) == ("ambiguous", "1")
+    assert rows["A", "u3"]["group_class"] == "unclassified"
+    assert (rows["A", "u4"]["resolved_taxid"], rows["A", "u4"]["n_reads_unclassified"]) == (
+        "83333",
+        "2",
+    )
+    assert rows["B", "u1"]["group_class"] == "ambiguous"
+
+
+def test_umi_groups_refuse_unknown_taxid(tmp_path):
+    _stage_groups(tmp_path, [("A", "u1", 424242)])
+    with pytest.raises(DiscoveryError, match="absent from the database taxonomy"):
+        discovery.build_umi_groups(tmp_path, TREE)
+
+
+def _oracle(fragments) -> list[tuple]:
+    """Independent re-derivation of plan §6.4 from raw (cb, umi, taxid) fragments."""
+    from itertools import groupby
+
+    parent = {t: p for t, (p, _r, _n) in TREE.items()}
+    rank = {t: r for t, (_p, r, _n) in TREE.items()}
+
+    def up(t):
+        out = [t]
+        while parent[out[-1]] != out[-1]:
+            out.append(parent[out[-1]])
+        return out
+
+    rows = []
+    eligible = sorted((cb, umi, tax) for cb, umi, tax in fragments if cb is not None)
+    for (cb, umi), grp in groupby(eligible, key=lambda f: (f[0], f[1])):
+        taxes = [tax for _cb, _umi, tax in grp]
+        classified = {t for t in taxes if t}
+        if not classified:
+            rows.append((cb, umi, len(taxes), "unclassified", ""))
+            continue
+        shared = set.intersection(*(set(up(t)) for t in classified))
+        top = max(shared, key=lambda t: len(up(t)))
+        cls = "ambiguous" if rank[top].startswith("R") else "resolved"
+        rows.append((cb, umi, len(taxes), cls, str(top) if cls == "resolved" else ""))
+    return rows
+
+
+@pytest.mark.parametrize("seed", range(40))
+def test_umi_groups_match_oracle_and_ignore_order_and_shards(tmp_path, seed):
+    import random
+
+    rng = random.Random(seed)
+    taxa = [0, 0, 562, 83333, 9606, 2759, 10239, 131567, 561, 2]
+    fragments = [
+        (
+            rng.choice([None, "AAA", "CCC", "GGG", "TTT"]),
+            rng.choice(["u1", "u2", "u3"]),
+            rng.choice(taxa),
+        )
+        for _ in range(rng.randint(0, 60))
+    ]
+    outputs = []
+    for shards, order in (
+        (1, fragments),
+        (2, fragments[::-1]),
+        (7, rng.sample(fragments, len(fragments))),
+    ):
+        work = tmp_path / f"s{shards}"
+        work.mkdir()
+        _stage_groups(work, order)
+        counts = discovery.build_umi_groups(work, TREE, n_shards=shards)
+        outputs.append((work / discovery.UMI_GROUPS_TSV).read_bytes())
+        assert counts["n_group_reads"] == sum(cb is not None for cb, _u, _t in fragments)
+    assert outputs[0] == outputs[1] == outputs[2]  # byte-identical (G8)
+    got = [
+        (r["corrected_cb"], r["umi"], int(r["n_reads"]), r["group_class"], r["resolved_taxid"])
+        for r in _rows(tmp_path / "s1" / discovery.UMI_GROUPS_TSV)
+    ]
+    assert got == _oracle(fragments)

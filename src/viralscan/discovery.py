@@ -16,18 +16,22 @@ import argparse
 import csv
 import gzip
 import hashlib
+import heapq
+import io
 import json
 import logging
 import os
 import shutil
+import zlib
 from array import array
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from viralscan.chemistry import cb_umi_geometry
+from viralscan.chemistry import cb_umi_geometry, kb_whitelist_arg, onlist_path
 from viralscan.evidence import _canonical_fastq_id, _open_maybe_gzip, _run
 from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file
 
@@ -49,6 +53,24 @@ READS_TSV = "reads.tsv.gz"
 KRAKEN_OUT = "kraken.out.gz"
 KRAKEN_REPORT = "kraken_report.txt"
 CLASSIFICATIONS_TSV = "classifications.tsv.gz"
+TAXONOMY_TSV = "taxonomy.tsv"
+#: Per fragment: corrected barcode, primary-encoded UMI and barcode status (plan §6.3).
+BARCODES_TSV = "barcodes.tsv.gz"
+UMI_GROUPS_TSV = "umi_groups.tsv.gz"
+UMI_GROUP_COLUMNS = (
+    "corrected_cb",
+    "umi",
+    "n_reads",
+    "n_reads_classified",
+    "n_reads_unclassified",
+    "taxids",
+    "resolved_taxid",
+    "group_class",
+    "lineage_consistent",
+    "deepest_consistent_taxid",
+    "conflict",
+)
+HUMAN_TAXID = 9606
 READS_COLUMNS = (
     "ordinal",
     "read_id",
@@ -63,6 +85,11 @@ READS_COLUMNS = (
 
 class DiscoveryError(RuntimeError):
     """Discovery refused to run, or stopped, for a stated reason."""
+
+
+def _gzip_out(path: Path) -> io.TextIOWrapper:
+    """Text gzip writer with header mtime 0: identical content gives identical bytes (gate G8)."""
+    return io.TextIOWrapper(gzip.GzipFile(path, "wb", compresslevel=1, mtime=0), newline="")
 
 
 def check_tools() -> None:
@@ -335,12 +362,12 @@ def stream_reads(
     # ponytail: 8-byte ID digests, 8 B/fragment (0.8 GB per 1e8); a false duplicate needs a
     # 64-bit collision (~3e-4 at 1e8 fragments) and fails closed. Shard by hash if RAM matters.
     digests = array("Q")
-    lineage = _read_filter_rows(read_filter_lineage) if read_filter_lineage else None
+    rf_rows = _read_filter_rows(read_filter_lineage) if read_filter_lineage else None
     with (
         _open_maybe_gzip(r1) as fq1,
         _open_maybe_gzip(r2) as fq2,
-        gzip.open(out_dir / KRAKEN_INPUT, "wt", compresslevel=1) as fasta,
-        gzip.open(out_dir / READS_TSV, "wt", newline="", compresslevel=1) as reads,
+        _gzip_out(out_dir / KRAKEN_INPUT) as fasta,
+        _gzip_out(out_dir / READS_TSV) as reads,
     ):
         writer = csv.writer(reads, delimiter="\t")
         writer.writerow(READS_COLUMNS)
@@ -361,10 +388,10 @@ def stream_reads(
             seq1 = rec1[1].rstrip("\n")
             geometry_ok = len(seq1) >= need
             cb, umi = (seq1[:cb_len], seq1[cb_len:need]) if geometry_ok else ("", "")
-            if lineage is None:
+            if rf_rows is None:
                 annotation = read_filter_default
             else:
-                step = next(lineage, None)
+                step = next(rf_rows, None)
                 if step is None or step[0] != read_id:
                     raise DiscoveryError(
                         f"Read-filter lineage is out of step with the input at record {ordinal}: "
@@ -390,7 +417,7 @@ def stream_reads(
             counts["n_umi_has_n"] += "N" in umi
             counts[f"read_filter:{annotation.split(':')[0]}"] += 1
             ordinal += 1
-    if lineage is not None and next(lineage, None) is not None:
+    if rf_rows is not None and next(rf_rows, None) is not None:
         raise DiscoveryError("Read-filter lineage has more rows than the input pair.")
     ids = np.frombuffer(digests, dtype=np.uint64)
     ids.sort()
@@ -467,7 +494,7 @@ def join_kraken2(plain: Path, n_input: int, out_dir: Path) -> dict[str, int]:
     """
     seen = np.zeros(n_input, dtype=bool)
     taxid = np.zeros(n_input, dtype=np.uint32)
-    with plain.open() as handle, gzip.open(out_dir / KRAKEN_OUT, "wt", compresslevel=1) as raw:
+    with plain.open() as handle, _gzip_out(out_dir / KRAKEN_OUT) as raw:
         for line_number, line in enumerate(handle, 1):
             raw.write(line)
             fields = line.rstrip("\n").split("\t")
@@ -493,12 +520,296 @@ def join_kraken2(plain: Path, n_input: int, out_dir: Path) -> dict[str, int]:
         missing = np.flatnonzero(~seen)
         raise DiscoveryError(f"Kraken2 output lacks {missing.size} ordinals (first {missing[0]}).")
     plain.unlink()
-    with gzip.open(out_dir / CLASSIFICATIONS_TSV, "wt", compresslevel=1) as out:
+    with _gzip_out(out_dir / CLASSIFICATIONS_TSV) as out:
         out.write("ordinal\tkraken_status\ttaxid\n")
         for ordinal, tax_int in enumerate(taxid.tolist()):
             out.write(f"{ordinal}\t{'C' if tax_int else 'U'}\t{tax_int}\n")
     n_classified = int(np.count_nonzero(taxid))
     return {"n_classified": n_classified, "n_unclassified": n_input - n_classified}
+
+
+# ── Taxonomy (DISC-04: the database's own tree) ──────────────────────────────
+
+
+def parse_inspect(text: str) -> dict[int, tuple[int, str, str]]:
+    """``taxid -> (parent, rank_code, name)`` from ``k2 inspect --report-zero-counts`` output.
+
+    Depth is the name's indentation (two spaces per level); the parent is the nearest
+    preceding line one level up. The root's parent is itself. ``unclassified`` (0) is skipped.
+    """
+    tree: dict[int, tuple[int, str, str]] = {}
+    stack: list[int] = []
+    for line in text.splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        fields = line.split("\t")
+        if len(fields) < 6 or not fields[4].strip().isdigit():
+            raise DiscoveryError(f"Unexpected k2 inspect line: {line!r}")
+        taxid, rank, raw_name = int(fields[4]), fields[3].strip(), fields[5]
+        if taxid == 0:
+            continue
+        depth, rem = divmod(len(raw_name) - len(raw_name.lstrip(" ")), 2)
+        if rem or depth > len(stack):
+            raise DiscoveryError(f"k2 inspect indentation jumps at taxid {taxid}.")
+        del stack[depth:]
+        tree[taxid] = (stack[-1] if stack else taxid, rank, raw_name.strip())
+        stack.append(taxid)
+    if not tree:
+        raise DiscoveryError("k2 inspect returned no taxonomy.")
+    return tree
+
+
+def load_taxonomy(db: Path, memory_mapping: bool = False) -> dict[int, tuple[int, str, str]]:
+    # ponytail: a full inspect scans the hash table on every run; cache by DB identity
+    # (DISC-09 provenance hash) if large databases make this slow.
+    cmd = ["k2", "inspect", "--db", str(db), "--report-zero-counts"]
+    if memory_mapping:
+        cmd.append("--memory-mapping")
+    try:
+        return parse_inspect(_run(cmd, capture=True).decode())
+    except RuntimeError as exc:
+        raise DiscoveryError(str(exc)) from exc
+
+
+def lineage(tree: dict[int, tuple[int, str, str]], taxid: int) -> list[int]:
+    """``taxid`` up to the root, inclusive."""
+    path = [taxid]
+    while tree[path[-1]][0] != path[-1]:
+        path.append(tree[path[-1]][0])
+    return path
+
+
+def lca(tree: dict[int, tuple[int, str, str]], taxids: set[int]) -> int:
+    common: set[int] | None = None
+    for taxid in taxids:
+        common = set(lineage(tree, taxid)) if common is None else common & set(lineage(tree, taxid))
+    assert common, "taxids share at least the root"
+    return max(common, key=lambda t: len(lineage(tree, t)))
+
+
+def host_relation(tree: dict[int, tuple[int, str, str]], taxid: int) -> str:
+    """``host`` (9606 or below), ``host_ancestor`` (a non-root ancestor of 9606) or ``other``."""
+    if HUMAN_TAXID in lineage(tree, taxid):
+        return "host"
+    if (
+        HUMAN_TAXID in tree
+        and taxid in lineage(tree, HUMAN_TAXID)
+        and not tree[taxid][1].startswith("R")
+    ):
+        return "host_ancestor"
+    return "other"
+
+
+def write_taxonomy(tree: dict[int, tuple[int, str, str]], out_dir: Path) -> None:
+    with (out_dir / TAXONOMY_TSV).open("w", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(["taxid", "parent_taxid", "rank", "name", "depth", "host_relation"])
+        for taxid in sorted(tree):
+            parent, rank, name = tree[taxid]
+            depth = len(lineage(tree, taxid)) - 1
+            writer.writerow([taxid, parent, rank, name, depth, host_relation(tree, taxid)])
+
+
+# ── Barcode correction (DISC-05: the primary's bustools and on-list) ─────────
+
+
+def resolve_onlist(technology: str, whitelist: str | None) -> str | None:
+    """The on-list ``kb count`` corrected against, or None when it skipped correction."""
+    arg = kb_whitelist_arg(technology, whitelist)
+    if arg == "None":
+        return None
+    if arg:
+        return arg
+    try:
+        return onlist_path(technology)
+    except ValueError:  # explicit bc:umi:seq geometry without -w: kb had no on-list either
+        return None
+
+
+def bustools_barcodes(out_dir: Path, onlist: str | None, threads: int) -> Path:
+    """Run the staged BUS text through bustools; returns flag-sorted ``text -f`` output.
+
+    Encoding (``N`` -> ``G``) and correction are bustools' own, so ``corrected_cb`` is in the
+    primary ``kb count`` barcode space. Records ``correct`` cannot place are dropped by it.
+    """
+    from viralscan.validation import tool_path
+
+    bustools = tool_path("bustools")
+    if bustools is None:
+        raise DiscoveryError("bustools (kb-python's) is required for barcode correction.")
+    work = out_dir / "bus"
+    raw, current = work / "raw.bus", work / "raw.bus"
+    try:
+        _run([bustools, "fromtext", "-o", str(raw), str(work / "fragments.txt")])
+        if onlist is not None:
+            plain = Path(onlist)
+            if plain.suffix == ".gz":
+                plain = work / "onlist.txt"
+                with gzip.open(onlist, "rb") as src, plain.open("wb") as dst:
+                    shutil.copyfileobj(src, dst)
+            _run([bustools, "sort", "-t", str(threads), "-o", str(work / "sorted.bus"), str(raw)])
+            _run(
+                [
+                    bustools,
+                    "correct",
+                    "-w",
+                    str(plain),
+                    "-o",
+                    str(work / "corrected.bus"),
+                    str(work / "sorted.bus"),
+                ]
+            )
+            current = work / "corrected.bus"
+        by_flag = work / "by_flag.bus"
+        _run([bustools, "sort", "--flags", "-t", str(threads), "-o", str(by_flag), str(current)])
+        text = work / "by_flag.txt"
+        _run([bustools, "text", "-f", "-o", str(text), str(by_flag)])
+    except RuntimeError as exc:
+        raise DiscoveryError(str(exc)) from exc
+    return text
+
+
+def _tsv_rows(path: Path) -> Iterator[dict[str, str]]:
+    with gzip.open(path, "rt", newline="") as handle:
+        yield from csv.DictReader(handle, delimiter="\t")
+
+
+def correct_barcodes(out_dir: Path, onlist: str | None, threads: int) -> dict[str, int]:
+    """Write ``BARCODES_TSV`` (ordinal order) with ``corrected_cb``, ``umi`` and ``cb_status``."""
+    work = out_dir / "bus"
+    work.mkdir()
+    with (work / "fragments.txt").open("w") as handle:
+        for row in _tsv_rows(out_dir / READS_TSV):
+            if row["geometry_ok"] == "1":
+                if int(row["ordinal"]) >= 2**32:
+                    raise DiscoveryError(
+                        "More than 2^32 fragments; BUS flags cannot hold the ordinal."
+                    )
+                handle.write(f"{row['raw_cb']}\t{row['raw_umi']}\t0\t1\t{row['ordinal']}\n")
+    text = bustools_barcodes(out_dir, onlist, threads)
+    counts: Counter[str] = Counter()
+    with text.open() as bus, _gzip_out(out_dir / BARCODES_TSV) as out:
+        out.write("ordinal\tcorrected_cb\tumi\tcb_status\n")
+        pending = next(bus, None)
+        for row in _tsv_rows(out_dir / READS_TSV):
+            ordinal = int(row["ordinal"])
+            cb = umi = ""
+            if row["geometry_ok"] != "1":
+                status = "bad_geometry"
+            elif pending is not None and int(pending.split("\t")[4]) == ordinal:
+                cb, umi = pending.split("\t")[:2]
+                pending = next(bus, None)
+                if onlist is None:
+                    status = "no_onlist"
+                else:
+                    status = "onlist" if cb == row["raw_cb"].replace("N", "G") else "corrected"
+            else:
+                status = "uncorrectable"
+            counts[status] += 1
+            out.write(f"{ordinal}\t{cb}\t{umi}\t{status}\n")
+        if pending is not None:
+            raise DiscoveryError("bustools returned a flag that is not a staged ordinal.")
+    if onlist is None and counts["uncorrectable"]:
+        raise DiscoveryError("bustools dropped records without an on-list; encoding failed.")
+    shutil.rmtree(work)
+    return {
+        f"n_cb_{key}": counts[key]
+        for key in ("onlist", "corrected", "uncorrectable", "no_onlist", "bad_geometry")
+    }
+
+
+# ── UMI groups (plan §6.4) ───────────────────────────────────────────────────
+
+ELIGIBLE = frozenset({"onlist", "corrected", "no_onlist"})
+
+
+def _shard_fragments(out_dir: Path, n_shards: int) -> list[Path]:
+    """Split eligible fragments by ``crc32(CB)`` so each shard holds whole UMI groups."""
+    paths = [out_dir / f"shard{i}.tsv" for i in range(n_shards)]
+    handles = [path.open("w") for path in paths]
+    try:
+        calls = _tsv_rows(out_dir / CLASSIFICATIONS_TSV)
+        for barcode in _tsv_rows(out_dir / BARCODES_TSV):
+            call = next(calls)
+            if call["ordinal"] != barcode["ordinal"]:
+                raise DiscoveryError(f"Ordinal mismatch at {barcode['ordinal']}.")
+            if barcode["cb_status"] in ELIGIBLE:
+                cb = barcode["corrected_cb"]
+                handles[zlib.crc32(cb.encode()) % n_shards].write(
+                    f"{cb}\t{barcode['umi']}\t{call['taxid']}\n"
+                )
+    finally:
+        for handle in handles:
+            handle.close()
+    return paths
+
+
+def _group_shard(path: Path, tree: dict[int, tuple[int, str, str]]) -> list[tuple]:
+    reads: dict[tuple[str, str], list] = {}
+    with path.open() as handle:
+        for line in handle:
+            cb, umi, tax = line.rstrip("\n").split("\t")
+            entry = reads.setdefault((cb, umi), [0, 0, set()])
+            entry[0] += 1
+            if tax == "0":
+                entry[1] += 1
+            else:
+                entry[2].add(int(tax))
+    path.unlink()
+    rows = []
+    for (cb, umi), (n, n_unclassified, taxids) in reads.items():
+        resolved, cls, consistent, deepest = "", "unclassified", "", ""
+        if taxids:
+            top = lca(tree, taxids)
+            deep = max(taxids, key=lambda t: len(lineage(tree, t)))
+            consistent = all(t in lineage(tree, deep) for t in taxids)
+            deepest = deep if consistent else ""
+            cls = "ambiguous" if tree[top][1].startswith("R") else "resolved"
+            resolved = top if cls == "resolved" else ""
+        rows.append(
+            (
+                cb,
+                umi,
+                n,
+                n - n_unclassified,
+                n_unclassified,
+                ";".join(map(str, sorted(taxids))),
+                resolved,
+                cls,
+                "" if not taxids else int(consistent),
+                deepest,
+                "" if not taxids else int(not consistent),
+            )
+        )
+    rows.sort()
+    return rows
+
+
+def build_umi_groups(
+    out_dir: Path, tree: dict[int, tuple[int, str, str]], n_shards: int = 16
+) -> dict[str, int]:
+    """Write ``UMI_GROUPS_TSV`` sorted by ``(corrected_cb, umi)``; independent of *n_shards*."""
+    unknown = {int(r["taxid"]) for r in _tsv_rows(out_dir / CLASSIFICATIONS_TSV)} - set(tree) - {0}
+    if unknown:
+        raise DiscoveryError(
+            f"Kraken2 taxids absent from the database taxonomy: {sorted(unknown)[:5]}"
+        )
+    shards = [_group_shard(path, tree) for path in _shard_fragments(out_dir, n_shards)]
+    counts: Counter[str] = Counter()
+    with _gzip_out(out_dir / UMI_GROUPS_TSV) as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(UMI_GROUP_COLUMNS)
+        for row in heapq.merge(*shards):
+            writer.writerow(row)
+            counts[f"n_groups_{row[7]}"] += 1
+            counts["n_group_reads"] += row[2]
+    return {
+        "n_groups_resolved": 0,
+        "n_groups_ambiguous": 0,
+        "n_groups_unclassified": 0,
+        "n_group_reads": 0,
+        **counts,
+    }
 
 
 def run_discover(args: argparse.Namespace) -> None:
@@ -516,9 +827,9 @@ def run_discover(args: argparse.Namespace) -> None:
     cb_len, umi_len = barcode_geometry(config.technology)
     partial = stage(output)
     resolved = resolve_input(run_root, sample_dir, partial, args)
-    lineage, default = read_filter_lineage_for(sample_dir, resolved, config.read_filter)
+    rf_lineage, default = read_filter_lineage_for(sample_dir, resolved, config.read_filter)
     resolved["stream"] = stream_reads(
-        resolved["r1"], resolved["r2"], cb_len, umi_len, partial, lineage, default
+        resolved["r1"], resolved["r2"], cb_len, umi_len, partial, rf_lineage, default
     )
     if resolved["stream"]["n_input"] != resolved["n_fragments"]:
         raise DiscoveryError(
@@ -536,9 +847,28 @@ def run_discover(args: argparse.Namespace) -> None:
         "memory_mapping": args.memory_mapping,
         **join_kraken2(plain, resolved["stream"]["n_input"], partial),
     }
-    (partial / "input.json").write_text(json.dumps(resolved, indent=2, sort_keys=True) + "\n")
     log.info("Kraken2: %s.", resolved["kraken2"])
+
+    from viralscan.validation import tool_provenance
+
+    tree = load_taxonomy(db, args.memory_mapping)
+    write_taxonomy(tree, partial)
+    onlist = resolve_onlist(config.technology, config.whitelist)
+    resolved["barcodes"] = {
+        "onlist": onlist,
+        "onlist_sha256": sha256_file(onlist) if onlist else None,
+        "bustools": tool_provenance(("bustools",))["bustools"],
+        **correct_barcodes(partial, onlist, args.threads),
+    }
+    resolved["groups"] = build_umi_groups(partial, tree)
+    eligible = sum(resolved["barcodes"][f"n_cb_{k}"] for k in ("onlist", "corrected", "no_onlist"))
+    if resolved["groups"]["n_group_reads"] != eligible:
+        raise DiscoveryError(
+            f"UMI groups hold {resolved['groups']['n_group_reads']} reads, not {eligible}."
+        )
+    (partial / "input.json").write_text(json.dumps(resolved, indent=2, sort_keys=True) + "\n")
+    log.info("Barcodes: %s. Groups: %s.", resolved["barcodes"], resolved["groups"])
     raise DiscoveryError(
-        "Cell aggregation is not implemented yet (PLAN DISC-08..09); the classifications are "
-        f"staged in {partial} and nothing was published."
+        "The cell partition and matrix are not implemented yet (PLAN DISC-08b..09); UMI groups "
+        f"are staged in {partial} and nothing was published."
     )
