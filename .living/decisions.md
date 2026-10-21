@@ -2069,3 +2069,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 `results/star_support_by_virus.tsv` sums the per-accession `star_hostvirus` summary over each virus's accessions via
 `virus_identity.tsv`, so detection merges by `virus_name` like `anello_align`. Summing double counts a read that lands on
 two accessions of one virus; accepted because the columns are labels. No call changes until STAR-GATE-01 (after SPIKE-01).
+
+## 2026-10-21: STAR docs placement (phase 4)
+STAR confirmation docs live in `docs/output_reference.md` (pinned, re-pinned in a follow-up commit) and `cli_reference.md`; the
+pointer went into `quickstart.md` instead of `faq.md` to avoid another pinned file. Docs state SPIKE-01 is unrun and make no
+sensitivity claim; STAR-GATE-01 stays open.

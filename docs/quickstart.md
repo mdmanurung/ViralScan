@@ -222,6 +222,7 @@ The enrichment table is written to
 | `--infected-min-molecules X` | Summed allocated molecules for a cell to count as infected (default: 1.0); weaker cells are counted as sub-threshold |
 | `--cell-type-labels CSV` | Add per-virus cell-type enrichment to the report |
 | `--host-filter starsolo --host-index PATH` | Optional genome-level host pre-subtraction before quantification |
+| `--star-confirm --star-hostvirus-index DIR` | Optional STARsolo support columns (`star_*`) beside the kallisto calls; index built once with `viralscan star-index`. Labels only, needs `--host-filter starsolo` (see the [output reference](output_reference.md)) |
 | `--verbose` | Enable debug logging |
 
 See the [CLI reference](cli_reference.md) for all options.

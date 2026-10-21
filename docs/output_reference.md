@@ -109,6 +109,7 @@ output/
         ├── molecule_assignments.tsv.gz
         ├── anello_alignment_by_accession.tsv
         ├── anello_alignment_by_virus.tsv
+        ├── star_support_by_virus.tsv
         ├── cell_type_enrichment.tsv
         └── reference_provenance.json
 ```
@@ -150,6 +151,7 @@ This provenance is outside the resume fingerprint; drift remains a warning.
 `--auto-evidence`; see `results/evidence/<genus>/` below.
 `anello_alignment_by_accession.tsv` and `anello_alignment_by_virus.tsv` are
 present only when the anellovirus alignment branch ran (see below).
+`star_support_by_virus.tsv` and `star_hostvirus/` are present only with `--star-confirm` (see below).
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is
 present only when `--host-filter` is supplied.
 `log/kb_count.log` retains the count command's output. Counting writes into a
@@ -309,6 +311,11 @@ alignment branch below.
 | `alignment_breadth_unique` | The same, counting only single-placement (NH = 1) records, so secondary placements cannot make related genomes look covered. Same caveats; not a gate | diagnostic flag |
 | `alignment_breadth_max` | Breadth of the single best-covered genome of this virus (maximum of the per-accession `breadth`, circular-safe: positions are taken modulo the genome length). The read-weighted mean in `alignment_breadth` dilutes a well-covered genome among many sparsely covered relatives; this does not. Reporting only: not a gate, no call changes. Anellovirus alignment branch only; empty otherwise | diagnostic flag |
 | `alignment_breadth_unique_max` | The same, counting only single-placement (NH = 1) records (maximum of `breadth_unique`). Reporting only | diagnostic flag |
+| `star_reads_primary` | `--star-confirm` only. Host-filtered reads whose primary STAR record (host+virus index) lies on one of this virus's contigs, summed over its accessions. Empty when the flag is off | observation |
+| `star_reads_any` | `--star-confirm` only. Reads with any record (primary or secondary) on this virus's contigs. A read on two accessions of one virus counts once per accession. 0 when STAR placed nothing; empty when the flag is off | observation |
+| `star_molecules` | `--star-confirm` only. Distinct (CB, UB) pairs STARsolo itself assigned to a GeneFull feature on this virus's contigs (Unique mode, strand respected). This is not read support: STAR leaves multimapping, intergenic and wrong-strand reads out of it, so use `star_reads_any` for read counts | observation |
+| `star_host_competing` | `--star-confirm` only. Reads with a viral record that also have a `HOST\|` record: the host-competition count the kallisto call cannot see | diagnostic flag |
+| `star_other_virus` | `--star-confirm` only. Reads with a record on this virus that also have a record on a different virus | diagnostic flag |
 
 **Reading the artefact columns (F-019, update 2026-10-04).** The pileup
 position, the homopolymer fraction and the identity are each equally consistent
@@ -979,6 +986,35 @@ These are starting values, calibrated by the `ANDET-09e` plant.
 
 All of it is a **label, never a filter**. Anelloviruses are commensal, so a real
 call is expected. No row is a confirmed infection (`REF-10`).
+
+---
+
+## STARsolo host+virus confirmation (`star_hostvirus/`, PLAN `STAR-04`)
+
+`viralscan run --star-confirm --star-hostvirus-index DIR` re-aligns the reads kallisto counted to one STAR
+index holding the host genome (`HOST|` contigs) and the viral panel (`VIRUS|`), built once by
+`viralscan star-index`. Multimappers are kept (up to 100 loci), so a viral read that also fits the host stays
+visible. Barcodes are corrected against the chemistry's on-list; `--strand` maps to `--soloStrand`
+(`unstranded` when unset).
+
+- `star_hostvirus/viral.bam` (+ `.bai`): the `VIRUS|`-only records, coordinate-sorted, with `CB`/`UB`
+  tags. The full BAM and STAR's temporary directory are deleted after summarising.
+- `results/star_support_by_virus.tsv`: one row per `virus_name` with `star_reads_primary`, `star_reads_any`,
+  `star_molecules`, `star_host_competing`, `star_other_virus` (same definitions as the `viral_summary.tsv`
+  columns above). Viruses STAR placed nothing on carry 0.
+- `log/star_confirm.done`: marker file.
+
+These are **labels, not a gate**: no call, tier, threshold or `detection_source` changes with
+`--star-confirm`. What it does **not** do:
+
+- It sees host-filtered reads only (it needs `--host-filter starsolo`), so host reads already removed
+  there are not re-tested.
+- STAR can miss short fragments and divergent reads kallisto places, so `star_reads_any = 0` is not evidence
+  against a call.
+- A read with more than 100 loci is dropped by STAR (`--outFilterMultimapNmax 100`).
+- Circular genomes are not wrapped: reads across the origin split or soft-clip.
+- The spike-in detection-limit experiment (PLAN `SPIKE-01`) has **not been run**, so there is no measured
+  sensitivity or specificity for this arm. Gating calls on it (`STAR-GATE-01`) is undecided.
 
 ---
 

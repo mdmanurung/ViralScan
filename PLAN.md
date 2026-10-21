@@ -24,6 +24,8 @@ completion.
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [x] `F027-01` finding F-027 (`.living/findings/hhv6b-flank-reads-missed-by-cds-only-index.md`): HHV-6B reads in the positional 3' flank class (8.9% of viral reads, GSM6416022, 5' v2) are outside a CDS-only kallisto index.
   - Note (2026-10-22): Lareau comparison done against the public reference at caleblareau/hhv6-reactivation@dd2eb77: 103 CDS-only entries, same NCBI CDS coordinates, no flank/UTR, no masking.
+- **Focus: STARsolo host+virus readiness.** Phases 1-4 are committed on `codex/star-confirm`; next are SPIKE-01 (phase 5, unrun), the
+  STAR-GATE-01 decision, and the phase 6 EBV acceptance run.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -33,13 +35,16 @@ completion.
 - [x] REVIEW-D (WP-4): opt-in candidate-complete source-labelled review.
 - [x] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
 - [x] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.
-- [~] STAR-HOSTVIRUS-01: STARsolo alignment of host-unmapped reads to one host + full-viral-panel index
+- [x] STAR-HOSTVIRUS-01: STARsolo alignment of host-unmapped reads to one host + full-viral-panel index
   (`viralscan.star_hostvirus`: `write_reference` HOST|/VIRUS| FASTA+GTF, `build_star_hostvirus_index`,
-  `align_host_unmapped`; sorted BAM with CB/UB for `plot_coverage_maps`). Code + synthetic tests done; real-library
-  runs (EBV GSM4796271, HHV-6B GSM6416022) are Track A diagnostics, not wired into the Snakefile/CLI.
+  `align_host_unmapped`; sorted BAM with CB/UB for `plot_coverage_maps`). Code + synthetic tests done; wired into the CLI
+  by STAR-03 (`viralscan star-index`) and STAR-04 (`viralscan run --star-confirm`). Real-library runs (EBV GSM4796271,
+  HHV-6B GSM6416022) remain Track A diagnostics.
   - Note: multimap cap 100 and relaxed score filters are deliberate (keep host competition visible); STAR 2.7.11b
     still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139); handled since
-    STAR-02 (shared `star_run.run_star`).
+    STAR-02 (shared `star_run.run_star`). Docs (`cli_reference`, `output_reference`, `quickstart`, CHANGELOG) done in phase 4;
+    SPIKE-01 (spike-in detection limit) is **not run**, so the arm has no measured sensitivity or specificity, and phase 6
+    (real-library acceptance on EBV GSM4796271) is not done.
 - [x] STAR-04: `viralscan run --star-confirm --star-hostvirus-index DIR` (branch `codex/star-confirm`): rule `star_confirm`
   (`scripts/star_confirm.py`) aligns the kb input pair (host-filtered reads) with `star_hostvirus.align_host_unmapped(prune=True)`,
   writes `star_hostvirus/viral.bam(.bai)`, `results/star_support_by_virus.tsv` (per `virus_name`) and `log/star_confirm.done`;
@@ -48,8 +53,7 @@ completion.
   - Note: menu dies without the index, without `--host-filter`, on a failing `validate_index_manifest`, on missing STAR/samtools,
     or on an index without the flag. Counts are summed over a virus's accessions (a read on two accessions of one virus counts
     twice). Viruses STAR saw nothing for read 0; alignment-only rows stay blank. Strand = `--strand` or `unstranded` (kb's
-    effective default). Docs/CLI-reference/output-reference rows are phase 4 (`test_cli_reference_parity` is red until then,
-    also for the STAR-03 flags). No real STAR run.
+    effective default). Docs/CLI-reference/output-reference rows landed in phase 4. No real STAR run.
 - [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
   `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and

@@ -15,8 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `viralscan.star_hostvirus` (PLAN STAR-HOSTVIRUS-01): builds one STAR index of the host genome
   (`HOST|` contigs) plus the viral panel (`VIRUS|`), and aligns host-unmapped read pairs with STARsolo
-  (multimappers kept, CB/UB tags) to a coordinate-sorted, indexed BAM for coverage maps. Diagnostic only;
-  not part of the Snakemake workflow.
+  (multimappers kept, CB/UB tags) to a coordinate-sorted, indexed BAM for coverage maps. Run from the
+  workflow with `viralscan run --star-confirm` (PLAN STAR-04, below).
+- New `viralscan star-index` verb (PLAN STAR-03) builds the host + viral-panel STAR index and writes
+  `star_hostvirus_index.json` (input sha256, STAR version, arguments). `viralscan run --star-confirm
+  --star-hostvirus-index DIR` (PLAN STAR-04; needs `--host-filter starsolo`) aligns the host-filtered reads
+  to it and adds `star_reads_primary`, `star_reads_any`, `star_molecules`, `star_host_competing`,
+  `star_other_virus` to `viral_summary.tsv` plus `results/star_support_by_virus.tsv`. Labels only: no call
+  changes. STAR can miss short fragments, drops reads over 100 loci and does not wrap circular genomes; the
+  spike-in detection-limit experiment (SPIKE-01) has not been run.
 - `star_hostvirus` hardening (PLAN STAR-02): barcodes are corrected against the chemistry's on-list by
   default (raw barcodes only for list-less chemistries); `--strand forward|reverse|unstranded` maps to
   `--soloStrand` (it was fixed to Unstranded); STAR 2.7.11b's exit-139 zero-mapped crash is recovered through a
