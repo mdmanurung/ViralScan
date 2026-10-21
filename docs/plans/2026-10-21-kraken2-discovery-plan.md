@@ -407,7 +407,7 @@ than kb did, and the difference is reported.
 |---|---|---|
 | S0 input | fragment | `n_input` = host-unmapped pairs |
 | S1 barcode parse | fragment | `n_input = n_parsed + n_bad_geometry` (R1 shorter than CB+UMI) |
-| S2 Kraken2 | fragment (R2) | `n_parsed = n_classified + n_unclassified`; every ordinal exactly once |
+| S2 Kraken2 | fragment (R2) | `n_input = n_classified + n_unclassified`; every ordinal in `[0, n_input)` exactly once (every fragment is classified; bad geometry is excluded later, by ordinal — DISC-06) |
 | S3 barcode correction | fragment | `n_parsed = n_cb_onlist + n_cb_corrected + n_cb_uncorrectable` (+ `n_cb_no_onlist` mode) |
 | S4 UMI grouping | (sample, corrected CB, UMI) group | built from S3 on-list/corrected fragments only |
 | S5 cell partition | group | `groups = called + offcell` |
@@ -439,7 +439,7 @@ than kb did, and the difference is reported.
 ### 6.2 Identity invariants (fail closed; each is a test)
 
 - I1. Read IDs are unique across the resolved pair; mates match per record (`iter_paired_fastq_ids`).
-- I2. Kraken2 output contains each ordinal in `[0, n_parsed)` **exactly once** (bool array; a duplicate, a missing
+- I2. Kraken2 output contains each ordinal in `[0, n_input)` **exactly once** (bool array; a duplicate, a missing
   ordinal or an out-of-range ordinal aborts).
 - I3. A non-numeric Kraken2 sequence ID aborts (it means the wrong input or `--use-names`).
 - I4. `retained` from the host-filter audit = `n_input` (when reusing primary outputs).

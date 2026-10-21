@@ -1,4 +1,4 @@
-"""DISC-02/03: `viralscan discover` refuses unsafe inputs, never touches the source run, and
+"""DISC-02/03/06: `viralscan discover` refuses unsafe inputs, never touches the source run, and
 resolves the host-unmapped pair fail-closed."""
 
 import gzip
@@ -160,6 +160,8 @@ def test_cli_leaves_source_run_untouched(tmp_path):
     assert [p.name for p in out.iterdir()] == [discovery.PARTIAL]  # staged, never published
     staged = json.loads((out / discovery.PARTIAL / "input.json").read_text())
     assert (staged["source"], staged["n_fragments"]) == ("primary_host_filtered", 3)
+    assert staged["stream"]["n_input"] == 3
+    assert (out / discovery.PARTIAL / discovery.KRAKEN_INPUT).is_file()
 
 
 def test_run_parser_gains_no_discovery_options():
@@ -282,3 +284,142 @@ def test_discovery_star_pass_checks_primary_fastqs(tmp_path, kw, match):
     ):
         discovery.resolve_input(root, root / "S1", tmp_path / "out" / ".partial", args)
     star.assert_not_called()
+
+
+def _pair(tmp_path: Path, records, r1_name="R1.fastq.gz", r2_name="R2.fastq.gz"):
+    """Write (read_id, r1_seq, r2_seq) records; returns the two paths."""
+    r1, r2 = tmp_path / r1_name, tmp_path / r2_name
+    with gzip.open(r1, "wt") as f1, gzip.open(r2, "wt") as f2:
+        for rid, s1, s2 in records:
+            f1.write(f"@{rid} 1:N\n{s1}\n+\n{'I' * len(s1)}\n")
+            f2.write(f"@{rid} 2:N\n{s2}\n+\n{'I' * len(s2)}\n")
+    return str(r1), str(r2)
+
+
+def _rows(path: Path) -> list[dict]:
+    import csv
+
+    with gzip.open(path, "rt") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def test_stream_reads_writes_ordinal_fasta_and_identity(tmp_path):
+    cb, umi = "AAAACCCCGGGGTTTT", "ACGTACGTACGT"
+    r1, r2 = _pair(
+        tmp_path,
+        [
+            ("fragA/1", cb + umi + "TTTTT", "CCCCCCCCCC"),
+            ("fragB", "AAAACCCCGGGGTTTN" + "ACGTACGTACGN", "GGGGGGGGGG"),
+            ("fragC", "SHORT", "TTTTTTTTTT"),
+        ],
+    )
+    counts = discovery.stream_reads(r1, r2, 16, 12, tmp_path)
+    assert counts == {
+        "n_input": 3,
+        "n_bad_geometry": 1,
+        "n_cb_has_n": 1,
+        "n_umi_has_n": 1,
+        "read_filter:not_run": 3,
+    }
+    with gzip.open(tmp_path / discovery.KRAKEN_INPUT, "rt") as handle:
+        assert handle.read() == ">0\nCCCCCCCCCC\n>1\nGGGGGGGGGG\n>2\nTTTTTTTTTT\n"
+    rows = _rows(tmp_path / discovery.READS_TSV)
+    assert [r["read_id"] for r in rows] == ["fragA", "fragB", "fragC"]
+    assert (rows[0]["raw_cb"], rows[0]["raw_umi"], rows[0]["geometry_ok"]) == (cb, umi, "1")
+    assert (rows[1]["cb_has_n"], rows[1]["umi_has_n"]) == ("1", "1")
+    assert (rows[2]["raw_cb"], rows[2]["geometry_ok"]) == ("", "0")
+
+
+def test_stream_reads_empty_pair(tmp_path):
+    r1, r2 = _pair(tmp_path, [])
+    assert discovery.stream_reads(r1, r2, 16, 12, tmp_path)["n_input"] == 0
+
+
+@pytest.mark.parametrize(
+    "records2,match",
+    [
+        ([("x0", "C"), ("x9", "C")], "mate mismatch"),
+        ([("x0", "C")], "Truncated or unpaired"),
+    ],
+)
+def test_stream_reads_refuses_broken_pairs(tmp_path, records2, match):
+    r1, _ = _pair(tmp_path, [("x0", "A" * 28, "C"), ("x1", "A" * 28, "C")])
+    _, r2 = _pair(tmp_path, [(rid, "A" * 28, s) for rid, s in records2], r1_name="unused.fq.gz")
+    with pytest.raises(DiscoveryError, match=match):
+        discovery.stream_reads(r1, r2, 16, 12, tmp_path)
+
+
+def test_stream_reads_refuses_duplicate_read_ids(tmp_path):
+    r1, r2 = _pair(
+        tmp_path, [("dup", "A" * 28, "C"), ("ok", "A" * 28, "C"), ("dup", "A" * 28, "G")]
+    )
+    with pytest.raises(DiscoveryError, match="Duplicate read IDs"):
+        discovery.stream_reads(r1, r2, 16, 12, tmp_path)
+
+
+def _lineage(path: Path, rows) -> Path:
+    with gzip.open(path, "wt") as handle:
+        handle.write("read_id\tfilter_decision\treason\n")
+        for rid, decision, reason in rows:
+            handle.write(f"{rid}\t{decision}\t{reason}\n")
+    return path
+
+
+def test_stream_reads_joins_read_filter_lineage_in_lockstep(tmp_path):
+    r1, r2 = _pair(tmp_path, [("a", "A" * 28, "C"), ("b", "A" * 28, "C")])
+    lineage = _lineage(
+        tmp_path / "lin.tsv.gz", [("a", "retained", "complex_body"), ("b", "removed", "r2_reagent")]
+    )
+    counts = discovery.stream_reads(r1, r2, 16, 12, tmp_path, lineage)
+    assert [r["primary_read_filter"] for r in _rows(tmp_path / discovery.READS_TSV)] == [
+        "retained",
+        "removed:r2_reagent",
+    ]
+    assert counts["read_filter:retained"] == counts["read_filter:removed"] == 1
+
+
+@pytest.mark.parametrize(
+    "lineage_rows,match",
+    [
+        ([("b", "retained", "x"), ("a", "retained", "x")], "out of step"),
+        ([("a", "retained", "x")], "out of step"),
+        ([("a", "retained", "x"), ("b", "retained", "x"), ("c", "retained", "x")], "more rows"),
+    ],
+)
+def test_stream_reads_refuses_misaligned_lineage(tmp_path, lineage_rows, match):
+    r1, r2 = _pair(tmp_path, [("a", "A" * 28, "C"), ("b", "A" * 28, "C")])
+    lineage = _lineage(tmp_path / "lin.tsv.gz", lineage_rows)
+    with pytest.raises(DiscoveryError, match=match):
+        discovery.stream_reads(r1, r2, 16, 12, tmp_path, lineage)
+
+
+@pytest.mark.parametrize(
+    "technology,expected",
+    [
+        ("10xv3", (16, 12)),
+        ("10xv2", (16, 10)),
+        ("dropseq", (12, 8)),
+        ("0,0,16:0,16,28:1,0,0", (16, 12)),
+    ],
+)
+def test_barcode_geometry_supported(technology, expected):
+    assert discovery.barcode_geometry(technology) == expected
+
+
+@pytest.mark.parametrize("technology", ["10xv1", "0,0,16:1,0,12:1,0,0", "nonsense"])
+def test_barcode_geometry_refused(technology):
+    with pytest.raises(DiscoveryError):
+        discovery.barcode_geometry(technology)
+
+
+def test_read_filter_lineage_choice(tmp_path):
+    star = {"source": "discovery_star_pass"}
+    primary = {"source": "primary_host_filtered"}
+    assert discovery.read_filter_lineage_for(tmp_path, primary, "off") == (None, "not_run")
+    assert discovery.read_filter_lineage_for(tmp_path, star, "artefact") == (None, "not_joined")
+    with pytest.raises(DiscoveryError, match="read-filter artefact"):
+        discovery.read_filter_lineage_for(tmp_path, primary, "artefact")
+    path = _lineage(tmp_path / "unused.tsv.gz", [])
+    (tmp_path / "read_filtered").mkdir()
+    path.rename(tmp_path / "read_filtered" / "fragment_lineage.tsv.gz")
+    assert discovery.read_filter_lineage_for(tmp_path, primary, "artefact")[0] is not None

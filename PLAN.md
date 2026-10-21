@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  Next: `DISC-06` streaming pass (ordinal FASTA + raw CB/UMI); EBV reconciliation for `DISC-05`.
+  Next: `DISC-07` Kraken2 wrapper + exactly-once ordinal join; EBV reconciliation for `DISC-05`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7786,7 +7786,14 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   - Note: kallisto 0.52.0 `bus` and `bustools fromtext` both encode `N` as `G` (CB and UMI), so discovery passes `N`
     through to match the primary barcode space instead of rejecting it; plan §6.3 updated. Use kb's bundled bustools
     (same 0.45.1 version as conda, different sha256).
-- [ ] `DISC-06` streaming ordinal FASTA (R2 only) + raw CB/UMI table.
+- [x] `DISC-06` streaming pass (2026-10-21): `stream_reads` writes `kraken_input.fa.gz` (R2 as `>ordinal`, gzip, which
+  Kraken2 2.17.2 reads natively) and `reads.tsv.gz` (`ordinal, read_id, raw_cb, raw_umi, geometry_ok, cb_has_n,
+  umi_has_n, primary_read_filter`). It aborts on mate mismatch, truncation and duplicate read IDs (8-byte digest sort).
+  The primary read-filter lineage is joined in lockstep (every ID checked) only for a reused primary `host_filtered/`
+  pair; it is `not_joined` for a discovery STAR pass and `not_run` without `--read-filter`. 10xv1 and off-R1 geometries
+  are refused before any STAR work. Tests: 36 in `tests/test_discovery.py`.
+  - Note: every fragment is classified (ordinals cover `[0, n_input)`); bad barcode geometry is excluded later, by
+    ordinal. Plan §5.3/§6.2 updated.
 - [ ] `DISC-07` Kraken2 wrapper + exactly-once ordinal join.
 - [ ] `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; oracle + invariance tests.
 - [ ] `DISC-09` qc/provenance, discovery fingerprint, resume/no-op/--force.
