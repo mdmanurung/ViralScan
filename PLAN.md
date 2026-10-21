@@ -49,6 +49,10 @@ completion.
     `align_host_unmapped`) so the existing `align_cmd` test holds. Summary keys are the VIRUS| contig without
     its prefix. A pruned BAM no longer holds the HOST| partners of viral multimappers, so coverage-map
     competition categories need the full BAM or must be taken from the summary TSV.
+  - Review fixes: `anello_align._run_star` takes `cb_len` from `cb_umi_geometry(technology)` (was hardcoded 12,
+    broke the 139 retry for 16-base chemistries); `star_molecules` documented as Solo-assigned (CB, UB) only
+    (not read support; use `star_reads_any`); tests for the on-list default and `cb_len` wiring through
+    `align_host_unmapped`.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 

@@ -302,7 +302,10 @@ def summarise_by_virus(bam: str | Path, samtools: str = "samtools") -> list[dict
     ``c`` (any record, secondary included, ``star_reads_any``):
 
     * ``star_reads_primary``: the read's primary record (flag 0x100 clear) is on ``c``;
-    * ``star_molecules``: distinct (CB, UB) among those reads, ``-`` in either dropped;
+    * ``star_molecules``: distinct Solo-assigned (CB, UB) among those reads. STARsolo sets UB
+      only for reads it counts to a GeneFull feature (Unique mode, ``--soloStrand`` respected),
+      so intergenic, wrong-strand and multimapping reads have ``-`` and are dropped: this is
+      not read support (use ``star_reads_any``) and shifts with ``--strand`` and the GTF;
     * ``star_host_competing``: the read also has a ``HOST|`` record;
     * ``star_other_virus``: the read also has a record on another ``VIRUS|`` contig.
 

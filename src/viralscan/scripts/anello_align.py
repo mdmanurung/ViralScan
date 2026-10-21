@@ -30,7 +30,7 @@ from viralscan.anello_align import (
     virus_summary,
     write_accession_tsv,
 )
-from viralscan.chemistry import onlist_path
+from viralscan.chemistry import cb_umi_geometry, onlist_path
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.host_filter import starsolo_barcode_args
 from viralscan.star_run import plain_whitelist, run_star
@@ -78,9 +78,9 @@ def _star_version() -> str:
     ).stdout.strip()
 
 
-def _run_star(cmd: list[str], work: Path) -> None:
-    """STAR with the shared exit-139 fallback (12-base dummy barcode, see ``star_run``)."""
-    run_star(cmd, work, cb_len=12)
+def _run_star(cmd: list[str], work: Path, cb_len: int) -> None:
+    """STAR with the shared exit-139 fallback (``cb_len``-base dummy barcode, see ``star_run``)."""
+    run_star(cmd, work, cb_len=cb_len)
 
 
 def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -> None:
@@ -103,7 +103,7 @@ def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -
         n_threads,
     )
     log.info("anello_align: %s", " ".join(cmd))
-    _run_star(cmd, work)
+    _run_star(cmd, work, cb_umi_geometry(config.technology)[0])
     bam = work / "Aligned.sortedByCoord.out.bam"
     if not bam.is_file():
         raise FileNotFoundError(f"STAR wrote no BAM: {bam}")

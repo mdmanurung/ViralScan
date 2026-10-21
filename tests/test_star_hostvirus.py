@@ -127,6 +127,43 @@ def test_star139_other_failures_reraised(tmp_path, monkeypatch, code, whitelist)
     assert len(calls) == 1
 
 
+def _capture_align(tmp_path, monkeypatch, technology, whitelist=None):
+    """Run align_host_unmapped with STAR/samtools stubbed; return (cmd, run_star kwargs)."""
+    seen = {}
+
+    def fake_run_star(cmd, work, cb_len=12):
+        seen["cmd"], seen["cb_len"] = cmd, cb_len
+
+    monkeypatch.setattr(star_hostvirus, "run_star", fake_run_star)
+    monkeypatch.setattr(star_hostvirus.subprocess, "run", lambda *a, **k: None)
+    align_host_unmapped(
+        "r1", "r2", "idx", tmp_path / "o", technology, whitelist=whitelist, threads=1
+    )
+    return seen["cmd"], seen["cb_len"]
+
+
+def test_align_host_unmapped_default_onlist_reaches_star(tmp_path, monkeypatch):
+    gz = tmp_path / "list.txt.gz"
+    with gzip.open(gz, "wt") as fh:
+        fh.write("ACGT\n")
+    monkeypatch.setattr(star_hostvirus, "onlist_path", lambda tech: str(gz))
+    cmd, _ = _capture_align(tmp_path, monkeypatch, "10xv2")
+    wl = cmd[cmd.index("--soloCBwhitelist") + 1]
+    assert wl == str(tmp_path / "o" / "whitelist.txt")  # not STAR's raw "None"
+
+
+@pytest.mark.parametrize(
+    "technology,cb_len", [("10xv2", 16), ("dropseq", 12), ("0,0,14:0,14,24:1,0,0", 14)]
+)
+def test_align_host_unmapped_passes_barcode_length_to_run_star(
+    tmp_path, monkeypatch, technology, cb_len
+):
+    monkeypatch.setattr(star_hostvirus, "onlist_path", lambda tech: "None")
+    cmd, got = _capture_align(tmp_path, monkeypatch, technology, whitelist="wl.txt")
+    assert got == cb_len
+    assert cmd[cmd.index("--soloCBlen") + 1] == str(cb_len)
+
+
 def _rec(q, flag, ref, pos, nh, hi, cb, ub):
     return (
         f"{q}\t{flag}\t{ref}\t{pos}\t255\t10M\t*\t0\t0\t{'A' * 10}\t{'I' * 10}"
