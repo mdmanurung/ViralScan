@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 from scipy import sparse
 
+from viralscan.outputs import SUPPORTED_LAYOUT_VERSIONS, is_posthoc
 from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file, sha256_path
 
 PYTHON_REQUIREMENTS = ("anndata", "jsonschema", "numpy", "pandas", "scipy")
@@ -384,7 +385,7 @@ def _sibling_manifest_issues(run_dir: Path) -> list[ValidationIssue]:
     """
     issues: list[ValidationIssue] = []
     for artifact, schema_name in SCHEMA_BY_ARTIFACT.items():
-        found = sorted(run_dir.rglob(artifact))
+        found = sorted(p for p in run_dir.rglob(artifact) if not is_posthoc(p, run_dir))
         if not found:
             continue
         schema_resource, schema_issue = _schema_or_issue(schema_name)
@@ -469,6 +470,12 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
             )
         )
 
+    layout = manifest.get("layout_version") if manifest else None
+    if layout is not None and layout not in SUPPORTED_LAYOUT_VERSIONS:
+        issues.append(
+            ValidationIssue("error", "unsupported_layout_version", str(layout), str(manifest_path))
+        )
+
     try:
         schema_resource = packaged_schema_resource("run_manifest.schema.json")
     except (OSError, ImportError, TypeError, ValueError) as exc:
@@ -517,7 +524,7 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
     # only its existence and readability are checked.
     multimapping_enabled = bool(manifest.get("options", {}).get("multimapping", True))
     h5ad_name = "adata_multimap.h5ad" if multimapping_enabled else "adata.h5ad"
-    h5ads = sorted(run_dir.rglob(h5ad_name))
+    h5ads = sorted(p for p in run_dir.rglob(h5ad_name) if not is_posthoc(p, run_dir))
     if not h5ads:
         issues.append(
             ValidationIssue("error", "missing_h5ad", f"No {h5ad_name} found", str(run_dir))

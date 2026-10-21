@@ -21,7 +21,8 @@ class TestHostresponseParser:
 
     def test_parses_required_args(self) -> None:
         with patch(
-            "sys.argv", ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "host.h5ad"]
+            "sys.argv",
+            ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "host.h5ad"],
         ):
             from viralscan.menu import create_help
 
@@ -48,7 +49,15 @@ class TestHostresponseParser:
     def test_no_use_hvg_flag(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "h.h5ad", "--no-use-hvg"],
+            [
+                "viralscan",
+                "hostresponse",
+                "--run-dir",
+                "out/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--no-use-hvg",
+            ],
         ):
             from viralscan.menu import create_help
 
@@ -67,7 +76,16 @@ class TestHostresponseParser:
     def test_n_seeds_override(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "h.h5ad", "--n-seeds", "3"],
+            [
+                "viralscan",
+                "hostresponse",
+                "--run-dir",
+                "out/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--n-seeds",
+                "3",
+            ],
         ):
             from viralscan.menu import create_help
 
@@ -86,7 +104,15 @@ class TestHostresponseParser:
     def test_enrichment_flag(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "h.h5ad", "--enrichment"],
+            [
+                "viralscan",
+                "hostresponse",
+                "--run-dir",
+                "out/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--enrichment",
+            ],
         ):
             from viralscan.menu import create_help
 
@@ -124,7 +150,16 @@ class TestHostresponseParser:
     def test_min_umi_override(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "hostresponse", "--run-dir", "o/", "--host-h5ad", "h.h5ad", "--min-umi", "3"],
+            [
+                "viralscan",
+                "hostresponse",
+                "--run-dir",
+                "o/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--min-umi",
+                "3",
+            ],
         ):
             from viralscan.menu import create_help
 
@@ -194,6 +229,29 @@ class TestRunHostresponseSubcommand:
             _run_hostresponse_subcommand(_make_args(sample_dir))
 
         mock_run.assert_called_once()
+
+    def test_default_out_dir_is_posthoc_and_output_overrides(self, tmp_path: Path) -> None:
+        sample_dir = _make_sample_dir(tmp_path)
+        fake_h5ad = sample_dir / "virus.h5ad"
+        fake_h5ad.touch()
+        mock_kb = MagicMock()
+        mock_kb.current_adata.return_value = fake_h5ad
+        from viralscan.menu import _run_hostresponse_subcommand
+
+        for output, expected in (
+            (None, (sample_dir / "posthoc" / "hostresponse").resolve()),
+            (str(tmp_path / "elsewhere"), (tmp_path / "elsewhere").resolve()),
+        ):
+            args = _make_args(sample_dir)
+            args.output = output
+            with (
+                patch(
+                    "viralscan.kb_outputs.KbCountOutputs.from_config_output", return_value=mock_kb
+                ),
+                patch("viralscan.scripts.hostresponse.run_hostresponse") as mock_run,
+            ):
+                _run_hostresponse_subcommand(args)
+            assert Path(mock_run.call_args.kwargs["out_dir"]) == expected
 
     def test_passes_host_h5ad_to_run_hostresponse(self, tmp_path: Path) -> None:
         sample_dir = _make_sample_dir(tmp_path)

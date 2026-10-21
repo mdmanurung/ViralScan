@@ -110,11 +110,19 @@ completion.
   CLI-UNIFY-02. Not touched: `scripts/run_fresh_control.py` (drives frozen pinned v2/v3 binaries), historical
   `scripts/slurm_*.sh`, `tests/_frozen_oracles/`, `.living/`/`analysis/` notes, `docs/write-docs-prompt.md`.
   Supersedes `CLI-ORIG-01`. Tests: `tests/test_cli_unify.py`; migration table in `docs/migration.md`.
-- [~] `CLI-UNIFY-02`: `hostresponse` flag done (2026-10-21, `codex/cli-unify-02-hostresponse`): `-o` (an input run
-  dir) removed with an error naming `--run-dir`; optional `--output DIR` is where hostresponse writes (default
-  `<run-dir>/hostresponse`, unchanged, layout stays version 1). Deferred pending the user's decision whether writing
-  inside the run violates "run dir is immutable input": post-hoc outputs (`evidence`, `rerun-multimap`,
-  `hostresponse`) default inside the run; `layout_version` 2.
+- [x] `CLI-UNIFY-02` (2026-10-21, `codex/cli-unify-02-layout`, stacked on `codex/cli-unify-02-hostresponse`):
+  `hostresponse` takes `--run-dir` (input) + optional `--output`; user decision 2026-10-21: post-hoc outputs
+  default INSIDE the run in a reserved `<run-dir>/posthoc/` (one folder per verb), `--output` overrides,
+  `layout_version` 2. Design: `outputs.posthoc_dir/is_posthoc/SUPPORTED_LAYOUT_VERSIONS`. `evidence` ->
+  `posthoc/evidence/<virus>` (`review_candidates` for `--review-candidates`, whose TSV moved out of `results/`);
+  `rerun-multimap` -> `posthoc/multimap_<method>` (copy skips `posthoc/`; non-empty output still refused; an
+  explicit `-o` inside the run but outside `posthoc/` is refused); `rerun-programs` -> `posthoc/programs`
+  (`gene_programs.main(results_root=)`; no `log/gene_programs.done`, no marker re-stamp); `hostresponse` ->
+  `posthoc/hostresponse` (no marker re-stamp); `evidence-plot` unchanged (writes beside its evidence dir).
+  `validate-run` accepts layout 1, 2 and absent, errors on others, and its rglobs skip `posthoc/`. `run
+  --hostresponse` / `--auto-evidence` are part of the run and keep their paths. Tests:
+  `tests/test_posthoc_layout.py` (hashes the run before/after). Docs: migration, output_reference, faq, CHANGELOG,
+  cli_reference. Not re-pinned: `analysis/v3_artifact_inventory.tsv`, claim registry.
 
 - [x] `OUT-LAYOUT-01` (2026-10-20, `codex/output-layout`, stacked on `codex/orig-api-docs`): output
   layout kept close to evonk's 2.2.0 (user decisions, grill 2026-10-20). `count_audit.tsv` moves into

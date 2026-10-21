@@ -8,9 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Reviewed diagnostic corrections (unreleased)
 
 - Added `viralscan discover` and `viralscan discover-collapse` (PLAN `DISC`): Kraken2 classification of a completed run's host-unmapped reads, grouped by cell barcode and UMI into `cell_taxon.h5ad`, `candidates.tsv` (observation state only), `qc.json` and `provenance.json`, published atomically with a fingerprint and a no-op rerun. Classifications are not infection calls; the primary counts, `detected` and tiers do not change, and no discovery performance claim is made. Optional `environment.discovery.yml` and `viralscan doctor --profile discovery`. See `docs/discovery.md`.
+
+- **Breaking (CLI-UNIFY-02, layout version 2):** post-hoc verbs write under `<run-dir>/posthoc/` by default
+  and never modify the run's own outputs. `evidence`: `--output` optional (`posthoc/evidence/<virus>`);
+  `rerun-multimap`: `-o` optional (`posthoc/multimap_<method>`, still must be empty); `rerun-programs`: writes
+  `posthoc/programs/` (no longer in place, no marker re-stamp); `hostresponse`: `posthoc/hostresponse`;
+  `evidence --review-candidates`: `evidence_review.tsv` moves from `results/` to the evidence output
+  directory. `run_manifest.json` records `layout_version: 2`; `validate-run` accepts 1 and 2 and ignores
+  `posthoc/`. See `docs/migration.md`.
+
 - **Breaking:** `viralscan hostresponse -o RUN_DIR` is now `--run-dir RUN_DIR` (it was an input run
   directory, unlike `-o/--output` elsewhere). `-o` errors with the replacement; `--output DIR` is optional and
-  names where hostresponse writes (default `<run-dir>/hostresponse`, so the layout is unchanged).
+  names where hostresponse writes (see the layout-version-2 entry above for the default).
 
 - `evidence-plot --coverage-map` now accepts a bare GTF seqid `ACC` for a viral BAM
   reference `CLASS|ACC` (host contigs are never prefix-stripped) and records the matched

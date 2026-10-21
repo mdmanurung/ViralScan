@@ -794,9 +794,9 @@ the sections above add context. Do not edit between the markers.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--review-candidates` | `False` | Review all Anelloviridae candidates, including below-gate and STAR-only rows; write results/evidence_review.tsv. |
+| `--review-candidates` | `False` | Review all Anelloviridae candidates, including below-gate and STAR-only rows; write evidence_review.tsv under the output directory. |
 | `--run-dir RUN_DIR` | *required* | A completed ViralScan run output directory. |
-| `--output, -o OUTPUT` | *required* | Directory for evidence outputs. |
+| `--output, -o OUTPUT` | *(none)* | Directory for evidence outputs (default: <run-dir>/posthoc/evidence/<virus>). |
 | `--viral-fasta VIRAL_FASTA` | *(none)* | Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). Omit for read-extraction only. |
 | `--host-fasta HOST_FASTA` | *(none)* | Full host-genome FASTA required with --viral-fasta for competitive v3 alignment and BLAST. |
 | `--competitor-fasta COMPETITOR_FASTA` | *(none)* | Explicit alternate/related/decoy FASTA; requires --competitor-manifest. |
@@ -840,8 +840,8 @@ the sections above add context. Do not edit between the markers.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir RUN_DIR` | *required* | Completed source run. It is never modified. |
-| `--output, -o OUTPUT` | *required* | New result directory; must not already be non-empty. |
+| `--run-dir RUN_DIR` | *required* | Completed source run. The run's own outputs are never modified; results go to posthoc/. |
+| `--output, -o OUTPUT` | *(none)* | New result directory; must not already be non-empty (default: <run-dir>/posthoc/multimap_<method>). |
 | `--multimap-method {conservative,em,equal}` | *required* | Multimapping resolution method to apply: conservative, em or equal (see 'viralscan run --help' for what each does). |
 | `--cores, -c CORES` | `6` | Number of cores for snakemake workers. Default: 6. |
 | `--multimap-em-max-iter N` | *(none)* | (em only) Maximum EM iterations. Default: preserves existing config value. |
@@ -904,6 +904,7 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 | Flag | Default | Help |
 |------|---------|------|
 | `--run-dir DIR` | *required* | A completed viralscan run directory (the one holding kb-python/ and results/). |
+| `--output, -o DIR` | *(none)* | Directory to write results/gene_program_*.tsv under (default: <run-dir>/posthoc/programs). |
 | `--programme-min-breadth N` | *(none)* | Distinct non-overlapping overlap groups required before a programme is called. Must be >= 1. Default: the run's own config (2 if it set none). |
 | `--programme-latent-min-breadth N` | *(none)* | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: the run's own config (1 if it set none). |
 | `--programme-min-umi X` | *(none)* | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: the run's own config (0.0 if it set none). |
@@ -919,7 +920,7 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 | Flag | Default | Help |
 |------|---------|------|
 | `--run-dir RUN_DIR` | *required* | Existing viralscan sample output directory (input; contains config.yaml). |
-| `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/hostresponse). |
+| `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/posthoc/hostresponse). |
 | `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
 | `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
 | `--n-stab-iter N` | *(none)* | Selection-frequency (randomized-Lasso) iterations (default: from config or 100). |
