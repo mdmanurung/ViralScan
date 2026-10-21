@@ -120,24 +120,15 @@ class TestHostresponseParser:
             args = create_help()
         assert args.stab_min_prob == pytest.approx(0.75)
 
-    def test_detection_threshold_override(self) -> None:
+    def test_min_umi_override(self) -> None:
         with patch(
             "sys.argv",
-            [
-                "viralscan",
-                "hostresponse",
-                "-o",
-                "o/",
-                "--host-h5ad",
-                "h.h5ad",
-                "--detection-threshold",
-                "3",
-            ],
+            ["viralscan", "hostresponse", "-o", "o/", "--host-h5ad", "h.h5ad", "--min-umi", "3"],
         ):
             from viralscan.menu import create_help
 
             args = create_help()
-        assert args.detection_threshold == 3
+        assert args.hostresponse_min_umi == 3
 
 
 # ── Dispatch tests ────────────────────────────────────────────────────────────

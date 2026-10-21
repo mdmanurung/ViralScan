@@ -1123,7 +1123,7 @@ class TestDagAndCli:
         import sys
 
         result = subprocess.run(
-            [sys.executable, "-m", "viralscan", "--help"],
+            [sys.executable, "-m", "viralscan", "run", "--help"],
             capture_output=True,
             text=True,
             check=False,

@@ -6,6 +6,8 @@ build_parser`` (and the tests that import the private builders) keep working.
 """
 
 import argparse
+import sys
+from collections.abc import Sequence
 from typing import Any
 
 from viralscan.defaults import (
@@ -29,35 +31,41 @@ except ImportError:  # pyfiglet is optional
 figlet_format = _figlet_format
 
 
-_TRUE_WORDS = frozenset({"true", "1", "yes"})
-_FALSE_WORDS = frozenset({"false", "0", "no"})
+# Spellings removed by PLAN CLI-UNIFY-01 (hard break, no aliases): subcommand -> {old: new}.
+_READS = {"-s1": "--r1", "--sample1": "--r1", "-s2": "--r2", "--sample2": "--r2"}
+REMOVED_OPTIONS = {
+    "run": {
+        **_READS,
+        "-reference": "--reference",
+        "-ref": "--reference",
+        "-gtf": "--gtf",
+        "-fasta": "--fasta",
+        "-f1": "--f1",
+        "-v": "--visual / --no-visual",
+        "-mm": "--multimapping / --no-multimapping",
+        "-umap": "--umap",
+        "-acc": "--ncbi-accession",
+        "--data-cache-dir": "--cache-dir",
+        "--cell-types": "--cell-type-labels",
+        "--hostresponse-control-mito": "--hostresponse-mito-control",
+        "--no-hostresponse-control-mito": "--no-hostresponse-mito-control",
+    },
+    "hostresponse": {"--hostresponse-min-umi": "--min-umi", "--detection-threshold": "--min-umi"},
+    "validate-run": {"--json-output": "--json"},
+    "check-whitelist": _READS,
+    "check-chemistry": _READS,
+}
+# The original CLI's value form (`--visual False`); BooleanOptionalAction takes no value.
+_BOOL_WORDS = frozenset({"true", "false", "1", "0", "yes", "no"})
+_BOOL_FLAGS = frozenset({"--reference", "--visual", "--multimapping"})
 
 
-class _OptionalBool(argparse.Action):
-    """Boolean flag that also accepts the original CLI's value form (``-v False``, ``-ref True``).
+class _NoAbbrevParser(argparse.ArgumentParser):
+    """Subcommand parser without prefix matching: a removed option never resolves to a surviving one."""
 
-    Bare flag -> True; ``--no-<name>`` (when declared in ``option_strings``) -> False; an optional
-    value in true/false/1/0/yes/no (any case) is parsed strictly, anything else is an argparse
-    error. Never ``type=bool`` (``bool("False")`` is True).
-    """
-
-    def __init__(self, option_strings: Any, dest: str, default: Any = False, **kwargs: Any) -> None:
-        super().__init__(option_strings, dest, nargs="?", const=True, default=default, **kwargs)
-
-    def __call__(self, parser: Any, namespace: Any, values: Any, option_string: Any = None) -> None:
-        if option_string is not None and option_string.startswith("--no-"):
-            if values is not True and values is not None:
-                parser.error(f"argument {option_string}: takes no value")
-            setattr(namespace, self.dest, False)
-        elif values is True or values is None or str(values).lower() in _TRUE_WORDS:
-            setattr(namespace, self.dest, True)
-        elif str(values).lower() in _FALSE_WORDS:
-            setattr(namespace, self.dest, False)
-        else:
-            parser.error(
-                f"argument {option_string}: invalid boolean {values!r} "
-                "(use true/false/1/0/yes/no, or omit the value)"
-            )
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
 
 
 def _multimap_method(value: str) -> str:
@@ -96,7 +104,10 @@ def _build_data_parser(subparsers: Any) -> None:
         description="Manage ViralScan's external viral annotation data.",
     )
     data.set_defaults(_subcommand="data")
-    data_subparsers = data.add_subparsers(dest="_data_command")
+    data_subparsers = data.add_subparsers(
+        dest="_data_command",
+        parser_class=_NoAbbrevParser,
+    )
     fetch = data_subparsers.add_parser(
         "fetch",
         help="Download bundled viral GTF annotations from Zenodo.",
@@ -272,6 +283,7 @@ def _build_ref_parser(subparsers: Any) -> None:
     )
     p.add_argument(
         "--cores",
+        "-c",
         type=int,
         default=None,
         metavar="N",
@@ -492,7 +504,7 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
         metavar=_MULTIMAP_METHOD_METAVAR,
         help=(
             "Multimapping resolution method to apply: conservative, em or equal "
-            "(see 'viralscan --help' for what each does)."
+            "(see 'viralscan run --help' for what each does)."
         ),
     )
     p.add_argument(
@@ -723,15 +735,21 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
 def _build_doctor_parser(subparsers: Any) -> None:
     p = subparsers.add_parser("doctor", help="Check Python and full-workflow dependencies.")
     p.add_argument("--profile", choices=("pip", "full", "discovery"), default="full")
-    p.add_argument("--json", action="store_true", default=False)
+    p.add_argument("--json", default=None, metavar="PATH", help="Also write the report as JSON.")
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="doctor")
 
 
 def _build_validate_run_parser(subparsers: Any) -> None:
     p = subparsers.add_parser("validate-run", help="Validate v3 schemas and count invariants.")
-    p.add_argument("run_dir", help="ViralScan output directory containing run_manifest.json.")
+    p.add_argument(
+        "--run-dir",
+        required=True,
+        help="ViralScan output directory containing run_manifest.json.",
+    )
     p.add_argument("--no-verify-inputs", action="store_true", default=False)
-    p.add_argument("--json-output", default=None, metavar="PATH")
+    p.add_argument("--json", default=None, metavar="PATH", help="Also write the report as JSON.")
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="validate-run")
 
 
@@ -837,11 +855,10 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="Selection-frequency (randomized-Lasso) iterations (default: from config or 100).",
     )
     p.add_argument(
-        "--no-use-hvg",
-        dest="use_hvg",
-        action="store_false",
+        "--use-hvg",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Use all genes instead of highly variable genes as features.",
+        help="Use highly variable genes as features (default: on). --no-use-hvg uses all genes.",
     )
     p.add_argument(
         "--stab-min-prob",
@@ -858,23 +875,14 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="Top N above-threshold genes to pass to pathway enrichment (default: 50).",
     )
     p.add_argument(
-        "--hostresponse-min-umi",
+        "--min-umi",
+        dest="hostresponse_min_umi",
         type=int,
         default=None,
         metavar="N",
         help=(
             "Minimum selected-method viral molecule estimate for the per-cell positive label "
             f"(default: from config or {DEFAULTS['hostresponse_min_umi']})."
-        ),
-    )
-    p.add_argument(
-        "--detection-threshold",
-        type=int,
-        default=None,
-        metavar="N",
-        help=(
-            "Deprecated alias of --hostresponse-min-umi (it used to set the per-cell label, "
-            "not the sample gate). Ignored when --hostresponse-min-umi is given."
         ),
     )
     p.add_argument(
@@ -941,11 +949,13 @@ def _build_check_whitelist_parser(subparsers: Any) -> None:
             "A low match rate means --technology/--whitelist do not match the library\n"
             "chemistry, which makes bustools silently discard most reads (finding F-005).\n\n"
             "Example:\n"
-            "  viralscan check-whitelist -s1 R1.fastq.gz -w 3M-february-2018.txt -x 10xv3"
+            "  viralscan check-whitelist --r1 R1.fastq.gz -w 3M-february-2018.txt -x 10xv3"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("--sample1", "-s1", required=True, metavar="R1", help="R1 FASTQ (barcode read).")
+    p.add_argument(
+        "--r1", dest="sample1", required=True, metavar="R1", help="R1 FASTQ (barcode read)."
+    )
     p.add_argument(
         "--whitelist",
         "-w",
@@ -981,17 +991,21 @@ def _build_check_chemistry_parser(subparsers: Any) -> None:
         help="Diagnose single-cell vs bulk, chemistry, 3'/5' end and strand before a run.",
         description=(
             "Read-only library check. From the first R1 reads it reports bulk vs single-cell,\n"
-            "the on-list/chemistry call and UMI length. With -i/-t/-s2 it also runs the\n"
+            "the on-list/chemistry call and UMI length. With -i/-t/--r2 it also runs the\n"
             "1M-pair strand pilot, which tells 3' from 5' on trimmed R1 and picks --strand.\n"
             "Prints the -x/-w/--strand to use. Exit 1 when the chemistry is unresolved or\n"
             "the evidence conflicts.\n\n"
             "Example:\n"
-            "  viralscan check-chemistry -s1 R1.fq.gz -s2 R2.fq.gz -i index.idx -t t2g.txt"
+            "  viralscan check-chemistry --r1 R1.fq.gz --r2 R2.fq.gz -i index.idx -t t2g.txt"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("--sample1", "-s1", required=True, metavar="R1", help="R1 FASTQ (barcode read).")
-    p.add_argument("--sample2", "-s2", default=None, metavar="R2", help="R2 FASTQ (for the pilot).")
+    p.add_argument(
+        "--r1", dest="sample1", required=True, metavar="R1", help="R1 FASTQ (barcode read)."
+    )
+    p.add_argument(
+        "--r2", dest="sample2", default=None, metavar="R2", help="R2 FASTQ (for the pilot)."
+    )
     p.add_argument("--index", "-i", default=None, help="kallisto index (enables the strand pilot).")
     p.add_argument("--transcripts", "-t", default=None, help="t2g file (enables the strand pilot).")
     p.add_argument("--whitelist", "-w", default=None, metavar="PATH", help="Barcode on-list.")
@@ -1013,26 +1027,30 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "ViralScan — viral load quantification from single-cell RNA-seq.\n\n"
             "Subcommands:\n"
-            "  (default)       Quantify viral load from FASTQ samples.\n"
+            "  run             Quantify viral load from FASTQ samples.\n"
             "  data fetch      Download the viral annotation panel from Zenodo.\n"
             "  build-ref       Build a combined host + virus kallisto reference.\n"
             "  evidence        Trace/extract the reads behind viral calls.\n"
+            "  evidence-plot   Plot molecule-level host versus virus alignments.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
+            "  rerun-programs  Re-score gene programmes on a completed run.\n"
             "  discover        (In development) Kraken2 taxonomic discovery on a completed run.\n"
             "  discover-collapse  (In development) Project a discovery to species/genus/family.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
             "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
-            "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n\n"
+            "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n"
+            "  doctor          Check Python and full-workflow dependencies.\n"
+            "  validate-run    Validate v3 schemas and count invariants.\n\n"
             "Recommended host-aware workflow: run 'viralscan build-ref' once, "
             "then quantify with the generated -i/-t files.\n\n"
-            "There are 3 ways to run the default (quantification) mode:\n"
+            "There are 3 ways to run quantification:\n"
             "  1. Provide a pre-built kallisto index (-t / -i).\n"
-            "  2. Provide FASTA + GTF (--reference -fasta ... -gtf ...).\n"
-            "  3. Provide NCBI accession numbers (-acc ...) — ViralScan fetches + builds.\n\n"
+            "  2. Provide FASTA + GTF (--reference --fasta ... --gtf ...).\n"
+            "  3. Provide NCBI accession numbers (--ncbi-accession ...) — ViralScan fetches + builds.\n\n"
             "Examples:\n"
-            "  viralscan -t t2g.txt -i index.idx -o out/ -s1 R1.fastq.gz -s2 R2.fastq.gz\n"
+            "  viralscan run -t t2g.txt -i index.idx -o out/ --r1 R1.fastq.gz --r2 R2.fastq.gz\n"
             "  viralscan build-ref --host human --virus-accessions NC_045512.2 -o ref/\n\n"
-            "Run 'viralscan --help' or 'viralscan build-ref --help' for full options."
+            "Run 'viralscan <subcommand> --help' for full options."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1040,7 +1058,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--version", action="version", version=f"viralscan {__version__}")
 
-    subparsers = parser.add_subparsers(dest="_subcommand")
+    subparsers = parser.add_subparsers(
+        dest="_subcommand",
+        parser_class=_NoAbbrevParser,
+    )
+    _build_run_parser(subparsers)
     _build_data_parser(subparsers)
     _build_ref_parser(subparsers)
     _build_evidence_parser(subparsers)
@@ -1054,25 +1076,34 @@ def build_parser() -> argparse.ArgumentParser:
     _build_hostresponse_parser(subparsers)
     _build_check_whitelist_parser(subparsers)
     _build_check_chemistry_parser(subparsers)
+    return parser
 
-    # ── default (quantification) arguments ────────────────────────────────
+
+def _build_run_parser(subparsers: Any) -> None:
+    """Register the 'run' (quantification) subcommand."""
+    parser = subparsers.add_parser(
+        "run",
+        help="Quantify viral load from FASTQ samples.",
+        description="Quantify viral load from paired-end FASTQ samples with kb count.",
+    )
     parser.add_argument(
         "--output",
         "-o",
-        required=False,
-        default=None,
-        help="The path to the output directory (required for quantification).",
+        required=True,
+        help="The path to the output directory.",
     )
     parser.add_argument(
-        "--sample1",
-        "-s1",
-        default=None,
+        "--r1",
+        dest="sample1",
+        required=True,
+        metavar="R1",
         help="The path to the forward FASTQ sample (gunzipped is preferred).",
     )
     parser.add_argument(
-        "--sample2",
-        "-s2",
-        default=None,
+        "--r2",
+        dest="sample2",
+        required=True,
+        metavar="R2",
         help="The path to the backward FASTQ sample (gunzipped is preferred).",
     )
 
@@ -1094,37 +1125,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--reference",
-        "-reference",
-        "-ref",
-        action=_OptionalBool,
-        metavar="[BOOL]",
-        help="Build a kb ref index from -fasta and -gtf into the output directory. "
-        "Bare flag or `-reference True` (original form); `False` disables.",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Build a kb ref index from --fasta and --gtf into the output directory.",
     )
     parser.add_argument(
         "--gtf",
-        "-gtf",
         default=None,
         help="Path to GTF files (comma-delimited, without space in-between).",
     )
     parser.add_argument(
         "--fasta",
-        "-fasta",
         default=None,
         help="Path to FASTA files (comma-delimited, without space in-between).",
     )
     parser.add_argument(
         "--f1",
-        "-f1",
         default=None,
         help="Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated",
     )
     parser.add_argument(
         "--visual",
-        "--no-visual",
-        "-v",
-        action=_OptionalBool,
-        metavar="[BOOL]",
+        action=argparse.BooleanOptionalAction,
         default=True,
         help="Add visualizations to the output. Use --no-visual to disable. Default: True.",
     )
@@ -1177,27 +1199,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--multimapping",
-        "--no-multimapping",
-        "-mm",
-        action=_OptionalBool,
-        metavar="[BOOL]",
+        action=argparse.BooleanOptionalAction,
         default=True,
         help="Take multimapping into account. Use --no-multimapping to disable. Default: True.",
     )
     parser.add_argument(
         "--umap",
-        "-umap",
         action="store_true",
         help="Generate a UMAP plot. Significantly increases runtime. Default: off.",
     )
 
     parser.add_argument(
         "--ncbi-accession",
-        "-acc",
         default=None,
         help="One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. "
         "ViralScan will download FASTA + GTF for each and build the index. "
-        "Mutually exclusive with --reference / -fasta / -gtf.",
+        "Mutually exclusive with --reference / --fasta / --gtf.",
     )
     parser.add_argument(
         "--ncbi-email",
@@ -1211,7 +1228,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--ncbi-accession. Falls back to $NCBI_API_KEY.",
     )
     parser.add_argument(
-        "--data-cache-dir",
+        "--cache-dir",
+        dest="data_cache_dir",
         default=None,
         metavar="PATH",
         help=(
@@ -1614,7 +1632,8 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--cell-types",
+        "--cell-type-labels",
+        dest="cell_types",
         default=None,
         help="Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral "
         "enrichment in the HTML report. Optional.",
@@ -1748,12 +1767,13 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--hostresponse-control-mito",
+        "--hostresponse-mito-control",
+        dest="hostresponse_control_mito",
         action=argparse.BooleanOptionalAction,
         default=True,
         help=(
             "Include %%mito as a covariate in hostresponse depth-adjusted E-values (default: on). "
-            "Disable with --no-hostresponse-control-mito if the host h5ad has no mitochondrial genes."
+            "Disable with --no-hostresponse-mito-control if the host h5ad has no mitochondrial genes."
         ),
     )
     parser.add_argument(
@@ -1812,5 +1832,39 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Suppress INFO messages; only show warnings and errors.",
     )
+    parser.set_defaults(_subcommand="run")
 
-    return parser
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse ``argv`` (default ``sys.argv[1:]``), naming the replacement of a removed option.
+
+    A bare ``viralscan --r1 ...`` (options, no subcommand) still runs ``run``, with a warning.
+    """
+    argv = list(sys.argv[1:] if argv is None else argv)
+    parser = build_parser()
+    if argv and argv[0].startswith("-") and argv[0] not in ("-h", "--help", "--version"):
+        print(
+            "viralscan: warning: quantification without a subcommand is deprecated; "
+            "use `viralscan run ...`",
+            file=sys.stderr,
+        )
+        argv.insert(0, "run")
+    sub = argv[0] if argv else None
+    removed = REMOVED_OPTIONS.get(sub or "", {})
+    for i, token in enumerate(argv[1:], start=1):
+        option = token.split("=", 1)[0]
+        if option in removed:
+            parser.exit(2, f"viralscan {sub}: error: {option} was removed; use {removed[option]}\n")
+        nxt = argv[i + 1] if i + 1 < len(argv) else ""
+        if (
+            sub == "run"
+            and option in _BOOL_FLAGS
+            and "=" not in token
+            and nxt.lower() in _BOOL_WORDS
+        ):
+            parser.exit(
+                2,
+                f"viralscan run: error: {option} takes no value; use {option} or "
+                f"--no-{option[2:]}\n",
+            )
+    return parser.parse_args(argv)

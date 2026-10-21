@@ -176,8 +176,8 @@ def test_main_passes_cli_cores_to_reference_build(tmp_path, monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["viralscan", "--reference", "--fasta", str(fasta), "--gtf", str(gtf), "-o", "out"]
-        + ["-s1", "R1.fastq.gz", "-s2", "R2.fastq.gz", "-x", "10xv3", "--force-technology"]
+        ["viralscan", "run", "--reference", "--fasta", str(fasta), "--gtf", str(gtf), "-o", "out"]
+        + ["--r1", "R1.fastq.gz", "--r2", "R2.fastq.gz", "-x", "10xv3", "--force-technology"]
         + ["--yes", "--cores", "2", "--cell-calling", "knee"],
     )
     with pytest.raises(SystemExit) as done:

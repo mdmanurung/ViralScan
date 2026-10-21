@@ -130,12 +130,12 @@ detected) so results are traceable to their annotation.
 `called_cells.tsv` lists the barcodes cell calling kept (header `barcode`), the
 set every `*_called` rate is over and the set layer 2 scores (since 2026-10-03,
 PLAN `PROG-17`).
-`cell_type_enrichment.tsv` is present only when `--cell-types` is supplied.
+`cell_type_enrichment.tsv` is present only when `--cell-type-labels` is supplied.
 `multimap_evidence.tsv` is present only when multimapping is enabled.
 `molecule_assignments.tsv.gz` is present only with `--multimap-molecule-assignments`.
 `log/analysis.txt` lists the viral gene IDs of the index, one per line, sorted, with version
 suffixes as stored. They come from the index build manifest (`<index>.build_manifest.json`,
-`viral_gene_ids`) when it exists, plus any `-gtf` gene IDs and the anellovirus candidate IDs;
+`viral_gene_ids`) when it exists, plus any `--gtf` gene IDs and the anellovirus candidate IDs;
 only an index with no build manifest falls back to the bundled GTF panel
 (`viralscan data fetch`). The manifest's optional `catalogue_sha256` is the sha256 of the
 packaged `virus_catalog.tsv` at build time, and a run warns when the packaged catalogue no
@@ -204,7 +204,7 @@ The marker is deleted whenever a run starts, resumes or overwrites, and re-compu
 
 `run_manifest.json` also carries `defaults_status`. It is `provisional` on every `3.0.0.devN` build: the detection defaults are not yet validated against the truth panel (gate G5), so any number from such a run is provisional. It becomes `final` from the release candidate. Like `completion_marker`, the field is outside `run_fingerprint`, so `--resume` still matches older manifests.
 
-Two more `run_manifest.json` fields are also outside `run_fingerprint`. `input_paths` maps each hashed input (`<option>:<index>`, as in `input_fingerprints`) to its resolved absolute path, so `viralscan validate-run` finds the inputs from any working directory; manifests without it fall back to the option value. `fetched_reference` is written by an `-acc` run once the NCBI FASTA and GTF have been fetched or read from the cache: the accessions and the sha256 of both files. On `--resume` a different hash is refused (the accession changed upstream); use `--overwrite`.
+Two more `run_manifest.json` fields are also outside `run_fingerprint`. `input_paths` maps each hashed input (`<option>:<index>`, as in `input_fingerprints`) to its resolved absolute path, so `viralscan validate-run` finds the inputs from any working directory; manifests without it fall back to the option value. `fetched_reference` is written by an `--ncbi-accession` run once the NCBI FASTA and GTF have been fetched or read from the cache: the accessions and the sha256 of both files. On `--resume` a different hash is refused (the accession changed upstream); use `--overwrite`.
 
 ---
 
@@ -762,7 +762,7 @@ Open in any modern browser — no internet connection required.
 ## `cell_type_enrichment.tsv`
 
 Tab-separated, one row per detected virus and labeled cell type. Written only
-when `--cell-types cell_types.csv` is supplied.
+when `--cell-type-labels cell_types.csv` is supplied.
 
 | Column | Description | Kind |
 |--------|-------------|------|
@@ -1187,14 +1187,14 @@ tiers or the primary H5AD layers. Full description, `qc.json` reading guide and 
 
 ## Multiple samples
 
-When `--sample1` and `--sample2` contain comma-separated FASTQ lists,
+When `--r1` and `--r2` contain comma-separated FASTQ lists,
 ViralScan processes each pair separately:
 
 ```bash
-viralscan \
+viralscan run \
   -t t2g.txt -i index.idx -o output/ \
-  -s1 A_R1.fastq.gz,B_R1.fastq.gz \
-  -s2 A_R2.fastq.gz,B_R2.fastq.gz
+  --r1 A_R1.fastq.gz,B_R1.fastq.gz \
+  --r2 A_R2.fastq.gz,B_R2.fastq.gz
 ```
 
 Expected directories:

@@ -29,8 +29,10 @@ from viralscan.cli.parsers import (  # noqa: F401  (private builders re-exported
     _build_ref_parser,
     _build_rerun_multimap_parser,
     _build_rerun_programs_parser,
+    _build_run_parser,
     _build_validate_run_parser,
     build_parser,
+    parse_args,
 )
 from viralscan.defaults import (
     DEFAULTS,
@@ -550,12 +552,6 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     # (cfg.detection_threshold) is never used for it.
     if args.hostresponse_min_umi is not None:
         min_umi = args.hostresponse_min_umi
-    elif args.detection_threshold is not None:
-        log.warning(
-            "--detection-threshold on 'hostresponse' is deprecated and sets the per-cell label; "
-            "use --hostresponse-min-umi."
-        )
-        min_umi = args.detection_threshold
     else:
         min_umi = cfg.hostresponse_min_umi
     enrichment_db = (
@@ -650,7 +646,7 @@ def _run_check_chemistry_subcommand(args: argparse.Namespace) -> None:
 
 def create_help() -> argparse.Namespace:
     """Parse the command line. Returns the namespace of all user-given arguments."""
-    return build_parser().parse_args()
+    return parse_args()
 
 
 def _die(message: str, code: int = 1) -> NoReturn:
@@ -668,12 +664,12 @@ def errorhandler(args: argparse.Namespace) -> None:
     """
     if args.ncbi_accession:
         if args.reference or args.gtf or args.fasta:
-            _die("--ncbi-accession is mutually exclusive with --reference / -gtf / -fasta.")
+            _die("--ncbi-accession is mutually exclusive with --reference / --gtf / --fasta.")
     elif args.reference:
         if args.gtf is None:
-            _die("--reference requires -gtf. The code has been terminated.")
+            _die("--reference requires --gtf. The code has been terminated.")
         if args.fasta is None:
-            _die("--reference requires -fasta. The code has been terminated.")
+            _die("--reference requires --fasta. The code has been terminated.")
         for fasta in split_comma_paths(args.fasta):
             if not os.path.exists(fasta):
                 _die(f"FASTA path does not exist: {fasta}.")
@@ -715,7 +711,7 @@ def errorhandler(args: argparse.Namespace) -> None:
     samples1 = split_comma_paths(args.sample1)
     samples2 = split_comma_paths(args.sample2)
     if len(samples1) != len(samples2):
-        _die("--sample1 and --sample2 must have the same number of comma-separated entries.")
+        _die("--r1 and --r2 must have the same number of comma-separated entries.")
     for s1, s2 in zip(samples1, samples2):
         if not os.path.exists(s1) or not os.path.exists(s2):
             _die(f"Sample path does not exist: {s1} or {s2}.")
@@ -1290,26 +1286,19 @@ def main() -> None:
         print(out)
         return
 
-    if getattr(args, "_subcommand", None) == "doctor":
+    if getattr(args, "_subcommand", None) in ("doctor", "validate-run"):
         import json as _json
 
-        from viralscan.validation import doctor_report
+        from viralscan.validation import doctor_report, validate_run
 
-        report = doctor_report(args.profile)
-        print(_json.dumps(report, indent=2, sort_keys=True))
-        if not report["ok"]:
-            sys.exit(1)
-        return
-
-    if getattr(args, "_subcommand", None) == "validate-run":
-        import json as _json
-
-        from viralscan.validation import validate_run
-
-        report = validate_run(Path(args.run_dir), verify_inputs=not args.no_verify_inputs)
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        if args._subcommand == "doctor":
+            report = doctor_report(args.profile)
+        else:
+            report = validate_run(Path(args.run_dir), verify_inputs=not args.no_verify_inputs)
         rendered = _json.dumps(report, indent=2, sort_keys=True) + "\n"
-        if args.json_output:
-            Path(args.json_output).write_text(rendered, encoding="utf-8")
+        if args.json:
+            Path(args.json).write_text(rendered, encoding="utf-8")
         print(rendered, end="")
         if not report["ok"]:
             sys.exit(1)
@@ -1327,17 +1316,11 @@ def main() -> None:
         _run_check_chemistry_subcommand(args)
         return
 
+    if getattr(args, "_subcommand", None) != "run":
+        build_parser().print_help()
+        sys.exit(2)
+
     configure_logging(verbose=args.verbose, quiet=args.quiet)
-
-    # Validate that required run-mode args are present (they are optional in
-    # the argparse definition to allow build-ref to coexist).
-    if args.output is None:
-        _die("--output / -o is required for viral quantification.")
-    if args.sample1 is None:
-        _die("--sample1 / -s1 is required for viral quantification.")
-    if args.sample2 is None:
-        _die("--sample2 / -s2 is required for viral quantification.")
-
     _check_required_tools()
     errorhandler(args)
 
@@ -1420,7 +1403,7 @@ def main() -> None:
         sid = _sample_id(s1)
         if sid in seen_ids:
             _die(
-                f"Duplicate derived sample ID '{sid}'. Two --sample1 paths share the same "
+                f"Duplicate derived sample ID '{sid}'. Two --r1 paths share the same "
                 f"filename prefix before the first '_'. Rename your input files or supply "
                 f"unique prefixes so each sample gets its own output directory."
             )

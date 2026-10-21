@@ -690,24 +690,25 @@ def commands_for_row(
     if row["method"] == "viralscan":
         vs = refs.get("viralscan", {})
         ref = vs["combined"] if row["reference_strategy"] == "combined" else vs["all_virus"]
-        # `-gtf` is the viral gene set: the combined GTF holds every host gene too
+        # `--gtf` is the viral gene set: the combined GTF holds every host gene too
         # and would mark them all viral (PLAN DEF-03). Both strategies index the
         # same viral panel, so the all-virus GTF serves the combined index.
         viral_gtf = vs["all_virus"]["gtf"]
         cmd: list[str] = [
             "python",
             "src/viralscan/menu.py",
+            "run",
             "-i",
             ref["kallisto_index"],
             "-t",
             ref["t2g"],
-            "-gtf",
+            "--gtf",
             viral_gtf,
             "-o",
             out,
-            "-s1",
+            "--r1",
             r1,
-            "-s2",
+            "--r2",
             r2,
             "-x",
             row["technology"],

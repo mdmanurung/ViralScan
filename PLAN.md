@@ -97,6 +97,22 @@ completion.
   `check_actions_pinned.py` clean). Not built locally (no env has `scanpydoc`). Left for the user: Settings -> Pages ->
   Source "GitHub Actions", push, merge; `[x]` once the first deploy is live. `.readthedocs.yaml` is kept.
 
+- [x] `CLI-UNIFY-01` (2026-10-20, `codex/cli-unify`): one CLI grammar (user decisions 2026-10-20: hard break,
+  `viralscan run` subcommand, post-hoc outputs inside the run). PR A: `viralscan run`; `--r1/--r2` replace
+  `-s1/-s2`; no single-dash long flags; `BooleanOptionalAction` replaces `_OptionalBool`; `--cache-dir`,
+  `--cell-type-labels`, `--hostresponse-mito-control`, `--use-hvg/--no-use-hvg`, `--min-umi`, `--run-dir` on
+  validate-run, `--json PATH` everywhere, `--cores/-c` and `--verbose/--quiet` on every subcommand. Removed spellings
+  error with "use X instead"; a bare `viralscan` warns and runs `run`. `dest` names unchanged (config.yaml,
+  fingerprint, resume unaffected). Decisions: `build-ref --anellovirus` stays (it adds the anellovirus table to a
+  host+virus build; `--reference-panel anellovirus` builds an anellovirus-only one, so not a duplicate);
+  `--cores` added only to `build-ref` (no flag that does nothing elsewhere); `run` makes `-o/--r1/--r2`
+  argparse-required (the `_die` checks went); `hostresponse -o` (really an input run dir) is left to
+  CLI-UNIFY-02. Not touched: `scripts/run_fresh_control.py` (drives frozen pinned v2/v3 binaries), historical
+  `scripts/slurm_*.sh`, `tests/_frozen_oracles/`, `.living/`/`analysis/` notes, `docs/write-docs-prompt.md`.
+  Supersedes `CLI-ORIG-01`. Tests: `tests/test_cli_unify.py`; migration table in `docs/migration.md`.
+- [ ] `CLI-UNIFY-02`: post-hoc outputs (`evidence`, `rerun-multimap`, `hostresponse`) default inside the run;
+  `layout_version` 2. After CLI-UNIFY-01.
+
 - [x] `OUT-LAYOUT-01` (2026-10-20, `codex/output-layout`, stacked on `codex/orig-api-docs`): output
   layout kept close to evonk's 2.2.0 (user decisions, grill 2026-10-20). `count_audit.tsv` moves into
   `results/` (path owned by `viralscan.outputs.V3Outputs`); `run_manifest.json` gains `layout_version: 1`
@@ -106,7 +122,8 @@ completion.
   differ from upstream). Decision: candidate-only viruses get no "has a viral load of" line in the original
   block (would overstate an ungated virus). Old runs: `count_audit.tsv` stays at the sample root there.
 
-- [x] `CLI-ORIG-01`: accept the original upstream (mahfouzlab/ViralScan) invocation forms:
+- [x] `CLI-ORIG-01` (superseded 2026-10-20 by `CLI-UNIFY-01`, user chose a hard break; the forms now fail
+  with the replacement named and `tests/test_original_cli_compat.py` is removed): accept the original upstream (mahfouzlab/ViralScan) invocation forms:
   `-reference` alias and optional True/False values on `--reference`, `--visual`, `--multimapping`
   (strict `_OptionalBool` action, never `type=bool`). Defaults and v3 contracts unchanged. Tests:
   `tests/test_original_cli_compat.py`. `-umap` stays a bare flag. Known limit: a bare flag directly before a subcommand name takes it

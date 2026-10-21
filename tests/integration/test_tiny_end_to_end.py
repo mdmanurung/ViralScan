@@ -124,19 +124,20 @@ def _run_tiny(work: Path, *extra: str, manifest: bool = False) -> Path:
         gtf_args: tuple[str, ...] = ()
     else:
         # Without a manifest the bundled panel is unfetchable until REF-11 is resolved.
-        gtf_args = ("-gtf", str(FIXTURE / "viral.gtf"))
+        gtf_args = ("--gtf", str(FIXTURE / "viral.gtf"))
 
     out = work / "out"
     _viralscan(
+        "run",
         "-o",
         str(out),
         "-i",
         str(index),
         "-t",
         str(FIXTURE / "t2g.txt"),
-        "-s1",
+        "--r1",
         str(FIXTURE / "R1.fastq"),
-        "-s2",
+        "--r2",
         str(FIXTURE / "R2.fastq"),
         *gtf_args,
         "-x",
@@ -254,8 +255,9 @@ class TestValidateRunAcceptsTheResult:
         report_path = tmp_path / "validate.json"
         _viralscan(
             "validate-run",
+            "--run-dir",
             str(completed_run),
-            "--json-output",
+            "--json",
             str(report_path),
             cwd=Path(__file__).parents[2],
         )
@@ -288,6 +290,7 @@ class TestCompletionMarker:
                 "-m",
                 "viralscan.menu",
                 "validate-run",
+                "--run-dir",
                 str(copy),
                 "--no-verify-inputs",
             ],
@@ -341,8 +344,9 @@ class TestReadFilterFeedsKb:
         report_path = tmp_path / "validate.json"
         _viralscan(
             "validate-run",
+            "--run-dir",
             str(read_filter_run),
-            "--json-output",
+            "--json",
             str(report_path),
             cwd=Path(__file__).parents[2],
         )
@@ -383,7 +387,7 @@ EVIDENCE_ARTIFACTS = (
 
 
 def _validate(run: Path, report_path: Path, repo: Path) -> dict:
-    _viralscan("validate-run", str(run), "--json-output", str(report_path), cwd=repo)
+    _viralscan("validate-run", "--run-dir", str(run), "--json", str(report_path), cwd=repo)
     return json.loads(report_path.read_text(encoding="utf-8"))
 
 
@@ -397,18 +401,19 @@ def documented_sequence(tmp_path_factory) -> dict:
     steps: dict = {}
 
     # 1. preflight
-    doctor = _viralscan("doctor", "--profile", "full", "--json", cwd=repo)
+    doctor = _viralscan("doctor", "--profile", "full", cwd=repo)
     steps["doctor"] = json.loads(doctor.stdout)
 
     # 2 + 3 + 4. reference build, visuals on, external cell calling: one command.
     out = work / "out"
     _viralscan(
+        "run",
         "-o", str(out),
-        "-ref",
-        "-fasta", str(FIXTURE / "reference.fasta"),
-        "-gtf", str(FIXTURE / "combined.gtf"),
-        "-s1", str(FIXTURE / "R1.fastq"),
-        "-s2", str(FIXTURE / "R2.fastq"),
+        "--reference",
+        "--fasta", str(FIXTURE / "reference.fasta"),
+        "--gtf", str(FIXTURE / "combined.gtf"),
+        "--r1", str(FIXTURE / "R1.fastq"),
+        "--r2", str(FIXTURE / "R2.fastq"),
         "-x", "10xv3",
         "-c", "2",
         "--cell-calling", "external",

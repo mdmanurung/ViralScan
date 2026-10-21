@@ -70,7 +70,7 @@ ViralScan needs a reference index made with `kb ref`. Provide a pre-built index 
 transcript-to-gene map, or let ViralScan create one from FASTA and GTF files, from NCBI
 accessions, or with `viralscan build-ref` for a combined host + virus reference. The viral
 GTF panel is distributed through Zenodo (`viralscan data fetch`). Samples are paired-end
-FASTQ files, optionally gzipped; both `-s1` (forward) and `-s2` (reverse) are required. See
+FASTQ files, optionally gzipped; both `--r1` (forward) and `--r2` (reverse) are required. See
 [installation](installation.md) for the pip tier, containers and the tested toolchain.
 
 All output is written under `-o/--output`, one directory per FASTQ pair.
@@ -78,19 +78,19 @@ All output is written under `-o/--output`, one directory per FASTQ pair.
 **With a pre-built index:**
 
 ```bash
-viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
+viralscan run -t transcripts.txt -i index.idx -o output/ --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz
 ```
 
 **With FASTA and GTF files.** ViralScan writes the index to `output/index/`:
 
 ```bash
-viralscan -o output/ -reference True -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -fasta fasta.fasta -gtf gtf.gtf
+viralscan run -o output/ --reference --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --fasta fasta.fasta --gtf gtf.gtf
 ```
 
 **With several samples or reference files.** Separate names with commas, without spaces:
 
 ```bash
-viralscan -t transcripts.txt -i index.idx -o output/ -s1 a_1.fastq.gz,b_1.fastq.gz -s2 a_2.fastq.gz,b_2.fastq.gz
+viralscan run -t transcripts.txt -i index.idx -o output/ --r1 a_1.fastq.gz,b_1.fastq.gz --r2 a_2.fastq.gz,b_2.fastq.gz
 ```
 
 Flags switch the optional stages on or off: multimapping, UMAP, host filtering, evidence,

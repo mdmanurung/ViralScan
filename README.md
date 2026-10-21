@@ -42,7 +42,7 @@ is built with Sphinx from `docs/` (`pip install ".[docs]"`, then
   `unique-weighted`, `em-global`, and hierarchical `em-cell` are explicit alternatives
 - **Per-cell and per-virus summary tables** (`viral_summary.tsv`,
   `per_cell_viral.tsv`) plus a self-contained HTML report
-- **Cell-type enrichment analysis** (`--cell-types`) — Fisher exact test with
+- **Cell-type enrichment analysis** (`--cell-type-labels`) — Fisher exact test with
   BH correction for each virus × cell-type combination
 - **NCBI auto-fetch + local cache** (`--ncbi-accession`) — downloads FASTA +
   GTF via E-utilities and caches under `~/.cache/viralscan/ncbi/`
@@ -128,7 +128,7 @@ The standard 195-virus GTF annotation panel is hosted on Zenodo
 ### Samples
 
 ViralScan expects paired-end FASTQ files (potentially gunzipped). Both the forward
-(`-s1`) and the reverse (`-s2`) file must be provided.
+(`--r1`) and the reverse (`--r2`) file must be provided.
 
 ---
 
@@ -137,14 +137,14 @@ ViralScan expects paired-end FASTQ files (potentially gunzipped). Both the forwa
 All output (counts, logs, plots and the HTML report) is written under the
 directory given by `-o/--output`. Each FASTQ pair gets its own sample directory
 named from the R1 filename before the first underscore; `sample_R1.fastq.gz`
-writes to `output/sample/`. The original short flags (`-o -s1 -s2 -t -i -c
--reference/-ref -gtf -fasta -f1 -v -x -w -mm -umap`) and their long forms
-(`--output --sample1 --sample2 --transcripts --index ...`) are equivalent.
+writes to `output/sample/`. Quantification is `viralscan run`; the original
+single-dash spellings (`-s1 -s2 -gtf -fasta -ref ...`) were removed in 3.0 (see
+[docs/migration.md](docs/migration.md)).
 
 ### Option 1 - You already have a reference index
 
 ```bash
-viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
+viralscan run -t transcripts.txt -i index.idx -o output/ --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz
 ```
 
 ### Option 2 - ViralScan creates the index from FASTA + GTF
@@ -153,11 +153,11 @@ Provide the GTF and FASTA file(s). The index is placed in the output directory, 
 a subfolder called `index`:
 
 ```bash
-viralscan -o output/ -reference True -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -fasta fasta.fasta -gtf gtf.gtf
+viralscan run -o output/ --reference --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --fasta fasta.fasta --gtf gtf.gtf
 ```
 
-`--reference` may also be passed as a bare flag (no `True`). The same holds for
-`-v/--visual` and `-mm/--multimapping`, which additionally accept `False`.
+`--reference`, `--visual` and `--multimapping` take no value; turn the last two off with
+`--no-visual` / `--no-multimapping`.
 
 ### Multiple samples, FASTA and GTF files
 
@@ -165,10 +165,10 @@ Split the names with a comma (without a space in between):
 
 ```bash
 # multiple samples
-viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample1_1.fastq.gz,sample2_1.fastq.gz -s2 sample1_2.fastq.gz,sample2_2.fastq.gz
+viralscan run -t transcripts.txt -i index.idx -o output/ --r1 sample1_1.fastq.gz,sample2_1.fastq.gz --r2 sample1_2.fastq.gz,sample2_2.fastq.gz
 
 # multiple FASTA and GTF files
-viralscan -o output/ -reference True -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -fasta fasta1.fasta,fasta2.fasta -gtf gtf1.gtf,gtf2.gtf
+viralscan run -o output/ --reference --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --fasta fasta1.fasta,fasta2.fasta --gtf gtf1.gtf,gtf2.gtf
 ```
 
 ### Option 3 - NCBI accession auto-fetch
@@ -181,7 +181,7 @@ are all in the local cache (`~/.cache/viralscan/ncbi/`) needs no email:
 
 ```bash
 export NCBI_EMAIL=you@example.org
-viralscan --ncbi-accession NC_002021.3,NC_001512.1 -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
+viralscan run --ncbi-accession NC_002021.3,NC_001512.1 -o output/ --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz
 ```
 
 ### Viral annotation panel cache
@@ -198,14 +198,14 @@ viralscan data fetch
 ```
 
 The files are cached under `~/.cache/viralscan/data/`. Workflows that pass
-custom `-gtf` files still use those annotations directly.
+custom `--gtf` files still use those annotations directly.
 
 For shared HPC caches, fetch to a shared root and pass the same root during
 quantification:
 
 ```bash
 viralscan data fetch --cache-dir /shared/viralscan-cache
-viralscan --data-cache-dir /shared/viralscan-cache ...
+viralscan run --cache-dir /shared/viralscan-cache ...
 ```
 
 You can also set `VIRALSCAN_CACHE=/shared/viralscan-cache` for both commands.
@@ -242,12 +242,12 @@ equivalence-class mass out of primary viral estimates (use `equal` for an
 explicit equal-allocation comparison):
 
 ```bash
-viralscan \
+viralscan run \
   --index viralscan_ref/index.idx \
   --transcripts viralscan_ref/t2g.txt \
   --output output/ \
-  --sample1 sample_R1.fastq.gz \
-  --sample2 sample_R2.fastq.gz
+  --r1 sample_R1.fastq.gz \
+  --r2 sample_R2.fastq.gz
 ```
 
 Optional host pre-subtraction is available with `--host-filter starsolo`, but
@@ -294,7 +294,7 @@ verify the barcode chemistry before re-running — a wrong `--technology`/`--whi
 makes `bustools` silently discard most reads:
 
 ```bash
-viralscan check-whitelist -s1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
+viralscan check-whitelist --r1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
 ```
 
 ---
