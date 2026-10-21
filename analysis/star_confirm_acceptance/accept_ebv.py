@@ -1,4 +1,4 @@
-"""Real-library acceptance of the star_confirm rule on EBV GSM4796271 (PLAN STAR-ACCEPT-01).
+"""Real-library acceptance of the star_confirm rule (PLAN STAR-ACCEPT-01): EBV GSM4796271 by default, any library via options.
 
 Runs the REAL Snakefile rule and script on the Track A host-filtered reads and compares the pruned BAM with
 the earlier manual STAR run (same index, no whitelist, unstranded). Whitelist and strand change barcode tags
@@ -7,8 +7,8 @@ Inputs under viralscan_work are read-only: the index is adopted through a symlin
 and the run directory is new.
 """
 
+import argparse
 import subprocess
-import sys
 from pathlib import Path
 
 import yaml
@@ -19,12 +19,29 @@ M = Path("/exports/archive/hg-funcgenom-research/mdmanurung")
 W = M / "viralscan_work"
 SRC_RUN = W / "trackA_round1/runs/ebv/twostep/GSM4796271/GSM4796271"
 OLD_IDX = W / "star_hostvirus/index"
-OLD_BAM = W / "star_hostvirus/GSM4796271/Aligned.sortedByCoord.out.bam"
 HG = Path(
     "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A"
 )
-ACC = Path(sys.argv[1])
 SNAKEFILE = Path(sh.__file__).parent / "Snakefile"
+EBV_BAM = W / "star_hostvirus/GSM4796271/Aligned.sortedByCoord.out.bam"
+
+
+def parse_args(argv=None):
+    p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    p.add_argument(
+        "acc",
+        type=Path,
+        help="output directory (index view in <acc>/index, run in <acc>/run-<name>)",
+    )
+    p.add_argument("--name", default="GSM4796271")
+    p.add_argument(
+        "--manual-bam", type=Path, default=EBV_BAM, help="earlier manual STAR BAM to compare with"
+    )
+    p.add_argument("--r1", help="reads kb counted (default: the EBV host-filtered R1)")
+    p.add_argument("--r2")
+    p.add_argument("--technology")
+    p.add_argument("--strand", choices=("forward", "reverse", "unstranded"))
+    return p.parse_args(argv)
 
 
 def idxstats(bam: Path) -> dict[str, int]:
@@ -38,8 +55,9 @@ def idxstats(bam: Path) -> dict[str, int]:
     }
 
 
-def main() -> int:
-    idx = ACC / "index"
+def main(argv=None) -> int:
+    a = parse_args(argv)
+    idx = a.acc / "index"
     idx.mkdir(parents=True, exist_ok=True)
     for f in OLD_IDX.iterdir():
         if not (idx / f.name).exists():
@@ -66,7 +84,7 @@ def main() -> int:
     problems = sh.validate_index_manifest(idx)
     assert not problems, problems
 
-    run = ACC / "run"
+    run = a.acc / (f"run-{a.name}" if a.name != "GSM4796271" else "run")
     (run / "results").mkdir(parents=True, exist_ok=True)
     (run / "log").mkdir(exist_ok=True)
     (run / "results/virus_identity.tsv").write_bytes(
@@ -74,6 +92,12 @@ def main() -> int:
     )
     cfg = yaml.safe_load((SRC_RUN / "config.yaml").read_text())
     cfg.update(output=str(run) + "/", star_confirm=True, star_hostvirus_index=str(idx), cores=8)
+    for key in ("r1", "r2"):
+        if getattr(a, key):
+            cfg[f"kb_{key}"] = getattr(a, key)
+    for key in ("technology", "strand"):
+        if getattr(a, key):
+            cfg[key] = getattr(a, key)
     (run / "config.yaml").write_text(yaml.safe_dump(cfg, sort_keys=True))
     done = f"{run}/log/star_confirm.done"
     subprocess.run(
@@ -97,7 +121,7 @@ def main() -> int:
         cwd=run,
     )
 
-    old, new = idxstats(OLD_BAM), idxstats(run / "star_hostvirus/viral.bam")
+    old, new = idxstats(a.manual_bam), idxstats(run / "star_hostvirus/viral.bam")
     bad = {
         c: (old.get(c, 0), new.get(c, 0))
         for c in set(old) | set(new)
@@ -111,4 +135,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
