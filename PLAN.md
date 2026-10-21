@@ -34,6 +34,17 @@ completion.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 
+- [~] `COVMAP-01` (2026-10-21, `codex/spq-coverage-map`): the evidence step's `coverage.raw_vs_deduplicated.png` is replaced by
+  scPathoQuant-style coverage maps (`plot_coverage_maps` in `src/viralscan/evidence.py`, following
+  `spq.visualization.viz.generate_coverage_maps`): per viral reference and BAM layer (`raw`, `deduplicated`) a `bamCoverage` bigWig,
+  the GTF `gene` rows converted by BEDOPS `gtf2bed`, `make_tracks_file`, the same ini edit (labels on, grey becomes green) and
+  `pyGenomeTracks` at 200 dpi, written as `<ref>_coveragemap.<layer>.{png,pdf}`. Two extras per layer: `<ref>_coveragemap_competition.<layer>`
+  (one coverage track each for `unique`, `other_virus` and `host_competing` reads, classified from each read's `SA` partners, since the
+  competitive BAM keeps no secondary alignments) and `<ref>_coverage_stacked.<layer>` (matplotlib stacked histogram, sqrt y-axis, packed
+  gene track). New tools: `pygenometracks`, `deeptools`, `bedops` (`environment.yml`, doctor `FULL_TOOLS`); the plot is diagnostic and a
+  failure only logs a warning. Cross-virus multimapping is not drawn: Track A evidence BAMs have 0 secondaries because the pinned code
+  (97a64f6) predates `AUD3-04` (`--secondary=yes`); see `AUD3-G3-EVIDENCE`. Interactive multimap functions (option C) are deferred.
+  **Open:** layout review by the user, a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1, `bedops` in the CI conda env.
 - [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
   `--soloCBwhitelist None` (chemistries without an on-list, SW-21) when no read mapped: STAR 2.7.11b segfaults (exit
   139) in the Solo step. Found on 30 hsv1 Drop-seq libraries in Track A; reproduced on a 500k-read subset (no-Solo and

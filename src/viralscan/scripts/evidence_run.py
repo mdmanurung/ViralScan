@@ -40,7 +40,7 @@ from viralscan.evidence import (
     molecule_competition_rows,
     parse_flagged_target_bus,
     per_cell_alignment_qc,
-    plot_coverage_comparison,
+    plot_coverage_maps,
     read_start_distribution,
     reference_class,
     replay_ec_path,
@@ -690,7 +690,14 @@ def run_evidence(args: argparse.Namespace) -> None:
                     cov_rows,
                     coverage_fields + (["reference_class"] if competition is not None else []),
                 )
-            plot_coverage_comparison(bam, dedup_bam, str(out / "coverage.raw_vs_deduplicated.png"))
+            try:  # diagnostic figure only: a plotting failure must not lose the evidence outputs
+                from viralscan.scripts.analysis import locus_gtf_paths
+
+                plot_coverage_maps(
+                    {"raw": bam, "deduplicated": dedup_bam}, out, locus_gtf_paths(config)
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.warning("coverage maps not written: %s", exc)
             try:  # diagnostic figure only: a plotting failure must not lose the evidence outputs
                 plot_competitive_alignment(out)
             except Exception as exc:  # noqa: BLE001

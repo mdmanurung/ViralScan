@@ -31,7 +31,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Any, Optional, cast
@@ -1574,44 +1574,268 @@ def coverage_plot_points(
     return np.asarray(sparse_x), np.asarray(sparse_y)
 
 
-def plot_coverage_comparison(raw_bam: str, dedup_bam: str, output: str) -> str:
-    """Plot raw and deduplicated competitive depth tracks per viral reference."""
+#: Competition categories for a read's alignment to a viral reference, by where its other (``SA``)
+#: segments fall; precedence is host over another virus over unique. ``SA`` is the only place the
+#: competitive BAM keeps a read's other placements (it holds no secondary alignments).
+COVERAGE_CATEGORIES = {
+    "unique": "#2ca02c",
+    "other_virus": "#ff7f0e",
+    "host_competing": "#d62728",
+}
+
+
+def _read_category(sa_tag: str | None) -> str:
+    """Category of one alignment from its ``SA:Z:`` chimeric-partner list."""
+    if not sa_tag:
+        return "unique"
+    others = {seg.split(",", 1)[0] for seg in sa_tag.split(";") if seg}
+    if any(o.startswith("HOST|") or not is_viral_reference(o) for o in others):
+        return "host_competing"
+    return "other_virus" if others else "unique"
+
+
+def _mapped_counts(bam: str) -> dict[str, int]:
+    """Mapped reads per reference from the BAM index, without scanning alignments."""
+    out = _run(["samtools", "idxstats", bam], capture=True).decode()
+    return {f[0]: int(f[2]) for f in (line.split("\t") for line in out.splitlines()) if len(f) >= 3}
+
+
+def _split_by_category(bam: str, reference: str, work: Path) -> dict[str, Path]:
+    """Indexed per-category BAMs of the reads aligned to *reference* (empty categories omitted)."""
+    header = _run(["samtools", "view", "-H", bam], capture=True).decode()
+    text = _run(["samtools", "view", bam, reference], capture=True).decode()
+    buckets: dict[str, list[str]] = {name: [] for name in COVERAGE_CATEGORIES}
+    for line in text.splitlines():
+        sa = next((f[5:] for f in line.split("\t")[11:] if f.startswith("SA:Z:")), None)
+        buckets[_read_category(sa)].append(line)
+    paths: dict[str, Path] = {}
+    for name, lines in buckets.items():
+        if not lines:
+            continue
+        sam, out = work / f"{name}.sam", work / f"{name}.bam"
+        sam.write_text(header + "\n".join(lines) + "\n")
+        _run(["samtools", "view", "-b", "-o", str(out), str(sam)])
+        _run(["samtools", "index", str(out)])
+        paths[name] = out
+    return paths
+
+
+def _bamcoverage(bam: Path, bigwig: Path) -> Path:
+    _run(["bamCoverage", "-b", str(bam), "-o", str(bigwig)])
+    return bigwig
+
+
+def _draw_tracks(
+    track_files: list[str],
+    reference: str,
+    length: int,
+    target_stem: Path,
+    colors: Sequence[str | None],
+    work: Path,
+) -> list[str]:
+    """``make_tracks_file`` + the scPathoQuant ini edit (labels on, grey becomes the colour) + ``pyGenomeTracks``."""
+    ini, edited = work / f"{target_stem.name}.ini", work / f"{target_stem.name}.edit.ini"
+    _run(["make_tracks_file", "--trackFile", *track_files, "-o", str(ini)])
+    palette = iter(colors)
+    lines = []
+    for line in ini.read_text().splitlines(keepends=True):
+        if line.startswith("labels = false"):
+            line = "labels = true\n"
+        elif line.startswith("color = #666666"):
+            colour = next(palette, None) or "green"
+            line = f"color = {colour}\n"
+        lines.append(line)
+    edited.write_text("".join(lines))
+    written = []
+    for suffix in ("png", "pdf"):
+        target = target_stem.parent / f"{target_stem.name}.{suffix}"
+        _run(
+            [
+                "pyGenomeTracks",
+                "--tracks",
+                str(edited),
+                "--region",
+                f"{reference}:1-{length}",
+                "--dpi",
+                "200",
+                "--outFileName",
+                str(target),
+            ]
+        )
+        written.append(str(target))
+    return written
+
+
+def _stacked_histogram(
+    bigwigs: dict[str, Path],
+    features: list[tuple[int, int, str, str, str]],
+    reference: str,
+    length: int,
+    output: Path,
+) -> list[str]:
+    """Stacked coverage histogram by competition category, with the gene track below."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import numpy as np
+    import pyBigWig
 
-    layers = {
-        "raw": coverage_depth_points(raw_bam),
-        "deduplicated": coverage_depth_points(dedup_bam),
-    }
-    lengths = {"raw": reference_lengths(raw_bam), "deduplicated": reference_lengths(dedup_bam)}
-    references = sorted(
-        {
-            str(row["reference"])
-            for rows in layers.values()
-            for row in rows
-            if is_viral_reference(str(row["reference"]))
-        }
-    )
-    if not references:
-        references = sorted({str(row["reference"]) for rows in layers.values() for row in rows})
+    bins = max(1, min(length // 50, 1000))
+    edges = np.linspace(0, length, bins + 1)
     figure, axes = plt.subplots(
-        max(len(references), 1), 1, figsize=(9, max(2.5, 2.5 * len(references))), squeeze=False
+        2 if features else 1,
+        1,
+        squeeze=False,
+        sharex=True,
+        figsize=(10, 5 if features else 3),
+        gridspec_kw={"height_ratios": [3, 1]} if features else None,
     )
-    if not references:
-        axes[0][0].text(0.5, 0.5, "No aligned coverage", ha="center", va="center")
-        axes[0][0].set_axis_off()
-    for axis, reference in zip(axes[:, 0], references):
-        for layer, rows in layers.items():
-            xs, ys = coverage_plot_points(rows, reference, lengths[layer].get(reference))
-            axis.plot(xs, ys, label=layer, linewidth=1)
-        axis.set(title=reference, xlabel="Position (bp)", ylabel="Depth")
-        axis.legend(frameon=False)
+    bottom = np.zeros(bins)
+    for name, bigwig in bigwigs.items():
+        handle = pyBigWig.open(str(bigwig))
+        values = np.nan_to_num(
+            np.asarray(handle.stats(reference, 0, length, nBins=bins, exact=False), dtype=float)
+        )
+        handle.close()
+        axes[0, 0].bar(
+            edges[:-1],
+            values,
+            width=np.diff(edges),
+            bottom=bottom,
+            align="edge",
+            color=COVERAGE_CATEGORIES[name],
+            label=name.replace("_", " "),
+        )
+        bottom += values
+    axes[0, 0].set_yscale("function", functions=(lambda v: np.sqrt(np.clip(v, 0, None)), np.square))
+    axes[0, 0].set(title=reference, ylabel="Depth (stacked by competition, sqrt scale)")
+    axes[0, 0].legend(frameon=False)
+    if features:
+        gene_axis = axes[1, 0]
+        row_ends: list[
+            int
+        ] = []  # greedy interval packing: first row whose last gene ends before this one starts
+        for start, end, _strand, name, _ in sorted(features):
+            row = next((i for i, last in enumerate(row_ends) if last < start), len(row_ends))
+            if row == len(row_ends):
+                row_ends.append(end)
+            else:
+                row_ends[row] = end
+            gene_axis.plot(
+                [start, end], [row, row], linewidth=4, color="black", solid_capstyle="butt"
+            )
+            if len(features) <= 25:
+                gene_axis.text(start, row + 0.2, name, fontsize=7)
+        gene_axis.set(ylim=(-1, len(row_ends)), yticks=[])
+    axes[-1, 0].set(xlabel="Position (bp)", xlim=(1, max(2, length)))
     figure.tight_layout()
-    figure.savefig(output, dpi=160)
+    written = []
+    for suffix in ("png", "pdf"):
+        target = output.parent / f"{output.name}.{suffix}"
+        figure.savefig(target, dpi=200)
+        written.append(str(target))
     plt.close(figure)
-    return output
+    return written
+
+
+def plot_coverage_maps(
+    layers: Mapping[str, str],
+    out_dir: str | Path,
+    annotations: Iterable[str | Path] = (),
+    references: Iterable[str] | None = None,
+) -> list[str]:
+    """scPathoQuant-style coverage maps, one set per viral reference and BAM layer.
+
+    Per reference and layer (``raw``, ``deduplicated``), in ``out_dir``:
+
+    * ``<ref>_coveragemap.<layer>.{png,pdf}``: the scPathoQuant map
+      (``spq.visualization.viz.generate_coverage_maps``): ``bamCoverage`` bigWig of the reference's
+      reads, GTF gene track with labels, green coverage, ``pyGenomeTracks`` at 200 dpi.
+    * ``<ref>_coveragemap_competition.<layer>.{png,pdf}``: the same layout with one coverage track
+      per competition category (unique / other virus / host-competing).
+    * ``<ref>_coverage_stacked.<layer>.{png,pdf}``: stacked histogram of those categories.
+
+    Competition comes from each read's ``SA`` partners (see ``COVERAGE_CATEGORIES``); the
+    competitive BAM has no secondary alignments, so cross-virus multimapping is not drawn here.
+    References with no aligned reads are skipped.
+    """
+    out = Path(out_dir)
+    written: list[str] = []
+    first_bam = next(iter(layers.values()))
+    lengths = reference_lengths(first_bam)
+    mapped = {layer: _mapped_counts(bam) for layer, bam in layers.items()}
+    wanted = set(references) if references is not None else None
+    for reference in sorted(r for r in lengths if is_viral_reference(r)):
+        if wanted is not None and reference not in wanted:
+            continue
+        features: list[tuple[int, int, str, str, str]] = []
+        gtf: str | Path | None = None
+        for annotation in annotations:
+            try:
+                features, _ = resolve_reference_annotation(
+                    annotation, reference, lengths[reference]
+                )
+            except CoverageMapError:
+                continue
+            if features:
+                gtf = annotation
+                break
+        stem = re.sub(r"[/ |]", "_", reference)
+        length = lengths[reference]
+        for layer, bam in layers.items():
+            if not mapped[layer].get(reference):
+                continue
+            with tempfile.TemporaryDirectory(prefix="coverage_map_") as tmp:
+                work = Path(tmp)
+                ref_bam = work / "reads.bam"
+                _run(["samtools", "view", "-b", "-o", str(ref_bam), bam, reference])
+                _run(["samtools", "index", str(ref_bam)])
+                total = _bamcoverage(ref_bam, work / "coverage.bw")
+                gene_tracks: list[str] = []
+                if gtf is not None:
+                    # scPathoQuant: keep the virus's ``gene`` rows of the GTF, convert with gtf2bed.
+                    seqids = {reference, reference.split("|", 1)[-1]}
+                    genes = work / "genes.gtf"
+                    with (
+                        open(gtf, encoding="utf-8") as src,
+                        open(genes, "w", encoding="utf-8") as dst,
+                    ):
+                        for line in src:
+                            fields = line.split("\t")
+                            if (
+                                not line.startswith("#")
+                                and len(fields) > 2
+                                and fields[2] == "gene"
+                                and fields[0] in seqids
+                            ):
+                                dst.write("\t".join([reference, *fields[1:]]))
+                    bed = work / "genes.bed"
+                    with open(genes, "rb") as src, open(bed, "wb") as dst:
+                        _run(["gtf2bed"], stdin_file=src, stdout_file=dst)
+                    gene_tracks = [str(bed)]
+                written += _draw_tracks(
+                    gene_tracks + [str(total)],
+                    reference,
+                    length,
+                    out / f"{stem}_coveragemap.{layer}",
+                    ["green"],
+                    work,
+                )
+                split = _split_by_category(bam, reference, work)
+                bigwigs = {n: _bamcoverage(b, work / f"{n}.bw") for n, b in split.items()}
+                written += _draw_tracks(
+                    gene_tracks + [str(total)] + [str(w) for w in bigwigs.values()],
+                    reference,
+                    length,
+                    out / f"{stem}_coveragemap_competition.{layer}",
+                    ["green"] + [COVERAGE_CATEGORIES[n] for n in bigwigs],
+                    work,
+                )
+                written += _stacked_histogram(
+                    bigwigs, features, reference, length, out / f"{stem}_coverage_stacked.{layer}"
+                )
+    return written
 
 
 class CoverageMapError(ValueError):

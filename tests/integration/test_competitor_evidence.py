@@ -2,6 +2,7 @@
 
 import json
 import random
+from pathlib import Path
 
 import pytest
 
@@ -82,6 +83,5 @@ def test_live_target_related_host_classes_survive_qc_and_plots(tmp_path):
         "related_preferred",
         "host_preferred",
     }
-    plot = tmp_path / "coverage.png"
-    ev.plot_coverage_comparison(bam, bam, str(plot))
-    assert plot.stat().st_size > 0
+    written = ev.plot_coverage_maps({"raw": bam, "deduplicated": bam}, tmp_path)
+    assert written and all(Path(p).stat().st_size > 0 for p in written)
