@@ -520,6 +520,47 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="rerun-multimap")
 
 
+def _build_discover_parser(subparsers: Any) -> None:
+    """Register the 'discover' subcommand (PLAN DISC; in development)."""
+    p = subparsers.add_parser(
+        "discover",
+        help="(In development) Kraken2 taxonomic discovery on a completed run's host-unmapped reads.",
+        description=(
+            "Classify a completed run's STAR host-unmapped cDNA reads with Kraken2 and attribute\n"
+            "them to cells. The source run is never modified; results are candidate taxonomic\n"
+            "observations, not infection calls, and never change viral counts or detection.\n\n"
+            "Example:\n"
+            "  viralscan discover --run-dir out/ --sample S1 -o out_discovery/S1/ "
+            "--kraken2-db /shared/k2db/"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--run-dir",
+        required=True,
+        help="Completed run root (holds run_manifest.json). It is never modified.",
+    )
+    p.add_argument(
+        "--sample",
+        default=None,
+        help="Sample subdirectory to classify; required when the run has more than one.",
+    )
+    p.add_argument(
+        "--output",
+        "-o",
+        required=True,
+        help="Discovery output directory, outside --run-dir; must be empty or absent.",
+    )
+    p.add_argument(
+        "--kraken2-db",
+        required=True,
+        help="Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified.",
+    )
+    p.add_argument("--threads", type=int, default=4, help="Kraken2 threads. Default: 4.")
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="discover")
+
+
 def _build_rerun_programs_parser(subparsers: Any) -> None:
     """Register the 'rerun-programs' subcommand."""
     p = subparsers.add_parser(
@@ -878,6 +919,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  build-ref       Build a combined host + virus kallisto reference.\n"
             "  evidence        Trace/extract the reads behind viral calls.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
+            "  discover        (In development) Kraken2 taxonomic discovery on a completed run.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
             "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
             "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n\n"
@@ -905,6 +947,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_evidence_plot_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
     _build_rerun_programs_parser(subparsers)
+    _build_discover_parser(subparsers)
     _build_doctor_parser(subparsers)
     _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)

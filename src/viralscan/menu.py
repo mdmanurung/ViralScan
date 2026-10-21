@@ -1265,6 +1265,16 @@ def main() -> None:
         _run_rerun_multimap(args)
         return
 
+    if getattr(args, "_subcommand", None) == "discover":
+        from viralscan.discovery import DiscoveryError, run_discover
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        try:
+            run_discover(args)
+        except DiscoveryError as exc:
+            _die(str(exc))
+        return
+
     if getattr(args, "_subcommand", None) == "doctor":
         import json as _json
 

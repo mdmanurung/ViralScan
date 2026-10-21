@@ -838,6 +838,26 @@ the sections above add context. Do not edit between the markers.
 
 <!-- END GENERATED -->
 
+### viralscan discover
+
+(In development, PLAN DISC.) Kraken2 taxonomic discovery on a completed run's STAR
+host-unmapped reads. It never modifies the source run; its results are candidate taxonomic observations, not
+infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
+
+<!-- BEGIN GENERATED: discover -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). It is never modified. |
+| `--sample SAMPLE` | *(none)* | Sample subdirectory to classify; required when the run has more than one. |
+| `--output, -o OUTPUT` | *required* | Discovery output directory, outside --run-dir; must be empty or absent. |
+| `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
+| `--threads THREADS` | `4` | Kraken2 threads. Default: 4. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
 ### viralscan rerun-programs
 
 <!-- BEGIN GENERATED: rerun-programs -->

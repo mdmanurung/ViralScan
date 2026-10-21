@@ -571,12 +571,12 @@ collapse uses the canonical rank letters only.
 
 ```bash
 # reuse the primary's STAR host-unmapped pair
-viralscan discover --run-dir out/S1/ -o out/S1_discovery/ \
+viralscan discover --run-dir out/ --sample S1 -o out_discovery/S1/ \
     --kraken2-db /shared/k2/k2_pluspf_20260XYZ/ \
     --confidence 0.0 --minimum-hit-groups 2 --memory-mapping --threads 16
 
 # primary ran without host filtering → explicit discovery-only STAR pass
-viralscan discover --run-dir out/S1/ -o out/S1_discovery/ \
+viralscan discover --run-dir out/ --sample S1 -o out_discovery/S1/ \
     --kraken2-db DB --host-subtract starsolo --host-index /refs/star_grch38/ \
     --host-filter-star-params pinned --threads 16
 

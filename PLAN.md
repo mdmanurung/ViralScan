@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  Next: `DISC-02` skeleton, EBV reconciliation for `DISC-05`.
+  Next: `DISC-03` input resolution, `DISC-06` streaming pass; EBV reconciliation for `DISC-05`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7763,7 +7763,12 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     `called_cells.tsv` may be in STARsolo space under host filtering. Spike `DISC-05` decides correction mechanics.
   - Note: the primary manifest does not hash `host_filtered/` outputs; discovery can only record its own hash.
 - [ ] `DISC-01` optional discovery env (kraken2 2.17.2), `doctor --profile discovery`.
-- [ ] `DISC-02` `discover` parser + skeleton (run-dir completeness, `-o` refusal, `.partial/` publish).
+- [x] `DISC-02` `discover` parser + skeleton (2026-10-21): `src/viralscan/discovery.py`, `tests/test_discovery.py` (10).
+  Refuses an incomplete run, an ambiguous or unknown `--sample`, `-o` inside the run or non-empty, an incomplete DB,
+  and missing `kraken2`/`k2`. G2 test: source-run sha256 inventory unchanged. G1 test: the main parser gains no
+  discovery option. After validation it exits 1 with "not implemented yet" until DISC-03..09.
+  - Note: `--run-dir` is the run root (where `run_manifest.json` lives), plus `--sample`; the plan's example
+    `--run-dir out/S1/` was wrong about the layout.
 - [ ] `DISC-03` input resolution (primary `host_filtered/` or explicit discovery-only STAR pass).
 - [x] `DISC-04` spike: DB-derived taxonomy = `k2 inspect --report-zero-counts` parsed by indentation (2026-10-21).
   - Note: NCBI rsync is refused from the login node; the test DB uses a hand-written 15-taxon `nodes.dmp`/`names.dmp`
