@@ -58,6 +58,7 @@ import logging
 import os
 import warnings
 from dataclasses import dataclass, field
+from importlib.metadata import version
 from pathlib import Path
 from typing import Optional
 
@@ -344,7 +345,7 @@ def _resolve_raw_depth(adata):
 
 
 def _detect_and_normalize(host_adata) -> None:
-    """Normalize and log-transform the host matrix if it appears to be raw counts.
+    """Median-depth normalize and log1p-transform apparent raw counts (shifted log).
 
     Stores raw per-cell total counts in obs["_raw_depth"] BEFORE any normalization
     so that depth-based filtering is always computed from library size, not from
@@ -380,8 +381,8 @@ def _detect_and_normalize(host_adata) -> None:
     sample = np.asarray(sample, dtype=float)
     is_integer = np.all(sample == np.floor(sample))
     if is_integer and sample.max() > 10:
-        log.info("Host h5ad: looks like raw counts (integer values, max > 10). Normalising.")
-        sc.pp.normalize_total(host_adata, target_sum=1e4)
+        log.info("Host h5ad: raw counts detected; median-depth normalization then natural log1p.")
+        sc.pp.normalize_total(host_adata, target_sum=None)
         sc.pp.log1p(host_adata)
     else:
         log.warning(
@@ -2997,6 +2998,16 @@ def run_hostresponse(
         "detection_threshold": int(detection_threshold),
         "depth_matching": bool(depth_match),
         "feature_mode": "hvg_in_training_fold" if use_hvg else "all_genes",
+        "raw_input_normalization": {
+            "method": "shifted_log",
+            "scanpy_version": version("scanpy"),
+            "target_sum": "scanpy_default_median_cell_total",
+            "log_base": "natural",
+            "pseudocount": 1,
+            "scope": "within_each_analyzed_cohort",
+            "applied_when": "raw_count_detection_succeeds",
+            "preprocessed_inputs": "preserved",
+        },
         "inputs": {
             "virus_h5ad": {"path": str(virus_h5ad), "sha256": _sha256_file(virus_h5ad)},
             "host_h5ad": {"path": str(host_h5ad), "sha256": _sha256_file(host_h5ad)},

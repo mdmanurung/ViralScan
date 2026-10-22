@@ -122,11 +122,12 @@ def host_only_pca(adata, viral_gene_ids, hvg_min_mean, hvg_max_mean, hvg_min_dis
 
     Viral columns are dropped before anything else, so the size factors, the HVG set and
     the PCA are all host-only: viral load cannot move a cell in this space.
+    Counts are scaled to median host depth and log1p-transformed (shifted log).
     Returns ``(coords, hvg_names)``; ``coords`` is ``None`` (with a warning) when fewer
     than two host genes are highly variable, where PCA is undefined (P8-01).
     """
     host = adata[:, ~adata.var_names.isin(list(viral_gene_ids))].copy()
-    sc.pp.normalize_total(host, target_sum=1e4)
+    sc.pp.normalize_total(host, target_sum=None)
     sc.pp.log1p(host)
     sc.pp.highly_variable_genes(
         host, min_mean=hvg_min_mean, max_mean=hvg_max_mean, min_disp=hvg_min_disp
@@ -252,6 +253,8 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         log.error(msg)
         raise ValueError(msg)  # fail the Snakemake rule loudly rather than exit 0 with no plots
 
+    log.info("UMAP preprocessing: median-depth normalization followed by natural log1p.")
+
     # The matrix detection called on (B-23): not raw/counts, which can differ from it.
     # Taken before normalize_total below rewrites adata.X.
     X_counts = select_detection_matrix(adata, config)
@@ -269,7 +272,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
             sc.pp.subsample(adata, n_obs=10000, random_state=0)
 
         # Normalization
-        sc.pp.normalize_total(adata, target_sum=1e4)
+        sc.pp.normalize_total(adata, target_sum=None)
         sc.pp.log1p(adata)
         sc.pp.highly_variable_genes(
             adata,
@@ -327,7 +330,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     viral_cols = set(found_genes) | (set(identity.viral_gene_ids()) if identity else set())
     test_coords, _ = host_only_pca(adata, viral_cols, hvg_min_mean, hvg_max_mean, hvg_min_disp)
 
-    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.normalize_total(adata, target_sum=None)
     sc.pp.log1p(adata)
 
     if "X_umap" not in adata.obsm:

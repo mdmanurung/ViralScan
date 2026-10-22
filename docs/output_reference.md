@@ -1064,6 +1064,28 @@ available. No diagnostic flag is an automatic biological conclusion.
 
 ---
 
+## Expression normalization
+
+UMAP preprocessing and detected raw host-response inputs use shifted-log
+normalization: Scanpy `normalize_total(target_sum=None)` uses its default
+median-library scaling, then `log1p` applies the natural logarithm
+with pseudocount one. There is no fixed TP10K target. The host-only PCA graph
+computes its library totals after excluding viral genes; host-response normalization
+is within each analyzed cohort. Existing QC/HVG thresholds are unchanged.
+
+Input count files and count layers are preserved. Host-response raw-depth covariates
+are captured before normalization; inputs already marked as log-normalized are
+preserved. The existing raw-input detection heuristic still applies. Its manifest's
+`raw_input_normalization` field describes this conditional preprocessing policy;
+source identity and logs distinguish it from older TP10K runs. Feature selection,
+embeddings and fitted results can change; rerun downstream analyses in new output
+roots when adopting this method. Previous outputs are not rewritten. Scanpy version
+is recorded in the host-response
+normalization policy; its treatment of zero-count rows can depend on representation
+and version. Empty rows remain empty, with raw counts and depths preserved.
+
+Reference: [Single-cell best practices: shifted logarithm](https://www.sc-best-practices.org/preprocessing-visualization/normalization/#shifted-logarithm).
+
 ## `hostresponse/` — host-response outputs
 
 Written by `viralscan hostresponse` (or a main run with `--host-h5ad`) under
