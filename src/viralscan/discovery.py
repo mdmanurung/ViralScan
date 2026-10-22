@@ -780,7 +780,8 @@ def bustools_barcodes(out_dir: Path, onlist: str | None, threads: int) -> Path:
 
 
 def _tsv_rows(path: Path) -> Iterator[dict[str, str]]:
-    with gzip.open(path, "rt", newline="") as handle:
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt", newline="") as handle:
         yield from csv.DictReader(handle, delimiter="\t")
 
 
@@ -1101,6 +1102,260 @@ def build_candidates(
         writer.writerow(CANDIDATE_COLUMNS)
         writer.writerows(rows)
     return len(rows)
+
+
+# ── Candidate states (DISC-13) ───────────────────────────────────────────────
+
+CANDIDATE_STATES_TSV = "candidate_states.tsv"
+CANDIDATE_STATE_COLUMNS = (
+    "taxid",
+    "name",
+    "rank",
+    "state",
+    "corroboration",
+    "read_support",
+    "reason",
+)
+EVIDENCE_COLUMNS = (
+    "taxid",
+    "route",
+    "source",
+    "n_adjudicated",
+    "n_taxon_best",
+    "n_shared_cells",
+    "n_shared_umis",
+)
+#: Route (i) needs kb or STAR, route (ii) is kb-independent (any competitive aligner label).
+CORROBORATION_SOURCES = frozenset({"kb", "star"})
+ROUTES = ("corroboration", "read_support")
+#: Documented constants, not calibrated (plan §12.2): at least this many molecules (reads for route ii)
+#: scoring best for the taxon, at least this fraction of everything adjudicated (ties and other-reference
+#: wins stay in the denominator), and at least this many of the taxon's called cells / molecules shared.
+MIN_TAXON_BEST = 3
+MIN_TAXON_BEST_FRACTION = 0.8
+MIN_SHARED_CELLS = 1
+MIN_SHARED_UMIS = 1
+
+
+def read_evidence_table(path: Path) -> dict[tuple[int, str], dict[str, Any]]:
+    """Read the documented evidence input table, one row per ``(taxid, route)``; fail closed.
+
+    Columns ``EVIDENCE_COLUMNS``. ``route`` is ``corroboration`` (``source`` kb or star; counts are
+    molecules from the competitive adjudication) or ``read_support`` (``source`` any label except kb/star; counts are
+    reads from a competitive alignment to the hit genome versus host + panel). ``n_adjudicated`` is all
+    units tested, ``n_taxon_best`` those that scored best for the taxon alone; ``n_shared_cells`` and
+    ``n_shared_umis`` are the cells and distinct (CB, UMI) molecules that are also resolved called-cell
+    groups of the taxon in ``umi_groups.tsv.gz``. Ties and other-reference wins are not counted as taxon-best.
+    """
+    rows: dict[tuple[int, str], dict[str, Any]] = {}
+    for raw in _tsv_rows(path):
+        missing = [c for c in EVIDENCE_COLUMNS if c not in raw]
+        if missing:
+            raise DiscoveryError(f"{path}: missing columns {missing}")
+        try:
+            row: dict[str, Any] = {c: int(raw[c]) for c in EVIDENCE_COLUMNS[3:]}
+            row["taxid"] = int(raw["taxid"])
+        except ValueError as exc:
+            raise DiscoveryError(f"{path}: non-integer value in {raw}") from exc
+        row["route"], row["source"] = raw["route"], raw["source"]
+        if row["route"] not in ROUTES or not row["source"]:
+            raise DiscoveryError(f"{path}: bad route/source in {raw}")
+        if row["route"] == "corroboration" and row["source"] not in CORROBORATION_SOURCES:
+            raise DiscoveryError(f"{path}: corroboration source must be kb or star: {raw}")
+        if row["route"] == "read_support" and row["source"] in CORROBORATION_SOURCES:
+            raise DiscoveryError(
+                f"{path}: read_support must be kb-independent, not {row['source']}: {raw}"
+            )
+        counts = [row[c] for c in EVIDENCE_COLUMNS[3:]]
+        if min(counts) < 0 or row["n_taxon_best"] > row["n_adjudicated"]:
+            raise DiscoveryError(f"{path}: inconsistent counts in {raw}")
+        key = (row["taxid"], row["route"])
+        if key in rows:
+            raise DiscoveryError(
+                f"{path}: duplicate evidence row for taxid {key[0]} route {key[1]}"
+            )
+        rows[key] = row
+    return rows
+
+
+KB_EVIDENCE_TSV = "evidence_kb.tsv"
+MOLECULE_ASSIGNMENTS = Path("results") / "molecule_assignments.tsv.gz"
+
+
+def _load_tree_tsv(path: Path) -> dict[int, tuple[int, str, str]]:
+    return {
+        int(r["taxid"]): (int(r["parent_taxid"]), r["rank"], r["name"]) for r in _tsv_rows(path)
+    }
+
+
+def build_kb_evidence(discovery_dir: Path, sample_dir: Path, output: Path | None = None) -> Path:
+    """Write the route (i) ``source=kb`` evidence table (DISC-13); returns its path.
+
+    Needs the primary run's ``results/molecule_assignments.tsv.gz`` (``--multimap-molecule-assignments``)
+    and ``results/virus_identity.tsv``. A panel gene belongs to candidate T when it is viral and its
+    ``taxid`` is T or lies on one root-to-leaf lineage with T in the discovery taxonomy (a strain gene
+    for a species candidate, or the reverse); a gene taxid missing from the taxonomy matches only
+    exactly. A candidate with no panel gene gets no row (``not_assessed``); one with panel genes and no
+    molecule gets an all-zero row (``negative``); an empty molecule file, or one with no molecule in a
+    called cell, raises (missing data is never absence). Per distinct (CB, UMI) with at least one gene
+    of T: ``n_adjudicated`` counts it (ties, host, other-virus and above-species ancestor genes
+    included); ``n_taxon_best`` counts it only when every gene is T, a descendant of T, or (T below
+    species) a species-or-below ancestor of T. Both cover all barcodes. Shared cells / (CB, UMI) are
+    those of the taxon-best molecules that are also resolved called-cell groups with
+    ``resolved_taxid == T`` in ``umi_groups.tsv.gz`` (called cells only). Refuses unless the called cells are in kb barcode space (never guessed).
+    """
+    from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
+
+    called, info = load_called_cells(sample_dir)
+    if info["called_cells_barcode_space"] != "kb":
+        raise DiscoveryError(
+            f"called cells are in {info['called_cells_barcode_space']!r} barcode space, not kb; "
+            "kb evidence cannot be joined to them."
+        )
+    prov = discovery_dir / PROVENANCE_JSON
+    if prov.is_file():
+        had = json.loads(prov.read_text(encoding="utf-8")).get("called_cells_barcode_space")
+        if had != "kb":
+            raise DiscoveryError(f"discovery was run with {had!r} barcode space, not kb.")
+    mol, ident = sample_dir / MOLECULE_ASSIGNMENTS, sample_dir / "results" / TABLE_FILENAME
+    for path in (mol, ident, discovery_dir / TAXONOMY_TSV, discovery_dir / CANDIDATES_TSV):
+        if not path.is_file():
+            raise DiscoveryError(f"{path} is missing.")
+    tree = _load_tree_tsv(discovery_dir / TAXONOMY_TSV)
+    candidates = sorted({int(r["taxid"]) for r in _tsv_rows(discovery_dir / CANDIDATES_TSV)})
+    viral = {g.gene_id: g.taxid for g in VirusIdentityTable.read_tsv(ident).genes if g.viral}
+    gene_taxa: dict[str, set[int]] = {}
+    best_ok: set[tuple[str, int]] = (
+        set()
+    )  # (gene, candidate) pairs that may make a molecule taxon-best
+    for taxid in candidates:
+        for gene, gtax in viral.items():
+            if not gtax.isdigit():
+                continue
+            gt = int(gtax)
+            same_lineage = (
+                gt in tree
+                and taxid in tree
+                and (taxid in _path(tree, gt) or gt in _path(tree, taxid))
+            )
+            if gt == taxid or same_lineage:
+                gene_taxa.setdefault(gene, set()).add(taxid)
+                # Ancestors above species rank (genus, family, root bins) compete but never win.
+                if gt == taxid or taxid in _path(tree, gt) or tree[gt][1].startswith("S"):
+                    best_ok.add((gene, taxid))
+    panel = {t for taxa in gene_taxa.values() for t in taxa}
+    called_set = set(called)
+    groups: dict[int, set[tuple[str, str]]] = {}
+    for row in _tsv_rows(discovery_dir / UMI_GROUPS_TSV):
+        if row["group_class"] == "resolved" and row["corrected_cb"] in called_set:
+            groups.setdefault(int(row["resolved_taxid"]), set()).add(
+                (row["corrected_cb"], row["umi"])
+            )
+    adjudicated: dict[int, set[tuple[str, str]]] = {t: set() for t in panel}
+    best: dict[int, set[tuple[str, str]]] = {t: set() for t in panel}
+    seen_cb = n_rows = 0
+    with gzip.open(mol, "rt", newline="") as handle:
+        for row in csv.DictReader(handle, delimiter="\t"):
+            n_rows += 1
+            seen_cb += row["barcode"] in called_set
+            key = (row["barcode"], row["umi"])
+            genes = row["genes"].split(";") if row["genes"] else []
+            for taxid in {t for g in genes for t in gene_taxa.get(g, ())}:
+                adjudicated[taxid].add(key)
+                if all((g, taxid) in best_ok for g in genes):
+                    best[taxid].add(key)
+    if not n_rows:
+        raise DiscoveryError(f"{mol} has no molecules; missing data is not absence.")
+    if called and not seen_cb:
+        raise DiscoveryError("no kb molecule barcode is a called cell: barcode spaces differ.")
+    out = output or discovery_dir / KB_EVIDENCE_TSV
+    with out.open("w", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(EVIDENCE_COLUMNS)
+        for taxid in sorted(panel):
+            shared = best[taxid] & groups.get(taxid, set())
+            writer.writerow(
+                [
+                    taxid,
+                    "corroboration",
+                    "kb",
+                    len(adjudicated[taxid]),
+                    len(best[taxid]),
+                    len({cb for cb, _ in shared}),
+                    len(shared),
+                ]
+            )
+    return out
+
+
+def judge_evidence(row: dict[str, Any] | None, route: str) -> tuple[str, str]:
+    """``(assessment, why)``: ``not_assessed`` (no row), ``negative`` or ``positive``. Never conflated."""
+    if row is None:
+        return "not_assessed", ""
+    best, tested = row["n_taxon_best"], row["n_adjudicated"]
+    if best < MIN_TAXON_BEST or best < MIN_TAXON_BEST_FRACTION * tested:
+        return "negative", f"{route}: {best}/{tested} units best for the taxon"
+    if row["n_shared_cells"] < MIN_SHARED_CELLS:
+        return "negative", f"{route}: no shared called cell"
+    if route == "read_support" and row["n_shared_umis"] < MIN_SHARED_UMIS:
+        return "negative", "read_support: no shared (CB, UMI) molecule"
+    return "positive", ""
+
+
+def assign_state(
+    candidate: dict[str, str], evidence: dict[tuple[int, str], dict[str, Any]]
+) -> dict[str, str]:
+    """State for one ``candidates.tsv`` row (Q12). Kraken2 alone never goes above ``observation``.
+
+    ``corroborated``: route (i) positive. ``read_supported_observation``: route (ii) positive (and (i) not);
+    an observation backed by reads, never an infection claim. Host-lineage taxa and a viral-only database
+    (residual host invisible, approved G15) stay at ``observation`` whatever the evidence says.
+    """
+    taxid = int(candidate["taxid"])
+    results = {r: judge_evidence(evidence.get((taxid, r)), r) for r in ROUTES}
+    out = {c: candidate[c] for c in ("taxid", "name", "rank")}
+    out["corroboration"], out["read_support"] = (
+        results["corroboration"][0],
+        results["read_support"][0],
+    )
+    if candidate["host_lineage"] == "1" or candidate["viral_only_db"] == "1":
+        out["state"] = "observation"
+        out["reason"] = "capped: " + (
+            "host lineage" if candidate["host_lineage"] == "1" else "viral-only database"
+        )
+    elif out["corroboration"] == "positive":
+        out["state"], out["reason"] = "corroborated", "same-taxon competitive corroboration"
+    elif out["read_support"] == "positive":
+        out["state"], out["reason"] = (
+            "read_supported_observation",
+            "kb-independent competitive read support",
+        )
+    else:
+        why = [w for _, w in results.values() if w]
+        out["state"] = "observation"
+        out["reason"] = "; ".join(why) or "no orthogonal evidence supplied"
+    return out
+
+
+def build_candidate_states(out_dir: Path, evidence_path: Path | None = None) -> int:
+    """Write ``candidate_states.tsv`` beside ``candidates.tsv``; returns its rows.
+
+    ``evidence_path`` is the documented evidence table (``read_evidence_table``); without it every
+    candidate is ``observation`` with both routes ``not_assessed``. Evidence for a taxid that is not a
+    candidate is an error (a stale or mismatched table).
+    """
+    candidates = list(_tsv_rows(out_dir / CANDIDATES_TSV))
+    evidence = read_evidence_table(evidence_path) if evidence_path else {}
+    unknown = {t for t, _ in evidence} - {int(c["taxid"]) for c in candidates}
+    if unknown:
+        raise DiscoveryError(f"evidence rows for taxids not in {CANDIDATES_TSV}: {sorted(unknown)}")
+    with (out_dir / CANDIDATE_STATES_TSV).open("w", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(CANDIDATE_STATE_COLUMNS)
+        for candidate in candidates:
+            state = assign_state(candidate, evidence)
+            writer.writerow([state[c] for c in CANDIDATE_STATE_COLUMNS])
+    return len(candidates)
 
 
 # ── Rank views (DISC-11) ─────────────────────────────────────────────────────
