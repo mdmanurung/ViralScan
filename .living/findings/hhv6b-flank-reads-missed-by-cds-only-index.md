@@ -38,13 +38,14 @@ Provenance (not committed; local work area): `star_hostvirus/flank_audit/GSM6416
 `trackB_explore_2026-10/ref_flank_v2/` and its `validate_v2/` output.
 
 ## Scope
-One library, one chemistry (10x 5' v2), one virus (HHV-6B, a high-abundance lytic/reactivated sample).
+One library, one chemistry (10x 5' v2), one virus (HHV-6B, a library with a high viral read count).
 The class labels depend on the annotation's gene coordinates and the 1 kb window chosen by the audit script.
 
 ## What this does NOT show
 - It is not a measured loss fraction. 8.9% of viral reads fall in the flank class; that is a read
-  classification, not the fraction of molecules or cells a CDS-only index would lose (reads in the flank can
-  share a UMI with indexed reads, and k-mer pseudoalignment of flank reads was not scored per cell).
+  classification, not the fraction of molecules or cells a CDS-only index would lose (flank reads might share a UMI with indexed reads -- a hypothesis, not measured -- and k-mer
+  pseudoalignment of flank reads was not scored per cell). Class precedence is sense > flank > antisense:
+  a read overlapping an annotated gene on its strand counts as sense, so flank reads lie wholly past the gene end.
 - The downstream interval is not a validated UTR. It is positional (read lies past an annotated end on the gene's
   strand); no transcript-end, polyadenylation or 3' UTR annotation was used. It may also carry unannotated
   transcripts or readthrough.
@@ -69,5 +70,5 @@ If that holds, the two references are alike in kind: both index coding sequence 
 HHV-6B annotation also has 103 gene rows, so an identical gene count is expected and says nothing about flank
 content. Both would therefore share the same blind spot for reads past annotated gene ends. Differences
 that remain to be checked against the file: whether any entry carries UTR/flank sequence, whether
-`KDM2A`/DR cross-homology masking is applied (the paper's workflow filters these), and the strand setting used.
+any `KDM2A`/DR cross-homology masking is applied, and the strand setting used.
 Action: locate the file (or the paper's supplementary reference) and replace this section with a measured comparison.
