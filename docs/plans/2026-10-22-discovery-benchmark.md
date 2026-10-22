@@ -32,12 +32,13 @@ Out of scope: any change to the primary ViralScan counts, `detected` or tiers; a
 | Role | Library | Truth | Status |
 |---|---|---|---|
 | Positive, panel virus | EBV SRR12682296 (used in DISC-R10) | EBV; cells with primary unique EBV molecules | PROPOSED |
-| Positive, panel virus | HHV-6B: the Track A library with the most primary unique HHV-6B molecules (rule fixed before any discovery run) | HHV-6B; primary unique molecules | DECIDED (Q2) |
+| Positive, panel virus | HHV-6B **GSM6416022**: by the Q2 rule (summed `viral_molecules_unique` over HHV-6B genes in Track A `combined_artefact` `multimap_evidence.tsv`: 3,852,416; next GSM6416024 1,071,635), applied 2026-10-23 before any discovery run. Also the HHV-6B source of the spike-in grid | HHV-6B; primary unique molecules | DECIDED (Q2) |
 | Positive, panel virus | HSV-1 Drop-seq (no on-list) | HSV-1 | EXCLUDED from v1 (Q3): no Track A run has `called_cells.tsv`; reported `not_assessed` |
 | Positive, panel virus | covid PBMC | SARS-CoV-2 | PROPOSED; primary calls SARS-CoV-2 = 0 here (SENS-03), so it tests capture, not recovery |
 | Negative | hsv1 37 °C uninfected | none expected | PROPOSED |
 | Negative | L-94 | none expected | PROPOSED |
-| Spike-in | host background + known viral reads incl. EVE-like and host-homologous segments | per-read truth label | DECIDED (Q4): reuse the spike-in detection-limit grid (array 25864985) inputs if its truth has per-read labels; a separate set only if it lacks them or lacks host-homologous segments |
+| Spike-in (ordinary viral reads) | grid 25864985 libraries (D03 + HHV-6B GSM6416022 reads; R01_SOC4 + EBV GSM4796271 reads) | per-read `spike_L*_s*.truth.tsv` (`name, cb, umi, class, contig, ...`) | DECIDED (Q4): reused; checked 2026-10-23 |
+| Spike-in (host-homologous / EVE-like) | separate set to build | per-read truth label | REQUIRED by Q4: the grid source pool drops every read with any alignment on `HOST\|` or another virus (`alignment_outside_truth_set` in `spikein.py source_pool`), so it holds no host-homologous segment. Design of this set is part of the freeze |
 
 **Truth for panel positives** is the primary run's per-cell unique molecules, which is independent of Kraken2 but not
 of the kallisto reference. Recovery is therefore "agreement with ViralScan", not accuracy against ground truth. Only the
@@ -46,8 +47,10 @@ spike-in set has read-level truth.
 ## 3. Fixed configuration
 
 - **Code:** one ViralScan commit for all arms (SHA in §8).
-- **Databases:** PlusPF-16 2026-06-26 (as in DISC-R10) and RefSeq viral `k2_viral_20260626` (same release; Q1);
-  `hash.k2d` sha256 recorded for both.
+- **Databases** (sha256 of `hash.k2d` / `opts.k2d` / `taxo.k2d`):
+  - PlusPF-16 2026-06-26 (as in DISC-R10, from its `provenance.json`): `abb740fb…6200` / `60f70f71…661f` / `416c6d5e…77f5`.
+  - RefSeq viral `k2_viral_20260626` (Q1; downloaded 2026-10-23, all 16 files md5-verified against `viral.md5`):
+    `1bd239b2…dfa7` / `b7ecfc6e…8c75` / `681162e4…4d24`.
 - **Host subtraction:** computed once per library (STAR `pinned`); `star-default` as the second arm for question 1
   only.
 - **Grid:** confidence {0.0, 0.05, 0.1, 0.2} × minimum hit groups {2, 3, 4} = 12 configurations per library per DB.
