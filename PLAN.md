@@ -57,6 +57,10 @@ completion.
   Lesson: a row pinned to a PR commit goes stale on rebase-merge; re-pin to the merged commit in a follow-up.
   Check: every `git_sha` in the inventory is an ancestor of `origin/main`.
 
+- [x] `DOCS-CAVEATS-01` (2026-10-22, `codex/reference-caveats`, Q17): docs-only reference caveats. `docs/reference_panel.md` gains a
+  'Known limitations' section (HSV-1 LAT two-exon model and poly(A) caveat; `kmer_twin_of` is a heuristic; blank `risk_class` = unknown);
+  `docs/output_reference.md` `risk_class` row now says blank = unknown. No code change: code leaves `eve_risk`/`artifact_risk` unflagged
+  for blank rows and falls back to a genus-name rule only for uncatalogued viruses, consistent with 'unknown'.
 - [x] `DOCS-PERTPY-01` (2026-10-20, `codex/docs-pertpy`, stacked on `codex/orig-api-docs`): docs site follows
   pertpy's (https://pertpy.scverse.org/en/stable/) theme and landing structure, on user request. Theme
   `scanpydoc` (needs `sphinx-book-theme`, which scanpydoc does not declare), `sphinx-design` cards,
