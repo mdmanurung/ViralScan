@@ -269,7 +269,7 @@ def _run_subcommand(sample_dir: Path, **overrides) -> dict:
 
     args = MagicMock()
     for k, v in dict(
-        output=str(sample_dir), host_h5ad="h.h5ad", n_seeds=None, n_stab_iter=None, use_hvg=True,
+        run_dir=str(sample_dir), output=None, host_h5ad="h.h5ad", n_seeds=None, n_stab_iter=None, use_hvg=True,
         stab_min_prob=None, top_n_genes=None, detection_threshold=None, hostresponse_min_umi=None,
         enrichment=False, enrichment_db=None, verbose=False, quiet=False,
     ).items():  # fmt: skip

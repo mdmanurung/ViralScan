@@ -53,7 +53,7 @@ def test_rerun_inherits_saved_group_settings_and_respects_explicit_zero():
         hostresponse_cv="group", hostresponse_groups="donor", hostresponse_permutations=9
     )
     args = build_parser().parse_args(
-        ["hostresponse", "-o", "out", "--host-h5ad", "host.h5ad", "--permutations", "0"]
+        ["hostresponse", "--run-dir", "out", "--host-h5ad", "host.h5ad", "--permutations", "0"]
     )
     opts = _hostresponse_evaluation_kwargs(args, cfg)
     assert opts["cv_mode"] == "group" and opts["groups_column"] == "donor"
@@ -228,7 +228,7 @@ def test_cell_types_syntax_is_the_same_on_every_entry_point(tokens):
     want = ["T_cells", "B_cells"]
     parser = build_parser()
     sub = parser.parse_args(
-        ["hostresponse", "-o", "out", "--host-h5ad", "h", "--cell-types", *tokens]
+        ["hostresponse", "--run-dir", "out", "--host-h5ad", "h", "--cell-types", *tokens]
     )
     main = parser.parse_args(
         [
