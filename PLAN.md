@@ -110,6 +110,12 @@ completion.
   applies (any `HOST|` partner, else another `VIRUS|` contig, else unique; same-contig hits stay unique). Streams records; memory is the
   multimapper QNAME set. Tested on a synthetic NH/HI BAM.
   **Open:** layout review by the user, a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1, a `environment.coverage.yml` solve in CI.
+- [x] `VIG-RUN-01` (2026-10-23, `codex/quickstart-real-run`, decision Q10): the quickstart vignette now runs `viralscan run` when
+  `VS_INDEX`/`VS_T2G` (and, for an index without a build manifest, `VS_GTF`) are set; the whitelist preflight needs `VS_WHITELIST`.
+  Real Slurm run 25867622 (1M-read SRR12682296 cache, cat42d index + GTF, 8 CPUs, 3 min): 975 EmptyDrops cells, EBV in 199
+  (20.4 %), `validate-run` ok at the tree root. Found: `kb info` exits 1 on success (kb-python 0.30.2), so the version
+  cell no longer checks kb's status; an index not made by `build-ref` needs its GTF or `viralscan data fetch`. Method names
+  (`em-global`) left as is by decision (accepted silently by the CLI).
 - [~] `PATHS-01` (2026-10-22, `codex/strip-institutional-paths`): `PLAN.md` site paths replaced by `$SITE_ROOT` (archive work root), `$SITE_SCRATCH` (scratch checkout root) and `$COLLAB_ROOT` (collaborator root); 10 lines. **Open:** about 190 more hits in `.living/` and about 300 in tracked analysis outputs, manifests, docs and Slurm scripts (`git grep -c -E "/exports/|lumc"`); scope of a repo-wide scrub is the user's call.
 - [x] `RESTREE-01` (2026-10-21, `codex/research-tree-gitignore`): research-tree hygiene before any analysis/ trees are committed. `.gitignore` gains bulk rules (`analysis/computational_bottlenecks_*/{execution,followups}/`, `trackA_report_*/outputs/`, `*.rds *.mtx *.pkl *.stdout *.stderr *.sam *.bam *.bus` under analysis/, `/tmp/`, `.living/archive/`, `/biomni_bundle/`, root `HANDOFF*.md`/`SESSION_RESUME.md`); root-anchored where the name also exists tracked (`.living/HANDOFF_*.md`). New `scripts/check_tracked_file_sizes.py` + `tests/test_tracked_file_sizes.py` fail on any tracked/staged `analysis/` or `results/` blob over 1 MB unless listed in `config/large_file_allowlist.txt` (empty; passes on main as-is). Not hooked into pre-commit: the existing `check-added-large-files --maxkb=500` is already stricter repo-wide; CI runs the pytest. `sources/viral_panel`, `migration_plan/`, `viralscan_lshwcp_spec/` deliberately not covered.
 - [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
