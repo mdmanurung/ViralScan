@@ -204,8 +204,17 @@ and `n_taxon_best` cover all barcodes; the shared counts cover called cells only
 (CB, UMI) are those of the taxon-best molecules that are resolved called-cell groups of exactly that taxid. A candidate with no panel
 gene gets no row (`not_assessed`); one with panel genes but no molecule gets a zero row
 (`negative`). An empty molecule file, or one with no molecule in a called cell, aborts. It refuses unless the called cells are in kb barcode space (a STARsolo or unknown
-space, or kb molecules sharing no barcode with the called cells, aborts). STAR route (i) and
-route (ii) tables are still caller-built.
+space, or kb molecules sharing no barcode with the called cells, aborts). STAR route (i) tables are still
+caller-built.
+
+`build_read_support_evidence(discovery_dir, sample_dir, r1, r2, host_fasta, {taxid: candidate_fasta})`
+(Python API; no command, no genome download) writes the route (ii) `source=minimap2` table
+`evidence_read_support.tsv` for at most `max_candidates` (default 3) taxa. `r1`/`r2` must be the
+resolved pair discovery classified (read IDs are checked). The R2 reads of the taxon's resolved
+called-cell groups are aligned competitively to host, the candidate FASTA and optionally a panel
+FASTA. `n_adjudicated` counts every extracted read, unmapped ones included; `n_taxon_best` only reads
+whose best alignment score on the candidate is strictly above any host or panel score (ties and host
+or panel wins are not). A taxon with no resolved called-cell read gets no row (`not_assessed`).
 
 To count at species, genus or family level, run
 `viralscan discover-collapse OUT --rank {species,genus,family}`. It sums columns into the
