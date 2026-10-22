@@ -58,6 +58,7 @@ def test_output_reference_documents_called_cell_column():
 import re  # noqa: E402
 
 from viralscan.multimapping import MULTIMAP_EVIDENCE_COLUMNS  # noqa: E402
+from viralscan.star_hostvirus import STAR_SUMMARY_COLUMNS  # noqa: E402
 
 GUARDED = DOCS + [Path("docs/faq.md"), Path("docs/reference_panel.md"), Path("docs/migration.md")]
 KINDS = {
@@ -128,6 +129,8 @@ def test_emitted_columns_are_documented():
     assert "viral_molecules_total_est" in summary_cols and len(summary_cols) >= 16
     # ANDET-09 alignment columns are appended from anello_align.SUMMARY_COLUMNS.
     summary_cols += list(anello_align.SUMMARY_COLUMNS)
+    # STAR-04 columns are appended when --star-confirm is on.
+    summary_cols += list(STAR_SUMMARY_COLUMNS[1:])
     for col in summary_cols + list(MULTIMAP_EVIDENCE_COLUMNS):
         assert f"`{col}`" in text, f"{col} not documented in output_reference.md"
 

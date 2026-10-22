@@ -3,7 +3,7 @@
 Run `viralscan --help` or `viralscan <subcommand> --help` to see options for
 the installed version. This page documents the public CLI as of ViralScan
 **3.0.0.dev1**. Available subcommands: `build-ref`, `data fetch`, `evidence`, `evidence-plot`,
-`rerun-multimap`, `doctor`, `validate-run`, `hostresponse`, and
+`rerun-multimap`, `star-index`, `doctor`, `validate-run`, `hostresponse`, and
 `check-whitelist`.
 
 ---
@@ -86,6 +86,8 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 | `--host-filter ALIGNER` | | *(none)* | Optional irreversible host subtraction before quantification. V3 supports `starsolo` only. |
 | `--host-index PATH` | | *(none)* | Required with `--host-filter`; a full-host-genome STAR index directory. |
 | `--host-filter-star-params SET` | | `pinned` | STAR filter parameters for `--host-filter starsolo`: `pinned` or `star-default` (STAR's own defaults). |
+| `--star-confirm` / `--no-star-confirm` | | off | STARsolo confirmation arm: align the host-filtered reads to a host+virus STAR index and add `star_*` support columns to `viral_summary.tsv` plus `results/star_support_by_virus.tsv`. Labels only; no call changes. Requires `--host-filter starsolo`, `--star-hostvirus-index`, and STAR and samtools on `PATH` |
+| `--star-hostvirus-index DIR` | | *(none)* | Index directory from `viralscan star-index` (must hold `star_hostvirus_index.json`); required by `--star-confirm` |
 | `--read-filter MODE` | | `off` | Read-artefact filter before `kb count` (DEF-01): `off` or `artefact`. Drops TSO/reagent chimeras and reads with no complex body; also drops low-complexity viral reads. |
 
 ### Detection thresholds
@@ -572,6 +574,32 @@ table below.
 
 ---
 
+## `viralscan star-index` — host + viral STAR index
+
+Builds the single STAR index used by `viralscan run --star-confirm`. It prefixes the host and viral FASTA/GTF
+with `HOST|` / `VIRUS|`, runs `STAR --runMode genomeGenerate`, and writes `star_hostvirus_index.json` (input
+sha256 values, STAR version, exact arguments, contig counts). `run` refuses an index without that manifest.
+Output: `<out-dir>/reference/` and `<out-dir>/index/`. A human genome plus the full panel took about 77 GB RAM
+and ~50 min; this is a one-off build, so do not run it on a login node.
+
+```bash
+viralscan star-index --host-fasta GRCh38.fa --host-gtf GRCh38.gtf \
+  --viral-fasta viral.fa --viral-gtf viral.gtf --out-dir star_hostvirus_ref --threads 16
+```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--host-fasta PATH`, `--host-gtf PATH` | | *required* | Host genome FASTA and annotation |
+| `--viral-fasta PATH`, `--viral-gtf PATH` | | *required* | Viral panel FASTA and annotation |
+| `--out-dir PATH` | | *required* | Output directory |
+| `--threads N` | `-c` | `8` | STAR threads |
+| `--ram-bytes N` | | `85000000000` | STAR `--limitGenomeGenerateRAM` |
+| `--force` | | off | Rebuild over an existing `<out-dir>/index` (only if it holds a star-index manifest) |
+
+See the Output reference for what `--star-confirm` adds and does not do. In particular, HHV-6A/6B/7 telomeric repeat reads exceed STAR's 100-locus cap and are absent from every `star_*` column (`star_host_competing` is a lower bound), and `star_molecules` is a Unique-mode, repeat-depleted lower bound.
+
+---
+
 ## `viralscan doctor` — dependency/profile check
 
 ```
@@ -687,6 +715,8 @@ the sections above add context. Do not edit between the markers.
 | `--anellovirus-gene-ids, --no-anellovirus-gene-ids` | `True` | Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. Required for any reference built with `viralscan build-ref --reference-panel anellovirus` (or the bundled-panel builder), because those GTFs are materialized into the index rather than the panel directory. Off means 2,021 of 2,041 anellovirus genomes are counted but never reported. Default: True. |
 | `--gene-programs, --no-gene-programs` | `False` | Second layer: for viruses the detection rule already called, infer the viral gene programme (latent vs productive) per cell from uniquely-placing molecules, and write results/gene_program_summary.tsv and results/gene_program_cells.tsv. Only nine viruses have a programme model; for the rest a 'not_applicable' row is emitted so silence is not read as 'programme not detected'. Off by default. Default: False. |
 | `--anello-align, --no-anello-align` | `False` | Anellovirus alignment branch (PLAN ANDET-09): align every host-unmapped read to the panel's anellovirus genomes with STARsolo, independent of kallisto, and add alignment_* evidence columns plus detection_source to viral_summary.tsv. Runs only with --host-filter starsolo and an anello_star/ index next to the kb index (built by scripts/build_bundled_panel_ref.py); otherwise alignment_status records why it was skipped. The columns are labels, never filters. Default: False. |
+| `--star-confirm, --no-star-confirm` | `False` | STARsolo confirmation arm (PLAN STAR-04): align the host-filtered reads to the host+virus index given by --star-hostvirus-index (built by `viralscan star-index`) and add star_* per-virus support columns to viral_summary.tsv, plus results/star_support_by_virus.tsv. Labels only: no call, tier or threshold changes. Requires --host-filter starsolo and STAR/samtools on PATH. Default: False. |
+| `--star-hostvirus-index PATH` | *(none)* | Directory of a finished `viralscan star-index` index (must hold star_hostvirus_index.json). Required by --star-confirm. |
 | `--auto-evidence, --no-auto-evidence` | *(none)* | After detection, run `viralscan evidence` with host confirmation (minimap2 against host + viral) for every detected Anelloviridae genus, writing results/evidence/<genus>/. Needs --host-fasta, a viral-only FASTA (--viral-fasta, or viral.fa next to the index, as written by scripts/build_bundled_panel_ref.py), minimap2 and samtools, and multimapping. Re-reads the FASTQs once per genus. Opt-in, and stays so until ANELLO-PRIOR.3 closes. Default: off. |
 | `--host-capture, --no-host-capture` | *(none)* | Split each virus's reads by host compatibility: replay the quantified FASTQs through `kallisto bus -n`, capture the reads that touch a viral transcript, then `bustools capture --complement` the host transcripts. Writes results/host_capture.tsv with reads_virus_only (no host transcript in the read's equivalence class), reads_also_host and reads_total per virus. Needs an index that holds host transcripts (a combined host + virus index); on a virus-only index every count is 'not_applicable', never 0. Counts reads, not molecules. Needs kallisto and bustools. Opt-in. Default: off. |
 | `--host-fasta FASTA` | *(none)* | Full host-genome FASTA for --auto-evidence's competitive alignment. |
@@ -986,6 +1016,25 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 | `--tchem TCHEM` | `auto` | TusslChemistry (tchem) second opinion on the chemistry. auto (default): use it when a tchem binary is found, otherwise skip silently; require: stop when it is missing or unusable; off: skip. A disagreement with -x, or a tchem verdict of ambiguous/no_match, stops the run unless --force-technology. |
 | `--tchem-bin PATH` | *(none)* | tchem executable (default: $VIRALSCAN_TCHEM, then PATH). |
 | `--tchem-whitelists DIR` | *(none)* | Directory of tchem barcode lists (default: $VIRALSCAN_TCHEM_WHITELISTS). |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan star-index
+
+<!-- BEGIN GENERATED: star-index -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--host-fasta PATH` | *required* |  |
+| `--host-gtf PATH` | *required* |  |
+| `--viral-fasta PATH` | *required* |  |
+| `--viral-gtf PATH` | *required* |  |
+| `--out-dir PATH` | *required* |  |
+| `--threads, -c THREADS` | `8` | STAR threads. Default: 8. |
+| `--ram-bytes RAM_BYTES` | `85000000000` | STAR --limitGenomeGenerateRAM in bytes. GRCh38 + 2,343 viral genomes needed about 77 GB RAM and ~50 min. Default: 85000000000. |
+| `--force` | `False` | Rebuild over an existing <out-dir>/index (only if it holds a star-index manifest). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

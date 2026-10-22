@@ -795,6 +795,23 @@ def errorhandler(args: argparse.Namespace) -> None:
         if not os.path.exists(host_index_path):
             _die(f"Host index path does not exist: {host_index_path}.")
 
+    star_index_path = getattr(args, "star_hostvirus_index", None)
+    if getattr(args, "star_confirm", False):
+        if not star_index_path:
+            _die("--star-confirm requires --star-hostvirus-index.")
+        if not host_filter:
+            _die("--star-confirm requires --host-filter (it aligns the host-filtered reads).")
+        from viralscan import star_hostvirus
+
+        problems = star_hostvirus.validate_index_manifest(star_index_path)
+        if problems:
+            _die(
+                f"--star-hostvirus-index {star_index_path} is not a finished viralscan "
+                f"star-index: {'; '.join(problems)}."
+            )
+    elif star_index_path:
+        _die("--star-hostvirus-index requires --star-confirm.")
+
     technology = getattr(args, "technology", None)
     if (
         technology
@@ -959,6 +976,24 @@ def _check_host_filter_tools(aligner: str) -> None:
         _die("ViralScan v3 supports only --host-filter starsolo.")
 
 
+def _run_star_index(args: argparse.Namespace) -> None:
+    from viralscan import star_hostvirus
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    if shutil.which("STAR") is None:
+        _die(
+            "'viralscan star-index' requires 'STAR' on PATH. See https://github.com/alexdobin/STAR"
+        )
+    try:
+        index = star_hostvirus.star_index(
+            args.host_fasta, args.host_gtf, args.viral_fasta, args.viral_gtf, args.out_dir,
+            args.threads, args.ram_bytes, args.force,
+        )  # fmt: skip
+    except (FileExistsError, FileNotFoundError, ValueError) as exc:
+        _die(str(exc))
+    log.info("STAR host+virus index written to %s", index)
+
+
 def _count_lines(path: str) -> int:
     with open(path, encoding="utf-8", errors="replace") as f:
         return sum(1 for _ in f)
@@ -1089,6 +1124,8 @@ def _build_run_config(
             ),
             "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
             "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
+            "star_confirm": getattr(args, "star_confirm", DEFAULTS["star_confirm"]),
+            "star_hostvirus_index": getattr(args, "star_hostvirus_index", None),
             "auto_evidence": getattr(args, "auto_evidence", None),
             "host_capture": getattr(args, "host_capture", None),
             "host_fasta": getattr(args, "host_fasta", None),
@@ -1302,6 +1339,10 @@ def main() -> None:
         build_ref_main(args)
         return
 
+    if getattr(args, "_subcommand", None) == "star-index":
+        _run_star_index(args)
+        return
+
     if getattr(args, "_subcommand", None) == "evidence":
         from viralscan.scripts.evidence_run import run_evidence
 
@@ -1387,6 +1428,10 @@ def main() -> None:
 
     if args.host_filter:
         _check_host_filter_tools(args.host_filter)
+    if getattr(args, "star_confirm", False):
+        missing = [t for t in ("STAR", "samtools") if shutil.which(t) is None]
+        if missing:
+            _die(f"--star-confirm requires {', '.join(missing)} on PATH.")
 
     _check_cell_caller_tools(
         _resolve_cell_calling(

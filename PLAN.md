@@ -24,6 +24,8 @@ completion.
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [x] `F027-01` finding F-027 (`.living/findings/hhv6b-flank-reads-missed-by-cds-only-index.md`): HHV-6B reads in the positional 3' flank class (8.9% of viral reads, GSM6416022, 5' v2) are outside a CDS-only kallisto index.
   - Note (2026-10-22): Lareau comparison done against the public reference at caleblareau/hhv6-reactivation@dd2eb77: 103 CDS-only entries, same NCBI CDS coordinates, no flank/UTR, no masking.
+- **Focus: STARsolo host+virus readiness.** Phases 1-4 are committed on `codex/star-confirm`; next are SPIKE-01 (phase 5, unrun), the
+  STAR-GATE-01 decision, and the phase 6 EBV acceptance run.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -33,6 +35,63 @@ completion.
 - [x] REVIEW-D (WP-4): opt-in candidate-complete source-labelled review.
 - [x] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
 - [x] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.
+- [x] STAR-HOSTVIRUS-01: STARsolo alignment of host-unmapped reads to one host + full-viral-panel index
+  (`viralscan.star_hostvirus`: `write_reference` HOST|/VIRUS| FASTA+GTF, `build_star_hostvirus_index`,
+  `align_host_unmapped`; sorted BAM with CB/UB for `plot_coverage_maps`). Code + synthetic tests done; wired into the CLI
+  by STAR-03 (`viralscan star-index`) and STAR-04 (`viralscan run --star-confirm`). Real-library runs (EBV GSM4796271,
+  HHV-6B GSM6416022) remain Track A diagnostics.
+  - Note: multimap cap 100 and relaxed score filters are deliberate (keep host competition visible); STAR 2.7.11b
+    still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139); handled since
+    STAR-02 (shared `star_run.run_star`). Docs (`cli_reference`, `output_reference`, `quickstart`, CHANGELOG) done in phase 4;
+    SPIKE-01 (spike-in detection limit) is **not run**, so the arm has no measured sensitivity or specificity, and phase 6
+    (real-library acceptance on EBV GSM4796271) is not done.
+- [x] STAR-04: `viralscan run --star-confirm --star-hostvirus-index DIR` (branch `codex/star-confirm`): rule `star_confirm`
+  (`scripts/star_confirm.py`) aligns the kb input pair (host-filtered reads) with `star_hostvirus.align_host_unmapped(prune=True)`,
+  writes `star_hostvirus/viral.bam(.bai)`, `results/star_support_by_virus.tsv` (per `virus_name`) and `log/star_confirm.done`;
+  `detection` appends `star_reads_primary, star_reads_any, star_molecules, star_host_competing, star_other_virus` to
+  `viral_summary.tsv` only when the flag is on. Labels only: no call, tier or threshold changes.
+  - Note: menu dies without the index, without `--host-filter`, on a failing `validate_index_manifest`, on missing STAR/samtools,
+    or on an index without the flag. `summarise_by_virus(virus_of=...)` aggregates per virus (a read on several accessions of one
+    virus counts once; `star_other_virus` needs a different virus). Review fixes: mypy on `read_index_manifest`, wheel/sdist
+    allowlists carry the three STAR modules, menu wiring/prune-TSV/manifest/run_star tests, docs state the HHV-6/7 telomere
+    100-locus loss and the Unique-mode `star_molecules` lower bound. Viruses STAR saw nothing for read 0; alignment-only rows stay blank. Strand = `--strand` or `unstranded` (kb's
+    effective default). Docs/CLI-reference/output-reference rows landed in phase 4. No real STAR run.
+- [x] STAR-ACCEPT-01 (2026-10-21): real-library acceptance of `star_confirm` on EBV GSM4796271
+  (`analysis/star_confirm_acceptance/`, Slurm 25860995, 10 min, exit 0): the real Snakefile rule + script
+  (`--allowed-rules star_confirm`, so no host_filter/kb_count rerun) on the Track A host-filtered reads, the existing
+  index adopted through a symlink view plus a generated manifest. All 2,343 VIRUS| contigs have the same alignment
+  record count as the earlier manual STAR run (0 mismatches), so on-list correction and strand change only barcode
+  tags, as designed. `star_support_by_virus.tsv`: Epstein-Barr virus 1,170,981 primary / 941,111 molecules;
+  Human gammaherpesvirus 4 type 2 502,137 / 724,380; 1,204,497 reads place on both (`star_other_virus`), the known
+  EBV type 1/type 2 shared-contig signal; `star_host_competing` is 0 because the input is host-filtered.
+  Second library (Slurm 25861544, 24 min, exit 0): R01_SOC4, 3-prime 10xv3, forward, RAW reads (172.4 M pairs), same
+  rule: 2,343/2,343 contigs identical to the pilot STAR run (0 mismatches). It exercises the 10xv3 on-list (6.8 M
+  barcodes gunzipped), --strand forward, a 12-nt UMI and the zero-viral-reads path (header-only table, no crash), but
+  R01_SOC4 has no viral reads, so per-virus counts on 3-prime v3 are untested until the SPIKE-01 EBV spikes. Not yet
+  covered: multi-accession viruses other than EBV.
+  Exit-139 fallback verified on REAL STAR 2.7.11b (Slurm 25864228, 1 min, exit 0): 2,000 random pairs with the Drop-seq
+  chemistry (no on-list, `--soloCBwhitelist None`, zero reads mapped) crash STAR in Solo; `star_run.run_star` retried with a
+  12-nt dummy whitelist, logged the fallback, left `star139_fallback.txt` and the pruned BAM, and wrote the header-only
+  per-virus table (`analysis/star_confirm_acceptance/fallback139.py`).
+- [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
+- [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
+  `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
+  writes `star_hostvirus_index.json` (`write_index_manifest` / `read_index_manifest` / `validate_index_manifest`).
+  - Note: manifest is written last (absent = unfinished build). Refuses a non-empty index dir; `--force` deletes it only
+    if it holds a manifest. No real STAR build run (tests monkeypatch it). Next: STAR-04 (phase 3) validates the manifest.
+- [x] STAR-02: harden `star_hostvirus` (branch `codex/star-confirm`): on-list default via
+  `resolve_whitelist` (kb on-list gunzipped; literal `None` only for list-less chemistries, explicit list wins),
+  `--soloStrand` from a viralscan strand (`SOLO_STRAND`, out of `ALIGN_ARGS`), exit-139 fallback lifted from
+  `anello_align` into `viralscan/star_run.py` (both callers; dummy barcode = `cb_len` As), `summarise_by_virus`
+  / `write_summary` / `STAR_SUMMARY_COLUMNS`, `prune_to_viral` (`prune=` option, default off).
+  - Note: `align_cmd` stays pure (whitelist `None` -> literal `None`; the on-list default lives in
+    `align_host_unmapped`) so the existing `align_cmd` test holds. Summary keys are the VIRUS| contig without
+    its prefix. A pruned BAM no longer holds the HOST| partners of viral multimappers, so coverage-map
+    competition categories need the full BAM or must be taken from the summary TSV.
+  - Review fixes: `anello_align._run_star` takes `cb_len` from `cb_umi_geometry(technology)` (was hardcoded 12,
+    broke the 139 retry for 16-base chemistries); `star_molecules` documented as Solo-assigned (CB, UB) only
+    (not read support; use `star_reads_any`); tests for the on-list default and `cb_len` wiring through
+    `align_host_unmapped`.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 

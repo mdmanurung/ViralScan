@@ -574,3 +574,26 @@ def test_snakefile_kb_count_uses_rule_threads_not_a_literal() -> None:
     text = SNAKEFILE.read_text()
     assert text.count("kb count -t {threads} ") == 2 and "kb count -t 8" not in text
     assert "threads: bounded_workers(KB_WORKERS" in text
+
+
+@pytest.mark.integration
+class TestStarConfirmDag(TestAutoEvidenceDag):
+    """STAR-04: the opt-in star_confirm rule is in the DAG only when enabled."""
+
+    _ON = [
+        "host_index=/fake/host",
+        "host_filter_aligner=starsolo",
+        "kb_r1={out}host_filtered/R1.fastq.gz",
+        "kb_r2={out}host_filtered/R2.fastq.gz",
+    ]
+
+    def test_rule_absent_by_default(self, tmp_path) -> None:
+        assert "star_confirm" not in self._plan(tmp_path, self._ON)
+
+    def test_rule_runs_after_the_host_filter_and_before_detection(self, tmp_path) -> None:
+        output = self._plan(
+            tmp_path, [*self._ON, "star_confirm=true", "star_hostvirus_index=/fake/star_idx"]
+        )
+        assert re.search(r"^\s*star_confirm\s+1\s", output, re.MULTILINE), output
+        assert re.search(r"^\s*host_filter\s+1\s", output, re.MULTILINE), output
+        assert re.search(r"^\s*detection\s+1\s", output, re.MULTILINE), output
