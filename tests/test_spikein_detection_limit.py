@@ -1,5 +1,10 @@
+import collections
+import csv
 import gzip
 import importlib.util
+import json
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -206,3 +211,118 @@ def test_synth_cli_equal_class_split_and_truth(tmp_path, monkeypatch):
     ]
     assert len(rows) == 10 and {r[3] for r in rows} == {"origin_span", "internal"}
     assert sum(r[3] == "origin_span" for r in rows) == 5
+
+
+# ---- EBV-style multi-contig truth set -------------------------------------------------------------------
+
+T1, T2, HOST, OTHER = "VIRUS|T1", "VIRUS|T2", "HOST|chr1", "VIRUS|OTHER"
+
+
+def _bam(tmp_path, alns):
+    """Sorted+indexed BAM from (name, flag, contig, pos, nh, seq) tuples; all 98M."""
+    sq = "".join(f"@SQ\tSN:{c}\tLN:5000\n" for c in (T1, T2, HOST, OTHER))
+    body = "".join(
+        f"{n}\t{fl}\t{c}\t{pos}\t255\t{len(sq_)}M\t*\t0\t0\t{sq_}\t{'F' * len(sq_)}\tNH:i:{nh}\n"
+        for n, fl, c, pos, nh, sq_ in alns
+    )
+    sam = tmp_path / "x.sam"
+    sam.write_text("@HD\tVN:1.6\tSO:coordinate\n" + sq + body)
+    bam = str(tmp_path / "x.bam")
+    subprocess.run(["samtools", "sort", "-o", bam, str(sam)], check=True)
+    subprocess.run(["samtools", "index", bam], check=True)
+    return bam
+
+
+def _alns():
+    dna = ("ACGTTGCAAC" * 10)[:98]
+    out = []
+    for i in range(6):  # NH=1 on T1, inside gene (T1 gene 100-4000 '+', forward library)
+        out.append((f"u{i}", 0, T1, 200 + i, 1, dna))
+    for i in range(4):  # NH=2 T1+T2, primary alternates; flank-class read on T1 only for i==0
+        pos1 = 4500 if i == 0 else 300 + i  # 4500 is 500 nt past the gene end -> flank3
+        out += [(f"m{i}", 0 if i % 2 else 256, T1, pos1, 2, dna)]
+        out += [(f"m{i}", 256 if i % 2 else 0, T2, 300 + i, 2, dna)]
+    out += [("h0", 0, T1, 300, 2, dna), ("h0", 256, HOST, 300, 2, dna)]  # host partner
+    out += [("o0", 0, T1, 300, 2, dna), ("o0", 256, OTHER, 300, 2, dna)]  # other-virus partner
+    out += [("n3", 0, T1, 300, 3, dna), ("n3", 256, T2, 300, 3, dna), ("n3", 256, T2, 400, 3, dna)]
+    return out
+
+
+needs_samtools = pytest.mark.skipif(shutil.which("samtools") is None, reason="samtools missing")
+
+
+@needs_samtools
+def test_source_pool_nh_policy_and_truth_set_filtering(tmp_path, capsys):
+    bam = _bam(tmp_path, _alns())
+    g = {T1: [(100, 4000, "+")], T2: [(100, 4000, "+")]}
+    one = spikein.source_pool(bam, T1, g, "forward", 90, 1, max_nh=1)
+    assert {r["nh"] for r in one} == {1} and len(one) == 6  # NH>1 reads dropped, as before
+    pool = spikein.source_pool(bam, f"{T1},{T2}", g, "forward", 90, 1, max_nh=2)
+    err = capsys.readouterr().err
+    names = collections.Counter(r["nh"] for r in pool)
+    assert names == {1: 6, 2: 4}  # h0 (host) and o0 (other virus) excluded; n3 above max_nh
+    assert '"alignment_outside_truth_set": 2' in err and '"nh_above_max": 1' in err
+    # classified on the first truth contig (T1) even when T2 is primary; truth-set contig is the PRIMARY
+    m = sorted((r for r in pool if r["nh"] == 2), key=lambda r: r["pos"])
+    assert [r["src_contig"] for r in m] == [T1] * 4
+    assert collections.Counter(r["contig"] for r in m) == {T1: 2, T2: 2}
+    assert collections.Counter(r["cls"] for r in m) == {"sense_in_gene": 3, "flank3_unannotated": 1}
+    assert all(r["seq"] == ("ACGTTGCAAC" * 10)[:98] for r in pool)  # flag-0 reads stay as stored
+
+
+@needs_samtools
+def test_ebv_style_cli_forward_forward_no_rc_geometry_truth_and_class_mix(tmp_path, monkeypatch):
+    bam = _bam(tmp_path, _alns())
+    (tmp_path / "g.gtf").write_text(
+        "".join(f'{c}\tx\tgene\t100\t4000\t.\t+\t.\tgene_id "g";\n' for c in (T1, T2))
+    )
+    monkeypatch.setattr(spikein, "top_barcodes", lambda *a, **k: ["A" * 16, "C" * 16])
+    monkeypatch.setattr(spikein, "background_umis", lambda *a, **k: set())
+    out = tmp_path / "o"
+    spikein.main(
+        ["spike", "--bam", bam, "--gtf", str(tmp_path / "g.gtf"), "--bg-r1", "x", "--out-dir",
+         str(out), "--contig", f"{T1},{T2}", "--max-nh", "2", "--levels", "10", "--cb-len", "16",
+         "--umi-len", "12", "--r1-len", "28", "--r2-len", "90", "--source-orient", "forward",
+         "--bg-orient", "forward"]
+    )  # fmt: skip
+    meta = json.loads((out / "spike_L10_s1.json").read_text())
+    assert meta["rc"] is False and meta["pool_class_mix"] == {
+        "sense_in_gene": 9, "flank3_unannotated": 1, "antisense_in_gene": 0, "intergenic": 0
+    }  # fmt: skip
+    rows = list(csv.DictReader((out / "spike_L10_s1.truth.tsv").open(), delimiter="\t"))
+    # largest-remainder split of 10 over 9:1 is exactly 9 sense + 1 flank3: proportions preserved
+    assert collections.Counter(r["class"] for r in rows) == {
+        "sense_in_gene": 9,
+        "flank3_unannotated": 1,
+    }
+    assert {r["contigs"] for r in rows} == {f"{T1},{T2}"} and {r["nh_stratum"] for r in rows} <= {
+        "1",
+        "2",
+    }
+    assert {r["contig"] for r in rows} <= {T1, T2} and {r["src_contig"] for r in rows} == {T1}
+    with gzip.open(out / "spike_L10_s1_R1.fastq.gz", "rt") as fh:
+        assert {len(x.strip()) for x in list(fh)[1::4]} == {28}
+    with gzip.open(out / "spike_L10_s1_R2.fastq.gz", "rt") as fh:
+        r2 = list(fh)[1::4]
+    assert {len(x.strip()) for x in r2} == {90}
+    assert {x.strip() for x in r2} == {
+        ("ACGTTGCAAC" * 10)[:90]
+    }  # 98 -> 5' 90 nt, not reverse-complemented
+    # score.py picks the truth set up from the truth table and counts any alignment on any truth contig
+    lines = [
+        "SPIKE:a:0\t256\tVIRUS|T2\t1\n", "SPIKE:a:0\t0\tHOST|chr1\t1\n",  # secondary on T2 only
+        "SPIKE:a:1\t0\tVIRUS|OTHER\t1\n", "SPIKE:a:2\t0\tVIRUS|T1\t1\n",
+    ]  # fmt: skip
+    ts = score.truth_contigs(None, rows, tmp_path)
+    fate, anyc = score.star_fates(lines, ts)
+    assert ts == {T1, T2} and anyc == {"SPIKE:a:0", "SPIKE:a:2"}
+    assert fate == {"SPIKE:a:0": "host", "SPIKE:a:1": "other_virus", "SPIKE:a:2": "source"}
+    assert score.truth_contigs("A,B", [], "x") == {"A", "B"}
+
+
+def test_truth_contigs_falls_back_to_meta_json(tmp_path):
+    (tmp_path / "t.json").write_text(json.dumps({"contig": "VIRUS|X,VIRUS|Y"}))
+    assert score.truth_contigs(None, [{"name": "n"}], tmp_path / "t.truth.tsv") == {
+        "VIRUS|X",
+        "VIRUS|Y",
+    }

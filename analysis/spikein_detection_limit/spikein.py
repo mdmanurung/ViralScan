@@ -83,43 +83,92 @@ def allocate(counts: dict[str, int], n: int) -> dict[str, int]:
     return out
 
 
+def parse_contigs(contig: str | list[str]) -> list[str]:
+    """Truth contig set from a comma-separated string (or list); order matters: the first is the class reference."""
+    return [c for c in (contig.split(",") if isinstance(contig, str) else contig) if c]
+
+
 def source_pool(
-    bam: str, contig: str, genes, orient: str, r2_len: int, seed: int, target: int = 20000
+    bam: str,
+    contig: str | list[str],
+    genes,
+    orient: str,
+    r2_len: int,
+    seed: int,
+    target: int = 20000,
+    max_nh: int = 1,
 ):
-    """~target primary unique reads from *contig* (``samtools view -s``), original R2 orientation restored."""
-    total = int(
-        next(
-            ln.split("\t")[2]
-            for ln in subprocess.run(
-                ["samtools", "idxstats", bam], capture_output=True, text=True, check=True
-            ).stdout.splitlines()
-            if ln.split("\t")[0] == contig
-        )
-    )
+    """~target source reads aligned inside the truth contig set (``samtools view -s``), original R2 orientation restored.
+
+    *contig* is the truth set (comma list or list); *genes* maps contig -> genes (a plain list is taken to belong
+    to the first contig). max_nh=1 keeps NH=1 primary records only. max_nh>1 also keeps reads with NH<=max_nh whose
+    ALL alignments (secondary included) are on the truth set: the number of records seen inside the set must equal
+    NH, so reads that also hit HOST| or another virus are excluded. Each read is classified and positioned on its
+    alignment to the FIRST truth contig when it has one (else its primary), so the class does not depend on which
+    contig STAR happened to call primary. Pool entries carry the primary ``contig``, the reference record's
+    ``src_contig``/``pos``/``flag``, and ``nh``. A summary is printed to stderr.
+    """
+    contigs = parse_contigs(contig)
+    if not isinstance(genes, dict):
+        genes = {contigs[0]: genes}
+    idx = {
+        ln.split("\t")[0]: int(ln.split("\t")[2])
+        for ln in subprocess.run(
+            ["samtools", "idxstats", bam], capture_output=True, text=True, check=True
+        ).stdout.splitlines()
+    }
+    missing = [c for c in contigs if c not in idx]
+    if missing:
+        sys.exit(f"source_pool: contig(s) not in {bam}: {missing}")
+    total = sum(idx[c] for c in contigs)
     frac = min(1.0, target / max(total, 1))
-    p = subprocess.Popen(
-        ["samtools", "view", "-F", "0x904", "-s", f"{seed + frac:.6f}", bam, contig],
-        stdout=subprocess.PIPE,
-        text=True,
-    )
-    pool = []
+    cmd = ["samtools", "view", "-F", "0x904" if max_nh == 1 else "0x804"]
+    if frac < 1.0:  # -s N.0 would keep nothing
+        cmd += ["-s", f"{seed + frac:.6f}"]
+    p = subprocess.Popen([*cmd, bam, *contigs], stdout=subprocess.PIPE, text=True)
+    recs = collections.defaultdict(list)  # name -> alignments seen inside the truth set
     for line in p.stdout:
         f = line.rstrip("\n").split("\t")
-        flag, seq, qual = int(f[1]), f[9], f[10]
-        if "NH:i:1" not in f[11:] or len(seq) < r2_len:
-            continue
-        if flag & 16:
-            seq, qual = revcomp(seq), qual[::-1]
-        pool.append(
-            {
-                "seq": seq,
-                "qual": qual,
-                "cls": classify(flag, int(f[3]), f[5], genes, orient),
-                "pos": int(f[3]),
-                "flag": flag,
-            }
-        )
+        nh = next((int(t[5:]) for t in f[11:] if t.startswith("NH:i:")), 0)
+        recs[f[0]].append((f, nh))
     p.wait()
+    pool, drop = [], collections.Counter()
+    for rr in recs.values():
+        nh = rr[0][1]
+        if nh < 1 or nh > max_nh:
+            drop["nh_above_max"] += 1
+        elif len(rr) != nh:
+            drop["alignment_outside_truth_set"] += 1  # also on HOST| / another virus
+        else:
+            recs_f = [x[0] for x in rr]
+            ref = next((f for f in recs_f if f[2] == contigs[0]), None)
+            prim = next((f for f in recs_f if not int(f[1]) & 0x100), recs_f[0])
+            f = ref or prim
+            flag, seq, qual = int(f[1]), f[9], f[10]
+            if len(seq) < r2_len:
+                drop["shorter_than_r2_len"] += 1
+                continue
+            if flag & 16:
+                seq, qual = revcomp(seq), qual[::-1]
+            pool.append(
+                {
+                    "seq": seq,
+                    "qual": qual,
+                    "cls": classify(flag, int(f[3]), f[5], genes.get(f[2], []), orient),
+                    "pos": int(f[3]),
+                    "flag": flag,
+                    "contig": prim[2],
+                    "src_contig": f[2],
+                    "nh": nh,
+                }
+            )
+    print(
+        "source_pool: kept "
+        + json.dumps(dict(collections.Counter(r["nh"] for r in pool)))
+        + " by NH; excluded "
+        + json.dumps(dict(drop)),
+        file=sys.stderr,
+    )
     return pool
 
 
@@ -217,14 +266,15 @@ def cmd_bg(a):
 def cmd_spike(a):
     out = Path(a.out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    genes = load_genes(a.gtf, a.contig)
+    contigs = parse_contigs(a.contig)
+    genes = {c: load_genes(a.gtf, c) for c in contigs}
     onlist = load_whitelist(a.whitelist) if a.whitelist else None
     cbs = top_barcodes(a.bg_r1, a.cb_len, a.cells, onlist=onlist)
     # spike UMIs must not collide with background UMIs of the same barcode (extra full pass over bg R1)
     bg_seen = background_umis(a.bg_r1, a.cb_len, a.umi_len, cbs)
     rc = a.source_orient != a.bg_orient
     for seed in a.seeds:
-        pool = source_pool(a.bam, a.contig, genes, a.source_orient, a.r2_len, seed)
+        pool = source_pool(a.bam, contigs, genes, a.source_orient, a.r2_len, seed, max_nh=a.max_nh)
         by_cls = {c: [r for r in pool if r["cls"] == c] for c in CLASSES}
         mix = {c: len(v) for c, v in by_cls.items()}
         print(f"seed {seed}: pool {len(pool)} class mix {mix}", file=sys.stderr)
@@ -252,10 +302,18 @@ def write_level(a, out, cbs, bg_seen, by_cls, mix, level, seed, rc, mix_meta):
                 rec1, rec2 = make_spike(read, name, cb, umi, a.r1_len, a.r2_len, rc)
                 r1o.write(rec1)
                 r2o.write(rec2)
-                rows.append((name, cb, umi, cls, a.contig, read["pos"], read["flag"]))
+                rows.append(
+                    (
+                        name, cb, umi, cls, read.get("contig", a.contig), read["pos"], read["flag"],
+                        ",".join(parse_contigs(a.contig)), read.get("nh", 1),
+                        read.get("src_contig", read.get("contig", a.contig)),
+                    )
+                )  # fmt: skip
                 i += 1
     with open(out / f"spike_L{level}_s{seed}.truth.tsv", "w") as t:
-        t.write("name\tcb\tumi\tclass\tcontig\tsrc_pos\tsrc_flag\n")
+        t.write(
+            "name\tcb\tumi\tclass\tcontig\tsrc_pos\tsrc_flag\tcontigs\tnh_stratum\tsrc_contig\n"
+        )
         t.writelines("\t".join(map(str, r)) + "\n" for r in rows)
     (out / f"spike_L{level}_s{seed}.json").write_text(
         json.dumps(
@@ -348,7 +406,17 @@ def main(argv=None):
     s.add_argument("--gtf", required=True)
     s.add_argument("--bg-r1", required=True, help="background R1 (for barcode choice)")
     s.add_argument("--out-dir", required=True)
-    s.add_argument("--contig", default="VIRUS|AF157706.1")
+    s.add_argument(
+        "--contig",
+        default="VIRUS|AF157706.1",
+        help="truth contig, or a comma-separated truth set (first = class-reference contig)",
+    )
+    s.add_argument(
+        "--max-nh",
+        type=int,
+        default=1,
+        help="1 = NH=1 reads only; >1 also keeps reads with NH<=N all of whose alignments are on the truth set",
+    )
     s.add_argument("--levels", type=lambda x: [int(v) for v in x.split(",")], required=True)
     s.add_argument("--seeds", type=lambda x: [int(v) for v in x.split(",")], default=[1])
     s.add_argument("--cells", type=int, default=5)

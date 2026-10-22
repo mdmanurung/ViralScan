@@ -2093,3 +2093,8 @@ accession). `scripts/star_confirm.read_summary` now only reads the TSV. Without 
 **Decision**: score.py counts any alignment (incl. secondary) on the truth contig as the call, matching the pre-set ">= 1 STAR read on the same contig" rule; spike barcodes come from the on-list top background barcodes and spike UMIs skip background (cb, UMI) pairs; `bg --frac --seed` replaces first-N for the grid; spike-only STAR arms pass a plain whitelist of spike barcodes to avoid the STAR 2.7.11b exit 139 with `--soloCBwhitelist None` and zero mapped reads.
 **Alternatives considered**: keep primary-only counting (would undercount multimappers); dummy one-barcode whitelist (ANDET-09-STAR139 route) rejected since the real spike barcodes are known.
 **Consequences**: spike over-writes nothing in the background; one extra full pass over bg R1 per spike call. Tags: spikein, SPIKE-01
+
+**Context**: SPIKE-02 / I1, EBV source (two contigs, 72 percent of reads NH=2 on type 1 + type 2).
+**Decision**: truth is a contig set; NH>1 reads are kept only if all NH alignments fall inside the set (record count in the set == NH, so no host lookup is needed); class and position come from the first truth contig's alignment, not STAR's arbitrary primary; truth table keeps `contig` = primary and adds `contigs`, `nh_stratum`, `src_contig`.
+**Alternatives considered**: NH=1 only (keeps 27.6 percent, biased to type1/type2-divergent regions); classify on primary (label flips for 7 percent of reads by coordinate system).
+**Consequences**: `--max-nh` default 1 keeps HHV-6B behaviour. Tags: spikein, SPIKE-02

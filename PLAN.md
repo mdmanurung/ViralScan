@@ -103,6 +103,18 @@ completion.
   - Pre-set rules (user "approve all" 2026-10-21): call = >= 3 kb molecules AND >= 1 STAR read on the same contig;
     limit = lowest level recovered in >= 2 of 3 seeds; keep the flank index only if its limit <= the old index's and
     it adds <= 5 unsupported UMIs per null library (3 unspiked replicates per background).
+  - SPIKE-02 / task I1 (2026-10-22): spike source generalized to a truth-contig SET so the EBV source (GSM4796271,
+    type 1 NC_007605.1 + type 2 NC_009334.1, forward, R01_SOC4 background 3' v3 forward) works. `spikein.py spike
+    --contig A,B --max-nh N` (default 1 = old behaviour: NH=1 primary records); N>1 also keeps reads with NH<=N whose
+    records inside the set equal NH (reads with a HOST| / other-virus alignment are excluded; counts printed to stderr).
+    Class and src_pos come from the alignment on the FIRST truth contig (type 1 for EBV) so labels do not depend on
+    which contig STAR called primary. Truth table adds `contigs`, `nh_stratum`, `src_contig`; `contig` is now the
+    primary contig. `score.py star --contig` is optional (read from truth table `contigs`, else meta json): n_source_contig_any
+    = any alignment on any truth contig; n_other_virus = primary on a VIRUS| contig outside the set. Fixed a latent bug:
+    `samtools view -s N.0` (frac 1.0, pool smaller than target) kept nothing; now `-s` is omitted. Tests: 13 (9 old + 4
+    new, synthetic SAM->BAM). NOT done: per-stratum recovery reporting in score.py (truth carries `nh_stratum`; kb scoring
+    via multimap not touched), 98->90 nt trim effect on NH unmeasured, nothing run on real libraries. For EBV/R01 pass
+    `--source-orient forward --bg-orient forward --cb-len 16 --umi-len 12 --r1-len 28 --r2-len 90`.
   - SMOKE RESULT (2026-10-21, job 25860984, 20 min, exit 0; D03 first 5 M pairs, HHV-6B spikes at 10 and 100, seed 1, 5 cells;
     one library, one seed, so descriptive only). STAR host+virus: 10/10 and 99/100 spikes on the source contig, 0 on host,
     1 lost to "unmapped: too short" (a spliced source read trimmed to 90 nt); the real STAR host filter kept 10/10 and
