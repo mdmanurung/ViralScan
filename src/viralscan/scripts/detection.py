@@ -57,7 +57,6 @@ from viralscan.utils import (
 )
 from viralscan.viral_loci import read_loci
 from viralscan.virus_catalog import merged_name_map
-from viralscan.virus_rollup import assignment_columns, group_summaries, write_group_summaries
 from viralscan.virus_grouping import (
     HOST_HOMOLOGY_LOCUS_COLUMNS,
     HOST_HOMOLOGY_NOT_MEASURED,
@@ -73,6 +72,7 @@ from viralscan.virus_grouping import (
     reconcile_identity_to_matrix,
     virus_facts,
 )
+from viralscan.virus_rollup import assignment_columns, group_summaries, write_group_summaries
 
 log = setup_script_logging()
 
