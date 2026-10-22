@@ -981,6 +981,9 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 | `--technology, -x TECHNOLOGY` | *(none)* | Technology you plan to use; checked. |
 | `--cores, -c CORES` | `4` | Threads for the pilot. |
 | `--json PATH` | *(none)* | Also write the report as JSON. |
+| `--tchem TCHEM` | `auto` | TusslChemistry (tchem) second opinion on the chemistry. auto (default): use it when a tchem binary is found, otherwise skip silently; require: stop when it is missing or unusable; off: skip. A disagreement with -x, or a tchem verdict of ambiguous/no_match, stops the run unless --force-technology. |
+| `--tchem-bin PATH` | *(none)* | tchem executable (default: $VIRALSCAN_TCHEM, then PATH). |
+| `--tchem-whitelists DIR` | *(none)* | Directory of tchem barcode lists (default: $VIRALSCAN_TCHEM_WHITELISTS). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
