@@ -195,3 +195,211 @@ def test_sbatch_syntax_and_array_row():
     r = subprocess.run(["bash", "-n", str(A / "grid.sbatch")], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     assert "SLURM_ARRAY_TASK_ID" in (A / "grid.sbatch").read_text()
+
+
+# ------------------------------------------------------------------ resume / idempotence / gates (review fixes)
+def _cond(cid):
+    return {
+        k: str(v)
+        for k, v in next(r for r in grid.build_conditions() if r["cond_id"] == cid).items()
+    }
+
+
+class _Calls(list):
+    def __init__(self):
+        super().__init__()
+        self.state = {"star_reads": "5"}
+
+
+@pytest.fixture
+def calls(monkeypatch):
+    """Record every ctx.sh command; a score command writes a scores.tsv the way score_condition would."""
+    log = _Calls()
+    state = log.state
+
+    def fake_sh(self, cmd, log_=None, cwd=None, **kw):
+        log.append([str(x) for x in cmd])
+        if any("score_condition.py" in str(x) for x in cmd):
+            b = self.d / "bundle"
+            b.mkdir(parents=True, exist_ok=True)
+            cols = "arm\tstar_n_source_contig_any"
+            (b / "scores.tsv").write_text(f"{cols}\nold\t\nflank\t\nstar\t{state['star_reads']}\n")
+
+    monkeypatch.setattr(run_condition.Ctx, "sh", fake_sh)
+    return log
+
+
+def test_done_marker_skips_everything(tmp_path, calls):
+    d = tmp_path / "cond" / "R01-NULL-r1"
+    d.mkdir(parents=True)
+    (d / "DONE").write_text("{}")
+    run_condition.run(_cond("R01-NULL-r1"), root=tmp_path)
+    assert calls == []
+
+
+def test_stage_markers_skip_arms_and_run_only_scoring(tmp_path, calls):
+    d = tmp_path / "cond" / "R01-NULL-r1"
+    d.mkdir(parents=True)
+    for arm in grid.ARMS:
+        (d / f"stage_{arm}.done").write_text("x")
+    run_condition.run(_cond("R01-NULL-r1"), root=tmp_path)
+    assert len(calls) == 1 and "score_condition.py" in calls[0][2] and (d / "DONE").exists()
+    # --baseline-bundle is deliberately absent: the baseline is subtracted in aggregate
+    assert "--baseline-bundle" not in calls[0]
+
+
+def _spiked_ready(tmp_path, level=100):
+    cid = f"D03-L{level:03d}-s1-c005"
+    d = tmp_path / "cond" / cid
+    for arm in grid.ARMS:
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"stage_{arm}.done").write_text("x")
+    (d / "spikes").mkdir()
+    (d / "bundle").mkdir()
+    stem = d / "spikes" / f"spike_L{level}_s1"
+    stem.with_suffix(".truth.tsv").write_text("name\tcb\nSPIKE:a:0\tAAA\n")
+    stem.with_suffix(".json").write_text("{}")
+    return cid, d
+
+
+def test_zero_star_reads_gate_fails_loudly_at_level_100(tmp_path, calls):
+    cid, d = _spiked_ready(tmp_path)
+    calls.state["star_reads"] = "0"
+    with pytest.raises(SystemExit):
+        run_condition.run(_cond(cid), root=tmp_path)
+    assert not (d / "DONE").exists() and (d / "spikes").exists()
+
+
+def test_nonzero_star_reads_finishes_and_cleans_spikes(tmp_path, calls):
+    cid, d = _spiked_ready(tmp_path)
+    run_condition.run(_cond(cid), root=tmp_path)
+    assert (d / "DONE").exists() and not (d / "spikes").exists()
+    assert (d / "bundle" / "truth.tsv").exists()
+
+
+def test_zero_star_reads_allowed_below_gate_level(tmp_path, calls):
+    cid, d = _spiked_ready(tmp_path, level=30)
+    calls.state["star_reads"] = "0"
+    run_condition.run(_cond(cid), root=tmp_path)
+    assert (d / "DONE").exists()
+
+
+def _stage_spike_ctx(tmp_path, monkeypatch, called, truth_cb="AAA"):
+    ctx = run_condition.Ctx(_cond("D03-L003-s1-c005"), False, tmp_path)
+    ctx.bgd.mkdir(parents=True)
+    (ctx.bgd / "called_cells.txt").write_text(called)
+    monkeypatch.setattr(run_condition.Ctx, "onlist", lambda self: "onlist.txt")
+
+    def fake_sh(self, cmd, log=None, cwd=None):
+        t = self.d / "spikes" / "spike_L3_s1.truth.tsv"
+        t.parent.mkdir(parents=True, exist_ok=True)
+        t.write_text(f"name\tcb\nSPIKE:a:0\t{truth_cb}\n")
+
+    monkeypatch.setattr(run_condition.Ctx, "sh", fake_sh)
+    return ctx
+
+
+def test_spike_barcodes_must_be_in_called_list(tmp_path, monkeypatch):
+    ctx = _stage_spike_ctx(tmp_path, monkeypatch, "CCC\nDDD\n")
+    with pytest.raises(SystemExit):
+        run_condition.stage_spike(ctx)
+    assert not (ctx.d / "spikes" / "SPIKES_OK").exists()
+
+
+def test_stage_spike_ok_then_skipped(tmp_path, monkeypatch):
+    ctx = _stage_spike_ctx(tmp_path, monkeypatch, "AAA\nDDD\n")
+    run_condition.stage_spike(ctx)
+    assert (ctx.d / "spikes" / "SPIKES_OK").exists()
+    monkeypatch.setattr(run_condition.Ctx, "sh", lambda *a, **k: pytest.fail("re-ran spike"))
+    run_condition.stage_spike(ctx)
+
+
+def _gz(path, n):
+    with gzip.open(path, "wt") as fh:
+        fh.writelines(f"@r{i}\nACGT\n+\nIIII\n" for i in range(n))
+
+
+def test_count_pairs_cached_atomic_and_stage_bg_subsamples(tmp_path, monkeypatch):
+    r1 = tmp_path / "r1.fastq.gz"
+    _gz(r1, 10)
+    ctx = run_condition.Ctx(_cond("D03-NULL-r1"), False, tmp_path)
+    assert run_condition.count_pairs(ctx, r1) == 10
+    cache = tmp_path / "bg" / "D03.total_pairs"
+    assert cache.read_text() == "10" and not list((tmp_path / "bg").glob("*.part"))
+    r1.unlink()  # a cache hit must not touch the FASTQ again
+    assert run_condition.count_pairs(ctx, r1) == 10
+
+    ctx.bg = {**ctx.bg, "r1": str(r1)}
+    monkeypatch.setattr(grid, "BG_TARGET_PAIRS", 5)
+    seen = []
+
+    def fake_sh(self, cmd, log=None, cwd=None):
+        seen.append([str(x) for x in cmd])
+        for m in ("R1", "R2"):
+            (self.bgd / f"tmp_{m}.fastq.gz").write_text("x")
+
+    monkeypatch.setattr(run_condition.Ctx, "sh", fake_sh)
+    monkeypatch.setattr(run_condition.Ctx, "onlist", lambda self: "onlist.txt")
+    spikein = importlib.import_module("spikein")
+    monkeypatch.setattr(spikein, "load_whitelist", lambda p: set())
+    monkeypatch.setattr(spikein, "top_barcodes", lambda *a, **k: ["AAA", "CCC"])
+    run_condition.stage_bg(ctx)
+    assert seen[0][seen[0].index("--frac") + 1] == "0.50000000"  # subsampled, not 1.0
+    assert (ctx.bgd / "READY").exists() and (
+        ctx.bgd / "called_cells.txt"
+    ).read_text() == "AAA\nCCC\n"
+    run_condition.stage_bg(ctx)
+    assert len(seen) == 1  # READY: second call builds nothing
+
+
+def _h5ad(path, var_names, gene_ids, obs):
+    import anndata
+    import numpy as np
+    import pandas as pd
+    import scipy.sparse as sp
+
+    m = sp.csr_matrix(np.array([[2, 0], [0, 1]], dtype=float)[: len(obs)])
+    ad = anndata.AnnData(
+        X=m, obs=pd.DataFrame(index=obs), var=pd.DataFrame({"gene_id": gene_ids}, index=var_names)
+    )
+    ad.layers["counts_unique_viral"] = m
+    ad.layers["counts_ambiguous_allocated"] = sp.csr_matrix(m.shape)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ad.write_h5ad(path)
+
+
+def _sample(tmp_path, var_names, obs):
+    s = tmp_path / "sample"
+    _h5ad(s / "kb-python/counts_unfiltered/adata_multimap.h5ad", var_names, ["V1", "V2"], obs)
+    _tsv(s / "results/virus_identity.tsv", ["gene_id", "genome_accession"], [("V1", "T.1")])
+    (tmp_path / "dest").mkdir(exist_ok=True)
+    return s, tmp_path / "dest"
+
+
+def test_extract_kb_matches_gene_id_column_and_strips_barcode_suffix(tmp_path):
+    pytest.importorskip("anndata")
+    s, dest = _sample(tmp_path, ["geneA", "geneB"], ["AAA-1", "CCC-1"])  # names are NOT gene ids
+    run_condition.extract_kb(s, dest, {"AAA"}, 100)
+    with gzip.open(dest / "kb_molecules.tsv.gz", "rt") as fh:
+        rows = fh.read().splitlines()
+    assert rows == ["barcode\tgene_id\tunique\tambiguous", "AAA\tV1\t2\t0"]
+
+
+def test_extract_kb_fails_on_no_viral_column_or_no_spike_barcode(tmp_path):
+    pytest.importorskip("anndata")
+    s, dest = _sample(tmp_path, ["geneA", "geneB"], ["AAA", "CCC"])
+    _tsv(s / "results/virus_identity.tsv", ["gene_id", "genome_accession"], [("ZZ", "T.1")])
+    with pytest.raises(SystemExit, match="no viral gene"):
+        run_condition.extract_kb(s, dest)
+    _tsv(s / "results/virus_identity.tsv", ["gene_id", "genome_accession"], [("V1", "T.1")])
+    with pytest.raises(SystemExit, match="spike barcodes"):
+        run_condition.extract_kb(s, dest, {"GGG"}, 100)
+    run_condition.extract_kb(s, dest, {"GGG"}, 30)  # below the gate level: allowed
+
+
+def test_run_arm_skips_a_finished_arm(tmp_path, calls):
+    ctx = run_condition.Ctx(_cond("R01-NULL-r1"), False, tmp_path)
+    ctx.d.mkdir(parents=True)
+    (ctx.d / "stage_old.done").write_text("x")
+    run_condition.run_arm(ctx, "old")
+    assert calls == []

@@ -9,9 +9,15 @@ Rules, all pre-set by the user (2026-10-21/22) except where marked (decision):
    the old-index run for both kb arms); star = call_star. The kb-only call is reported as a secondary limit.
  * seed rule: a level is MET when the call is true in >= MIN_SEEDS (2) of the 3 seeds, per background x arm x layout.
  * monotone rule: the limit is the lowest level that is met AND every higher level is met; none = not reached.
- * recovery = recovered / spiked: kb = kb_total (unique + allocated ambiguous, raw, spike barcodes, truth accessions)
-   / n_spiked; star = reads with any alignment on a truth contig / n_spiked.
+ * BASELINE (review fix): the kb arm count is NET of the unspiked replicate. Spiked conditions use bg_rep = seed, so
+   null replicate r<seed> is the same background subsample without spikes; ``apply_baseline`` subtracts its molecules
+   (same spike barcodes, same truth accessions) from kb_total (floored at 0) and recomputes call_kb / call_combined.
+   Raw total and baseline stay in ``kb_total_raw`` / ``kb_total_in_baseline``; a background whose baseline reaches
+   KB_MIN is flagged in the report (its raw count alone would pass the call).
+ * recovery = recovered / spiked: kb = net kb_total (unique + allocated ambiguous, spike barcodes, truth accessions,
+   baseline subtracted) / n_spiked; star = reads with any alignment on a truth contig / n_spiked.
  * null floor: unspiked replicates, per arm: unsupported kb molecules per library (mean, max), false calls.
+ * an old index that never reaches any level in a background x layout makes the comparison vacuous: undetermined, never keep.
  * keep flank iff, in EVERY background x layout, flank limit <= old limit (a tie passes; both not reached is a tie,
    flagged) AND flank adds <= ADD_MAX unsupported UMIs per null library. (decision) "adds" = per null replicate,
    flank minus old (paired by bg_rep), maximum over replicates; the absolute flank maximum is reported next to it.
@@ -28,10 +34,13 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import grid  # noqa: E402
+import score_condition  # noqa: E402
 
 MIN_SEEDS = 2
 ADD_MAX = 5
 MIN_NULL = 3
+KB_MIN = score_condition.KB_MIN
+MIN_CLASS_N = 30  # per-class STAR recovery below this many spikes is marked insufficient
 INF = float("inf")
 KB_ARMS = ("old", "flank")
 ARMS = ("old", "flank", "star")
@@ -104,7 +113,80 @@ def check(root, conds=None) -> list[str]:
             for rel in ("truth.tsv", "star/star_spike_fates.tsv"):
                 if not (d / "bundle" / rel).exists():
                     problems.append(f"{cid}: bundle/{rel} missing (needed for per-class recovery)")
+            nid = null_id(conds, c)
+            if nid is None:
+                problems.append(
+                    f"{cid}: no unspiked replicate with bg_rep {c['bg_rep']} (baseline)"
+                )
+            else:
+                for arm in KB_ARMS:
+                    for f in ("kb_molecules.tsv.gz", "virus_identity.tsv"):
+                        if not (cond_dir(root, nid) / "bundle" / arm / f).exists():
+                            problems.append(f"{cid}: baseline {nid}/bundle/{arm}/{f} missing")
     return problems
+
+
+def null_id(conds, c) -> str | None:
+    """cond_id of the unspiked replicate on the same background subsample (bg_rep) as spiked condition c."""
+    return next(
+        (
+            n["cond_id"]
+            for n in conds
+            if int(n["level"]) == 0
+            and n["background"] == c["background"]
+            and str(n["bg_rep"]) == str(c["bg_rep"])
+        ),
+        None,
+    )
+
+
+def apply_baseline(root, conds, rows) -> list[dict]:
+    """Make the kb arms NET of the unspiked replicate (mutates and returns rows; see module doc)."""
+    by_id = {c["cond_id"]: c for c in conds}
+    for r in rows:
+        if int(r["level"]) == 0 or r["arm"] not in KB_ARMS:
+            continue
+        c = by_id[r["cond_id"]]
+        b = cond_dir(root, r["cond_id"]) / "bundle"
+        truth = read_tsv(b / "truth.tsv")
+        acc = {x.removeprefix("VIRUS|") for x in truth[0]["contigs"].split(",") if x}
+        nb = cond_dir(root, null_id(conds, c)) / "bundle" / r["arm"]
+        s = score_condition.kb_stats(nb, {t["cb"] for t in truth}, acc, {})
+        base, raw = s["uniq"] + s["amb"], float(r["kb_total"])
+        net = max(0.0, raw - base)
+        r["kb_total_raw"], r["kb_total_in_baseline"], r["kb_total"] = raw, base, net
+        r["call_kb"] = str(net >= KB_MIN)
+        r["call_combined"] = str(net >= KB_MIN and truthy(r["call_star"]))
+    return rows
+
+
+def baseline_rows(rows) -> list[dict]:
+    """Per background x arm: baseline molecules in the spike barcodes, flagged when >= KB_MIN."""
+    out = []
+    for bg, arm in sorted(
+        {(r["background"], r["arm"]) for r in _spiked(rows) if r["arm"] in KB_ARMS}
+    ):
+        v = [
+            float(r["kb_total_in_baseline"])
+            for r in _spiked(rows)
+            if (r["background"], r["arm"]) == (bg, arm)
+            and r.get("kb_total_in_baseline") not in (None, "")
+        ]
+        if v:
+            out.append(dict(background=bg, arm=arm, n=len(v), mean=statistics.fmean(v), max=max(v),
+                            flagged=max(v) >= KB_MIN))  # fmt: skip
+    return out
+
+
+def wilson(k, n, z=1.96) -> tuple[float, float]:
+    """Wilson score interval for k of n."""
+    if n == 0:
+        return 0.0, 1.0
+    p = k / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * (p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5 / d
+    return max(0.0, c - h), min(1.0, c + h)
 
 
 def load_scores(root, conds=None) -> list[dict]:
@@ -214,9 +296,14 @@ def verdict(lods, rows, backgrounds=None, layouts=None) -> dict:
             if f_ > o_:
                 retire = True
                 notes.append(f"{layout}: flank limit {f} > old limit {o}")
+            elif o_ == INF:
+                undet = True
+                notes.append(
+                    f"{layout}: old index never reached any level (flank {f}): comparison uninformative,"
+                    " check the grid wiring"
+                )
             else:
-                tie = " (tie, neither reached)" if o_ == INF else ""
-                notes.append(f"{layout}: flank {f} <= old {o}{tie}")
+                notes.append(f"{layout}: flank {f} <= old {o}")
         by = {a: {int(r["bg_rep"]): float(r["kb_unsupported_molecules"] or 0) for r in rows
                   if r["background"] == bg and int(r["level"]) == 0 and r["arm"] == a} for a in KB_ARMS}  # fmt: skip
         reps = sorted(set(by["old"]) & set(by["flank"]))
@@ -291,10 +378,12 @@ def _md(header, rows):
                      + ["| " + " | ".join(str(x) for x in r) + " |" for r in rows])  # fmt: skip
 
 
-def report_md(rrows, lods, fp, vd, sc, n_conds) -> str:
+def report_md(rrows, lods, fp, vd, sc, n_conds, base=()) -> str:
     out = ["# Spike-in detection limit: results", "",
            f"Grid complete: {n_conds} conditions scored. Rules and definitions: see `aggregate.py` docstring and README.", "",
            f"## Flank-index verdict: **{vd['overall'].upper()}**", "",
+           *(["**UNDETERMINED: the comparison is uninformative or incomplete (old index never reached a level, "
+              "or data missing); see the notes below. This is not a keep.**", ""] if vd["overall"] == "undetermined" else []),
            "Rule: keep iff flank limit <= old limit in every background x layout AND flank adds <= "
            f"{ADD_MAX} unsupported UMIs per null library (paired by replicate, max).", "",
            _md(["background", "verdict", "max added unsupported UMIs (flank - old)", "flank absolute max", "notes"],
@@ -317,18 +406,32 @@ def report_md(rrows, lods, fp, vd, sc, n_conds) -> str:
     out += [_md(["background", "arm", "layout"] + [str(lv) for lv in grid.LEVELS],
                 [list(k) + [f"{statistics.fmean(grp[(*k, lv)]):.2f}" if grp.get((*k, lv)) else "NA" for lv in grid.LEVELS]
                  for k in keys]), "",
-            "kb arms: kb molecules (unique + allocated ambiguous) per spiked read, raw (not capped, background molecules "
-            "in the spike barcodes included). star: any alignment on a truth contig.", "",
+            "kb arms: NET kb molecules (unique + allocated ambiguous, spike barcodes, truth accessions, minus the unspiked "
+            "replicate of the same background subsample) per spiked read, not capped. star: any alignment on a truth contig.", "",
+            "## Background baseline of the truth virus in the spike barcodes (unspiked replicate)", "",
+            _md(["background", "arm", "spiked conditions", "mean", "max", f"flag (max >= {KB_MIN})"],
+                [[b["background"], b["arm"], b["n"], f"{b['mean']:.3g}", f"{b['max']:g}",
+                  "BASELINE >= KB_MIN: raw count alone would pass the call" if b["flagged"] else "ok"] for b in base]), "",
             "## Null floor (unspiked replicates)", "",
             _md(["background", "arm", "metric", "libraries", "mean", "max"],
                 [[r["background"], r["arm"], r["metric"], r["n_libraries"], f"{r['mean']:.3g}", f"{r['max']:g}"] for r in fp]), "",
-            "## STAR gate evidence: fate of spikes by class (all levels, seeds and layouts pooled per background)", ""]  # fmt: skip
+            "## STAR gate evidence: fate of spikes by class (all levels, seeds and layouts pooled per background)", "",
+            "Pooled over levels, seeds and layouts: seeds are resamples of ONE source library per virus (pseudo-replicates, "
+            "not independent libraries), the high levels dominate the pool, and class composition differs between "
+            f"backgrounds, so pooled recovery is not comparable across backgrounds. n is shown beside recovery with a 95% "
+            f"Wilson interval; classes with n < {MIN_CLASS_N} are marked insufficient.", ""]  # fmt: skip
     pool = collections.defaultdict(collections.Counter)
     for r in sc:
         for k in ("n_spiked", "on_truth_any", *["fate_" + x for x in FATES]):
             pool[(r["background"], r["class"])][k] += r[k]
-    out += [_md(["background", "class", "spiked", "on truth contig", "recovery", "host", "other virus", "other", "absent"],
-                [[b, cl, k["n_spiked"], k["on_truth_any"], f"{k['on_truth_any'] / k['n_spiked']:.3f}", k["fate_host"],
+
+    def _ci(k):
+        lo, hi = wilson(k["on_truth_any"], k["n_spiked"])
+        return f"[{lo:.2f}, {hi:.2f}]"
+
+    out += [_md(["background", "class", "spiked (n)", "on truth contig", "recovery", "95% CI", "n check", "host", "other virus", "other", "absent"],
+                [[b, cl, k["n_spiked"], k["on_truth_any"], f"{k['on_truth_any'] / k['n_spiked']:.3f}", _ci(k),
+                  "insufficient" if k["n_spiked"] < MIN_CLASS_N else "ok", k["fate_host"],
                   k["fate_other_virus"], k["fate_other"], k["fate_absent"]] for (b, cl), k in sorted(pool.items())]), "",
             "Fates are the PRIMARY alignment (host = host competition; other virus = primary on another viral contig); "
             "on-truth counts any alignment on the truth set.", "",
@@ -343,7 +446,7 @@ def run_report(root, out_dir, conds=None) -> int:
         print(f"aggregate: REFUSING to report, {len(problems)} problem(s):", file=sys.stderr)
         print("\n".join(problems), file=sys.stderr)
         return 2
-    rows = load_scores(root, conds)
+    rows = apply_baseline(root, conds, load_scores(root, conds))
     rrows, lods, fp = recovery_rows(rows), None, fp_floor(rows)
     lods = all_lods(rrows)
     vd, sc = verdict(lods, rows), star_by_class(root, conds)
@@ -356,7 +459,9 @@ def run_report(root, out_dir, conds=None) -> int:
               [dict(background=b, **p) for b, p in vd["per_background"].items()]
               + [dict(background="overall", verdict=vd["overall"], add_max="", flank_abs_max="", notes="")])  # fmt: skip
     write_tsv(out / "star_gate.tsv", list(sc[0]), sc)
-    (out / "report.md").write_text(report_md(rrows, lods, fp, vd, sc, len(conds)))
+    (out / "report.md").write_text(
+        report_md(rrows, lods, fp, vd, sc, len(conds), baseline_rows(rows))
+    )
     print(f"verdict: {vd['overall']}; wrote {out}", file=sys.stderr)
     return 0
 

@@ -1,3 +1,4 @@
+import gzip
 import importlib
 import sys
 from pathlib import Path
@@ -100,10 +101,10 @@ def test_verdict_retire_on_limit_or_floor():
     )  # adds 5 over old
 
 
-def test_verdict_both_not_reached_is_tie_and_flagged():
-    v = _scene({}, {})
-    assert v["overall"] == "keep" and "neither reached" in v["per_background"]["B"]["notes"]
-    assert _scene({}, ALL3)["overall"] == "keep"
+def test_verdict_old_not_reached_is_undetermined_never_keep():
+    v = _scene({}, {})  # vacuous grid: nothing detected by either arm
+    assert v["overall"] == "undetermined" and "uninformative" in v["per_background"]["B"]["notes"]
+    assert _scene({}, ALL3)["overall"] == "undetermined"
     assert _scene(ALL3, {})["overall"] == "retire"
 
 
@@ -141,10 +142,21 @@ def _write_cond(root, c, drop=None):
         "\t".join(cols) + "\n" + "".join("\t".join(r[k] for k in cols) + "\n" for r in rows)
     )
     if spiked:
-        (d / "bundle" / "truth.tsv").write_text("name\tclass\nSPIKE:a:0\tsense_in_gene\n")
+        (d / "bundle" / "truth.tsv").write_text(
+            "name\tcb\tclass\tcontigs\nSPIKE:a:0\tZZZ\tsense_in_gene\tVIRUS|T.1\n"
+        )
         (d / "bundle" / "star" / "star_spike_fates.tsv").write_text(
             "name\ton_truth\tfate\nSPIKE:a:0\t1\tsource\n"
         )
+    for arm in (
+        agg.KB_ARMS
+    ):  # kb tables: spike barcode ZZZ carries 2 truth molecules in the spiked run, 1 in the null
+        a = d / "bundle" / arm
+        a.mkdir(parents=True, exist_ok=True)
+        (a / "virus_identity.tsv").write_text("gene_id\tgenome_accession\nT_g\tT.1\n")
+        n = 2 if spiked else 1
+        with gzip.open(a / "kb_molecules.tsv.gz", "wt") as fh:
+            fh.write(f"barcode\tgene_id\tunique\tambiguous\nZZZ\tT_g\t{n}\t0\n")
     if drop != "DONE":
         (d / "DONE").write_text("{}")
 
@@ -189,3 +201,59 @@ def test_report_refuses_without_writing_when_incomplete(tmp_path, capsys):
     assert not (tmp_path / "out").exists()
     assert "REFUSING" in capsys.readouterr().err
     assert agg.check(tmp_path) != []  # default = the real 66-condition grid: nothing there
+
+
+def test_baseline_is_subtracted_and_flagged(tmp_path):
+    for c in CONDS:
+        _write_cond(tmp_path, c)
+    rows = agg.apply_baseline(tmp_path, CONDS, agg.load_scores(tmp_path, CONDS))
+    old = next(r for r in rows if r["arm"] == "old" and r["level"] == "3")
+    # synthetic scores row says raw kb_total 10; the null replicate holds 1 in the spike barcode: net 9
+    assert (old["kb_total_raw"], old["kb_total_in_baseline"], old["kb_total"]) == (10.0, 1.0, 9.0)
+    assert old["call_kb"] == "True" and old["call_combined"] == "True"
+    assert agg.baseline_rows(rows)[0]["max"] == 1.0
+
+
+def test_background_alone_cannot_pass_the_kb_call(tmp_path):
+    for c in CONDS:
+        _write_cond(tmp_path, c)
+    # null AND spiked both hold 5 molecules in the spike barcode: raw call would be True, net is 0
+    for cid in ("B-L003-s1-c005", "B-NULL-r1"):
+        with gzip.open(
+            tmp_path / "cond" / cid / "bundle" / "old" / "kb_molecules.tsv.gz", "wt"
+        ) as fh:
+            fh.write("barcode\tgene_id\tunique\tambiguous\nZZZ\tT_g\t5\t0\n")
+    sp = tmp_path / "cond" / "B-L003-s1-c005" / "bundle" / "scores.tsv"
+    txt = sp.read_text().splitlines()
+    cols = txt[0].split("\t")
+    out = [txt[0]]
+    for ln in txt[1:]:
+        f = ln.split("\t")
+        if f[cols.index("arm")] == "old":
+            f[cols.index("kb_total")] = "5"
+        out.append("\t".join(f))
+    sp.write_text("\n".join(out) + "\n")
+    rows = agg.apply_baseline(tmp_path, CONDS, agg.load_scores(tmp_path, CONDS))
+    old = next(r for r in rows if r["arm"] == "old" and r["level"] == "3")
+    assert old["kb_total"] == 0.0 and old["call_combined"] == "False"
+    flag = next(b for b in agg.baseline_rows(rows) if b["arm"] == "old")
+    assert flag["flagged"] is True
+
+
+def test_check_requires_the_baseline_bundle(tmp_path):
+    for c in CONDS:
+        _write_cond(tmp_path, c)
+    (tmp_path / "cond" / "B-NULL-r1" / "bundle" / "old" / "kb_molecules.tsv.gz").unlink()
+    assert any("baseline" in x for x in agg.check(tmp_path, CONDS))
+
+
+def test_wilson_and_class_table_marks_small_n(tmp_path):
+    lo, hi = agg.wilson(3, 3)
+    assert 0.4 < lo < 0.5 and hi == 1.0
+    assert agg.wilson(0, 0) == (0.0, 1.0)
+    for c in CONDS:
+        _write_cond(tmp_path, c)
+    assert agg.run_report(tmp_path, tmp_path / "out", CONDS) == 0
+    md = (tmp_path / "out" / "report.md").read_text()
+    assert "insufficient" in md and "Wilson" in md and "pseudo-replicates" in md
+    assert "Background baseline" in md
