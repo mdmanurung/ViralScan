@@ -93,6 +93,25 @@ completion.
     (not read support; use `star_reads_any`); tests for the on-list default and `cb_len` wiring through
     `align_host_unmapped`.
     still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139), not handled here.
+- [x] SPIKE-03 (2026-10-22; branch `codex/spikein-posthoc`, from tag `spikegrid-code-26c1ac5`; code only, grid not re-run):
+  post-hoc scorer fix, rescore, recovery ratio, aggregate hardening in `analysis/spikein_detection_limit/`.
+  - BUG fixed: `virus_identity.tsv` also lists ~41k host ENSG rows (`viral=false`) and contaminant rows, and the extractor and
+    `score_condition.kb_stats` treated every row as viral, so the floor columns (`kb_unsupported_molecules`,
+    `kb_total_viral_molecules`, null D03-NULL-r1 ~33,399) were host counts. New `score_condition.viral_identity` keeps
+    `viral` == true (case-insensitive) and role != contaminant, refuses a table with no `viral` column; used by the scorer
+    (`kb_stats`, `evidence_tier`) and `run_condition.extract_kb`. Truth-side columns verified unchanged on D03-L100-s1-c100 and
+    D03-NULL-r1 (before/after in `viralscan_work/spikein_grid_2026-10/rescore_check_2026-10-22/`).
+  - `rescore.py`: writes `bundle/scores_v2.tsv` (never `scores.tsv`), refuses conditions without DONE; `aggregate.py
+    --scores-name` (default `scores.tsv`) so one scorer covers all conditions.
+  - `aggregate.py` hardening: threshold labels `<=3` (left-censored) / `>300 (not established)` / `undetermined`; `non_monotone`
+    flag + report warning; a level with missing seeds that could still be met is undecided, so missing data is `undetermined`
+    and never not-reached or a retire reason; verdict backgrounds from `grid.BACKGROUNDS`; blanks no longer become 0 in
+    `recovery_rows` or the null floor; docstring contradiction fixed (old not reached, incl. both, = undetermined).
+  - `recovery_ratio.py`: flank/old net kb recovery per background x layout x level (RATIO_MIN 0.80), flags
+    `needs_user_decision` only; never changes the Q15 verdict.
+  - Q16 wording ("computational detection threshold (source, background and layout-specific)") in README, report, TSV headers
+    (`lod.tsv` keeps its file name; column `limit` is now `threshold`). Decision: an existing retire from a complete layout still
+    wins over an undetermined one (overall = retire > undetermined > keep, unchanged).
 - [~] SPIKE-01 (2026-10-21, exploratory under the Q21/LOCK-01 A2 override; branch `codex/spikein-detection-limit`,
   stacked on the unpushed `codex/star-hostvirus-align`): empirical detection limit of the old kb index, the flank
   index v2 and STARsolo host+virus, by spiking real HHV-6B reads (GSM6416022 BAM, stratified by flank-audit class)

@@ -1,4 +1,4 @@
-"""Spike-in detection-limit grid: ALL paths and parameters (CONFIG block) plus the conditions table (PLAN SPIKE-02).
+"""Spike-in computational detection-threshold grid: ALL paths and parameters (CONFIG block) plus the conditions table (PLAN SPIKE-02).
 
 ``python grid.py [--out conditions.tsv]`` writes one row per condition: 5 levels x 3 seeds x 2 layouts per
 background (60 spiked in total for two backgrounds) plus N_NULL_REPS unspiked replicates per background (66 rows).

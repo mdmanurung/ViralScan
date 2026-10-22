@@ -1,8 +1,8 @@
-# Spike-in detection limit (PLAN SPIKE-01 / SPIKE-02)
+# Spike-in computational detection threshold (PLAN SPIKE-01 / SPIKE-02 / SPIKE-03)
 
-Purpose: measure the empirical detection limit of three arms on real background libraries with real viral reads
+Purpose: measure the computational detection threshold (source, background and layout-specific) of three arms on real background libraries with real viral reads
 spiked in at known levels: the old kb index, the flank index v2, and STARsolo host+virus (the `star_confirm` rule).
-Output: a limit per background x arm x layout, a null (false-positive) floor, the flank keep/retire verdict, and the
+Output: a threshold per background x arm x layout, a null (false-positive) floor, the flank keep/retire verdict, and the
 STAR gate evidence (STAR-GATE-01 is decided only after this).
 
 Nothing here has been run for real. Every command below is for a human to submit.
@@ -15,8 +15,11 @@ Nothing here has been run for real. Every command below is for a human to submit
   source GSM4796271. Each ~45 M pairs by seeded random subsample (`spikein.py bg --frac --seed`).
 - Call = >= 3 kb molecules AND >= 1 STAR read on the same truth contig. kb arm = the product's multimap step
   (unique + allocated ambiguous molecules), not the raw gene matrix.
-- Limit = lowest level met in >= 2 of 3 seeds AND with every higher level also met (monotone rule).
-- Flank index kept only if, in every background x layout, its limit <= old limit AND it adds <= 5 unsupported UMIs per
+- Threshold = lowest level met in >= 2 of 3 seeds AND with every higher level also met (monotone rule). Labels: a level;
+  `<=3` (left-censored: the lowest level is met, the true threshold may be lower); `>300 (not established)` (top level not
+  met); `undetermined` (missing seeds or conditions leave a level undecided). A threshold that is not established is NOT a
+  negative result. `non_monotone` marks a met level below an unmet one; the report warns.
+- Flank index kept only if, in every background x layout, its threshold <= old threshold AND it adds <= 5 unsupported UMIs per
   null library (per-replicate difference vs old, maximum). Retire if any background fails; undetermined if data are
   missing. See the `aggregate.py` docstring for the exact definitions.
 
@@ -37,9 +40,18 @@ All from `analysis/spikein_detection_limit/` with `PATH=/exports/archive/hg-func
 7. Resume after any failure: submit the same array again. Finished conditions (`DONE`) and arms (`stage_<arm>.done`) are
    skipped; half-finished arms are wiped and redone. To redo only the failed ones: `sbatch --array=<comma list>%6 grid.sbatch`.
 8. Completeness: `python aggregate.py check` (exit 0 = all 66 DONE with valid scores; lists every problem otherwise).
-9. Aggregate: `python aggregate.py report [--out DIR]` (default `ROOT/aggregate`). It runs the check first and refuses to
-   write anything, exit 2, if any condition is missing or failed. Outputs: `report.md`, `recovery_by_condition.tsv`,
-   `lod.tsv`, `fp_floor.tsv`, `verdict.tsv`, `star_gate.tsv`.
+9. Rescore (SPIKE-03): `python rescore.py` re-scores every DONE condition with the current scorer into
+   `bundle/scores_v2.tsv` (never overwrites `scores.tsv`; refuses conditions without DONE). Needed because bundles scored
+   before the viral-only fix counted ~41k host genes as "viral" molecules in the floor columns
+   (`kb_unsupported_molecules`, `kb_total_viral_molecules`, `n_false_calls`); truth-side columns are unchanged. Then
+   `python aggregate.py check --scores-name scores_v2.tsv`.
+10. Report: `python aggregate.py report --scores-name scores_v2.tsv [--out DIR]` (default `ROOT/aggregate`; `--scores-name`
+   defaults to `scores.tsv`). It runs the check first and refuses to write anything, exit 2, if any condition is missing
+   or failed. Outputs: `report.md`, `recovery_by_condition.tsv`, `lod.tsv` (the thresholds), `fp_floor.tsv`,
+   `verdict.tsv`, `star_gate.tsv`.
+11. Recovery ratio: `python recovery_ratio.py --scores-name scores_v2.tsv` writes `recovery_ratio.tsv` / `.md` (flank / old
+   net kb recovery per background x layout x level; RATIO_MIN 0.80; flags `needs_user_decision` when the Q15 verdict is keep
+   and the ratio is below it; never changes the verdict). Same refusal rule as the report.
 
 ## Budget
 
@@ -54,5 +66,5 @@ Total = 66 tasks; wall time depends on `%6` and queue.
 
 Single source virus per background; NH policy for EBV (`--max-nh 2`) unvalidated; no error-free simulation arm in the
 grid; spikes come from one real library per virus (seeds resample reads, not libraries); kb arms have no per-class
-recovery; STAR "absent" lumps unmapped-too-short with host-filter loss; limits are grid levels. The report's final section
+recovery; STAR "absent" lumps unmapped-too-short with host-filter loss; thresholds are grid levels. The report's final section
 states this again.

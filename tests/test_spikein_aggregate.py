@@ -26,8 +26,14 @@ def grid_rows(bg, arm, layout, met):
     return [srow(bg, arm, lv, s, layout, s <= met.get(lv, 0)) for lv in LV for s in (1, 2, 3)]
 
 
-def lim(rows, arm="old", layout="c005", bg="B", call="call"):
+def lod_of(rows, arm="old", layout="c005", bg="B", call="call"):
     return agg.lod(agg.recovery_rows(rows), bg, arm, layout, call)
+
+
+def lim(rows, **kw):
+    """Comparable number; None = not reached or undetermined."""
+    r = lod_of(rows, **kw)
+    return None if r["status"] in ("not_reached", "undetermined") else r["num"]
 
 
 def test_two_of_three_rule():
@@ -46,7 +52,8 @@ def test_monotone_rule_and_missing_seed():
         for r in grid_rows("B", "old", "c005", {lv: 3 for lv in LV})
         if not (r["level"] == "30" and r["seed"] != "1")
     ]
-    assert lim(rows) == 100  # level 30 has one seed only: missing seeds count as not met
+    # level 30 has one seed only: its call could still be met by the missing seeds -> undetermined, not 100
+    assert lod_of(rows)["status"] == "undetermined"
 
 
 def test_layouts_and_arms_are_separate():
@@ -153,7 +160,7 @@ def _write_cond(root, c, drop=None):
     ):  # kb tables: spike barcode ZZZ carries 2 truth molecules in the spiked run, 1 in the null
         a = d / "bundle" / arm
         a.mkdir(parents=True, exist_ok=True)
-        (a / "virus_identity.tsv").write_text("gene_id\tgenome_accession\nT_g\tT.1\n")
+        (a / "virus_identity.tsv").write_text("gene_id\tgenome_accession\tviral\nT_g\tT.1\ttrue\n")
         n = 2 if spiked else 1
         with gzip.open(a / "kb_molecules.tsv.gz", "wt") as fh:
             fh.write(f"barcode\tgene_id\tunique\tambiguous\nZZZ\tT_g\t{n}\t0\n")
@@ -257,3 +264,103 @@ def test_wilson_and_class_table_marks_small_n(tmp_path):
     md = (tmp_path / "out" / "report.md").read_text()
     assert "insufficient" in md and "Wilson" in md and "pseudo-replicates" in md
     assert "Background baseline" in md
+
+
+# ----------------------------------------------------------------------------- PLAN SPIKE-03 hardening
+def test_threshold_labels_censored_not_reached_undetermined():
+    assert lod_of(grid_rows("B", "old", "c005", ALL3))["label"] == "<=3"
+    assert lod_of(grid_rows("B", "old", "c005", ALL3))["status"] == "left_censored"
+    assert lod_of(grid_rows("B", "old", "c005", {30: 3, 100: 3, 300: 3}))["label"] == "30"
+    nr = lod_of(grid_rows("B", "old", "c005", {}))
+    assert (nr["label"], nr["status"]) == (">300 (not established)", "not_reached")
+    # top level: one seed false, one true, one missing -> could still be met: undetermined, never not_reached
+    rows = [
+        r
+        for r in grid_rows("B", "old", "c005", {300: 1})
+        if not (r["level"] == "300" and r["seed"] == "3")
+    ]
+    assert lod_of(rows)["status"] == "undetermined"
+    # two seeds false, one missing: cannot be met even so -> genuinely not met
+    rows = [
+        r
+        for r in grid_rows("B", "old", "c005", {})
+        if not (r["level"] == "300" and r["seed"] == "3")
+    ]
+    assert lod_of(rows)["status"] == "not_reached"
+    assert lod_of([])["status"] == "undetermined"  # no rows at all: nothing is known
+
+
+def test_blank_call_is_missing_not_false():
+    rows = grid_rows("B", "old", "c005", ALL3)
+    for r in rows:
+        if r["level"] == "300":
+            r["call_combined"] = ""
+    assert lod_of(rows)["status"] == "undetermined"
+
+
+def test_non_monotone_flag_and_report_warning():
+    m = {3: 0, 10: 3, 30: 1, 100: 2, 300: 3}
+    t = lod_of(grid_rows("B", "old", "c005", m))
+    assert t["non_monotone"] is True and t["label"] == "100"
+    assert lod_of(grid_rows("B", "old", "c005", ALL3))["non_monotone"] is False
+    rows = grid_rows("B", "old", "c005", m)
+    rr = agg.recovery_rows(rows)
+    md = agg.report_md(rr, agg.all_lods(rr), [], {"overall": "keep", "per_background": {}}, [], 1)
+    assert "non-monotone" in md.lower() and "not a negative result" in md
+
+
+def test_verdict_missing_condition_is_undetermined_and_backgrounds_from_grid():
+    # one background (B) absent from the data entirely: grid.BACKGROUNDS decides what is expected
+    v = agg.verdict([], [])
+    assert set(v["per_background"]) == set(grid.BACKGROUNDS) and v["overall"] == "undetermined"
+    # a missing seed on a decisive level cannot turn into a retire
+    rows = grid_rows("B", "old", "c005", ALL3) + [
+        r
+        for r in grid_rows("B", "flank", "c005", ALL3)
+        if not (r["level"] == "300" and r["seed"] != "1")
+    ]
+    for i in (1, 2, 3):
+        rows += [srow("B", a, 0, 0, "", False, 0, rep=i) for a in agg.KB_ARMS]
+    lods = agg.all_lods(agg.recovery_rows(rows))
+    assert agg.verdict(lods, rows, ["B"], ["c005"])["overall"] == "undetermined"
+
+
+def test_blank_unsupported_is_not_zero_in_verdict():
+    rows = grid_rows("B", "old", "c005", ALL3) + grid_rows("B", "flank", "c005", ALL3)
+    for i in (1, 2, 3):
+        rows += [srow("B", a, 0, 0, "", False, 0, rep=i) for a in agg.KB_ARMS]
+    for r in rows:
+        if r["level"] == "0" and r["arm"] == "flank" and r["bg_rep"] == "3":
+            r["kb_unsupported_molecules"] = ""
+    v = agg.verdict(agg.all_lods(agg.recovery_rows(rows)), rows, ["B"], ["c005"])
+    assert v["overall"] == "undetermined" and "paired null" in v["per_background"]["B"]["notes"]
+
+
+def test_recovery_blank_stays_none_not_zero():
+    r = srow("B", "old", 10, 1, "c005", True, n=8)
+    r["kb_total"] = ""
+    out = agg.recovery_rows([r])[0]
+    assert out["n_recovered"] is None and out["recovery"] is None
+    r["call_combined"] = ""
+    assert agg.recovery_rows([r])[0]["call"] is None
+
+
+def test_scores_name_flag_reads_scores_v2(tmp_path):
+    for c in CONDS:
+        _write_cond(tmp_path, c)
+    assert agg.check(tmp_path, CONDS, "scores_v2.tsv") != []  # no v2 yet
+    for c in CONDS:
+        b = tmp_path / "cond" / c["cond_id"] / "bundle"
+        (b / "scores_v2.tsv").write_text((b / "scores.tsv").read_text())
+    assert agg.check(tmp_path, CONDS, "scores_v2.tsv") == []
+    assert agg.run_report(tmp_path, tmp_path / "o", CONDS, "scores_v2.tsv") == 0
+    assert "scores_v2.tsv" in (tmp_path / "o" / "report.md").read_text()
+
+
+def test_q16_wording_in_report_and_tsv(tmp_path):
+    for c in CONDS:
+        _write_cond(tmp_path, c)
+    assert agg.run_report(tmp_path, tmp_path / "o", CONDS) == 0
+    md = (tmp_path / "o" / "report.md").read_text().lower()
+    assert "computational detection threshold" in md and "limit of detection" not in md
+    assert "threshold" in (tmp_path / "o" / "lod.tsv").read_text().splitlines()[0]

@@ -1,4 +1,4 @@
-"""Spike real viral reads into a null 10x library to measure the detection limit.
+"""Spike real viral reads into a null 10x library to measure the computational detection threshold (source, background and layout-specific).
 
 EXPLORATORY (user override of discovery Q21 / LOCK-01 A2, 2026-10-21). Standard library only; calls ``samtools``.
 

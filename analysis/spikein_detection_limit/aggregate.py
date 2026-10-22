@@ -1,14 +1,23 @@
-"""Aggregate the spike-in grid: limit of detection, null floor, flank keep/retire verdict, STAR gate (PLAN SPIKE-02).
+"""Aggregate the spike-in grid: computational detection thresholds, null floor, flank keep/retire verdict, STAR gate.
 
-``python aggregate.py check  [--root R]``  completeness gate: every grid condition DONE with a valid scores.tsv
-``python aggregate.py report [--root R] [--out DIR]``  runs the gate first and REFUSES (exit 2, nothing written) if
-anything is missing; otherwise writes recovery_by_condition.tsv, lod.tsv, fp_floor.tsv, verdict.tsv, star_gate.tsv, report.md.
+``python aggregate.py check  [--root R] [--scores-name N]``  completeness gate: every grid condition DONE with a valid
+scores file (N, default scores.tsv; use scores_v2.tsv after ``rescore.py`` so ONE scorer covers all conditions)
+``python aggregate.py report [--root R] [--out DIR] [--scores-name N]``  runs the gate first and REFUSES (exit 2,
+nothing written) if anything is missing; otherwise writes recovery_by_condition.tsv, lod.tsv (the thresholds),
+fp_floor.tsv, verdict.tsv, star_gate.tsv, report.md.
+
+Wording (Q16): the quantity measured is a "computational detection threshold (source, background and layout-specific)",
+not a limit of detection. A threshold that is not established (not reached on the grid) is NOT a negative result.
 
 Rules, all pre-set by the user (2026-10-21/22) except where marked (decision):
  * call: old/flank = call_combined (>= 3 kb molecules AND >= 1 STAR read on the truth contig set; the STAR half comes from
-   the old-index run for both kb arms); star = call_star. The kb-only call is reported as a secondary limit.
+   the old-index run for both kb arms); star = call_star. The kb-only call is reported as a secondary threshold.
  * seed rule: a level is MET when the call is true in >= MIN_SEEDS (2) of the 3 seeds, per background x arm x layout.
- * monotone rule: the limit is the lowest level that is met AND every higher level is met; none = not reached.
+ * monotone rule: the threshold is the lowest level that is met AND every higher level is met. Labels: a number; "<=3"
+   when even the lowest level (3) is met (left-censored: the true threshold may be lower); ">300 (not established)" when
+   the top level is not met (not a negative result); "undetermined" when missing seeds or conditions leave a level
+   undecided (a level is undecided when k true seeds plus the missing seeds could still reach MIN_SEEDS). The flag
+   ``non_monotone`` marks a met level below a level that is determinately not met; the report warns about it.
  * BASELINE (review fix): the kb arm count is NET of the unspiked replicate. Spiked conditions use bg_rep = seed, so
    null replicate r<seed> is the same background subsample without spikes; ``apply_baseline`` subtracts its molecules
    (same spike barcodes, same truth accessions) from kb_total (floored at 0) and recomputes call_kb / call_combined.
@@ -17,9 +26,11 @@ Rules, all pre-set by the user (2026-10-21/22) except where marked (decision):
  * recovery = recovered / spiked: kb = net kb_total (unique + allocated ambiguous, spike barcodes, truth accessions,
    baseline subtracted) / n_spiked; star = reads with any alignment on a truth contig / n_spiked.
  * null floor: unspiked replicates, per arm: unsupported kb molecules per library (mean, max), false calls.
- * an old index that never reaches any level in a background x layout makes the comparison vacuous: undetermined, never keep.
- * keep flank iff, in EVERY background x layout, flank limit <= old limit (a tie passes; both not reached is a tie,
-   flagged) AND flank adds <= ADD_MAX unsupported UMIs per null library. (decision) "adds" = per null replicate,
+ * an old index that never reaches any level in a background x layout (this includes both arms not reaching) makes the
+   comparison vacuous: undetermined, never keep. Missing data is undetermined, never not-reached and never a retire
+   reason; the expected backgrounds come from grid.BACKGROUNDS, not from the data.
+ * keep flank iff, in EVERY background x layout, flank threshold <= old threshold (a tie passes) AND flank adds <=
+   ADD_MAX unsupported UMIs per null library. (decision) "adds" = per null replicate,
    flank minus old (paired by bg_rep), maximum over replicates; the absolute flank maximum is reported next to it.
    (decision) overall = retire if any background retires, else undetermined if any is, else keep.
 """
@@ -48,8 +59,10 @@ CALL_COL = {"old": "call_combined", "flank": "call_combined", "star": "call_star
 FATES = ("source", "other_virus", "host", "other", "absent")
 
 
-def truthy(v) -> bool:
-    return str(v) == "True"
+def truthy(v) -> bool | None:
+    """True/False for "True"/"False"; None for a blank or anything else (a missing value is not False)."""
+    v = str(v).strip()
+    return True if v == "True" else False if v == "False" else None
 
 
 def read_tsv(path) -> list[dict]:
@@ -62,7 +75,12 @@ def write_tsv(path, header, rows):
         w = csv.writer(fh, delimiter="\t")
         w.writerow(header)
         for r in rows:
-            w.writerow([f"{r[h]:.6g}" if isinstance(r[h], float) else r[h] for h in header])
+            w.writerow(
+                [
+                    "" if r[h] is None else f"{r[h]:.6g}" if isinstance(r[h], float) else r[h]
+                    for h in header
+                ]
+            )
 
 
 def cond_dir(root, cid) -> Path:
@@ -70,7 +88,7 @@ def cond_dir(root, cid) -> Path:
 
 
 # ------------------------------------------------------------------------------------------- completeness
-def check(root, conds=None) -> list[str]:
+def check(root, conds=None, scores_name="scores.tsv") -> list[str]:
     """Problems found in a finished grid (empty list = complete). Never raises on a missing/odd file."""
     conds = conds if conds is not None else grid.build_conditions()
     problems = []
@@ -80,18 +98,18 @@ def check(root, conds=None) -> list[str]:
         if not (d / "DONE").exists():
             problems.append(f"{cid}: no DONE marker (missing or failed)")
             continue
-        sp = d / "bundle" / "scores.tsv"
+        sp = d / "bundle" / scores_name
         if not sp.exists():
-            problems.append(f"{cid}: DONE but bundle/scores.tsv missing")
+            problems.append(f"{cid}: DONE but bundle/{scores_name} missing")
             continue
         try:
             rows = read_tsv(sp)
         except (OSError, csv.Error, UnicodeDecodeError) as e:
-            problems.append(f"{cid}: scores.tsv unreadable ({e})")
+            problems.append(f"{cid}: {scores_name} unreadable ({e})")
             continue
         if sorted(r.get("arm", "") for r in rows) != sorted(ARMS):
             problems.append(
-                f"{cid}: scores.tsv arms {[r.get('arm') for r in rows]}, need {list(ARMS)}"
+                f"{cid}: {scores_name} arms {[r.get('arm') for r in rows]}, need {list(ARMS)}"
             )
             continue
         for r in rows:
@@ -189,10 +207,10 @@ def wilson(k, n, z=1.96) -> tuple[float, float]:
     return max(0.0, c - h), min(1.0, c + h)
 
 
-def load_scores(root, conds=None) -> list[dict]:
+def load_scores(root, conds=None, scores_name="scores.tsv") -> list[dict]:
     conds = conds if conds is not None else grid.build_conditions()
     return [
-        r for c in conds for r in read_tsv(cond_dir(root, c["cond_id"]) / "bundle" / "scores.tsv")
+        r for c in conds for r in read_tsv(cond_dir(root, c["cond_id"]) / "bundle" / scores_name)
     ]
 
 
@@ -202,38 +220,68 @@ def _spiked(rows):
 
 
 def recovery_rows(rows) -> list[dict]:
+    """One row per spiked score row. A blank count or n_spiked stays None (never 0); a blank call stays None."""
     out = []
     for r in _spiked(rows):
-        n = int(r["n_spiked"])
-        got = (
-            float(r["kb_total"] or 0)
-            if r["arm"] in KB_ARMS
-            else float(r["star_n_source_contig_any"] or 0)
-        )
+        n = int(r["n_spiked"] or 0)
+        raw = r["kb_total"] if r["arm"] in KB_ARMS else r["star_n_source_contig_any"]
+        got = float(raw) if str(raw).strip() != "" else None
         out.append(dict(
             background=r["background"], arm=r["arm"], layout=r["layout"], level=int(r["level"]),
             seed=int(r["seed"]), **{"class": "all"}, n_spiked=n, n_recovered=got,
-            recovery=got / n if n else 0.0, call=truthy(r[CALL_COL[r["arm"]]]),
+            recovery=got / n if n and got is not None else None, call=truthy(r[CALL_COL[r["arm"]]]),
             call_kb=truthy(r["call_kb"]) if r["arm"] in KB_ARMS else "",
         ))  # fmt: skip
     return out
 
 
-def lod(rows, background, arm, layout, call="call", levels=grid.LEVELS):
-    """Limit of detection for one background x arm x layout from recovery_rows(); None = not reached.
+def lod(rows, background, arm, layout, call="call", levels=grid.LEVELS, seeds=grid.SEEDS) -> dict:
+    """Computational detection threshold for one background x arm x layout from recovery_rows().
 
-    A level is met when >= MIN_SEEDS seeds have the call true (missing seeds count as not met); the limit is the
-    lowest level such that it and every higher level are met."""
-    k = collections.Counter(
-        r["level"] for r in rows
-        if (r["background"], r["arm"], r["layout"]) == (background, arm, layout) and r[call] is True
+    Returns dict(status, label, num, non_monotone). status: established | left_censored | not_reached | undetermined;
+    label: "10" / "<=3" / ">300 (not established)" / "undetermined"; num: comparable number (left-censored = the lowest
+    level, not reached = inf, undetermined = None).
+
+    A level is MET when >= MIN_SEEDS seeds have the call true, NOT MET when even all missing seeds (expected seeds
+    with no row or a blank call) turning true could not reach MIN_SEEDS, else UNDECIDED. Walking down from the top
+    level: a not-met level stops the walk (threshold = the level above it); an undecided level makes the result
+    undetermined; if every level is met the threshold is left-censored at the lowest level."""
+    sel = [
+        r for r in rows
+        if (r["background"], r["arm"], r["layout"]) == (background, arm, layout) and r[call] in (True, False)
+    ]  # fmt: skip
+    seen = collections.defaultdict(dict)
+    for r in sel:
+        seen[r["level"]][r["seed"]] = r[call]
+    state = {}
+    for lv in levels:
+        k = sum(seen[lv].values())
+        missing = len(seeds) - len(seen[lv])
+        state[lv] = "met" if k >= MIN_SEEDS else "not" if k + missing < MIN_SEEDS else "undecided"
+    # non-monotone: a determinately met level below a determinately not-met level
+    lows = sorted(levels)
+    non_mono = any(
+        state[lo] == "met" and state[hi] == "not"
+        for i, lo in enumerate(lows) for hi in lows[i + 1:]
     )  # fmt: skip
-    limit = None
+    limit, status = None, None
     for lv in sorted(levels, reverse=True):
-        if k[lv] < MIN_SEEDS:
+        if state[lv] == "undecided":
+            status = "undetermined"
+            break
+        if state[lv] == "not":
             break
         limit = lv
-    return limit
+    top, bottom = max(levels), min(levels)
+    if status == "undetermined":
+        label, num = "undetermined", None
+    elif limit is None:
+        status, label, num = "not_reached", f">{top} (not established)", INF
+    elif limit == bottom:
+        status, label, num = "left_censored", f"<={bottom}", bottom
+    else:
+        status, label, num = "established", str(limit), limit
+    return dict(status=status, label=label, num=num, non_monotone=non_mono)
 
 
 def all_lods(rrows) -> list[dict]:
@@ -242,11 +290,11 @@ def all_lods(rrows) -> list[dict]:
     for bg, arm, layout in keys:
         calls = ["call"] + (["call_kb"] if arm in KB_ARMS else [])
         for col in calls:
-            lim = lod(rrows, bg, arm, layout, col)
+            t = lod(rrows, bg, arm, layout, col)
             out.append(dict(
                 background=bg, arm=arm, layout=layout,
                 call="combined" if col == "call" and arm in KB_ARMS else "star" if arm == "star" else "kb_only",
-                limit="not_reached" if lim is None else lim,
+                threshold=t["label"], status=t["status"], non_monotone=t["non_monotone"],
                 seeds_called_by_level=";".join(
                     f"{lv}:{sum(1 for r in rrows if (r['background'], r['arm'], r['layout'], r['level']) == (bg, arm, layout, lv) and r[col] is True)}"
                     for lv in grid.LEVELS
@@ -274,38 +322,50 @@ def fp_floor(rows) -> list[dict]:
     return out
 
 
+def _num(r) -> float | None:
+    """Comparable threshold of an all_lods() row: None = undetermined, inf = not reached, left-censored = lowest level."""
+    return {"undetermined": None, "not_reached": INF, "left_censored": min(grid.LEVELS)}.get(
+        r["status"], int(r["threshold"]) if r["status"] == "established" else None
+    )
+
+
 def verdict(lods, rows, backgrounds=None, layouts=None) -> dict:
-    """Flank keep/retire by the pre-set rule. lods = all_lods() rows (call 'combined'); rows = score rows."""
-    backgrounds = backgrounds or sorted({r["background"] for r in lods})
+    """Flank keep/retire by the pre-set rule. lods = all_lods() rows (call 'combined'); rows = score rows.
+
+    Expected backgrounds default to grid.BACKGROUNDS (not to what the data happens to hold): a background with no data
+    is undetermined. Missing or undecided data is undetermined, never a retire reason."""
+    backgrounds = backgrounds or sorted(grid.BACKGROUNDS)
     layouts = layouts or sorted(grid.LAYOUTS)
-    lim = {
-        (r["background"], r["arm"], r["layout"]): r["limit"]
-        for r in lods
-        if r["call"] == "combined"
-    }
+    lim = {(r["background"], r["arm"], r["layout"]): r for r in lods if r["call"] == "combined"}
     per = {}
     for bg in backgrounds:
         notes, retire, undet = [], False, False
         for layout in layouts:
-            o, f = lim.get((bg, "old", layout)), lim.get((bg, "flank", layout))
-            if o is None or f is None:
+            ro, rf = lim.get((bg, "old", layout)), lim.get((bg, "flank", layout))
+            o_, f_ = (None if r is None else _num(r) for r in (ro, rf))
+            if o_ is None or f_ is None:
                 undet = True
-                notes.append(f"{layout}: limit missing")
-                continue
-            o_, f_ = (INF if x == "not_reached" else x for x in (o, f))
-            if f_ > o_:
-                retire = True
-                notes.append(f"{layout}: flank limit {f} > old limit {o}")
+                notes.append(f"{layout}: threshold missing or undetermined")
             elif o_ == INF:
                 undet = True
                 notes.append(
-                    f"{layout}: old index never reached any level (flank {f}): comparison uninformative,"
+                    f"{layout}: old index never reached any level (flank {rf['threshold']}): comparison uninformative,"
                     " check the grid wiring"
                 )
+            elif f_ > o_:
+                retire = True
+                notes.append(f"{layout}: flank threshold {rf['threshold']} > old {ro['threshold']}")
             else:
-                notes.append(f"{layout}: flank {f} <= old {o}")
-        by = {a: {int(r["bg_rep"]): float(r["kb_unsupported_molecules"] or 0) for r in rows
-                  if r["background"] == bg and int(r["level"]) == 0 and r["arm"] == a} for a in KB_ARMS}  # fmt: skip
+                notes.append(f"{layout}: flank {rf['threshold']} <= old {ro['threshold']}")
+        by = {
+            a: {
+                int(r["bg_rep"]): float(r["kb_unsupported_molecules"])
+                for r in rows
+                if r["background"] == bg and int(r["level"]) == 0 and r["arm"] == a
+                and str(r.get("kb_unsupported_molecules", "")).strip() != ""
+            }
+            for a in KB_ARMS
+        }  # fmt: skip
         reps = sorted(set(by["old"]) & set(by["flank"]))
         add_max = max((by["flank"][i] - by["old"][i] for i in reps), default=None)
         abs_max = max(by["flank"].values(), default=None)
@@ -356,9 +416,9 @@ def star_by_class(root, conds) -> list[dict]:
 # ------------------------------------------------------------------------------------------------ report
 NOT_MEASURED = """\
 - One source virus per background: HHV-6B reads into D03, EBV (type 1 + type 2) reads into R01_SOC4. No other virus, no
-  other source library, and no source-background chemistry crossing was tested, so limits do not transfer to other viruses.
+  other source library, and no source-background chemistry crossing was tested, so thresholds do not transfer to other viruses.
 - NH policy: the EBV source keeps reads with NH <= 2 whose records all lie on the two EBV genomes (`--max-nh 2`, an
-  unvalidated choice); HHV-6B keeps NH = 1 only. The effect of that choice on the limit was not measured.
+  unvalidated choice); HHV-6B keeps NH = 1 only. The effect of that choice on the threshold was not measured.
 - No error-free simulation arm in this grid (the `synth` probes were not run here): recovery losses are not separated
   into read-sequence effects versus index effects.
 - "First/second source" caveat: spikes come from ONE real library per virus; seeds resample reads and barcodes from that
@@ -367,7 +427,7 @@ NOT_MEASURED = """\
   the kb arms have class "all" only. The kb arms get their STAR half of the combined call from the old-index run.
 - STAR "absent" lumps reads unmapped for any reason (including too short after the 90 nt trim) and reads lost before the
   BAM (host-filter loss); the two are not separated here. The product host-filter loss column was not extracted.
-- Limits are on a 5-level grid (3, 10, 30, 100, 300): a limit is a grid level, not an interpolated threshold. The null floor
+- Thresholds are on a 5-level grid (3, 10, 30, 100, 300): a threshold is a grid level, not an interpolated value; "<=3" is left-censored and ">300 (not established)" is NOT a negative result (it means the grid did not establish a threshold). The null floor
   is 3 libraries per background; maxima of 3 values bound nothing beyond those libraries.
 - Host and virus used the pinned indexes of this repository; depth-matching to real libraries (~45 M pairs) is by subsample.
 """
@@ -378,30 +438,37 @@ def _md(header, rows):
                      + ["| " + " | ".join(str(x) for x in r) + " |" for r in rows])  # fmt: skip
 
 
-def report_md(rrows, lods, fp, vd, sc, n_conds, base=()) -> str:
-    out = ["# Spike-in detection limit: results", "",
-           f"Grid complete: {n_conds} conditions scored. Rules and definitions: see `aggregate.py` docstring and README.", "",
+def report_md(rrows, lods, fp, vd, sc, n_conds, base=(), scores_name="scores.tsv") -> str:
+    nm = [
+        f"{r['background']}/{r['arm']}/{r['layout']}/{r['call']}" for r in lods if r["non_monotone"]
+    ]
+    out = ["# Spike-in computational detection thresholds: results", "",
+           f"Grid complete: {n_conds} conditions scored from `{scores_name}`. Rules and definitions: see `aggregate.py` docstring and README.", "",
+           *(["**WARNING: non-monotone recovery** (a level is met below a level that is not met) in: " + ", ".join(nm)
+              + ". The threshold follows the monotone rule; inspect `seeds_called_by_level` before using it.", ""] if nm else []),
            f"## Flank-index verdict: **{vd['overall'].upper()}**", "",
            *(["**UNDETERMINED: the comparison is uninformative or incomplete (old index never reached a level, "
               "or data missing); see the notes below. This is not a keep.**", ""] if vd["overall"] == "undetermined" else []),
-           "Rule: keep iff flank limit <= old limit in every background x layout AND flank adds <= "
+           "Rule: keep iff flank threshold <= old threshold in every background x layout AND flank adds <= "
            f"{ADD_MAX} unsupported UMIs per null library (paired by replicate, max).", "",
            _md(["background", "verdict", "max added unsupported UMIs (flank - old)", "flank absolute max", "notes"],
                [[b, p["verdict"], p["add_max"], p["flank_abs_max"], p["notes"]]
                 for b, p in vd["per_background"].items()]), "",
-           "## Limit of detection (lowest level met in >= 2 of 3 seeds, and every higher level met)", "",
-           "Cell: limit; in brackets seeds with the call by level 3/10/30/100/300.", ""]  # fmt: skip
+           "## Computational detection threshold (source, background and layout-specific; lowest level met in >= 2 of 3 seeds, and every higher level met)", "",
+           "A threshold that is not established (\">300 (not established)\") is not a negative result; \"<=3\" is left-censored. "
+           "Last column: seeds with the call by level 3/10/30/100/300.", ""]  # fmt: skip
     for bg in sorted({r["background"] for r in lods}):
         out += [f"### {bg}", ""]
         for call in ("combined", "star", "kb_only"):
             sel = [r for r in lods if r["background"] == bg and r["call"] == call]
             if sel:
-                out += [f"Call: {call}", "", _md(["arm", "layout", "limit", "seeds called by level"],
-                        [[r["arm"], r["layout"], r["limit"], r["seeds_called_by_level"]] for r in sel]), ""]  # fmt: skip
+                out += [f"Call: {call}", "", _md(["arm", "layout", "threshold", "non-monotone", "seeds called by level"],
+                        [[r["arm"], r["layout"], r["threshold"], "YES" if r["non_monotone"] else "", r["seeds_called_by_level"]] for r in sel]), ""]  # fmt: skip
     out += ["## Mean recovery (recovered / spiked) by level", ""]
     grp = collections.defaultdict(list)
     for r in rrows:
-        grp[(r["background"], r["arm"], r["layout"], r["level"])].append(r["recovery"])
+        if r["recovery"] is not None:
+            grp[(r["background"], r["arm"], r["layout"], r["level"])].append(r["recovery"])
     keys = sorted({k[:3] for k in grp})
     out += [_md(["background", "arm", "layout"] + [str(lv) for lv in grid.LEVELS],
                 [list(k) + [f"{statistics.fmean(grp[(*k, lv)]):.2f}" if grp.get((*k, lv)) else "NA" for lv in grid.LEVELS]
@@ -439,14 +506,14 @@ def report_md(rrows, lods, fp, vd, sc, n_conds, base=()) -> str:
     return "\n".join(out)
 
 
-def run_report(root, out_dir, conds=None) -> int:
+def run_report(root, out_dir, conds=None, scores_name="scores.tsv") -> int:
     conds = conds if conds is not None else grid.build_conditions()
-    problems = check(root, conds)
+    problems = check(root, conds, scores_name)
     if problems:
         print(f"aggregate: REFUSING to report, {len(problems)} problem(s):", file=sys.stderr)
         print("\n".join(problems), file=sys.stderr)
         return 2
-    rows = apply_baseline(root, conds, load_scores(root, conds))
+    rows = apply_baseline(root, conds, load_scores(root, conds, scores_name))
     rrows, lods, fp = recovery_rows(rows), None, fp_floor(rows)
     lods = all_lods(rrows)
     vd, sc = verdict(lods, rows), star_by_class(root, conds)
@@ -460,7 +527,7 @@ def run_report(root, out_dir, conds=None) -> int:
               + [dict(background="overall", verdict=vd["overall"], add_max="", flank_abs_max="", notes="")])  # fmt: skip
     write_tsv(out / "star_gate.tsv", list(sc[0]), sc)
     (out / "report.md").write_text(
-        report_md(rrows, lods, fp, vd, sc, len(conds), baseline_rows(rows))
+        report_md(rrows, lods, fp, vd, sc, len(conds), baseline_rows(rows), scores_name)
     )
     print(f"verdict: {vd['overall']}; wrote {out}", file=sys.stderr)
     return 0
@@ -471,16 +538,21 @@ def main(argv=None):
     p.add_argument("cmd", choices=["check", "report"])
     p.add_argument("--root", default=str(grid.ROOT))
     p.add_argument("--out", help="report directory (default ROOT/aggregate)")
+    p.add_argument(
+        "--scores-name",
+        default="scores.tsv",
+        help="per-bundle scores file; scores_v2.tsv after rescore.py",
+    )
     a = p.parse_args(argv)
     if a.cmd == "check":
-        problems = check(a.root)
+        problems = check(a.root, scores_name=a.scores_name)
         print(
             "\n".join(problems)
             if problems
             else f"complete: {len(grid.build_conditions())} conditions"
         )
         sys.exit(1 if problems else 0)
-    sys.exit(run_report(a.root, a.out or Path(a.root) / "aggregate"))
+    sys.exit(run_report(a.root, a.out or Path(a.root) / "aggregate", scores_name=a.scores_name))
 
 
 if __name__ == "__main__":

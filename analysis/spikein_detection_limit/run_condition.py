@@ -29,7 +29,7 @@ Product behaviour that would break or mislead on spiked data, and what this runn
  * ``--gtf`` is mandatory for these manifest-less indexes (no build manifest: the bundled panel fallback is absent).
  * old and flank runs cannot share an output dir or --resume (index hash in the manifest): separate dirs, host filter
    repeated (the dominant cost); the STAR columns of the flank run are not requested.
- * spikes that map to the host under the pinned host filter are removed before kb: the limit includes that loss
+ * spikes that map to the host under the pinned host filter are removed before kb: the threshold includes that loss
    (counted in host_filtered/fragment_lineage.tsv.gz; not extracted here).
  * one cwd per run (Snakemake writes .snakemake to the cwd; concurrent array tasks must not share it).
  * UNVERIFIED: that spike read names survive the product's host-filter step into viral.bam (the smoke test checked this
@@ -249,15 +249,15 @@ def viralscan_cmd(ctx: Ctx, arm: str, out: Path) -> list:
 def extract_kb(sample: Path, dest: Path, spike_cbs=None, min_level=0):
     """Non-zero viral entries of adata_multimap.h5ad -> kb_molecules.tsv.gz (barcode, gene_id, unique, ambiguous).
 
+    Only viral=true, non-contaminant rows of virus_identity.tsv are extracted (it also lists ~41k host genes).
     Sanity gates (fail loudly, a silent empty table would score as "not reached"): at least one viral column must match
     virus_identity.tsv (matched on ``var['gene_id']``: the h5ad index is the kb matrix name, gene_id is a separate
     column); when ``spike_cbs`` is given and ``min_level`` >= 100, at least one spike barcode must be in obs_names.
     A trailing ``-<digit>`` on a barcode is stripped."""
     import anndata
-    import pandas as pd
 
     ad = anndata.read_h5ad(sample / "kb-python/counts_unfiltered/adata_multimap.h5ad")
-    viral = set(pd.read_csv(sample / "results/virus_identity.tsv", sep="\t")["gene_id"])
+    viral = set(score_condition.viral_identity(sample / "results/virus_identity.tsv"))
     gene = list(ad.var["gene_id"]) if "gene_id" in ad.var else list(ad.var_names)
     cols = [i for i, g in enumerate(gene) if g in viral]
     if not cols:

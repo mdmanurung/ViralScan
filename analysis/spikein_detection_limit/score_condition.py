@@ -6,7 +6,9 @@ Bundle layout (written by ``run_condition.py``)::
     star/star_spike_fates.tsv         name, on_truth (0/1: ANY alignment on ANY truth contig), fate
     star/star_contig_reads.tsv        contig, n_any, n_primary for NON-spike reads (the STAR false-positive floor)
     <arm>/kb_molecules.tsv.gz         barcode, gene_id, unique, ambiguous: non-zero viral cells of adata_multimap.h5ad
-    <arm>/virus_identity.tsv          gene_id -> genome_accession (BAM contig = VIRUS|<genome_accession>)
+    <arm>/virus_identity.tsv          gene_id -> genome_accession (BAM contig = VIRUS|<genome_accession>); the table also
+                                      holds host genes (viral=false) and contaminants: only viral=true, non-contaminant
+                                      rows count (``viral_identity``)
     <arm>/multimap_evidence.tsv       the product's per-gene table (evidence tiers; over ALL barcodes)
 
 kb arm count = viral_molecules_unique + viral_molecules_ambiguous_allocated (the multimap step's own columns:
@@ -57,9 +59,26 @@ def read_molecules(path):
             yield r["barcode"], r["gene_id"], float(r["unique"]), float(r["ambiguous"])
 
 
+def viral_identity(path) -> dict:
+    """gene_id -> genome_accession for the VIRAL rows of a virus_identity.tsv only (post-hoc fix, PLAN SPIKE-03).
+
+    The product table also lists every host ENSG gene (``viral`` false) and contaminant rows (``role`` contaminant);
+    neither is a viral molecule. ``viral`` is matched case-insensitively against "true". A table without a ``viral``
+    column is refused, never read as all-viral."""
+    rows = read_tsv(path)
+    if rows and "viral" not in rows[0]:
+        raise ValueError(f"{path}: no 'viral' column; cannot tell viral genes from host genes")
+    return {
+        r["gene_id"]: r["genome_accession"]
+        for r in rows
+        if str(r["viral"]).strip().lower() == "true"
+        and str(r.get("role") or "").strip().lower() != "contaminant"
+    }
+
+
 def kb_stats(arm_dir: Path, spike_cbs: set, truth_acc: set, star_any: dict) -> dict:
     """Molecule sums for one kb arm directory (see module doc)."""
-    acc_of = {r["gene_id"]: r["genome_accession"] for r in read_tsv(arm_dir / "virus_identity.tsv")}
+    acc_of = viral_identity(arm_dir / "virus_identity.tsv")
     per_acc, uniq, amb = collections.Counter(), 0.0, 0.0
     for cb, gene, u, a in read_molecules(arm_dir / "kb_molecules.tsv.gz"):
         acc = acc_of.get(gene)
@@ -80,7 +99,7 @@ def kb_stats(arm_dir: Path, spike_cbs: set, truth_acc: set, star_any: dict) -> d
 
 def evidence_tier(arm_dir: Path, truth_acc: set):
     """(best evidence tier over the truth genes, their viral_molecules_total_est summed over all barcodes)."""
-    acc_of = {r["gene_id"]: r["genome_accession"] for r in read_tsv(arm_dir / "virus_identity.tsv")}
+    acc_of = viral_identity(arm_dir / "virus_identity.tsv")
     best, total = "not_detected", 0.0
     for r in read_tsv(arm_dir / "multimap_evidence.tsv"):
         if acc_of.get(r["gene_id"]) in truth_acc:

@@ -37,8 +37,14 @@ def _tsv(path, header, rows):
 def _kb(arm_dir, mols, evidence=()):
     _tsv(
         arm_dir / "virus_identity.tsv",
-        ["gene_id", "genome_accession"],
-        [("T1_g1", "T1.1"), ("T1_g2", "T1.1"), ("O1_g", "O1.1"), ("O2_g", "O2.1")],
+        ["gene_id", "genome_accession", "viral"],
+        [
+            ("T1_g1", "T1.1", "true"),
+            ("T1_g2", "T1.1", "true"),
+            ("O1_g", "O1.1", "true"),
+            ("O2_g", "O2.1", "true"),
+            ("H_g", "ENST1.1", "false"),
+        ],
     )
     with gzip.open(arm_dir / "kb_molecules.tsv.gz", "wt") as fh:
         fh.write("barcode\tgene_id\tunique\tambiguous\n")
@@ -371,7 +377,11 @@ def _h5ad(path, var_names, gene_ids, obs):
 def _sample(tmp_path, var_names, obs):
     s = tmp_path / "sample"
     _h5ad(s / "kb-python/counts_unfiltered/adata_multimap.h5ad", var_names, ["V1", "V2"], obs)
-    _tsv(s / "results/virus_identity.tsv", ["gene_id", "genome_accession"], [("V1", "T.1")])
+    _tsv(
+        s / "results/virus_identity.tsv",
+        ["gene_id", "genome_accession", "viral"],
+        [("V1", "T.1", "true")],
+    )
     (tmp_path / "dest").mkdir(exist_ok=True)
     return s, tmp_path / "dest"
 
@@ -388,10 +398,18 @@ def test_extract_kb_matches_gene_id_column_and_strips_barcode_suffix(tmp_path):
 def test_extract_kb_fails_on_no_viral_column_or_no_spike_barcode(tmp_path):
     pytest.importorskip("anndata")
     s, dest = _sample(tmp_path, ["geneA", "geneB"], ["AAA", "CCC"])
-    _tsv(s / "results/virus_identity.tsv", ["gene_id", "genome_accession"], [("ZZ", "T.1")])
+    _tsv(
+        s / "results/virus_identity.tsv",
+        ["gene_id", "genome_accession", "viral"],
+        [("ZZ", "T.1", "true")],
+    )
     with pytest.raises(SystemExit, match="no viral gene"):
         run_condition.extract_kb(s, dest)
-    _tsv(s / "results/virus_identity.tsv", ["gene_id", "genome_accession"], [("V1", "T.1")])
+    _tsv(
+        s / "results/virus_identity.tsv",
+        ["gene_id", "genome_accession", "viral"],
+        [("V1", "T.1", "true")],
+    )
     with pytest.raises(SystemExit, match="spike barcodes"):
         run_condition.extract_kb(s, dest, {"GGG"}, 100)
     run_condition.extract_kb(s, dest, {"GGG"}, 30)  # below the gate level: allowed
@@ -403,3 +421,56 @@ def test_run_arm_skips_a_finished_arm(tmp_path, calls):
     (ctx.d / "stage_old.done").write_text("x")
     run_condition.run_arm(ctx, "old")
     assert calls == []
+
+
+# ------------------------------------------------------------------------------ PLAN SPIKE-03 scorer fix
+def _hosty(arm_dir):
+    """virus_identity as the product writes it: viral true/false + role, host ENSG rows, a contaminant."""
+    _tsv(
+        arm_dir / "virus_identity.tsv",
+        ["gene_id", "genome_accession", "viral", "role"],
+        [("T1_g1", "T1.1", "true", ""), ("O1_g", "O1.1", "True", ""), ("ENSG1", "ENST1.1", "false", ""),
+         ("C_g", "C1.1", "true", "contaminant")],
+    )  # fmt: skip
+
+
+def test_viral_identity_filters_host_and_contaminant_case_insensitive(tmp_path):
+    _hosty(tmp_path)
+    assert score_condition.viral_identity(tmp_path / "virus_identity.tsv") == {
+        "T1_g1": "T1.1", "O1_g": "O1.1"
+    }  # fmt: skip
+    _tsv(tmp_path / "nocol.tsv", ["gene_id", "genome_accession"], [("a", "b")])
+    with pytest.raises(ValueError, match="viral"):
+        score_condition.viral_identity(tmp_path / "nocol.tsv")
+
+
+def test_host_genes_do_not_count_as_viral_molecules(tmp_path):
+    b = _bundle(tmp_path)
+    mols = [
+        ("AAA", "T1_g1", 2, 0.5),
+        ("CCC", "O1_g", 4, 0),
+        ("CCC", "ENSG1", 30000, 0),
+        ("CCC", "C_g", 9, 0),
+    ]
+    _kb(b / "old", mols)
+    _hosty(b / "old")
+    _kb(b / "flank", [("AAA", "T1_g1", 1, 0)])
+    _hosty(b / "flank")
+    old = {r["arm"]: r for r in score_condition.score_bundle(b, COND)}["old"]
+    assert old["kb_total"] == 2.5  # truth side unchanged
+    assert old["kb_unsupported_molecules"] == 4.0  # O1 only: no host ENSG1, no contaminant C_g
+    assert old["kb_total_viral_molecules"] == 6.5
+
+
+def test_extract_kb_writes_viral_rows_only(tmp_path):
+    pytest.importorskip("anndata")
+    s, dest = _sample(tmp_path, ["geneA", "geneB"], ["AAA", "CCC"])
+    _tsv(
+        s / "results/virus_identity.tsv",
+        ["gene_id", "genome_accession", "viral", "role"],
+        [("V1", "T.1", "true", ""), ("V2", "ENST.1", "false", "")],
+    )
+    run_condition.extract_kb(s, dest, {"AAA"}, 100)
+    with gzip.open(dest / "kb_molecules.tsv.gz", "rt") as fh:
+        genes = {ln.split("\t")[1] for ln in fh.read().splitlines()[1:]}
+    assert genes == {"V1"}

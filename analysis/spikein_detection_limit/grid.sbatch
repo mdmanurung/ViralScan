@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Spike-in detection-limit grid (PLAN SPIKE-02): Slurm ARRAY, task i = row i of conditions.tsv, run end to end by
+# Spike-in detection-threshold grid (PLAN SPIKE-02): Slurm ARRAY, task i = row i of conditions.tsv, run end to end by
 # run_condition.py (resumable: finished conditions and arms are skipped; fails loudly; DONE marker last).
 # Before submitting (a human does this; no commit submits anything):
 #   PATH=<env>/bin:$PATH python grid.py              # writes $SPIKE_GRID_ROOT/conditions.tsv and the slurm/ log dir
