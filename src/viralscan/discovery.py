@@ -1196,11 +1196,13 @@ def build_kb_evidence(discovery_dir: Path, sample_dir: Path, output: Path | None
     ``taxid`` is T or lies on one root-to-leaf lineage with T in the discovery taxonomy (a strain gene
     for a species candidate, or the reverse); a gene taxid missing from the taxonomy matches only
     exactly. A candidate with no panel gene gets no row (``not_assessed``); one with panel genes and no
-    molecule gets an all-zero row (``negative``). Per molecule with at least one gene of T:
-    ``n_adjudicated`` counts it (ties, host and other-virus genes included); ``n_taxon_best`` counts it
-    only when every compatible gene belongs to T. Shared cells / (CB, UMI) are those of the taxon-best
-    molecules that are also resolved called-cell groups with ``resolved_taxid == T`` in
-    ``umi_groups.tsv.gz``. Refuses unless the called cells are in kb barcode space (never guessed).
+    molecule gets an all-zero row (``negative``); an empty molecule file, or one with no molecule in a
+    called cell, raises (missing data is never absence). Per distinct (CB, UMI) with at least one gene
+    of T: ``n_adjudicated`` counts it (ties, host, other-virus and above-species ancestor genes
+    included); ``n_taxon_best`` counts it only when every gene is T, a descendant of T, or (T below
+    species) a species-or-below ancestor of T. Both cover all barcodes. Shared cells / (CB, UMI) are
+    those of the taxon-best molecules that are also resolved called-cell groups with
+    ``resolved_taxid == T`` in ``umi_groups.tsv.gz`` (called cells only). Refuses unless the called cells are in kb barcode space (never guessed).
     """
     from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
 
@@ -1223,6 +1225,9 @@ def build_kb_evidence(discovery_dir: Path, sample_dir: Path, output: Path | None
     candidates = sorted({int(r["taxid"]) for r in _tsv_rows(discovery_dir / CANDIDATES_TSV)})
     viral = {g.gene_id: g.taxid for g in VirusIdentityTable.read_tsv(ident).genes if g.viral}
     gene_taxa: dict[str, set[int]] = {}
+    best_ok: set[tuple[str, int]] = (
+        set()
+    )  # (gene, candidate) pairs that may make a molecule taxon-best
     for taxid in candidates:
         for gene, gtax in viral.items():
             if not gtax.isdigit():
@@ -1235,6 +1240,9 @@ def build_kb_evidence(discovery_dir: Path, sample_dir: Path, output: Path | None
             )
             if gt == taxid or same_lineage:
                 gene_taxa.setdefault(gene, set()).add(taxid)
+                # Ancestors above species rank (genus, family, root bins) compete but never win.
+                if gt == taxid or taxid in _path(tree, gt) or tree[gt][1].startswith("S"):
+                    best_ok.add((gene, taxid))
     panel = {t for taxa in gene_taxa.values() for t in taxa}
     called_set = set(called)
     groups: dict[int, set[tuple[str, str]]] = {}
@@ -1243,18 +1251,22 @@ def build_kb_evidence(discovery_dir: Path, sample_dir: Path, output: Path | None
             groups.setdefault(int(row["resolved_taxid"]), set()).add(
                 (row["corrected_cb"], row["umi"])
             )
-    adjudicated: Counter[int] = Counter()
+    adjudicated: dict[int, set[tuple[str, str]]] = {t: set() for t in panel}
     best: dict[int, set[tuple[str, str]]] = {t: set() for t in panel}
-    seen_cb = False
+    seen_cb = n_rows = 0
     with gzip.open(mol, "rt", newline="") as handle:
         for row in csv.DictReader(handle, delimiter="\t"):
-            seen_cb = seen_cb or row["barcode"] in called_set
+            n_rows += 1
+            seen_cb += row["barcode"] in called_set
+            key = (row["barcode"], row["umi"])
             genes = row["genes"].split(";") if row["genes"] else []
             for taxid in {t for g in genes for t in gene_taxa.get(g, ())}:
-                adjudicated[taxid] += 1
-                if all(taxid in gene_taxa.get(g, ()) for g in genes):
-                    best[taxid].add((row["barcode"], row["umi"]))
-    if called and not seen_cb and sum(adjudicated.values()):
+                adjudicated[taxid].add(key)
+                if all((g, taxid) in best_ok for g in genes):
+                    best[taxid].add(key)
+    if not n_rows:
+        raise DiscoveryError(f"{mol} has no molecules; missing data is not absence.")
+    if called and not seen_cb:
         raise DiscoveryError("no kb molecule barcode is a called cell: barcode spaces differ.")
     out = output or discovery_dir / KB_EVIDENCE_TSV
     with out.open("w", newline="") as handle:
@@ -1267,7 +1279,7 @@ def build_kb_evidence(discovery_dir: Path, sample_dir: Path, output: Path | None
                     taxid,
                     "corroboration",
                     "kb",
-                    adjudicated[taxid],
+                    len(adjudicated[taxid]),
                     len(best[taxid]),
                     len({cb for cb, _ in shared}),
                     len(shared),

@@ -195,12 +195,15 @@ unmatched evidence rows abort.
 `results/molecule_assignments.tsv.gz` (needs `--multimap-molecule-assignments`) and
 `results/virus_identity.tsv`. A viral panel gene belongs to a candidate when its `taxid` equals
 the candidate or sits on one root-to-leaf lineage with it in `taxonomy.tsv` (strain gene for a
-species candidate, or the reverse); host genes never match. Per molecule touching the taxon,
-`n_adjudicated` counts it whatever else it is compatible with, and `n_taxon_best` only when every
-compatible gene belongs to the taxon. Shared cells and (CB, UMI) are those of the taxon-best
-molecules that are resolved called-cell groups of exactly that taxid. A candidate with no panel
+species candidate, or the reverse); host genes never match. Per distinct (CB, UMI) touching the
+taxon, `n_adjudicated` counts it whatever else it is compatible with, and `n_taxon_best` only when
+every gene is the taxon, a descendant of it, or (taxon below species) a species-or-below ancestor.
+A gene at an ancestor taxid above species rank (genus, family, root bins; ranks from `taxonomy.tsv`)
+still counts in `n_adjudicated` (it competes) but never makes a molecule taxon-best. `n_adjudicated`
+and `n_taxon_best` cover all barcodes; the shared counts cover called cells only. Shared cells and
+(CB, UMI) are those of the taxon-best molecules that are resolved called-cell groups of exactly that taxid. A candidate with no panel
 gene gets no row (`not_assessed`); one with panel genes but no molecule gets a zero row
-(`negative`). It refuses unless the called cells are in kb barcode space (a STARsolo or unknown
+(`negative`). An empty molecule file, or one with no molecule in a called cell, aborts. It refuses unless the called cells are in kb barcode space (a STARsolo or unknown
 space, or kb molecules sharing no barcode with the called cells, aborts). STAR route (i) and
 route (ii) tables are still caller-built.
 

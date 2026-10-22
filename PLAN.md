@@ -7944,6 +7944,8 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     (`EVIDENCE_COLUMNS`); cut-offs 3 units / 80% / 1 shared cell are uncalibrated constants.
   - Done 2026-10-22: `build_kb_evidence` (route i, `source=kb`) from `molecule_assignments.tsv.gz` + `virus_identity.tsv`;
     API only (no `discover-evidence` CLI: needs parser, menu dispatch and help wiring). Tests `tests/test_discovery_kb_evidence.py`.
+    Review fixes: empty/no-called-cell molecule file raises; counts are distinct (CB, UMI); above-species ancestor genes compete
+    (`n_adjudicated`) but never make a molecule taxon-best.
   - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch); route (ii) producer (competitive alignment of the
     hit genome vs host + panel).
   - Left: no CLI (plan §7 specifies none); `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
