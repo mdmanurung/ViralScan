@@ -51,6 +51,7 @@ completion.
   applies (any `HOST|` partner, else another `VIRUS|` contig, else unique; same-contig hits stay unique). Streams records; memory is the
   multimapper QNAME set. Tested on a synthetic NH/HI BAM.
   **Open:** layout review by the user, a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1, a `environment.coverage.yml` solve in CI.
+- [~] `PATHS-01` (2026-10-22, `codex/strip-institutional-paths`): `PLAN.md` site paths replaced by `$SITE_ROOT` (archive work root), `$SITE_SCRATCH` (scratch checkout root) and `$COLLAB_ROOT` (collaborator root); 10 lines. **Open:** about 190 more hits in `.living/` and about 300 in tracked analysis outputs, manifests, docs and Slurm scripts (`git grep -c -E "/exports/|lumc"`); scope of a repo-wide scrub is the user's call.
 - [x] `RESTREE-01` (2026-10-21, `codex/research-tree-gitignore`): research-tree hygiene before any analysis/ trees are committed. `.gitignore` gains bulk rules (`analysis/computational_bottlenecks_*/{execution,followups}/`, `trackA_report_*/outputs/`, `*.rds *.mtx *.pkl *.stdout *.stderr *.sam *.bam *.bus` under analysis/, `/tmp/`, `.living/archive/`, `/biomni_bundle/`, root `HANDOFF*.md`/`SESSION_RESUME.md`); root-anchored where the name also exists tracked (`.living/HANDOFF_*.md`). New `scripts/check_tracked_file_sizes.py` + `tests/test_tracked_file_sizes.py` fail on any tracked/staged `analysis/` or `results/` blob over 1 MB unless listed in `config/large_file_allowlist.txt` (empty; passes on main as-is). Not hooked into pre-commit: the existing `check-added-large-files --maxkb=500` is already stricter repo-wide; CI runs the pytest. `sources/viral_panel`, `migration_plan/`, `viralscan_lshwcp_spec/` deliberately not covered.
 - [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
   `--soloCBwhitelist None` (chemistries without an on-list, SW-21) when no read mapped: STAR 2.7.11b segfaults (exit
@@ -1073,7 +1074,7 @@ was checked and closed 2026-10-10 (`cellcalling.solo_raw_dir` rejects it; `tests
 
 **Tier 6 — host response** (`HR-01..05`: group-disjoint folds, same-fold baselines, structured null,
 cell-type restriction, provenance and entry-point parity). Spec: `viralscan_lshwcp_spec/04_HOSTRESPONSE_ROBUSTNESS.md`
-and `SOURCE_AUDIT_IMPLEMENTATION_PLAN.md` (in the `/exports/para-lipg-hpc/mdmanurung/ViralScan` checkout). The core was recovered
+and `SOURCE_AUDIT_IMPLEMENTATION_PLAN.md` (in the `$SITE_SCRATCH/ViralScan` checkout). The core was recovered
 into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed against the spec on 2026-10-12 (branch `codex/hr-host-response`):
 - [x] `HR-01` — group-disjoint folds (`--cv group --groups COL --cv-folds N`), canonical row-order-invariant folds, fold tables, in-fold HVG,
   frozen aggregation (`AUC_STATISTIC`), no fallback to cell CV. **Verified 2026-10-12:** acceptance items map to existing passing tests in
@@ -4843,7 +4844,7 @@ strain. No H3N2 and no circulating isolate.
     sharing of each not-excluded candidate against the panel, writes `analysis/panel_expansion/kmer_sharing.tsv`
     (`frac_unique`, `frac_not_in_panel`, `frac_sibling`, `frac_other_group`; "group" = `sibling_group`, else genus,
     else species, with `group_basis` shown). 973 candidates vs the built panel
-    (`/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_final/build/viral.fa`, 2,343 records): median
+    (`$SITE_ROOT/viral_ref_final/build/viral.fa`, 2,343 records): median
     `frac_not_in_panel` 1.0 in every source; **37 have <5 % outside the panel** (25 census-new, 11 catalogue-max,
     1 evonk-new; mostly RefSeq NC_ copies of panel GenBank records the twin check could not see without FASTAs)
     and 62 have <50 %. The unmasked NCBI-cache panel gives the same numbers (max difference 0.0009). 349 candidates
@@ -4970,9 +4971,9 @@ strain. No H3N2 and no circulating isolate.
     D-list is part of what G4 freezes (`REF-08`).
     Run from a clean pinned worktree of merged `main` (the `vs_pinned/<sha>` convention), env `viralscan_test_full`:
     ```bash
-    M=/exports/archive/hg-funcgenom-research/mdmanurung
+    M=$SITE_ROOT
     E=$M/conda/envs/viralscan_test_full
-    GENOME=/exports/para-lipg-hpc/mdmanurung/malaria_bcells/data/refgenome/refdata-gex-GRCh38-2024-A/fasta/genome.fa
+    GENOME=$SITE_SCRATCH/malaria_bcells/data/refgenome/refdata-gex-GRCh38-2024-A/fasta/genome.fa
     git -C $M/ViralScan fetch origin && SHA=$(git -C $M/ViralScan rev-parse --short origin/main)
     CODE=$M/vs_pinned/$SHA && git -C $M/ViralScan worktree add --detach $CODE origin/main
     cp $M/ViralScan/src/viralscan/data/*.gtf $CODE/src/viralscan/data/        # untracked local GTF corpus (393)
@@ -6247,13 +6248,13 @@ virus recovery is contextual evidence, not ground truth.
     *archived* 2.2.0 outputs.
   - **Reference (user decision 2026-09-30): one arm only.** Both versions use
     the **latest reference**: today the final 2,343-genome panel,
-    `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_final/build/{panel.idx,panel.t2g}`.
+    `$SITE_ROOT/viral_ref_final/build/{panel.idx,panel.t2g}`.
     *2026-10-03:* the latest reference is now
-    `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42b/build/{panel.idx,panel.t2g}`
+    `$SITE_ROOT/viral_ref_cat42b/build/{panel.idx,panel.t2g}`
     (CAT-42: same 2,343 genomes, homopolymer and anellovirus low-complexity
     masks). Its anellovirus gene IDs carry the accession prefix.
     *2026-10-05:* the latest reference is now
-    `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42d/build/{panel.idx,panel.t2g}`,
+    `$SITE_ROOT/viral_ref_cat42d/build/{panel.idx,panel.t2g}`,
     which is cat42b plus a GRCh38 genome D-list (REF-06 gates passed).
     If the frozen G4 reference supersedes it, both versions switch to that.
     - Give both versions the same viral-only GTF, extracted from
@@ -6263,9 +6264,9 @@ virus recovery is contextual evidence, not ground truth.
     - There is no native-Serratus-index arm. Reference differences are out of
       scope.
   - **What 2.2.0 is.** The install is in env
-    `/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan`
+    `$COLLAB_ROOT/conda/envs/test_viralscan`
     (`viralscan-2.2.0.dist-info`); evonk's run pattern is
-    `/exports/archive/hg-funcgenom-research/evonk/viralscan/run_viralscan.sh`.
+    `$COLLAB_ROOT/viralscan/run_viralscan.sh`.
     Pin the version and the environment spec before any run. First check that
     2.2.0 accepts the 8-column kb-ref `panel.t2g` and its gene IDs; record
     whatever adapter is needed.
@@ -6944,7 +6945,7 @@ behind the package-completion plan unless the user releases a row.
     equal for both EM methods (only 18 host-virus ambiguous molecules, so no conservative-vs-EM difference in totals).
     The `--mem` in `slurm_rerun_multimap_em_cell_cost.sh` can now drop (not changed here; its 793 k run was not repeated).
 - [x] `DSR-09` — row-2 downloads (user request 2026-10-05) into
-  `/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/dsr_2026-10-05/`:
+  `$SITE_SCRATCH/ViralScan/benchmark_inputs/dsr_2026-10-05/`:
   SRA array 25701724 (GSE190558 all 16 lanes; GSE164690 SRR13419165 HN18 CD45−
   and SRR13418973 HN01 CD45−, one lane each) via `fasterq-dump
   --include-technical`; ENA array 25701725 with md5 check (GSE154900 4 runs;
