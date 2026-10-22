@@ -116,9 +116,46 @@ class GeneIdentity:
     sibling_group: str = ""
     risk_class: str = ""
     role: str = ""
+    # NCBI Taxonomy lineage of ``taxid`` (PLAN ``TAXO-01``). ``species``/``genus``/``family`` above are the
+    # catalogue's GenBank labels and are not comparable across viruses (EBV: "Human gammaherpesvirus 4",
+    # Herpesviridae; EBV type 2: "Human herpesvirus 4 type 2", Orthoherpesviridae); these are.
+    species_taxid: str = ""
+    species_ncbi: str = ""
+    genus_ncbi: str = ""
+    subfamily_ncbi: str = ""
+    family_ncbi: str = ""
+
+    def group_key(self, level: str) -> str:
+        """The key this viral gene sums under at ``level`` (virus | species | genus).
+
+        A gene with no NCBI lineage (uncatalogued, legacy) stays its own group at every level.
+        Anelloviruses are already keyed per genus (``ANDET-05``), so their species level is that
+        key and their genus is the ``ANDET-05`` label, not the catch-all taxid's.
+        """
+        return self._group(level)[0]
+
+    def group_name(self, level: str) -> str:
+        return self._group(level)[1]
+
+    def _group(self, level: str) -> tuple[str, str]:
+        anello = self.virus_key.startswith("genus:")
+        if level == "species" and self.species_taxid and not anello:
+            return f"species:taxid:{self.species_taxid}", self.species_ncbi
+        genus = self.genus if anello else (self.genus_ncbi or self.genus)
+        if level == "genus" and genus:
+            return f"genus:{genus}", genus
+        return self.virus_key, self.virus_name
 
 
 COLUMNS: tuple[str, ...] = tuple(f.name for f in fields(GeneIdentity))
+#: Added by ``TAXO-01``; a table written before it lacks them and still reads (as ``""``).
+TAXONOMY_COLUMNS: tuple[str, ...] = (
+    "species_taxid",
+    "species_ncbi",
+    "genus_ncbi",
+    "subfamily_ncbi",
+    "family_ncbi",
+)
 
 
 # --------------------------------------------------------------------------- t2g
@@ -621,7 +658,11 @@ class VirusIdentityTable:
     def read_tsv(cls, path: PathLike) -> VirusIdentityTable:
         with open(path, newline="", encoding="utf-8") as handle:
             reader = csv.DictReader(handle, delimiter="\t")
-            missing = [c for c in COLUMNS if c not in (reader.fieldnames or [])]
+            missing = [
+                c
+                for c in COLUMNS
+                if c not in (reader.fieldnames or []) and c not in TAXONOMY_COLUMNS
+            ]
             if missing:
                 raise ValueError(f"{path}: not a Virus Identity table (missing columns {missing})")
             genes = tuple(
@@ -629,7 +670,7 @@ class VirusIdentityTable:
                     **cast(
                         "dict[str, Any]",
                         {
-                            c: (row[c] == "true") if c == "viral" else (row[c] or "")
+                            c: (row[c] == "true") if c == "viral" else (row.get(c) or "")
                             for c in COLUMNS
                         },
                     )
@@ -665,7 +706,25 @@ def _catalogued(
         sibling_group=(row.get("sibling_group") or "").strip(),
         risk_class=(row.get("risk_class") or "").strip(),
         role=(row.get("role") or "").strip(),
+        **_ncbi_lineage((row.get("taxid") or "").strip()),
     )
+
+
+def _ncbi_lineage(taxid: str) -> dict[str, str]:
+    """The ``TAXO-01`` lineage fields of *taxid* from the packaged NCBI Taxonomy table."""
+    t = virus_catalog.taxonomy_by_taxid().get(taxid) if taxid else None
+    if not t:
+        return {}
+    # "Gammapapillomavirus sp." / "Anelloviridae sp." are NCBI bins for unclassified isolates, not
+    # species: summing under them would merge unrelated viruses, so they carry no species.
+    binned = (t.get("species") or "").endswith(" sp.")
+    return {
+        "species_taxid": "" if binned else t.get("species_taxid", ""),
+        "species_ncbi": "" if binned else t.get("species", ""),
+        "genus_ncbi": t.get("genus", ""),
+        "subfamily_ncbi": t.get("subfamily", ""),
+        "family_ncbi": t.get("family", ""),
+    }
 
 
 def _legacy_prefixed(gene_id: str, name: str, cat: _Catalogue | None) -> GeneIdentity:

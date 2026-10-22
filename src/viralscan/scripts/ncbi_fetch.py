@@ -107,17 +107,18 @@ def _throttle(api_key: str | None) -> None:
     _last_request_at = time.monotonic()
 
 
-def _efetch(accession: str, rettype: str, email: str | None, api_key: str | None) -> str:
+def _efetch(
+    accession: str, rettype: str, email: str | None, api_key: str | None, db: str = "nuccore"
+) -> str:
     """Call NCBI efetch and return the response body as text.
 
     Retries with exponential backoff on transient errors (429, 5xx, network).
+    ``db="taxonomy"`` takes ``rettype="xml"`` (efetch's taxonomy XML; it has no rettype).
     """
-    params: dict[str, str] = {
-        "db": "nuccore",
-        "id": accession,
-        "rettype": rettype,
-        "retmode": "text",
-    }
+    params: dict[str, str] = {"db": db, "id": accession}
+    params.update(
+        {"retmode": "xml"} if rettype == "xml" else {"rettype": rettype, "retmode": "text"}
+    )
     if email:
         params["email"] = email
         params["tool"] = "ViralScan"
@@ -146,6 +147,53 @@ def _efetch(accession: str, rettype: str, email: str | None, api_key: str | None
                 )
         time.sleep(2**attempt)
     raise NCBIFetchError(f"NCBI efetch gave up on {accession} ({rettype}): {last_err}")
+
+
+#: Ranks recorded per taxid by :func:`fetch_taxonomy` (NCBI Taxonomy ``LineageEx``).
+TAXONOMY_RANKS = ("species", "genus", "subfamily", "family")
+
+
+def parse_taxonomy_xml(xml_text: str) -> dict[str, dict[str, str]]:
+    """taxid -> {name, rank, species_taxid, species, genus, subfamily, family} from efetch taxonomy XML.
+
+    A taxid that is itself a species fills ``species`` from its own name. A rank the lineage lacks
+    stays ``""``. An ``AkaTaxIds`` alias (a merged taxid) is keyed too, so the caller finds it.
+    """
+    import xml.etree.ElementTree as ET
+
+    out: dict[str, dict[str, str]] = {}
+    for taxon in ET.fromstring(xml_text).findall("Taxon"):
+        row = {"name": taxon.findtext("ScientificName", ""), "rank": taxon.findtext("Rank", "")}
+        row.update({f"{r}_taxid": "" for r in TAXONOMY_RANKS} | {r: "" for r in TAXONOMY_RANKS})
+        lineage = [
+            (n.findtext("Rank", ""), n.findtext("TaxId", ""), n.findtext("ScientificName", ""))
+            for n in taxon.findall("LineageEx/Taxon")
+        ]
+        lineage.append((row["rank"], taxon.findtext("TaxId", ""), row["name"]))
+        for rank, taxid, name in lineage:
+            if rank in TAXONOMY_RANKS:
+                row[rank], row[f"{rank}_taxid"] = name, taxid
+        for key in [taxon.findtext("TaxId", "")] + [
+            a.text or "" for a in taxon.findall("AkaTaxIds/TaxId")
+        ]:
+            if key:
+                out[key] = row
+    return out
+
+
+def fetch_taxonomy(
+    taxids: Iterable[str], email: str | None = None, api_key: str | None = None, batch: int = 200
+) -> dict[str, dict[str, str]]:
+    """NCBI Taxonomy lineage for each taxid (:func:`parse_taxonomy_xml`), ``batch`` ids per request."""
+    ids = sorted({t.strip() for t in taxids if t and t.strip().isdigit()}, key=int)
+    out: dict[str, dict[str, str]] = {}
+    for i in range(0, len(ids), batch):
+        out.update(
+            parse_taxonomy_xml(
+                _efetch(",".join(ids[i : i + batch]), "xml", email, api_key, db="taxonomy")
+            )
+        )
+    return out
 
 
 def _parse_location(loc: str) -> list[tuple[int, int, str]]:

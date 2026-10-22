@@ -407,6 +407,11 @@ SIBLING_VIRUS_PAIRS: dict[str, str] = {
 
 SIBLING_CROSSMAP_RATIO_THRESHOLD: float = 50.0
 
+# PLAN TAXO-01: a virus whose molecules are < 5 % unique to it (the rest also fit a related virus) gets an
+# ``aggregate_note`` in viral_summary.tsv pointing to its species/genus row. A reporting label, not a gate:
+# it changes no count and no ``detected`` call. 5 % is a round default, not a calibrated threshold.
+ASSIGNMENT_UNIQUE_FRACTION_MIN: float = 0.05
+
 # Viral families/genera with germline endogenous viral elements (EVEs) in the human
 # genome, whose reads may come from host pre-mRNA rather than infection. Empty: no
 # such family is in the shipped panel. Anelloviridae were listed until 2026-10-03

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import csv
 import gzip
+from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -64,6 +65,9 @@ class MultimapLayers:
     host_virus_ambiguous_molecules: int
     audit: MoleculeAudit
     method_diagnostics: dict[str, Any]
+    # (cell, distinct compatible genes) -> molecules, for every molecule touching a viral gene.
+    # Method-independent; :func:`viral_group_matrices` sums it per virus, species and genus (TAXO-01).
+    viral_molecule_keys: Counter[tuple[int, tuple[int, ...]]] = field(default_factory=Counter)
 
 
 @dataclass(frozen=True)
@@ -575,6 +579,9 @@ def build_multimap_layers(
         gene_tuple_info[tuple(distinct_genes)] = ec_info[ec_id]
 
     audit_counter = _AuditCounter()
+    # ponytail: one entry per distinct (cell, gene set) of viral molecules; bounded by viral molecules
+    # (~1M on an EBV LCL library), not by the BUS size.
+    viral_keys: Counter[tuple[int, tuple[int, ...]]] = Counter()
     if not isinstance(bus_df, Path):
         required = {"barcode", "umi", "ec", "count"}
         missing = required.difference(bus_df.columns)
@@ -626,6 +633,8 @@ def build_multimap_layers(
             genes_arr,
         ) = info
         count = 1.0
+        if viral_genes:
+            viral_keys[(cell_idx, distinct_key)] += 1
 
         if n_genes_in_ec == 1:
             unique_rows.append(cell_idx)
@@ -937,7 +946,45 @@ def build_multimap_layers(
         host_virus_ambiguous_molecules=host_virus_ambiguous_molecules,
         audit=audit,
         method_diagnostics=method_diagnostics,
+        viral_molecule_keys=viral_keys,
     )
+
+
+def viral_group_matrices(
+    viral_molecule_keys: Counter[tuple[int, tuple[int, ...]]],
+    gene_group: dict[int, int],
+    n_cells: int,
+    n_groups: int,
+) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    """Per-cell molecules of each viral group: unique to it, compatible with it, shared with host.
+
+    ``gene_group`` maps each viral gene index to a group column (a virus, species or genus). A molecule
+    is *unique* to a group when every gene it is compatible with is a viral gene of that group; it is
+    *compatible* with every group it touches (counted whole in each, never divided), and *host-shared*
+    for those groups when a host gene is also compatible. These do not depend on the multimap method:
+    unique <= any method's total <= compatible for a group (PLAN ``TAXO-01``).
+    """
+    cols: dict[str, tuple[list[int], list[int], list[float]]] = {
+        k: ([], [], []) for k in ("unique", "compatible", "host")
+    }
+
+    def add(kind: str, cell: int, group: int, n: int) -> None:
+        r, c, d = cols[kind]
+        r.append(cell)
+        c.append(group)
+        d.append(float(n))
+
+    for (cell, genes), n in viral_molecule_keys.items():
+        groups = {gene_group[g] for g in genes if g in gene_group}
+        has_host = any(g not in gene_group for g in genes)
+        for group in groups:
+            add("compatible", cell, group, n)
+            if has_host:
+                add("host", cell, group, n)
+        if len(groups) == 1 and not has_host:
+            add("unique", cell, next(iter(groups)), n)
+    unique, compatible, host = (_csr_from_entries(*cols[k], n_cells, n_groups) for k in cols)
+    return unique, compatible, host
 
 
 def _molecule_evidence_tier(

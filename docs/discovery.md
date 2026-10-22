@@ -16,8 +16,10 @@ does not say the organism is present, replicating, or in that cell.
   reference did not contain.
 - Do not use it to replace the primary viral load. The `viral_summary.tsv` molecule
   counts and tiers are unchanged by it.
-- Every row of `candidates.tsv` has `state = observation`. No calibrated threshold or
-  tier exists yet for discovery; the flags are documented screens.
+- Every row of `candidates.tsv` has `state = observation`: a Kraken2 assignment alone never
+  goes higher. `candidate_states.tsv` (see "Candidate states") can promote a candidate only
+  with orthogonal evidence. No calibrated threshold or tier exists yet for discovery; the
+  flags and cut-offs are documented screens.
 
 ## Prerequisites
 
@@ -157,6 +159,53 @@ enter `cell_taxon.h5ad`; ambiguous and unclassified groups never do.
 distinct minimizers), `offcell_dominant` (more than half the groups off called cells),
 `host_lineage` and `viral_only_db` (taxid 9606 absent from the database). The cut-offs are
 documented constants, not calibrated.
+
+### Candidate states
+
+`build_candidate_states(out_dir, evidence_path)` (Python API; no command yet) writes
+`candidate_states.tsv` beside `candidates.tsv`: `taxid`, `name`, `rank`, `state`,
+`corroboration`, `read_support`, `reason`. States:
+
+- `observation`: Kraken2 only, or evidence that did not pass.
+- `corroborated` (route i): the same taxon is supported by the kb (panel) arm or the STAR
+  host+virus arm. The molecules were competitively adjudicated (not better explained by
+  host or another virus) and fall in cells that are also called-cell groups of the taxon.
+- `read_supported_observation` (route ii, kb-independent, for off-panel taxa): reads align
+  competitively to the hit genome versus host + panel, with shared barcodes and UMIs.
+  It is still an observation, never an infection claim.
+
+`corroboration` and `read_support` are `not_assessed` (no evidence row), `negative`
+(evidence supplied, rule not met) or `positive`; `not_assessed` is never `negative`.
+Host-lineage taxa and a viral-only database stay at `observation`.
+
+The package does not yet produce a per-taxon alignment summary, so the adapter reads a
+documented tab-separated table: `taxid`, `route` (`corroboration` or `read_support`),
+`source` (`kb` or `star` for route i; a free label for route ii), `n_adjudicated` (units
+tested), `n_taxon_best` (units that scored best for the taxon alone; ties and wins by
+another reference are not counted), `n_shared_cells`, `n_shared_umis` (cells and distinct
+(CB, UMI) molecules also resolved called-cell groups of the taxon). The caller builds it
+from existing kb or STAR outputs, or from its own competitive alignment. A route is positive
+with at least 3 taxon-best units, at least 80% of the adjudicated units, and at least one
+shared cell (route ii also one shared molecule). These cut-offs are documented constants
+(`MIN_TAXON_BEST`, `MIN_TAXON_BEST_FRACTION`), not calibrated. Malformed, duplicate or
+unmatched evidence rows abort.
+
+`build_kb_evidence(discovery_dir, sample_dir)` (Python API; no command) writes the route (i)
+`source=kb` table `evidence_kb.tsv` from the primary run's
+`results/molecule_assignments.tsv.gz` (needs `--multimap-molecule-assignments`) and
+`results/virus_identity.tsv`. A viral panel gene belongs to a candidate when its `taxid` equals
+the candidate or sits on one root-to-leaf lineage with it in `taxonomy.tsv` (strain gene for a
+species candidate, or the reverse); host genes never match. Per distinct (CB, UMI) touching the
+taxon, `n_adjudicated` counts it whatever else it is compatible with, and `n_taxon_best` only when
+every gene is the taxon, a descendant of it, or (taxon below species) a species-or-below ancestor.
+A gene at an ancestor taxid above species rank (genus, family, root bins; ranks from `taxonomy.tsv`)
+still counts in `n_adjudicated` (it competes) but never makes a molecule taxon-best. `n_adjudicated`
+and `n_taxon_best` cover all barcodes; the shared counts cover called cells only. Shared cells and
+(CB, UMI) are those of the taxon-best molecules that are resolved called-cell groups of exactly that taxid. A candidate with no panel
+gene gets no row (`not_assessed`); one with panel genes but no molecule gets a zero row
+(`negative`). An empty molecule file, or one with no molecule in a called cell, aborts. It refuses unless the called cells are in kb barcode space (a STARsolo or unknown
+space, or kb molecules sharing no barcode with the called cells, aborts). STAR route (i) and
+route (ii) tables are still caller-built.
 
 To count at species, genus or family level, run
 `viralscan discover-collapse OUT --rank {species,genus,family}`. It sums columns into the
