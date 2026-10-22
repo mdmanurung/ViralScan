@@ -63,8 +63,12 @@ completion.
   record count as the earlier manual STAR run (0 mismatches), so on-list correction and strand change only barcode
   tags, as designed. `star_support_by_virus.tsv`: Epstein-Barr virus 1,170,981 primary / 941,111 molecules;
   Human gammaherpesvirus 4 type 2 502,137 / 724,380; 1,204,497 reads place on both (`star_other_virus`), the known
-  EBV type 1/type 2 shared-contig signal; `star_host_competing` is 0 because the input is host-filtered. Not yet
-  covered: a 3-prime v3 or Drop-seq library, multi-accession viruses outside EBV.
+  EBV type 1/type 2 shared-contig signal; `star_host_competing` is 0 because the input is host-filtered.
+  Second library (Slurm 25861544, 24 min, exit 0): R01_SOC4, 3-prime 10xv3, forward, RAW reads (172.4 M pairs), same
+  rule: 2,343/2,343 contigs identical to the pilot STAR run (0 mismatches). It exercises the 10xv3 on-list (6.8 M
+  barcodes gunzipped), --strand forward, a 12-nt UMI and the zero-viral-reads path (header-only table, no crash), but
+  R01_SOC4 has no viral reads, so per-virus counts on 3-prime v3 are untested until the SPIKE-01 EBV spikes. Not yet
+  covered: Drop-seq (no on-list) and multi-accession viruses other than EBV.
 - [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
   `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
