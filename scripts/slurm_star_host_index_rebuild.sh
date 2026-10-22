@@ -18,13 +18,17 @@
 #SBATCH -o logs/star_host_rebuild_%j.log
 #SBATCH -e logs/star_host_rebuild_%j.err
 
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
 
-ENV=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench
+ENV=$SITE_ROOT/conda/envs/viralscan_bench
 export PATH="$ENV/bin:$PATH"
 
-HR=/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A
-OUT=/exports/para-lipg-hpc/mdmanurung/ViralScan/ebv_latest_ref_2026-09-27/star_host_2.7.11b
+HR=$COLLAB_ROOT/old/intern/human_reference/refdata-gex-GRCh38-2024-A
+OUT=$SITE_SCRATCH/ViralScan/ebv_latest_ref_2026-09-27/star_host_2.7.11b
 mkdir -p "$OUT"
 
 echo "STAR version:"

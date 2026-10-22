@@ -1,5 +1,7 @@
 # Dataset run plan: every dataset not yet fully analysed (2026-10-05)
 
+> Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
+
 Status: **proposed**. Nothing here has been submitted. Tracker rows: PLAN.md
 WP6A (`RUN-01`…`RUN-05`), WP6C (new: `DSR-01`…`DSR-08`), WP5 (`VAL-01`…`VAL-10`),
 `TONSIL-02`, `PROG-16`, `PROG-18`, `HPV-11`, `DEF-07`/`CAT-30`.
@@ -72,7 +74,7 @@ Every run below fills these fields. Defaults unless the dataset block says other
 | Field | Default |
 |---|---|
 | ViralScan version | the round's pinned commit (today `3.0.0.dev1 @ 12ceac7`); `code_sha.txt` in every run dir; clean tree only |
-| Reference | cat42d: `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42d/build/{panel.idx,panel.t2g}` + viral-only GTF extracted once from its `combined.gtf` (`DSR-01`) |
+| Reference | cat42d: `$SITE_ROOT/viral_ref_cat42d/build/{panel.idx,panel.t2g}` + viral-only GTF extracted once from its `combined.gtf` (`DSR-01`) |
 | Host strategy | combined (no `--host-filter`); STAR two-step as a second arm only where named |
 | Cell calling | `--cell-calling emptydrops` (knee removed, A7) |
 | Read filter | off; `--read-filter artefact` as a second arm where named |

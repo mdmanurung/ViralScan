@@ -11,10 +11,10 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=02:00:00
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round1/logs/%x_%A_%a.log
+#SBATCH -o slurm_%x_%j.log
 set -uo pipefail
 # >>> dsr-env (tests/test_dsr_round_env.py evaluates this block alone)
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
 R=${ROUND_DIR:-$M/viralscan_work/dsr_round1}
 CODE=${CODE_DIR:-$M/vs_pinned/bbf1821}
 REF=${REF_BUILD:-$M/viral_ref_cat42d/build}

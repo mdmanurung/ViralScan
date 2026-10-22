@@ -17,10 +17,13 @@
 #SBATCH -o logs/ebv_starsolo_wl_%j.log
 #SBATCH -e logs/ebv_starsolo_wl_%j.err
 
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+
 set -euo pipefail
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-REPO=/exports/para-lipg-hpc/mdmanurung/ViralScan
+REPO=$SITE_SCRATCH/ViralScan
 
 # Reuse P22.6 genome index and FASTQs (already built/downloaded)
 GENOME_DIR=$REPO/starsolo_p22_6/genome_GRCh38_EBV
@@ -36,7 +39,7 @@ STARSOLO_OUT=$WORKDIR/starsolo_ebv_wl
 # 10x v2 whitelist (737,280 barcodes; extracted from ngs_tools in Step 0)
 WHITELIST=$REPO/ref/10x_version2_whitelist.txt
 
-STAR=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/STAR
+STAR=$SITE_ROOT/conda/envs/starsolo/bin/STAR
 
 mkdir -p "$WORKDIR" "$REPO/logs"
 

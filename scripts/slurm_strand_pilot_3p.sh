@@ -8,10 +8,14 @@
 #SBATCH --time=02:00:00
 #SBATCH -o logs/vs_strand3p_%j.log
 #SBATCH -e logs/vs_strand3p_%j.err
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
-ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
-B=/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42b/build
-I=/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/reference_strategy/SRR12682296
+ENV=$COLLAB_ROOT/conda/envs/test_viralscan
+B=$SITE_ROOT/viral_ref_cat42b/build
+I=$SITE_SCRATCH/ViralScan/benchmark_inputs/reference_strategy/SRR12682296
 export PATH=$ENV/bin:$PATH PYTHONPATH=$PWD/src
 python - <<PY
 import json

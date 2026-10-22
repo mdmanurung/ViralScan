@@ -16,14 +16,18 @@
 #SBATCH -o covid_viralscan/logs/diag_count_%j.log
 #SBATCH -e covid_viralscan/logs/diag_count_%j.err
 
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -uo pipefail   # NOT -e: we want to run every step and see which one fails
 
-VS=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+VS=$COLLAB_ROOT/conda/envs/test_viralscan
 BT=$VS/lib/python3.12/site-packages/kb_python/bins/linux/bustools/bustools
 WL=$VS/lib/python3.12/site-packages/ngs_tools/chemistry/whitelists/10x_version3_whitelist.txt.gz
-T2G=/exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/viralscan_ref/t2g.txt
+T2G=$SITE_SCRATCH/ViralScan/covid_viralscan/viralscan_ref/t2g.txt
 
-KB=/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/covid_viralscan/results/LUM-SJ-x213-g/kb-python
+KB=$SITE_ROOT/ViralScan/covid_viralscan/results/LUM-SJ-x213-g/kb-python
 TMP=$KB/diag_tmp
 mkdir -p "$TMP"
 

@@ -10,12 +10,15 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --time=12:00:00
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr02/logs/%x_%j.log
+#SBATCH -o slurm_%x_%j.log
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
 : "${RUN_DIR:?}" "${VIRUS:?}" "${PANEL_FA:?}" "${OUT:?}"
-CODE=${CODE:-/exports/archive/hg-funcgenom-research/mdmanurung/vs_pinned/4346dc8}
-ENV=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full
-HOST=${HOST_FA:-/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa}
+CODE=${CODE:-$SITE_ROOT/vs_pinned/4346dc8}
+ENV=$SITE_ROOT/conda/envs/viralscan_test_full
+HOST=${HOST_FA:-$COLLAB_ROOT/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa}
 export PATH="$ENV/bin:$PATH" PYTHONPATH="$CODE/src" MPLBACKEND=Agg
 echo "code_sha $(git -C "$CODE" rev-parse HEAD) virus=$VIRUS run=$RUN_DIR"
 python "$CODE/scripts/dsr02_validate_call.py" --run-dir "$RUN_DIR" --virus "$VIRUS" --out "$OUT" \

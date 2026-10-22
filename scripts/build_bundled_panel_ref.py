@@ -11,7 +11,7 @@ are quantified together, enabling coexpression analysis between host genes
 Usage:
     NCBI_EMAIL=you@example.com PYTHONPATH=/path/to/ViralScan/src \\
         python scripts/build_bundled_panel_ref.py \\
-        --out /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078/ref
+        --out $SITE_SCRATCH/viralscan_bulk_gse128078/ref
 
 SLURM (activate test_viralscan conda env before sbatch):
     sbatch --job-name=build_panel_ref --cpus-per-task=2 --mem=16G --time=08:00:00 \\

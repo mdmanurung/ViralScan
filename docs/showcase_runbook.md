@@ -1,5 +1,7 @@
 # ViralScan Showcase Runbook (kb-python edition)
 
+> Path placeholders: `$SITE_SCRATCH` = site scratch root, `$COLLAB_ROOT` = collaborator root (institutional filesystem paths, replaced by placeholders).
+
 **Purpose:** A self-contained, machine-executable spec for a coding agent to (1) resolve and
 download a small curated set of public scRNA-seq datasets (plus one local sample), (2) point at a
 ready combined host+virus reference, (3) run the **ViralScan** viral-load quantification workflow per
@@ -28,20 +30,20 @@ FASTQ is retrievable. Processed-matrix-only and BAM-only deposits are NOT usable
 ## 0. Global config
 ```bash
 # Edit these, then `source` this block in every step.
-export VS_ROOT=/exports/para-lipg-hpc/mdmanurung/viralscan_showcase   # writable workspace root
+export VS_ROOT=$SITE_SCRATCH/viralscan_showcase   # writable workspace root
 export VS_DATA=$VS_ROOT/data                  # downloaded FASTQ, per dataset id
 export VS_OUT=$VS_ROOT/out                    # per-sample viralscan results
 export VS_THREADS=16
 export VS_SE_THRESHOLD=10                      # super-expressor call: >=10 viral UMI/cell (Lareau; this is the viralscan default)
 
 # --- Ready combined host+virus reference (evonk; see §2). Used for EVERY sample. ---
-export VS_REFDIR=/exports/archive/hg-funcgenom-research/evonk/old/intern/fasta_viruses/Serratus/transcriptome_human_hhv6_v2
+export VS_REFDIR=$COLLAB_ROOT/old/intern/fasta_viruses/Serratus/transcriptome_human_hhv6_v2
 export VS_INDEX=$VS_REFDIR/index_serratus.idx
 export VS_T2G=$VS_REFDIR/t2g_serratus.txt
 export VS_VIRAL_GTF=$VS_DATA/ref/viral_from_index.gtf   # generated in §2; passed via --gtf to every run
 
 # --- Local test sample (evonk; read-only archive). ---
-export VS_LOCAL=/exports/archive/hg-funcgenom-research/evonk/viralscan/data/healthy_samples
+export VS_LOCAL=$COLLAB_ROOT/viralscan/data/healthy_samples
 
 export NCBI_EMAIL=you@example.org              # only needed for the build-ref fallback (§2)
 mkdir -p $VS_DATA/ref $VS_OUT
@@ -58,7 +60,7 @@ mamba create -y -n viralscan run -c bioconda -c conda-forge \
   python=3.11 kb-python snakemake-minimal \
   sra-tools=3.1 pysradb ffq seqkit pigz pandas scipy numpy
 mamba activate viralscan
-python -m pip install -e /exports/para-lipg-hpc/mdmanurung/ViralScan   # this repo
+python -m pip install -e $SITE_SCRATCH/ViralScan   # this repo
 
 # Sanity: both external binaries must be on PATH (viralscan preflights these).
 command -v kb snakemake || { echo "kb / snakemake missing"; exit 1; }
@@ -406,7 +408,7 @@ peak RAM ~0.7 GB (index ≈ 0.4 GB) on 8 cores — so **full runs fit comfortabl
 | hsv1_fibroblast | SRR8315713 | **DROPSEQ** | ✅ HSV-1 @ 0.31 %, 4 SE | 5 hpi infected Drop-seq run; GSE123782's *bulk* runs are unusable |
 
 All jobs ~3–5 min at 1M reads. Artifacts: workspace
-`/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/dryrun/{sbatch,out,logs,dry_run_report.tsv}`.
+`$SITE_SCRATCH/viralscan_showcase/dryrun/{sbatch,out,logs,dry_run_report.tsv}`.
 
 **Gate verdict:** mechanics PASS on all four; **all three positive controls recover their expected
 virus** (HHV-6B, EBV, HSV-1) at biologically sensible rates. The showcase is ready for full-depth
@@ -489,7 +491,7 @@ Both are **10x Chromium v3** (16bp barcode + 12bp UMI = 28bp R1).
 Chemistry is confirmed; `full_public_kshv.sh` already has `TECH=10xv3` hardcoded for both datasets. Submit directly:
 
 ```bash
-cd /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun
+cd $SITE_SCRATCH/viralscan_showcase/fullrun
 sbatch --array=1-6%2 sbatch/full_public_kshv.sh
 ```
 
@@ -501,7 +503,7 @@ sbatch --array=1-6%2 sbatch/full_public_kshv.sh
 After the KSHV array completes:
 
 ```bash
-cd /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun
+cd $SITE_SCRATCH/viralscan_showcase/fullrun
 python3 multi_virus_report.py   # KSHV samples only (default)
 # Output: kshv_report.tsv  (id, sample, virus_name, total_umi, infected_cells, pct_infected, umi_per_10k)
 ```

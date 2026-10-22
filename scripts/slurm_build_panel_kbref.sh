@@ -17,16 +17,19 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=08:00:00
-#SBATCH -o /exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/build_panel_kbref_%j.log
-#SBATCH -e /exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/build_panel_kbref_%j.err
+#SBATCH -o slurm_%x_%j.log
+#SBATCH -e slurm_%x_%j.err
+
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
 
 set -euo pipefail
 
-VS_CONDA_ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+VS_CONDA_ENV=$COLLAB_ROOT/conda/envs/test_viralscan
 export PATH="$VS_CONDA_ENV/bin:$PATH"          # <- the fix the failed run was missing
 KALLISTO=$VS_CONDA_ENV/lib/python3.12/site-packages/kb_python/bins/linux/kallisto/kallisto
 
-OUT=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/ref
+OUT=$SITE_SCRATCH/viralscan_panel_ref/ref
 COMBINED_FA=$OUT/combined.fa
 CDNA_GTF=$OUT/combined_cdna.gtf
 INDEX=$OUT/panel.idx
