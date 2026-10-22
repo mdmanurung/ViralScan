@@ -1288,6 +1288,190 @@ def build_kb_evidence(discovery_dir: Path, sample_dir: Path, output: Path | None
     return out
 
 
+READ_SUPPORT_EVIDENCE_TSV = "evidence_read_support.tsv"
+READ_SUPPORT_SOURCE = "minimap2"
+
+
+def _best_scores_from_bam(bam: str) -> dict[str, dict[str, int]]:
+    """``read name -> {reference: best AS}`` from ``samtools view`` (secondaries included)."""
+    from viralscan.evidence import _sam_lines
+
+    hits: dict[str, dict[str, int]] = {}
+    for line in _sam_lines(bam):
+        f = line.split("\t")
+        if int(f[1]) & 4:
+            continue
+        score = next((int(t[5:]) for t in f[11:] if t.startswith("AS:i:")), None)
+        if score is None:
+            raise DiscoveryError(f"{bam}: alignment of {f[0]} has no AS tag.")
+        refs = hits.setdefault(f[0], {})
+        refs[f[2]] = max(score, refs.get(f[2], score))
+    return hits
+
+
+def _prefixed_fasta(sources: list[tuple[str, Path]], output: Path) -> Path:
+    """Concatenate FASTAs, prefixing each record name with its source label (keeps roles apart)."""
+    from viralscan.evidence import _open_maybe_gzip
+
+    with output.open("w") as out:
+        for label, src in sources:
+            with _open_maybe_gzip(str(src)) as handle:
+                for line in handle:
+                    out.write(f">{label}_{line[1:]}" if line.startswith(">") else line)
+    return output
+
+
+def build_read_support_evidence(
+    discovery_dir: Path,
+    sample_dir: Path,
+    r1: Path,
+    r2: Path,
+    host_fasta: Path,
+    candidate_fastas: dict[int, Path],
+    *,
+    panel_fasta: Path | None = None,
+    max_candidates: int = 3,
+    output: Path | None = None,
+    aligner: Any = None,
+    hit_reader: Any = None,
+) -> Path:
+    """Write the route (ii) ``source=minimap2`` evidence table (DISC-13, plan §9.3); returns its path.
+
+    *r1*/*r2* must be the resolved pair discovery classified (read ordinals are checked against
+    ``reads.tsv.gz`` read IDs). Per candidate taxid T in *candidate_fastas* (at most *max_candidates*,
+    each a ``candidates.tsv`` taxid, else ``DiscoveryError``): the reads of every resolved called-cell
+    group with ``resolved_taxid == T`` (ordinals via ``barcodes.tsv.gz``) are extracted as
+    ``<CB>_<UMI>_<n>|<read_id>`` (R2), aligned to ``HOST|`` + ``VIRUS|CAND_*`` (T's FASTA) and optionally
+    ``VIRUS|PANEL_*`` (*panel_fasta*) via ``write_competitive_fasta`` (*aligner*, default
+    ``align_reads_to_viral``; *hit_reader*, default a ``samtools view`` AS parse, returns
+    ``{read: {reference: best AS}}``). Per read, ``n_adjudicated`` counts every extracted read,
+    **including unmapped ones** (tested and found no support; they stay in the denominator, never
+    absence-by-omission). ``n_taxon_best`` counts a read only when its best AS on candidate contigs
+    strictly exceeds its best AS on any host or panel contig; ties, host wins and panel wins are
+    adjudicated, not taxon-best. Shared cells / (CB, UMI) are those of the taxon-best reads (all
+    inside resolved called-cell groups of T by construction). A candidate with no resolved called-cell
+    read gets no row (``not_assessed``); one whose reads all fail gets a ``negative`` row. Refuses
+    unless the called cells are in kb barcode space. No automatic genome download.
+    """
+    import tempfile
+
+    from viralscan.evidence import (
+        align_reads_to_viral,
+        extract_exact_reads_by_number,
+        write_competitive_fasta,
+    )
+
+    aligner = aligner or align_reads_to_viral
+    hit_reader = hit_reader or _best_scores_from_bam
+    if not candidate_fastas:
+        raise DiscoveryError("no candidate FASTA given.")
+    if len(candidate_fastas) > max_candidates:
+        raise DiscoveryError(
+            f"{len(candidate_fastas)} candidates exceed max_candidates={max_candidates}."
+        )
+    called, info = load_called_cells(sample_dir)
+    if info["called_cells_barcode_space"] != "kb":
+        raise DiscoveryError(
+            f"called cells are in {info['called_cells_barcode_space']!r} barcode space, not kb."
+        )
+    needed = [discovery_dir / n for n in (READS_TSV, BARCODES_TSV, UMI_GROUPS_TSV, CANDIDATES_TSV)]
+    for path in [
+        *needed,
+        r1,
+        r2,
+        host_fasta,
+        *candidate_fastas.values(),
+        *([panel_fasta] if panel_fasta else []),
+    ]:
+        if not Path(path).is_file():
+            raise DiscoveryError(f"{path} is missing.")
+    known = {int(r["taxid"]) for r in _tsv_rows(discovery_dir / CANDIDATES_TSV)}
+    if set(candidate_fastas) - known:
+        raise DiscoveryError(
+            f"candidate taxids not in {CANDIDATES_TSV}: {sorted(set(candidate_fastas) - known)}"
+        )
+    called_set = set(called)
+    resolved: dict[tuple[str, str], int] = {}
+    for row in _tsv_rows(discovery_dir / UMI_GROUPS_TSV):
+        if (
+            row["group_class"] == "resolved"
+            and row["corrected_cb"] in called_set
+            and int(row["resolved_taxid"]) in candidate_fastas
+        ):
+            resolved[row["corrected_cb"], row["umi"]] = int(row["resolved_taxid"])
+    by_taxon: dict[int, dict[int, dict[str, object]]] = {t: {} for t in candidate_fastas}
+    for row in _tsv_rows(discovery_dir / BARCODES_TSV):
+        taxid = resolved.get((row["corrected_cb"], row["umi"]))
+        if taxid is not None:
+            by_taxon[taxid][int(row["ordinal"])] = {
+                "cb": row["corrected_cb"],
+                "ub": row["umi"],
+            }
+    wanted = {o for reads in by_taxon.values() for o in reads}
+    read_ids = {
+        int(r["ordinal"]): r["read_id"]
+        for r in _tsv_rows(discovery_dir / READS_TSV)
+        if int(r["ordinal"]) in wanted
+    }
+    out = output or discovery_dir / READ_SUPPORT_EVIDENCE_TSV
+    rows: list[list[Any]] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        for taxid, lineage in sorted(by_taxon.items()):
+            if not lineage:
+                continue  # nothing tested: not_assessed, never negative
+            reads_fa, lin = work / f"{taxid}.fa", work / f"{taxid}.lineage.tsv.gz"
+            extract_exact_reads_by_number(str(r1), str(r2), lineage, str(reads_fa), str(lin))
+            for name in (r for r in _tsv_rows(lin)):
+                if name["read_id"] != read_ids[int(name["read_number"])]:
+                    raise DiscoveryError(
+                        f"read {name['read_number']}: FASTQ id {name['read_id']!r} differs from "
+                        f"{READS_TSV}; not the resolved pair discovery classified."
+                    )
+            virus = _prefixed_fasta(
+                [
+                    ("CAND", candidate_fastas[taxid]),
+                    *([("PANEL", panel_fasta)] if panel_fasta else []),
+                ],
+                work / f"{taxid}.virus.fa",
+            )
+            ref = write_competitive_fasta(
+                str(host_fasta), str(virus), str(work / f"{taxid}.ref.fa")
+            )
+            hits = hit_reader(aligner(str(reads_fa), ref, str(work / f"{taxid}.bam")))
+            best: set[int] = set()
+            for number in lineage:
+                scores = hits.get(
+                    f"{lineage[number]['cb']}_{lineage[number]['ub']}_{number}|{read_ids[number]}",
+                    {},
+                )
+                cand = max(
+                    (s for r, s in scores.items() if r.startswith("VIRUS|CAND_")), default=None
+                )
+                other = max(
+                    (s for r, s in scores.items() if not r.startswith("VIRUS|CAND_")), default=None
+                )
+                if cand is not None and (other is None or cand > other):
+                    best.add(number)
+            keys = {(str(lineage[n]["cb"]), str(lineage[n]["ub"])) for n in best}
+            rows.append(
+                [
+                    taxid,
+                    "read_support",
+                    READ_SUPPORT_SOURCE,
+                    len(lineage),
+                    len(best),
+                    len({c for c, _ in keys}),
+                    len(keys),
+                ]
+            )
+    with out.open("w", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(EVIDENCE_COLUMNS)
+        writer.writerows(rows)
+    return out
+
+
 def judge_evidence(row: dict[str, Any] | None, route: str) -> tuple[str, str]:
     """``(assessment, why)``: ``not_assessed`` (no row), ``negative`` or ``positive``. Never conflated."""
     if row is None:

@@ -8097,8 +8097,14 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     API only (no `discover-evidence` CLI: needs parser, menu dispatch and help wiring). Tests `tests/test_discovery_kb_evidence.py`.
     Review fixes: empty/no-called-cell molecule file raises; counts are distinct (CB, UMI); above-species ancestor genes compete
     (`n_adjudicated`) but never make a molecule taxon-best.
-  - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch); route (ii) producer (competitive alignment of the
-    hit genome vs host + panel).
+  - Done 2026-10-22: route (ii) producer `build_read_support_evidence` (`source=minimap2`, `evidence_read_support.tsv`), API only
+    (no CLI, plan §7). Per `--candidate-fasta` taxid (cap `max_candidates=3`): exact R2 reads of the taxon's resolved called-cell
+    groups -> `HOST|` + `VIRUS|CAND_*` (+ optional `VIRUS|PANEL_*`) -> alignment (injectable aligner/hit reader). Unmapped reads
+    count in `n_adjudicated` (tested, no support); taxon-best needs a strictly higher AS on candidate contigs than on any
+    host/panel contig (ties, host/panel wins are not best). No resolved called-cell read -> no row (`not_assessed`). Read IDs
+    of the FASTQ pair are checked against `reads.tsv.gz`. Tests `tests/test_discovery_read_support.py` (stubbed aligner; no
+    real-minimap2 test: not installed in the dev env). `coverage_table`/QC tables of plan §9.3 not emitted (evidence row only).
+  - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch).
   - Left: no CLI (plan §7 specifies none); `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
     need `DISC-12`.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).
