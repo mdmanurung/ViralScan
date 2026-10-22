@@ -41,14 +41,14 @@ completion.
   `pyGenomeTracks` at 200 dpi, written as `<ref>_coveragemap.<layer>.{png,pdf}`. Two extras per layer: `<ref>_coveragemap_competition.<layer>`
   (one coverage track each for `unique`, `other_virus` and `host_competing` reads, classified from each read's `SA` partners, since the
   competitive BAM keeps no secondary alignments) and `<ref>_coverage_stacked.<layer>` (matplotlib stacked histogram, sqrt y-axis, packed
-  gene track). New tools: `pygenometracks`, `deeptools`, `bedops` (`environment.yml`, doctor `FULL_TOOLS`); the plot is diagnostic and a
+  gene track). New tools: `pygenometracks`, `deeptools`, `bedops` in the optional `environment.coverage.yml` (doctor `--profile coverage`, not `FULL_TOOLS`: CI libmamba could not co-solve them with `bustools=0.45.1` (hdf5 1.14.3 vs mpich/mvapich) and `r-base=4.5.3` in `environment.yml`, so they were moved out, as discovery did); the plot is diagnostic and a
   failure only logs a warning. Cross-virus multimapping is not drawn: Track A evidence BAMs have 0 secondaries because the pinned code
   (97a64f6) predates `AUD3-04` (`--secondary=yes`); see `AUD3-G3-EVIDENCE`. Interactive multimap functions (option C) are deferred.
   STAR/STARsolo BAMs (`codex/spq-coverage-map-star`, option A): STAR writes no `SA`; when the target's records have `NH`>1 and no `SA`,
   the target's multimapper QNAMEs go to a file, one `samtools view -N` pass collects their other records, and the same precedence
   applies (any `HOST|` partner, else another `VIRUS|` contig, else unique; same-contig hits stay unique). Streams records; memory is the
   multimapper QNAME set. Tested on a synthetic NH/HI BAM.
-  **Open:** layout review by the user, a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1, `bedops` in the CI conda env.
+  **Open:** layout review by the user, a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1, a `environment.coverage.yml` solve in CI.
 - [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
   `--soloCBwhitelist None` (chemistries without an on-list, SW-21) when no read mapped: STAR 2.7.11b segfaults (exit
   139) in the Solo step. Found on 30 hsv1 Drop-seq libraries in Track A; reproduced on a 500k-read subset (no-Solo and

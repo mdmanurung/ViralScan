@@ -18,9 +18,6 @@ dependencies:
   - star=2.7.11b
   - snakemake=9.23.1
   - samtools=1.23.1
-  - pygenometracks=3.9  # coverage maps (scPathoQuant-style), with deeptools' bamCoverage
-  - deeptools=3.5.6
-  - bedops=2.4.42  # gtf2bed, for the same gene track as scPathoQuant
   # Verified 2026-10-05 in conda env viralscan_test_full (micromamba, strict
   # conda-forge > bioconda): the integration gate passed 73/73, no skips. The
   # older pins (r-base 4.4.1 etc.) did not solve against the gate pins above.
