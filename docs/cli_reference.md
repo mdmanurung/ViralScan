@@ -662,6 +662,9 @@ the sections above add context. Do not edit between the markers.
 | `--visual, --no-visual` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
 | `--technology, -x TECHNOLOGY` | *(none)* | Single-cell technology (`kb --list` to view). Default: detected from the first 100k R1 reads of each sample (on-list match, TSO/poly-T position). An explicit -x that the reads contradict, or reads that fit no single chemistry, stop the run. GEM-X 5' needs its on-list via -w. |
 | `--force-technology` | `False` | Run with the explicit -x even when the chemistry check disagrees or cannot decide. The detection is still logged. |
+| `--tchem TCHEM` | `auto` | TusslChemistry (tchem) second opinion on the chemistry. auto (default): use it when a tchem binary is found, otherwise skip silently; require: stop when it is missing or unusable; off: skip. A disagreement with -x, or a tchem verdict of ambiguous/no_match, stops the run unless --force-technology. |
+| `--tchem-bin PATH` | *(none)* | tchem executable (default: $VIRALSCAN_TCHEM, then PATH). |
+| `--tchem-whitelists DIR` | *(none)* | Directory of tchem barcode lists (default: $VIRALSCAN_TCHEM_WHITELISTS). |
 | `--require-chemistry-sanity` | `False` | Stop after kb count if library sanity reports an error or cannot be checked. Diagnostics are retained; warnings alone do not stop the run. |
 | `--whitelist, -w WHITELIST` | *(none)* | Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used. |
 | `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default (no flag): with the pinned kallisto 0.52.0 the effective behaviour is `unstranded` for every chemistry — kallisto 0.52.0 marks the 10x technologies strand-specific yet leaves the strand unset, so the legacy per-technology forward default no longer engages (upstream regression; kallisto <=0.51.1 defaulted 10x to forward). Set the flag explicitly for stranded quantification. 10x 5' libraries need `reverse` or `unstranded`: forward pseudoaligns only 6.5-8.9% of reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first 1M read pairs of each sample and picks one; the choice is recorded in run_manifest.json. |
@@ -981,6 +984,9 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 | `--technology, -x TECHNOLOGY` | *(none)* | Technology you plan to use; checked. |
 | `--cores, -c CORES` | `4` | Threads for the pilot. |
 | `--json PATH` | *(none)* | Also write the report as JSON. |
+| `--tchem TCHEM` | `auto` | TusslChemistry (tchem) second opinion on the chemistry. auto (default): use it when a tchem binary is found, otherwise skip silently; require: stop when it is missing or unusable; off: skip. A disagreement with -x, or a tchem verdict of ambiguous/no_match, stops the run unless --force-technology. |
+| `--tchem-bin PATH` | *(none)* | tchem executable (default: $VIRALSCAN_TCHEM, then PATH). |
+| `--tchem-whitelists DIR` | *(none)* | Directory of tchem barcode lists (default: $VIRALSCAN_TCHEM_WHITELISTS). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

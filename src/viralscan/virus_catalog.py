@@ -99,6 +99,19 @@ def accession_metadata() -> dict[str, Row]:
     return out
 
 
+@lru_cache(maxsize=1)
+def taxonomy_by_taxid() -> dict[str, Row]:
+    """taxid -> its NCBI Taxonomy lineage row (``data/virus_taxonomy.tsv``, PLAN ``TAXO-01``).
+
+    ``{}`` when the table is not packaged, like :func:`load_catalogue`: lineage is an enrichment.
+    """
+    path = Path(str(importlib.resources.files(_PACKAGE_DATA).joinpath("virus_taxonomy.tsv")))
+    if not path.exists():
+        return {}
+    with open(path, newline="", encoding="utf-8") as handle:
+        return {row["taxid"]: dict(row) for row in csv.DictReader(handle, delimiter="\t")}
+
+
 def segments_for_species(species: str) -> list[str]:
     """Accessions belonging to *species*, in segment order where declared."""
     rows = [r for r in load_catalogue() if (r.get("species") or "").strip() == species]

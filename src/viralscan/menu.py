@@ -648,9 +648,30 @@ def _run_check_chemistry_subcommand(args: argparse.Namespace) -> None:
             ok = False
     if report["library_kind"]["call"] == "single-cell" and not report["chemistry"]["chemistry"]:
         ok = False
+    from viralscan import tchem
+
+    try:
+        op = tchem.second_opinion(
+            args.technology or report["chemistry"]["chemistry"],
+            args.sample1,
+            args.sample2,
+            mode=args.tchem,
+            binary=args.tchem_bin,
+            whitelists=args.tchem_whitelists,
+        )
+    except tchem.TchemError as exc:
+        _die(str(exc))
+    report["tchem"] = op.as_block()
+    if op.status in ("disagree", "no_call"):
+        report["advice"].append(op.reason)
+        # tchem could not back the call; the exit code follows the same rule as the run
+        ok = False
+    elif op.status == "info":
+        report["advice"].append(op.reason)
     print(f"library:   {report['library_kind']['call']} ({report['library_kind']['reason']})")
     print(f"chemistry: {report['chemistry']['chemistry']} ({report['chemistry']['reason']})")
     print(f"end:       {report['end']['call']} ({report['end']['basis']})")
+    print(f"tchem:     {op.status} ({op.reason})")
     for line in report["advice"]:
         print(f"advice:    {line}")
     if args.json:
@@ -861,8 +882,48 @@ def _resolve_chemistry(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
     for s1, d in zip(samples, detections):
         level = logging.INFO if d.chemistry == args.technology else logging.WARNING
         log.log(level, "Chemistry of %s: %s (%s)", _sample_id(s1), d.chemistry, d.reason)
+    blocks = {_sample_id(s1): d.as_block() for s1, d in zip(samples, detections)}
+    _tchem_second_opinion(args, samples, blocks)
     log.info("Running with -x %s", args.technology)
-    return {_sample_id(s1): d.as_block() for s1, d in zip(samples, detections)}
+    return blocks
+
+
+def _tchem_second_opinion(
+    args: argparse.Namespace, samples: list[str], blocks: dict[str, dict[str, Any]]
+) -> None:
+    """Compare each sample with TusslChemistry's call (CHEM-02); record it in ``blocks``.
+
+    A disagreement or a ``no_match``/``ambiguous`` verdict stops the run unless
+    ``--force-technology``; a missing or unusable tchem never does (``--tchem auto``).
+    """
+    from viralscan import chemistry, tchem
+
+    mode = getattr(args, "tchem", "auto")
+    if mode == "off":
+        return
+    mates = split_comma_paths(args.sample2) if getattr(args, "sample2", None) else []
+    r2s = mates if len(mates) == len(samples) else [None] * len(samples)
+    opinions = []
+    try:
+        for s1, r2 in zip(samples, r2s):
+            op = tchem.second_opinion(
+                args.technology,
+                s1,
+                r2,
+                mode=mode,
+                binary=getattr(args, "tchem_bin", None),
+                whitelists=getattr(args, "tchem_whitelists", None),
+            )
+            opinions.append(op)
+            if (
+                _sample_id(s1) in blocks
+            ):  # no block when the built-in detector could not run (forced -x)
+                blocks[_sample_id(s1)]["tchem"] = op.as_block()
+            level = logging.WARNING if op.status in ("disagree", "no_call") else logging.INFO
+            log.log(level, "tchem on %s: %s - %s", _sample_id(s1), op.status, op.reason)
+        tchem.enforce(opinions, args.force_technology)
+    except (tchem.TchemError, chemistry.ChemistryError) as exc:
+        _die(str(exc))
 
 
 def _check_required_tools() -> None:
