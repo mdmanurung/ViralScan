@@ -1288,6 +1288,114 @@ def build_kb_evidence(discovery_dir: Path, sample_dir: Path, output: Path | None
     return out
 
 
+STAR_EVIDENCE_TSV = "evidence_star.tsv"
+STAR_VIRAL_BAM = Path("star_hostvirus") / "viral.bam"
+
+
+def _star_records(bam: Path) -> Iterator[tuple[str, str, int, str | None, str | None]]:
+    """``(qname, contig, NH, CB, UB)`` per mapped record of a STAR BAM via ``samtools view``."""
+    samtools = shutil.which("samtools")
+    if samtools is None:
+        raise DiscoveryError("samtools not found on PATH; cannot read the STAR BAM.")
+    from viralscan.star_hostvirus import _sam_lines, _tag
+
+    for f in _sam_lines(samtools, str(bam)):
+        if int(f[1]) & 0x4 or f[2] == "*":
+            continue
+        yield f[0], f[2], int(_tag(f, "NH:i:") or 1), _tag(f, "CB:Z:"), _tag(f, "UB:Z:")
+
+
+def build_star_evidence(
+    discovery_dir: Path,
+    sample_dir: Path,
+    output: Path | None = None,
+    *,
+    record_reader: Any = None,
+) -> Path:
+    """Write the route (i) ``source=star`` evidence table (DISC-13); returns its path.
+
+    Reads the run's pruned ``star_hostvirus/viral.bam`` (``VIRUS|`` records only; *record_reader*
+    ``(bam) -> (qname, contig, NH, CB, UB)`` records, default ``samtools view``), maps ``VIRUS|<accession>``
+    to taxids through ``results/virus_identity.tsv`` and matches candidates with the same lineage rule
+    as ``build_kb_evidence``. Unit = molecule, distinct (CB, UB) with the CB gem-group suffix (``-1``)
+    stripped (the only normalisation; same as the called cells); reads with CB or UB missing or ``-`` are
+    not molecules. STARsolo gives no UB to multimappers (Unique mode), so counts are a lower bound.
+    The BAM is pruned, so host placements are invisible: a read is taxon-best for T only when its
+    visible records on contigs matching T (above-species ancestors never win) number exactly its ``NH``;
+    NH above that (host, other virus, unseen locus) is adjudicated only. A molecule is adjudicated when
+    any read has a T-matching record, taxon-best when all its reads are taxon-best. Shared cells /
+    molecules: taxon-best molecules in resolved called-cell groups with ``resolved_taxid == T``.
+    A candidate without panel accession gets no row; with accessions but no molecule an all-zero row.
+    Raises when a file is missing, no molecule exists, or no molecule CB is a called cell.
+    """
+    from viralscan.scripts.cellcalling import _strip_suffix
+    from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
+
+    called, _ = load_called_cells(sample_dir)
+    bam, ident = sample_dir / STAR_VIRAL_BAM, sample_dir / "results" / TABLE_FILENAME
+    for path in (bam, ident, discovery_dir / TAXONOMY_TSV, discovery_dir / CANDIDATES_TSV):
+        if not path.is_file():
+            raise DiscoveryError(f"{path} is missing.")
+    tree = _load_tree_tsv(discovery_dir / TAXONOMY_TSV)
+    candidates = sorted({int(r["taxid"]) for r in _tsv_rows(discovery_dir / CANDIDATES_TSV)})
+    contig_taxa: dict[str, set[int]] = {}
+    best_ok: set[tuple[str, int]] = set()
+    for g in VirusIdentityTable.read_tsv(ident).genes:
+        if not (g.viral and g.taxid.isdigit() and g.genome_accession):
+            continue
+        gt, contig = int(g.taxid), f"VIRUS|{g.genome_accession}"
+        for taxid in candidates:
+            lin = (
+                gt in tree
+                and taxid in tree
+                and (taxid in _path(tree, gt) or gt in _path(tree, taxid))
+            )
+            if gt == taxid or lin:
+                contig_taxa.setdefault(contig, set()).add(taxid)
+                if gt == taxid or taxid in _path(tree, gt) or tree[gt][1].startswith("S"):
+                    best_ok.add((contig, taxid))
+    panel = {t for taxa in contig_taxa.values() for t in taxa}
+    called_set = set(called)
+    groups: dict[int, set[tuple[str, str]]] = {}
+    for row in _tsv_rows(discovery_dir / UMI_GROUPS_TSV):
+        if row["group_class"] == "resolved" and row["corrected_cb"] in called_set:
+            groups.setdefault(int(row["resolved_taxid"]), set()).add(
+                (row["corrected_cb"], row["umi"])
+            )
+    reads: dict[str, list[Any]] = {}  # qname -> [molecule key | None, NH, contigs]
+    for qname, contig, nh, cb, ub in (record_reader or _star_records)(bam):
+        key = None if cb in (None, "-") or ub in (None, "-") else (_strip_suffix(cb), ub)
+        reads.setdefault(qname, [key, nh, []])[2].append(contig)
+    mol_reads: dict[tuple[str, str], int] = {}
+    adj_reads: dict[tuple[tuple[str, str], int], int] = {}
+    best_reads: dict[tuple[tuple[str, str], int], int] = {}
+    for key, nh, contigs in reads.values():
+        if key is None:
+            continue
+        mol_reads[key] = mol_reads.get(key, 0) + 1
+        for taxid in {t for c in contigs for t in contig_taxa.get(c, ())}:
+            adj_reads[key, taxid] = adj_reads.get((key, taxid), 0) + 1
+            if sum((c, taxid) in best_ok for c in contigs) == nh:
+                best_reads[key, taxid] = best_reads.get((key, taxid), 0) + 1
+    if not mol_reads:
+        raise DiscoveryError(f"{bam} has no CB/UB molecule; missing data is not absence.")
+    if called and not any(cb in called_set for cb, _ in mol_reads):
+        raise DiscoveryError("no STAR molecule barcode is a called cell: barcode spaces differ.")
+    out = output or discovery_dir / STAR_EVIDENCE_TSV
+    with out.open("w", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(EVIDENCE_COLUMNS)
+        for taxid in sorted(panel):
+            adj = {k for k, t in adj_reads if t == taxid}
+            best = {k for k in adj if best_reads.get((k, taxid), 0) == mol_reads[k]}
+            shared = best & groups.get(taxid, set())
+            writer.writerow(
+                [taxid, "corroboration", "star", len(adj), len(best)]
+                + [len({cb for cb, _ in shared}), len(shared)]
+            )
+    return out
+
+
 READ_SUPPORT_EVIDENCE_TSV = "evidence_read_support.tsv"
 READ_SUPPORT_SOURCE = "minimap2"
 

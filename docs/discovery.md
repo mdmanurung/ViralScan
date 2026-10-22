@@ -204,8 +204,16 @@ and `n_taxon_best` cover all barcodes; the shared counts cover called cells only
 (CB, UMI) are those of the taxon-best molecules that are resolved called-cell groups of exactly that taxid. A candidate with no panel
 gene gets no row (`not_assessed`); one with panel genes but no molecule gets a zero row
 (`negative`). An empty molecule file, or one with no molecule in a called cell, aborts. It refuses unless the called cells are in kb barcode space (a STARsolo or unknown
-space, or kb molecules sharing no barcode with the called cells, aborts). STAR route (i) tables are still
-caller-built.
+space, or kb molecules sharing no barcode with the called cells, aborts). 
+`build_star_evidence(discovery_dir, sample_dir)` (Python API; no command) is the `source=star`
+counterpart (`evidence_star.tsv`). It reads the run's pruned `star_hostvirus/viral.bam`
+(`VIRUS|` records only), maps `VIRUS|<accession>` to taxids through `results/virus_identity.tsv`
+(same lineage rule as above) and counts molecules as distinct (CB, UB) with the `-N` suffix of the
+CB stripped; records with CB or UB missing or `-` are not molecules, and since STARsolo Unique mode
+gives multimappers no UB, counts are a lower bound. Host placements are invisible in the pruned BAM,
+so a read is taxon-best for a taxon only when its visible records on matching contigs equal its `NH`
+(above-species ancestors never win); a molecule is taxon-best when all its reads are. No called-cell
+overlap, a missing BAM or no molecule aborts.
 
 `build_read_support_evidence(discovery_dir, sample_dir, r1, r2, host_fasta, {taxid: candidate_fasta})`
 (Python API; no command, no genome download) writes the route (ii) `source=minimap2` table

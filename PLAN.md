@@ -8148,6 +8148,11 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     host/panel contig (ties, host/panel wins are not best). No resolved called-cell read -> no row (`not_assessed`). Read IDs
     of the FASTQ pair are checked against `reads.tsv.gz`. Tests `tests/test_discovery_read_support.py` (stubbed aligner; no
     real-minimap2 test: not installed in the dev env). `coverage_table`/QC tables of plan §9.3 not emitted (evidence row only).
+  - Done 2026-10-22: route (i) STAR producer `build_star_evidence` (`source=star`, `evidence_star.tsv`), API only (no CLI). Reads
+    pruned `star_hostvirus/viral.bam` (injectable record reader), `VIRUS|<acc>` -> taxid via `virus_identity.tsv`, kb lineage rule.
+    Molecule = distinct (CB, UB), `-N` CB suffix stripped; `-`/missing CB or UB dropped (Unique-mode UB: lower bound). NH rule:
+    a read is taxon-best only if visible T records == `NH` (host/unseen loci invisible after pruning); molecule best when all
+    its reads are. Raises on missing files, no molecule, or no called-cell overlap. Tests `tests/test_discovery_star_evidence.py`.
   - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch).
   - Left: no CLI (plan §7 specifies none); `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
     need `DISC-12`.
