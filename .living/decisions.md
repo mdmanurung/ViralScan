@@ -2054,3 +2054,28 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 
 - Decision: `discovery_fingerprint` is the sha256 of the output-determining provenance subset, computed before Kraken2 runs. A matching published output is a no-op; a different one is refused unless `--force`. Threads, memory mapping and paths are excluded; the ViralScan version is included. The `--host-subtract` STAR index is identified by path only (hashing a genome takes minutes).
 - Tags: discovery, provenance
+### [2026-10-21] STAR-02: star_hostvirus hardening choices
+
+- Decision: the on-list default sits in `align_host_unmapped` (`resolve_whitelist`), not `align_cmd`, so `align_cmd` stays pure and gz lists are gunzipped where a work dir exists. viralscan strand maps 1:1 to `--soloStrand` (STAR help: Forward = read strand same as the RNA; the aligned read is the cDNA R2; 5' kits whose R2 is antisense are `reverse`). The 139 fallback moved to `viralscan/star_run.py`; `anello_align._run_star` takes `cb_len` (review fix: it was a hardcoded 12-base wrapper, wrong for 16-base chemistries).
+- Summary rules: unit = QNAME (single-end BAM), per VIRUS| contig; `star_molecules` counts Solo-assigned (CB, UB) over reads with any record on the contig (UB is `-` for intergenic/wrong-strand/multimapping reads, so it is not read support; `star_reads_any` is); primary = the read's flag-0x100-clear record. Pruned BAM drops HOST| partners (competition categories cannot be rebuilt from it).
+- Tags: star, scope
+
+### [2026-10-21] STAR-03: star-index layout and manifest
+
+- Decision: `viralscan star-index --out-dir D` writes the prefixed reference to `D/reference/` and the STAR index to `D/index/`; the manifest `star_hostvirus_index.json` lives in `D/index/` and is written only after genomeGenerate succeeds, so its absence marks an unfinished build. `--force` rmtree's only `D/index` + `D/reference`, and only when `D/index` already holds a manifest (never a foreign directory). Inputs are hashed by streaming (`run_safety.sha256_file`). The parser keeps the 85 GB RAM default as a literal (light import) with a test tying it to `DEFAULT_RAM_BYTES`.
+- Tags: star, scope
+
+## 2026-10-21: star_confirm columns are labels, summed per virus_name (STAR-04)
+`results/star_support_by_virus.tsv` sums the per-accession `star_hostvirus` summary over each virus's accessions via
+`virus_identity.tsv`, so detection merges by `virus_name` like `anello_align`. Summing double counts a read that lands on
+two accessions of one virus; accepted because the columns are labels. No call changes until STAR-GATE-01 (after SPIKE-01).
+
+## 2026-10-21: STAR docs placement (phase 4)
+STAR confirmation docs live in `docs/output_reference.md` (pinned, re-pinned in a follow-up commit) and `cli_reference.md`; the
+pointer went into `quickstart.md` instead of `faq.md` to avoid another pinned file. Docs state SPIKE-01 is unrun and make no
+sensitivity claim; STAR-GATE-01 stays open.
+
+## 2026-10-21: star_confirm aggregates per virus inside summarise_by_virus (STAR-04 review)
+Supersedes the earlier "summed per virus_name" decision: `align_host_unmapped(virus_of=acc_to_virus)` makes `summarise_by_virus`
+key rows by virus name, so a read counts once per virus and `star_other_virus` means a different virus (not a sibling
+accession). `scripts/star_confirm.read_summary` now only reads the TSV. Without `virus_of` (standalone CLI) rows stay per accession.
