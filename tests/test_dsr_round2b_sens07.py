@@ -15,7 +15,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "scripts" / "slurm_dsr_round2b_sens07_array.sh"
 TEMPLATE = REPO / "config" / "dsr_round2b_sens07.template.tsv"
-M = "/exports/archive/hg-funcgenom-research/mdmanurung"
+M = "/site/root"
 
 
 def _env_block(env: dict[str, str]) -> dict[str, str]:
@@ -29,7 +29,7 @@ def _env_block(env: dict[str, str]) -> dict[str, str]:
 
 
 def test_defaults_are_round2b_on_the_q49_pin():
-    got = _env_block({"PATH": "/usr/bin:/bin"})
+    got = _env_block({"PATH": "/usr/bin:/bin", "VIRALSCAN_SITE_ROOT": M})
     assert got["ROUND2"] == f"{M}/viralscan_work/dsr_round2"
     assert got["R"] == f"{M}/viralscan_work/dsr_round2b"
     assert got["CODE"] == f"{M}/vs_pinned/35de249"
@@ -40,7 +40,13 @@ def test_defaults_are_round2b_on_the_q49_pin():
 
 def test_overrides_take_effect():
     got = _env_block(
-        {"PATH": "/usr/bin:/bin", "ROUND_DIR": "/r", "CODE_DIR": "/c", "REF_BUILD": "/b/build"}
+        {
+            "PATH": "/usr/bin:/bin",
+            "VIRALSCAN_SITE_ROOT": M,
+            "ROUND_DIR": "/r",
+            "CODE_DIR": "/c",
+            "REF_BUILD": "/b/build",
+        }
     )
     assert (got["R"], got["CODE"], got["B"]) == ("/r", "/c", "/b/build")
     assert got["CONFIG"] == "/r/config.tsv"
@@ -107,6 +113,7 @@ def world(tmp_path):
 def _dry(world, rows, **extra):
     env = {
         "PATH": f"{Path(sys.executable).parent}:/usr/bin:/bin",
+        "VIRALSCAN_SITE_ROOT": M,
         "DRY_RUN": "1",
         "ROUND2_DIR": str(world / "round2"),
         "ROUND_DIR": str(world / "round2b"),

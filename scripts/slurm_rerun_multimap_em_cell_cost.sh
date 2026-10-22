@@ -14,12 +14,15 @@
 #SBATCH -o logs/vs_rerun_emcell_%j.log
 #SBATCH -e logs/vs_rerun_emcell_%j.err
 
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+
 set -euo pipefail
 
-REPO=/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan
-ENV=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full
-SRC=/exports/para-lipg-hpc/mdmanurung/ViralScan/ebv_latest_ref_2026-09-27/runs/combined/SRR12682296
-OUT=/exports/para-lipg-hpc/mdmanurung/ViralScan/cost01/rerun_em_cell/SRR12682296
+REPO=$SITE_ROOT/ViralScan
+ENV=$SITE_ROOT/conda/envs/viralscan_test_full
+SRC=$SITE_SCRATCH/ViralScan/ebv_latest_ref_2026-09-27/runs/combined/SRR12682296
+OUT=$SITE_SCRATCH/ViralScan/cost01/rerun_em_cell/SRR12682296
 
 export PATH="$ENV/bin:$PATH"
 export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"

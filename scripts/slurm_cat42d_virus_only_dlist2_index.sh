@@ -11,9 +11,11 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
 #SBATCH --time=2-00:00:00
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42d_dlist2/logs/%x_%j.log
+#SBATCH -o slurm_%x_%j.log
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+
 set -euo pipefail
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=$SITE_ROOT
 C=$M/viral_ref_cat42d
 B=$C/build
 O=$M/viral_ref_cat42d_dlist2/build_virus_only

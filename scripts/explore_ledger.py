@@ -25,7 +25,9 @@ HEADER = "\t".join([*FIELDS, "prev_hash", "row_hash"])
 GENESIS = "0" * 64
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT_DENY = REPO / "config" / "track_b_denylist.txt"
-DEFAULT_ROUND = "/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2"
+DEFAULT_ROUND = os.path.join(
+    os.environ.get("VIRALSCAN_SITE_ROOT", "$VIRALSCAN_SITE_ROOT"), "viralscan_work/dsr_round2"
+)
 
 
 def default_ledger() -> Path:

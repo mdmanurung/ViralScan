@@ -1,10 +1,12 @@
 # ViralScan 3.0 stable/G8 frozen execution plan
 
+> Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
+
 Status: **frozen for execution**
 
 Frozen: 2026-08-08
 
-Repository: `/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan`
+Repository: `$SITE_ROOT/ViralScan`
 
 This plan is the execution contract derived from the user-supplied ViralScan 3.0
 Stable/G8 Completion Plan and a repository-grounded requirements, risk, and test

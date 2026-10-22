@@ -12,7 +12,7 @@
 # introns and intergenic regions) are NOT counted as viral.
 #
 # Estimated resource requirements: 64 GB RAM, 8 CPUs, ~8 h wall time.
-# Output: /exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref_genomic/ref/
+# Output: $SITE_SCRATCH/viralscan_panel_ref_genomic/ref/
 #
 # Usage (from repo root):
 #   sbatch scripts/build_genome_panel_ref.sh
@@ -21,24 +21,26 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=12:00:00
-#SBATCH --chdir=/exports/para-lipg-hpc/mdmanurung/ViralScan
-#SBATCH --output=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref_genomic/build_%j.out
-#SBATCH --error=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref_genomic/build_%j.err
+#SBATCH --output=slurm_%x_%j.log
+#SBATCH --error=slurm_%x_%j.err
+
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
 
 set -euo pipefail
 
 # ── paths ─────────────────────────────────────────────────────────────────────
-REPO=/exports/para-lipg-hpc/mdmanurung/ViralScan
+REPO=$SITE_SCRATCH/ViralScan
 
 # GRCh38 2024-A primary assembly from the CellRanger reference package.
 # Contains all chromosomal sequences including introns and intergenic regions.
-GENOME_FA=/exports/para-lipg-hpc/mdmanurung/malaria_bcells/data/refgenome/refdata-gex-GRCh38-2024-A/fasta/genome.fa
+GENOME_FA=$SITE_SCRATCH/malaria_bcells/data/refgenome/refdata-gex-GRCh38-2024-A/fasta/genome.fa
 
-OUTDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref_genomic/ref
+OUTDIR=$SITE_SCRATCH/viralscan_panel_ref_genomic/ref
 
 # ── conda env ─────────────────────────────────────────────────────────────────
 CONDA_INIT=/share/software/tools/miniconda/3.10/23.3.1/etc/profile.d/conda.sh
-CONDA_ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+CONDA_ENV=$COLLAB_ROOT/conda/envs/test_viralscan
 if [[ -f $CONDA_INIT ]]; then
     # shellcheck source=/dev/null
     source "$CONDA_INIT"

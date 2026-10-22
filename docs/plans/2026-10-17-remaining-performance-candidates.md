@@ -1,5 +1,7 @@
 # Remaining performance candidates: implementation and qualification plan
 
+> Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
+
 Date: 2026-10-17; status reconciled 2026-10-19. Project: ViralScan.
 Status: **waves 1/2 merged in PRs #73/#74. B21/B13/B28/B16 pass isolated
 benefit/exactness qualification and merged in PR #75 after all 12 CI checks passed.
@@ -1151,7 +1153,7 @@ card's list. These commands are instructions for execution, not receipts of runs
 performed while drafting this plan.
 
 ```bash
-PERF_PYTHON=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/bin/python
+PERF_PYTHON=$SITE_ROOT/conda/envs/viralscan_test_full/bin/python
 export PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export LC_ALL=C.UTF-8 TZ=UTC

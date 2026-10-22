@@ -14,13 +14,16 @@
 #SBATCH -o logs/vs_combined_%A_%a.log
 #SBATCH -e logs/vs_combined_%A_%a.err
 
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+
 set -euo pipefail
 
-REPO=/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan
-ENV=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench
-WORK=/exports/para-lipg-hpc/mdmanurung/ViralScan/ebv_latest_ref_2026-09-27
+REPO=$SITE_ROOT/ViralScan
+ENV=$SITE_ROOT/conda/envs/viralscan_bench
+WORK=$SITE_SCRATCH/ViralScan/ebv_latest_ref_2026-09-27
 REF=$WORK/full_panel
-INPUTS=/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/reference_strategy
+INPUTS=$SITE_SCRATCH/ViralScan/benchmark_inputs/reference_strategy
 
 export PATH="$ENV/bin:$PATH"
 export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"

@@ -1,5 +1,7 @@
 # covid_viralscan — Operational Runbook
 
+> Path placeholders: `$SITE_SCRATCH` = site scratch root, `$CELLRANGER_OUTS` = the CellRanger `outs/` directory (institutional filesystem paths, replaced by placeholders).
+
 Broad single-cell viral survey of two 10x 5′ v3 GEX libraries against a combined
 human + SARS-CoV-2 + full Serratus/anellovirus reference (~2,313 viral sequences).
 
@@ -14,13 +16,13 @@ Tick each checkbox as it completes. All paths are absolute for cluster use.
 | **Aim** | Broad viral-reactivation survey; SARS-CoV-2 (NC_045512.2) primary; SARS-CoV-1 (NC_004718.3) negative control |
 | **Samples** | `LUM-SJ-x213-g` (batch 1), `LUM-SJ-x216-g` (batch 2) |
 | **Chemistry** | 10x 5′ v3 GEX (CB 16 bp, UMI 12 bp) |
-| **REPO** | `/exports/para-lipg-hpc/mdmanurung/ViralScan` |
+| **REPO** | `$SITE_SCRATCH/ViralScan` |
 | **Conda env** | set `$VS_CONDA_ENV` to a conda env providing `kb`/`kallisto`/`samtools` |
-| **FASTQ root** | `/exports/para-lipg-hpc/mdmanurung/covid_viralscan_fastqs/2025-3089-LUM-SJ-x213-x218-gtm/raw_fastq` |
+| **FASTQ root** | `$SITE_SCRATCH/covid_viralscan_fastqs/2025-3089-LUM-SJ-x213-x218-gtm/raw_fastq` |
 | **Ref dir** | `covid_viralscan/viralscan_ref/` → `index.idx`, `t2g.txt`, `cdna.fa` |
 | **SARS-CoV-2 GTF** | `covid_viralscan/viralscan_ref/viral/viral_whole_genome.gtf` |
 | **Serratus+anello GTF** | `references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.gtf` |
-| **CellRanger cells** | `/exports/para-lipg-hpc/Youvika/20250605_scRNAseq_YS/20250814_tino_scRNAseq_batch2_YS/data_raw/202502341a_count_v2/outs` |
+| **CellRanger cells** | `$CELLRANGER_OUTS` |
 
 **Gene-id naming notes (important for interpreting results):**
 - SARS-CoV-2: `virus_name = "NC_045512.2_gene1"` in `viral_summary.tsv` (whole-genome
@@ -71,18 +73,18 @@ GTF generator:           `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
 
   ```bash
   # Check log for completion marker (index resume job)
-  tail -25 /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/kallisto_index_25138556.log
+  tail -25 $SITE_SCRATCH/ViralScan/covid_viralscan/logs/kallisto_index_25138556.log
   # Expect: "Stage 2 v2 (index resume) complete." + kallisto inspect output
 
   # Check error file for tracebacks
-  cat /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/kallisto_index_25138556.err
+  cat $SITE_SCRATCH/ViralScan/covid_viralscan/logs/kallisto_index_25138556.err
   ```
 
 - [x] **2.2 — Verify artifacts exist and are non-trivial** — `index.idx` 499 MB,
   `t2g.txt` 470,468 lines, `cdna.fa` 1.2 GB.
 
   ```bash
-  ls -lh /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/viralscan_ref/{index.idx,t2g.txt,cdna.fa}
+  ls -lh $SITE_SCRATCH/ViralScan/covid_viralscan/viralscan_ref/{index.idx,t2g.txt,cdna.fa}
   # Expect: index.idx ≥ 1 GB; t2g.txt ≥ 100k lines; cdna.fa ≥ 500 MB
   ```
 
@@ -90,7 +92,7 @@ GTF generator:           `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
   NC_002076.2_tx1=1 (dedup confirmed). All checks pass.
 
   ```bash
-  REF=/exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/viralscan_ref
+  REF=$SITE_SCRATCH/ViralScan/covid_viralscan/viralscan_ref
   grep -c "NC_045512" $REF/t2g.txt     # SARS-CoV-2 must be present (≥ 1)
   grep -c "ENST"      $REF/t2g.txt     # Human transcripts (≥ 100k)
   grep -c "_gene"     $REF/t2g.txt     # Anellovirus geneN entries (≥ 1000)
@@ -137,7 +139,7 @@ Resources: 16 CPU / 256 GB / 48 h per sample (deep 5′ libraries)
   submitted 2026-07-02 as **job 25138573** (array 0–1).
 
   ```bash
-  cd /exports/para-lipg-hpc/mdmanurung/ViralScan
+  cd $SITE_SCRATCH/ViralScan
   sbatch --array=0-1 covid_viralscan/scripts/slurm_viralscan_quant.sh
   # Records job ID (call it JQ): squeue -u mdmanurung | grep covid_vs_quant
   ```
@@ -158,7 +160,7 @@ Resources: 16 CPU / 256 GB / 48 h per sample (deep 5′ libraries)
 - [ ] **3.3 — Check pseudoalignment rates** *(record both values)*
 
   ```bash
-  RESULTS=/exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/results
+  RESULTS=$SITE_SCRATCH/ViralScan/covid_viralscan/results
   for SAMPLE in LUM-SJ-x213-g LUM-SJ-x216-g; do
       echo "=== $SAMPLE ==="
       python -c "import json; d=json.load(open('$RESULTS/$SAMPLE/kb-python/run_info.json')); \
@@ -185,10 +187,10 @@ Output: `covid_viralscan/results/SURVEY_SUMMARY.md`
 - [ ] **4.1 — Run the survey summary helper**
 
   ```bash
-  cd /exports/para-lipg-hpc/mdmanurung/ViralScan
+  cd $SITE_SCRATCH/ViralScan
   export PYTHONPATH=$PWD/src
   CONDA_PY=python
-  CR_OUTS=/exports/para-lipg-hpc/Youvika/20250605_scRNAseq_YS/20250814_tino_scRNAseq_batch2_YS/data_raw/202502341a_count_v2/outs
+  CR_OUTS=$CELLRANGER_OUTS
 
   $CONDA_PY covid_viralscan/scripts/summarize_survey.py \
       --results-dir covid_viralscan/results \

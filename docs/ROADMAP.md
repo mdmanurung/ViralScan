@@ -1,5 +1,7 @@
 # ViralScan roadmap
 
+> Path placeholders: `$COLLAB_ROOT` = collaborator root (institutional filesystem paths, replaced by placeholders).
+
 Future work, grounded in (M) the manuscript's stated limitations
 (`docs/manuscript_draft.md` Discussion), (R) code-review findings from this
 session, and (T) existing `todo/TODOLIST.md` items. Each item notes rationale,
@@ -155,7 +157,7 @@ GTF panel (already on Zenodo) and cite it in the manuscript data-availability st
 
 ### F3 · Functional-script path hygiene — **P1 (T, R)**
 ~14 SLURM/infra scripts (`covid_viralscan/scripts/*.sh`, `scripts/*.sh`) and
-`reference_manifest.json` embed `VS_CONDA_ENV=/exports/.../evonk/...` (third-party path)
+`reference_manifest.json` embed `VS_CONDA_ENV=$COLLAB_ROOT/...` (third-party path)
 as a default. Env-var-ize per script or exclude from the shipped artifact — decide ship
 scope first. *Grounding:* (T, R) publication-hygiene branch goal. *Medium; per-script,
 breaking-risk.*

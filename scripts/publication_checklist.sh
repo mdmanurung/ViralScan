@@ -22,6 +22,8 @@
 # and docs/manuscript_draft.md (Tables 3.2-3.3 + §3.4), then flip P22.4-P22.7
 # checkboxes in PLAN.md in the same commit (CLAUDE.md contract).
 
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -104,7 +106,7 @@ fi
 echo ""
 
 # ── summary ───────────────────────────────────────────────────────────────────
-VS_ROOT=/exports/para-lipg-hpc/mdmanurung/viralscan_showcase
+VS_ROOT=$SITE_SCRATCH/viralscan_showcase
 STAR_WORKDIR="$REPO/starsolo_p22_6"
 
 echo "=== Jobs submitted ==="

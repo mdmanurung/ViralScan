@@ -1,11 +1,13 @@
 # DSR round 2c (SENS-07 planted sensitivity, per-family seeds + trimmed HHV-6B) - comparability guard (binding on every agent)
 
+> Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
+
 Template. Copy to `dsr_round2c/GUARD.md` after round 2b has finished, the `PIN` below is filled and `config.tsv` is
 frozen; never edit the copy afterwards. Mirrors `docs/plans/dsr_round2b_sens07_GUARD.md` (PLAN `DSR-16`, `SENS-07`).
 Every run is exploratory: labelled `explore`, unscored, one library per dataset (n = 1), no scored-gate (G5b) and
 no VAL-01 claim. No pass/fail threshold anywhere.
 
-Pinned code: /exports/archive/hg-funcgenom-research/mdmanurung/vs_pinned/PIN (a clean `main` commit that contains
+Pinned code: $SITE_ROOT/vs_pinned/PIN (a clean `main` commit that contains
 `--selection-seed-mode` and `--trim-r1-to-geometry` in `scripts/sens07_planted_sensitivity.py`; never edit it). The
 driver script is that same commit's `scripts/slurm_dsr_round2b_sens07_array.sh` (round 2c is that script with the
 settings below; the script refuses a `CODE_DIR` whose planter lacks the flags it is asked to pass).
@@ -38,8 +40,8 @@ emptydrops`, `--anellovirus-gene-ids`, no filter flag); `score` (planted minus t
 `--seed 20261012`, `--selection-seed-mode per-family`.
 
 Environment (set before every sbatch):
-  ROUND_DIR=/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2c
-  CODE_DIR=/exports/archive/hg-funcgenom-research/mdmanurung/vs_pinned/PIN
+  ROUND_DIR=$SITE_ROOT/viralscan_work/dsr_round2c
+  CODE_DIR=$SITE_ROOT/vs_pinned/PIN
   SELECTION_SEED_MODE=per-family
 Pass `-o $ROUND_DIR/logs/%x_%A_%a.log -J dsr2c_sens07` on every sbatch line (the in-script `#SBATCH` lines are
 round 2b's defaults). Check with `DRY_RUN=1` first: every row's `== row` line must show `selection=per-family`, and
@@ -78,5 +80,5 @@ A planting error (too few barcodes for the conditions, geometry mismatch): repor
 `--cells-per-condition`, do not add `trim_r1` to another row and do not trim reads yourself to make it pass.
 
 ## Write only under dsr_round2c/ (runs/, status/, logs/). Never write under dsr_round1/, dsr_round2/ or dsr_round2b/ (read-only). Do not write inside the repo tree.
-## Submit from the repo dir: /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan
+## Submit from the repo dir: $SITE_ROOT/ViralScan
 ## Wait with Monitor or a Bash until-loop (run_in_background), checking sacct no more than once per 5 minutes.

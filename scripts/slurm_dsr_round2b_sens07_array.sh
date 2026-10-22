@@ -11,12 +11,12 @@
 # (runs/ status/ logs/ explore_ledger.tsv). Per-row choices live in a config TSV (below).
 #
 # Setup after the user approves (the user or the assistant, once):
-#   R=/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2b
+#   R=$VIRALSCAN_SITE_ROOT/viralscan_work/dsr_round2b
 #   mkdir -p $R/logs $R/status
 #   cp config/dsr_round2b_sens07.template.tsv $R/config.tsv        # fill in; freeze before submitting
 #   cp docs/plans/dsr_round2b_sens07_GUARD.md $R/GUARD.md
 # Submit (from the repo dir; resources are the only thing an agent may change later; throttle %2):
-#   ROUND_DIR=$R CODE_DIR=/exports/archive/hg-funcgenom-research/mdmanurung/vs_pinned/35de249 \
+#   ROUND_DIR=$R CODE_DIR=$VIRALSCAN_SITE_ROOT/vs_pinned/35de249 \
 #     sbatch -o $R/logs/%x_%A_%a.log -J dsr2b_sens07 --array=0-16%2 --cpus-per-task=8 --mem=64G \
 #       --time=48:00:00 scripts/slurm_dsr_round2b_sens07_array.sh
 # Rows whose config `run` is `no` exit 0 at once. Dry run (prints commands, creates nothing):
@@ -50,10 +50,10 @@
 #                  each family's genomes are drawn from sha256(SEED, family), the same in every dataset)
 #   FORCE_TECH=1   pass --force-technology (GSM4682311 only)   DRY_RUN=1  print, do not run
 #SBATCH -J dsr2b_sens07
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2b/logs/%x_%A_%a.log
+#SBATCH -o slurm_%x_%j.log
 set -euo pipefail
 # >>> dsr-env (tests/test_dsr_round2b_sens07.py evaluates this block alone)
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
 ROUND2=${ROUND2_DIR:-$M/viralscan_work/dsr_round2}
 R=${ROUND_DIR:-$M/viralscan_work/dsr_round2b}
 CODE=${CODE_DIR:-$M/vs_pinned/35de249}

@@ -1,5 +1,7 @@
 # ViralScan — Publication Readiness (delta review, 2026-07-17)
 
+> Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
+
 _Independent multi-agent delta review (7 dimensions, adversarially verified) against
 `docs/PUBLICATION_READINESS.md` (2026-07-03). Supersedes that doc where they conflict;
 see "Corrections to the 2026-07-03 baseline" at the end. A companion code-craft review
@@ -58,7 +60,7 @@ track has real blockers and a decision that changes what "blocker" even means.
 **Must-fix (before `git tag`):**
 
 1. **Strip institutional paths from *shipped* package files.** `src/viralscan/reference_strategy.py:24`
-   ships `STAR_BIN = "/exports/…/mdmanurung/conda/envs/starsolo/bin/STAR"`, an `os.chdir("/exports/…")`,
+   ships `STAR_BIN = "$SITE_ROOT/conda/envs/starsolo/bin/STAR"`, an `os.chdir("$SITE_ROOT/...")`,
    and private `fastq_root`/`genome_fasta` defaults — and it is **never imported at runtime**
    (verified). It is benchmark scaffolding: move it out of `src/viralscan/` (to `analysis/` or
    `scripts/`). Both this review and the Linus code review independently flagged it as the #1 code
