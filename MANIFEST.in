@@ -3,6 +3,7 @@ include README.md
 include CHANGELOG.md
 include CITATION.cff
 include environment.yml
+include environment.coverage.yml
 include environment.explicit.txt
 include Dockerfile
 include .dockerignore

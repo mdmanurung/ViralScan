@@ -575,7 +575,7 @@ table below.
 ## `viralscan doctor` — dependency/profile check
 
 ```
-viralscan doctor [--profile {pip,full}] [--json PATH] [--verbose | --quiet]
+viralscan doctor [--profile {pip,full,discovery,coverage}] [--json PATH] [--verbose | --quiet]
 ```
 
 Check whether the current installation provides the dependencies required by a
@@ -584,7 +584,7 @@ does not imply that native full-workflow tools are installed.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--profile {pip,full}` | `full` | Check the Python/reporting/validation tier or the complete external-tool workflow tier |
+| `--profile {pip,full,discovery,coverage}` | `full` | Check the Python/reporting/validation tier, the complete external-tool workflow tier, the Kraken2 discovery add-on, or the optional coverage-map tools (`environment.coverage.yml`: `bamCoverage`, `pyGenomeTracks`, `gtf2bed`; the evidence step skips the maps with a warning when absent) |
 | `--json PATH` | *(none)* | Also write the report as JSON (it is always printed) |
 
 Example:

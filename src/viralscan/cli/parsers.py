@@ -779,7 +779,7 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
 
 def _build_doctor_parser(subparsers: Any) -> None:
     p = subparsers.add_parser("doctor", help="Check Python and full-workflow dependencies.")
-    p.add_argument("--profile", choices=("pip", "full", "discovery"), default="full")
+    p.add_argument("--profile", choices=("pip", "full", "discovery", "coverage"), default="full")
     p.add_argument("--json", default=None, metavar="PATH", help="Also write the report as JSON.")
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="doctor")
