@@ -1145,3 +1145,103 @@ def test_collapse_rank_errors_and_cli(tmp_path):
     assert (ns._subcommand, ns.rank, ns.output_file) == ("discover-collapse", "family", None)
     with pytest.raises(SystemExit):
         build_parser().parse_args(["discover-collapse", "o", "--rank", "order"])
+
+
+def _cand(taxid, host=0, viral_only=0):
+    return {
+        "taxid": str(taxid),
+        "name": f"t{taxid}",
+        "rank": "S",
+        "host_lineage": str(host),
+        "viral_only_db": str(viral_only),
+    }
+
+
+def _ev(taxid, route, best=10, tested=10, cells=2, umis=5, source="kb"):
+    return {
+        "taxid": taxid,
+        "route": route,
+        "source": source,
+        "n_adjudicated": tested,
+        "n_taxon_best": best,
+        "n_shared_cells": cells,
+        "n_shared_umis": umis,
+    }
+
+
+def test_states_routes_and_caps():
+    ev = {
+        (1, "corroboration"): _ev(1, "corroboration", source="star"),
+        (2, "read_support"): _ev(2, "read_support", source="minimap2"),
+    }
+    assert discovery.assign_state(_cand(1), ev)["state"] == "corroborated"
+    assert discovery.assign_state(_cand(2), ev)["state"] == "read_supported_observation"
+    both = {**ev, (1, "read_support"): _ev(1, "read_support")}
+    assert discovery.assign_state(_cand(1), both)["state"] == "corroborated"
+    # Kraken2 alone, and caps (host lineage, viral-only DB), stay at observation.
+    assert discovery.assign_state(_cand(3), ev)["state"] == "observation"
+    assert (
+        discovery.assign_state(_cand(1, viral_only=1), ev)["reason"]
+        == "capped: viral-only database"
+    )
+    assert discovery.assign_state(_cand(2, host=1), ev)["state"] == "observation"
+
+
+def test_states_not_assessed_is_not_negative():
+    none = discovery.assign_state(_cand(1), {})
+    assert (none["corroboration"], none["read_support"]) == ("not_assessed", "not_assessed")
+    neg = discovery.assign_state(_cand(1), {(1, "corroboration"): _ev(1, "corroboration", best=2)})
+    assert (neg["corroboration"], neg["read_support"], neg["state"]) == (
+        "negative",
+        "not_assessed",
+        "observation",
+    )
+
+
+@pytest.mark.parametrize(
+    "route, kw",
+    [
+        (
+            "corroboration",
+            {"best": 7},
+        ),  # 7/10 < 0.8: ties/other-reference wins stay in the denominator
+        ("corroboration", {"cells": 0}),  # incompatible barcode evidence
+        ("read_support", {"umis": 0}),  # no UMI-compatible molecule
+        ("read_support", {"best": 2, "tested": 2}),  # too few
+    ],
+)
+def test_states_negative_cases(route, kw):
+    got = discovery.assign_state(_cand(1), {(1, route): _ev(1, route, **kw)})
+    assert got["state"] == "observation" and got[route] == "negative"
+
+
+def test_build_candidate_states_and_input_validation(tmp_path):
+    (tmp_path / discovery.CANDIDATES_TSV).write_text(
+        "\t".join(("taxid", "name", "rank", "host_lineage", "viral_only_db"))
+        + "\n1\ta\tS\t0\t0\n2\tb\tS\t0\t0\n"
+    )
+    ev = tmp_path / "ev.tsv"
+    head = "\t".join(discovery.EVIDENCE_COLUMNS)
+    ev.write_text(head + "\n2\tread_support\tminimap2\t10\t9\t3\t4\n")
+    assert discovery.build_candidate_states(tmp_path, ev) == 2
+    rows = [
+        ln.split("\t")
+        for ln in (tmp_path / discovery.CANDIDATE_STATES_TSV).read_text().splitlines()
+    ]
+    assert rows[0] == list(discovery.CANDIDATE_STATE_COLUMNS)
+    assert [r[3] for r in rows[1:]] == ["observation", "read_supported_observation"]
+    discovery.build_candidate_states(tmp_path)  # no evidence: all observation, not_assessed
+    assert all(
+        ln.split("\t")[4] == "not_assessed"
+        for ln in (tmp_path / discovery.CANDIDATE_STATES_TSV).read_text().splitlines()[1:]
+    )
+    for bad in (
+        "9\tread_support\tx\t1\t1\t1\t1\n",  # taxid not a candidate
+        "1\tcorroboration\tbwa\t1\t1\t1\t1\n",  # corroboration source must be kb/star
+        "1\tread_support\tx\t1\t2\t1\t1\n",  # best > adjudicated
+        "1\tread_support\tx\t1\tNA\t1\t1\n",
+        "1\tread_support\tx\t1\t1\t1\t1\n1\tread_support\ty\t1\t1\t1\t1\n",  # duplicate
+    ):
+        ev.write_text(head + "\n" + bad)
+        with pytest.raises(DiscoveryError):
+            discovery.build_candidate_states(tmp_path, ev)

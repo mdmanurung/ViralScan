@@ -7936,5 +7936,13 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   - Note: PR #89 CI lint failed on `mypy src/viralscan` (not run locally before): 7 annotations in `discovery.py`
     and an `out` name reused as Path/str in `menu.main`; fixed, `mypy src/viralscan` clean locally.
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
-- [ ] `DISC-13` candidate states + evidence adapter.
+- [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` /
+  `read_evidence_table` in `discovery.py` write `candidate_states.tsv` (`observation`, `corroborated` route i,
+  `read_supported_observation` route ii; `corroboration` / `read_support` = `not_assessed|negative|positive`; viral-only DB
+  and host lineage capped at `observation`). Pure functions, 4 new tests; `docs/discovery.md` "Candidate states".
+  - Note: the package has no per-taxon alignment summary, so route (ii) and (i) run over a documented evidence table
+    (`EVIDENCE_COLUMNS`); cut-offs 3 units / 80% / 1 shared cell are uncalibrated constants.
+  - Left: no CLI (plan §7 specifies none); no producer of the evidence table from kb matrices / STAR confirm outputs /
+    a competitive alignment of the hit genome; `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
+    need `DISC-12`.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).

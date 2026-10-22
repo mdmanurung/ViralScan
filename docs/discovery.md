@@ -16,8 +16,10 @@ does not say the organism is present, replicating, or in that cell.
   reference did not contain.
 - Do not use it to replace the primary viral load. The `viral_summary.tsv` molecule
   counts and tiers are unchanged by it.
-- Every row of `candidates.tsv` has `state = observation`. No calibrated threshold or
-  tier exists yet for discovery; the flags are documented screens.
+- Every row of `candidates.tsv` has `state = observation`: a Kraken2 assignment alone never
+  goes higher. `candidate_states.tsv` (see "Candidate states") can promote a candidate only
+  with orthogonal evidence. No calibrated threshold or tier exists yet for discovery; the
+  flags and cut-offs are documented screens.
 
 ## Prerequisites
 
@@ -157,6 +159,36 @@ enter `cell_taxon.h5ad`; ambiguous and unclassified groups never do.
 distinct minimizers), `offcell_dominant` (more than half the groups off called cells),
 `host_lineage` and `viral_only_db` (taxid 9606 absent from the database). The cut-offs are
 documented constants, not calibrated.
+
+### Candidate states
+
+`build_candidate_states(out_dir, evidence_path)` (Python API; no command yet) writes
+`candidate_states.tsv` beside `candidates.tsv`: `taxid`, `name`, `rank`, `state`,
+`corroboration`, `read_support`, `reason`. States:
+
+- `observation`: Kraken2 only, or evidence that did not pass.
+- `corroborated` (route i): the same taxon is supported by the kb (panel) arm or the STAR
+  host+virus arm. The molecules were competitively adjudicated (not better explained by
+  host or another virus) and fall in cells that are also called-cell groups of the taxon.
+- `read_supported_observation` (route ii, kb-independent, for off-panel taxa): reads align
+  competitively to the hit genome versus host + panel, with shared barcodes and UMIs.
+  It is still an observation, never an infection claim.
+
+`corroboration` and `read_support` are `not_assessed` (no evidence row), `negative`
+(evidence supplied, rule not met) or `positive`; `not_assessed` is never `negative`.
+Host-lineage taxa and a viral-only database stay at `observation`.
+
+The package does not yet produce a per-taxon alignment summary, so the adapter reads a
+documented tab-separated table: `taxid`, `route` (`corroboration` or `read_support`),
+`source` (`kb` or `star` for route i; a free label for route ii), `n_adjudicated` (units
+tested), `n_taxon_best` (units that scored best for the taxon alone; ties and wins by
+another reference are not counted), `n_shared_cells`, `n_shared_umis` (cells and distinct
+(CB, UMI) molecules also resolved called-cell groups of the taxon). The caller builds it
+from existing kb or STAR outputs, or from its own competitive alignment. A route is positive
+with at least 3 taxon-best units, at least 80% of the adjudicated units, and at least one
+shared cell (route ii also one shared molecule). These cut-offs are documented constants
+(`MIN_TAXON_BEST`, `MIN_TAXON_BEST_FRACTION`), not calibrated. Malformed, duplicate or
+unmatched evidence rows abort.
 
 To count at species, genus or family level, run
 `viralscan discover-collapse OUT --rank {species,genus,family}`. It sums columns into the
