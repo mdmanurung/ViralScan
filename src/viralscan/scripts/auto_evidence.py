@@ -137,7 +137,8 @@ def review_candidates(
                 reason_codes="unsupported_detection_source",
             )
         rows.append(row)
-    output = run_dir / "results" / "evidence_review.tsv"
+    output = evidence_dir / "evidence_review.tsv"
+    output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
         mode="w", dir=output.parent, delete=False, newline=""
     ) as handle:

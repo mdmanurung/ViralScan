@@ -46,12 +46,12 @@ class TestEvidenceParser:
             with pytest.raises(SystemExit):
                 create_help()
 
-    def test_requires_output(self) -> None:
+    def test_output_is_optional(self) -> None:
+        # CLI-UNIFY-02: the default is <run-dir>/posthoc/evidence/<virus>, resolved at run time.
         with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "--virus", "EBV"]):
             from viralscan.menu import create_help
 
-            with pytest.raises(SystemExit):
-                create_help()
+            assert create_help().output is None
 
     def test_blast_default_false(self) -> None:
         with patch(

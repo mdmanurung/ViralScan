@@ -14,6 +14,7 @@ import json
 import logging
 import math
 import os
+import re
 import subprocess
 import sys
 from collections.abc import Iterable, Mapping, Sequence
@@ -60,6 +61,7 @@ from viralscan.molecule_verdict import (
     write_from_bam,
     write_umi_query_fasta,
 )
+from viralscan.outputs import posthoc_dir
 from viralscan.read_support import write_molecule_support
 from viralscan.run_safety import sha256_file, software_identity
 from viralscan.runconfig import RunConfig
@@ -290,7 +292,7 @@ def run_evidence(args: argparse.Namespace) -> None:
         review_candidates(
             Path(args.run_dir),
             config,
-            Path(args.output),
+            Path(args.output or posthoc_dir(args.run_dir, "evidence", "review_candidates")),
             viral_fasta=getattr(args, "viral_fasta", None),
             host_fasta=getattr(args, "host_fasta", None),
         )
@@ -374,6 +376,10 @@ def run_evidence(args: argparse.Namespace) -> None:
         _die(str(exc))
     viral_idx = {i for i, g in enumerate(gene_ids) if g in set(target_genes)}
     log.info("Tracing exact target %s (%d genes) …", target_label, len(viral_idx))
+    if not getattr(args, "output", None):
+        args.output = str(
+            posthoc_dir(run_dir, "evidence", re.sub(r"[^\w.-]+", "_", target_label) or "target")
+        )
 
     competitor_records = None
     competition: dict[str, Any] | None = None
