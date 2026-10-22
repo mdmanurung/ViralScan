@@ -62,13 +62,17 @@ The class labels depend on the annotation's gene coordinates and the 1 kb window
   `extend_gtf` behaviour is what raised recovery from 19 to 2,809 reads.
 
 ## Comparison with Lareau et al. 2023 (Nature 623:608-615)
-**Not completed from the primary reference file.** The file `HHV6b_only.index.txt` could not be located under
-the user archive (bounded `find`, depth 6-7, several roots, no match), so it was not characterised directly.
-The only record is a handoff note stating that the HHV-6B reference used by Lareau et al. is CDS-only with 103
-`_cds_` entries; this is second-hand and unverified.
-If that holds, the two references are alike in kind: both index coding sequence only, and ViralScan's own
-HHV-6B annotation also has 103 gene rows, so an identical gene count is expected and says nothing about flank
-content. Both would therefore share the same blind spot for reads past annotated gene ends. Differences
-that remain to be checked against the file: whether any entry carries UTR/flank sequence, whether
-any `KDM2A`/DR cross-homology masking is applied, and the strand setting used.
-Action: locate the file (or the paper's supplementary reference) and replace this section with a measured comparison.
+Source: public repository `caleblareau/hhv6-reactivation`, folder `hhv6-reference/`, pinned at commit
+`dd2eb77d38527117bac7b1aab17f96b71234c886` (MIT licence; paper DOI 10.1038/s41586-023-06704-2). Files compared
+(fetched 2026-10-22, sha256 recorded locally): `HHV6b_only.index.txt`, `AF157706_sequence.txt`,
+`HHV6b_expression_annotations.tsv`.
+- `HHV6b_only.index.txt`: 103 entries, all `AF157706.1_cds_<protein_id>_<n>` mapped to a gene label (DR genes
+  appear twice, once per direct repeat).
+- `AF157706_sequence.txt`: 103 FASTA records, all `gbkey=CDS` (NCBI CDS records of AF157706.1; 13 are spliced
+  `join(...)` locations). No UTR, flank or genome sequence; no sign of masking (DR genes are ordinary entries).
+- Coordinates: all 97 distinct CDS spans in ViralScan's HHV-6B annotation occur among the Lareau CDS records
+  (same NCBI coordinates). ViralScan's gene rows end at or after the CDS end, so every read in the positional
+  3' flank class here (past the ViralScan gene end) also lies outside every Lareau target.
+Conclusion: the Lareau reference has the same blind spot as a CDS-only kallisto index: reads past annotated
+coding ends, including the 125 kb peak region, cannot be represented. Not checked: the exact index build
+command, the strand setting used in that study, and whether AF157706.1 is described there as strain Z29.
