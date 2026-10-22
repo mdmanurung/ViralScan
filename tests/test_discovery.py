@@ -1238,6 +1238,7 @@ def test_build_candidate_states_and_input_validation(tmp_path):
     for bad in (
         "9\tread_support\tx\t1\t1\t1\t1\n",  # taxid not a candidate
         "1\tcorroboration\tbwa\t1\t1\t1\t1\n",  # corroboration source must be kb/star
+        "1\tread_support\tkb\t1\t1\t1\t1\n",  # read_support must be kb-independent
         "1\tread_support\tx\t1\t2\t1\t1\n",  # best > adjudicated
         "1\tread_support\tx\t1\tNA\t1\t1\n",
         "1\tread_support\tx\t1\t1\t1\t1\n1\tread_support\ty\t1\t1\t1\t1\n",  # duplicate

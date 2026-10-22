@@ -1141,7 +1141,7 @@ def read_evidence_table(path: Path) -> dict[tuple[int, str], dict[str, Any]]:
     """Read the documented evidence input table, one row per ``(taxid, route)``; fail closed.
 
     Columns ``EVIDENCE_COLUMNS``. ``route`` is ``corroboration`` (``source`` kb or star; counts are
-    molecules from the competitive adjudication) or ``read_support`` (``source`` free label; counts are
+    molecules from the competitive adjudication) or ``read_support`` (``source`` any label except kb/star; counts are
     reads from a competitive alignment to the hit genome versus host + panel). ``n_adjudicated`` is all
     units tested, ``n_taxon_best`` those that scored best for the taxon alone; ``n_shared_cells`` and
     ``n_shared_umis`` are the cells and distinct (CB, UMI) molecules that are also resolved called-cell
@@ -1162,6 +1162,10 @@ def read_evidence_table(path: Path) -> dict[tuple[int, str], dict[str, Any]]:
             raise DiscoveryError(f"{path}: bad route/source in {raw}")
         if row["route"] == "corroboration" and row["source"] not in CORROBORATION_SOURCES:
             raise DiscoveryError(f"{path}: corroboration source must be kb or star: {raw}")
+        if row["route"] == "read_support" and row["source"] in CORROBORATION_SOURCES:
+            raise DiscoveryError(
+                f"{path}: read_support must be kb-independent, not {row['source']}: {raw}"
+            )
         counts = [row[c] for c in EVIDENCE_COLUMNS[3:]]
         if min(counts) < 0 or row["n_taxon_best"] > row["n_adjudicated"]:
             raise DiscoveryError(f"{path}: inconsistent counts in {raw}")

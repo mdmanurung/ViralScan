@@ -7936,7 +7936,7 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   - Note: PR #89 CI lint failed on `mypy src/viralscan` (not run locally before): 7 annotations in `discovery.py`
     and an `out` name reused as Path/str in `menu.main`; fixed, `mypy src/viralscan` clean locally.
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
-- [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` /
+- [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
   `read_evidence_table` in `discovery.py` write `candidate_states.tsv` (`observation`, `corroborated` route i,
   `read_supported_observation` route ii; `corroboration` / `read_support` = `not_assessed|negative|positive`; viral-only DB
   and host lineage capped at `observation`). Pure functions, 4 new tests; `docs/discovery.md` "Candidate states".
