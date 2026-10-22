@@ -145,6 +145,10 @@ completion.
   --hostresponse` / `--auto-evidence` are part of the run and keep their paths. Tests:
   `tests/test_posthoc_layout.py` (hashes the run before/after). Docs: migration, output_reference, faq, CHANGELOG,
   cli_reference. Not re-pinned: `analysis/v3_artifact_inventory.tsv`, claim registry.
+  - Note (2026-10-22, PR #99 review): `run` now refuses a derived sample ID `posthoc` (it would be read as
+    post-hoc output by `validate-run` and the `rerun-multimap` copy); `menu._check_sample_ids` holds this and the
+    duplicate check. Hand-written `cli_reference` sections for evidence / rerun-multimap / hostresponse /
+    rerun-programs updated to the layout 2 defaults.
 
 - [x] `OUT-LAYOUT-01` (2026-10-20, `codex/output-layout`, stacked on `codex/orig-api-docs`): output
   layout kept close to evonk's 2.2.0 (user decisions, grill 2026-10-20). `count_audit.tsv` moves into
