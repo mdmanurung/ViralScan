@@ -57,6 +57,13 @@ dev = [
     "mypy",
     "pre-commit",
 ]
+# Optional --scautoqc QC flags. Kept out of `full`: sctk is a niche, pinned dependency
+# (it pulls leiden/igraph) that most runs never use.
+scautoqc = [
+    "scanpy[leiden]",
+    "sctk==0.2.0",
+    "pybiomart",
+]
 enrichment = [
     "gget>=0.27",
 ]
@@ -174,6 +181,7 @@ follow_imports = "skip"
 module = [
     "viralscan.utils",
     "viralscan.constants",
+    "viralscan.scautoqc",
     "viralscan.menu",
     "viralscan.scripts.ncbi_fetch",
     "viralscan.scripts.build_reference",
@@ -192,6 +200,7 @@ module = [
     "viralscan.scripts.host_filter",
     "viralscan.scripts.hostresponse",
     "viralscan.scripts.cellcalling",
+    "viralscan.scripts.scautoqc",
     # research/benchmark tooling, not core pipeline — same relaxed treatment
     "viralscan.reference_strategy",
 ]

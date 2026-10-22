@@ -157,6 +157,8 @@ def _detection_inputs(wildcards):
     }
     if _ANELLO_ALIGN:
         inputs["anello_done"] = f"{config['output']}log/anello_align.done"
+    if str(config.get("scautoqc", False)).lower() == "true":
+        inputs["scautoqc_done"] = f"{config['output']}log/scautoqc.done"
     if _STAR_CONFIRM:
         inputs["star_done"] = f"{config['output']}log/star_confirm.done"
     return inputs
@@ -282,6 +284,19 @@ rule multimap:
         snakefile_dir = lambda wildcards: workflow.basedir
     script:
         "scripts/multimap.py"
+
+if str(config.get("scautoqc", False)).lower() == "true":
+    rule scautoqc:
+        input:
+            config = f"{config['output']}config.yaml",
+            identity = f"{config['output']}results/virus_identity.tsv",
+            multimap_done = f"{config['output']}log/multimap.done",
+        output:
+            f"{config['output']}log/scautoqc.done"
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/scautoqc.py"
 
 rule detection:
     input:

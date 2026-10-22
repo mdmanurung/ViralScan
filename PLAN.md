@@ -226,6 +226,26 @@ completion.
   `tests/test_original_cli_compat.py`. `-umap` stays a bare flag. Known limit: a bare flag directly before a subcommand name takes it
   as the value (`-v data` is a usage error); documented, pinned by test.
 
+- [~] `SCAUTOQC-01` (2026-10-19, branch `codex/scautoqc`, ported from `codex/scautoqc-wip` 92dd88e): optional 2026-10-22: rebased onto origin/main via tmp/wave2-base-2026-10-22; tests adapted to the `run` subcommand.
+  `--scautoqc` SCTK cell/cluster QC flags added in place to the count H5ADs and UMAP outputs; cells are flagged,
+  never removed. Opt-in rule/flag/config key are absent when off. Conservative defaults on the two open design
+  questions (user to confirm): (a) the legacy n_counts/n_genes filter in `umap.py` is UNCHANGED with the flag
+  (the WIP skipped it); (b) the rule runs after multimap and before cell calling, so it scores every barcode in
+  the kb H5AD, and that cell set is recorded in `adata.uns['scautoqc']` and `log/scautoqc.done` (JSON).
+  SCTK ships as the optional extra `viralscan[scautoqc]`, not in `full`. Tests: flag-off, all-cells-fail guard,
+  flags-only, missing-sctk error, DAG dry-run. **Open gate:** real FASTQ-to-UMAP validation on SRR8315713 (needs
+  kb/kallisto/bustools env, reference and user-approved compute) is NOT done; clusterwise multi-resolution QC
+  (absent in SCTK 0.2.0) and ribo/globin marker sensitivity are untested. Flip to `[x]` only after that gate.
+  Rebased onto origin/main + shifted-log + tchem (wave-2 prep stack, not upstream): `viralscan.scautoqc` is under mypy
+  strict and `viralscan.scripts.scautoqc` under the relaxed Snakemake-script override; legacy filter kept.
+  Review follow-up: scoring all barcodes (empty droplets included) is a KNOWN LIMITATION, not mitigated; flags on a
+  raw 10x matrix are not meaningful and clustering may be slow until the rule is moved after cell calling (gated
+  on the real run). Added BioMart failure handling + low-mapping warning, case-insensitive `MT-`, extra tests;
+  virus-only/no-host index still hard-fails (documented). Clustering path needs `scanpy[leiden]` (the extra).
+  - Note (2026-10-22, PR #100 review): globin markers matched human symbols only, so every mouse `--scautoqc` run
+    aborted on the mandatory hb check; `GLOBIN_PATTERN` now also covers mouse (Hba-a1/a2, Hba-x, Hbb-bs/bt/b1/b2,
+    Hbb-bh1, Hbb-y, Hbq1a/b), with a regex test that needs no SCTK.
+
 - [x] `PERF-PLAN-02`: draft and review actionable cards for all 27 remaining
   performance candidates; preserve completed B05/B07/B20. Plan:
   `docs/plans/2026-10-17-remaining-performance-candidates.md`. (Row text carried over

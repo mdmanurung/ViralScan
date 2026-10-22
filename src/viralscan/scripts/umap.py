@@ -26,6 +26,7 @@ from viralscan.kb_outputs import KbCountOutputs
 from viralscan.multimapping import select_detection_matrix
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
+from viralscan.scautoqc import add_scautoqc
 from viralscan.utils import infected_masks, setup_script_logging, virus_molecules_per_cell
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import detected_summary_rows, load_run_identity, virus_name_for_gene
@@ -95,6 +96,33 @@ def label_infected_cells(adata, matrix, viral_ids, table, min_molecules):
         else:
             labels.append("Multiple Viruses (" + ", ".join(hit) + ")")
     return labels, virus_molecules_per_cell(adata, matrix, list(viral_ids))
+
+
+def _write_scautoqc_umaps(adata):
+    """Write UMAPs colored by the in-place scAutoQC cell and cluster flags."""
+    if px is None:
+        raise RuntimeError("plotly is required to render scAutoQC UMAP HTML plots.")
+    if "scautoqc_X_umap_qc" not in adata.obsm:
+        log.info("Skipping scAutoQC QC-space UMAP: fewer than six cells were available.")
+        return
+    coords = adata.obsm["scautoqc_X_umap_qc"]
+    df = pd.DataFrame({"UMAP1": coords[:, 0], "UMAP2": coords[:, 1], "barcode": adata.obs_names})
+    for key in ("scautoqc_cell_passed_qc", "scautoqc_cluster_passed_qc", "scautoqc_qc_cluster"):
+        df[key] = adata.obs[key].astype(str).to_numpy()
+        fig = px.scatter(
+            df,
+            x="UMAP1",
+            y="UMAP2",
+            color=key,
+            hover_data=["barcode"],
+            title=f"scAutoQC UMAP: {key.removeprefix('scautoqc_').replace('_', ' ')}",
+        )
+        fig.update_layout(
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            plot_bgcolor="white",
+        )
+        fig.write_html(f"{config.output}/plots/umap_scautoqc_{key.removeprefix('scautoqc_')}.html")
 
 
 def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
@@ -222,6 +250,11 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     # Violin plot and computing QC metrics
     adata.obs["n_counts"] = np.array(adata.X.sum(axis=1)).flatten()
     adata.obs["n_genes"] = np.array((adata.X > 0).sum(axis=1)).flatten()
+
+    if config.scautoqc:
+        if "scautoqc_cell_passed_qc" not in adata.obs:
+            add_scautoqc(adata, identity)
+        _write_scautoqc_umaps(adata)
 
     # create violin plot
     fig, ax = plt.subplots()
