@@ -115,6 +115,20 @@ completion.
     new, synthetic SAM->BAM). NOT done: per-stratum recovery reporting in score.py (truth carries `nh_stratum`; kb scoring
     via multimap not touched), 98->90 nt trim effect on NH unmeasured, nothing run on real libraries. For EBV/R01 pass
     `--source-orient forward --bg-orient forward --cb-len 16 --umi-len 12 --r1-len 28 --r2-len 90`.
+  - SPIKE-02 / task I2 (2026-10-22) [~]: grid tooling in `analysis/spikein_detection_limit/`: `grid.py` (CONFIG block + 66-row
+    `conditions.tsv`: 60 spiked + 3 unspiked replicates x 2 backgrounds; ids have no underscore), `run_condition.py` (one
+    condition end to end with the REAL product: seeded cached background subsample, `spikein.py spike`, `viralscan run` for the
+    old then the flank index with `--host-filter starsolo`, `--star-confirm` on the old run only, small bundle, scoped deletion,
+    DONE last, resumable, `--dry-run`), `grid.sbatch` (array, `--row $SLURM_ARRAY_TASK_ID`), `score_condition.py` (rows per
+    condition x arm old/flank/star: kb molecules = unique + ambiguous_allocated over spike barcodes and truth accessions,
+    evidence tier, STAR any-alignment on the truth set, the three call booleans, unsupported-molecule floor).
+    `tests/test_spikein_grid.py` (9, synthetic bundles + dry runs). NOT run for real: nothing submitted, no FASTQ/STAR/kb touched.
+    Decisions: spiked bg replicate = spike seed, so null replicate s is the baseline of spike seed s (`--baseline-bundle`);
+    called list frozen per bg replicate = top 100 on-list barcodes (`--cell-calling external`, no emptyDrops); EBV `--max-nh 2`
+    (my pick); host filter is repeated for the flank run (product path), STAR columns come from the old run. Unverified:
+    spike read names surviving the product host filter into viral.bam (runner fails loudly at level >= 100 with 0 STAR reads),
+    `viralscan run` flags exactly as in the explorer report (not executed), multimap h5ad layer names read from code only.
+    Not done: aggregation across conditions (limit per index, keep/drop rule), per-NH-stratum recovery, host-filter-loss column.
   - SMOKE RESULT (2026-10-21, job 25860984, 20 min, exit 0; D03 first 5 M pairs, HHV-6B spikes at 10 and 100, seed 1, 5 cells;
     one library, one seed, so descriptive only). STAR host+virus: 10/10 and 99/100 spikes on the source contig, 0 on host,
     1 lost to "unmapped: too short" (a spliced source read trimmed to 90 nt); the real STAR host filter kept 10/10 and

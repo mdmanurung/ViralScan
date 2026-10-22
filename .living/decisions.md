@@ -2098,3 +2098,10 @@ accession). `scripts/star_confirm.read_summary` now only reads the TSV. Without 
 **Decision**: truth is a contig set; NH>1 reads are kept only if all NH alignments fall inside the set (record count in the set == NH, so no host lookup is needed); class and position come from the first truth contig's alignment, not STAR's arbitrary primary; truth table keeps `contig` = primary and adds `contigs`, `nh_stratum`, `src_contig`.
 **Alternatives considered**: NH=1 only (keeps 27.6 percent, biased to type1/type2-divergent regions); classify on primary (label flips for 7 percent of reads by coordinate system).
 **Consequences**: `--max-nh` default 1 keeps HHV-6B behaviour. Tags: spikein, SPIKE-02
+
+## [2026-10-22] Spike-in grid runner (SPIKE-02 / I2): score with the product's multimap output, freeze called cells, bg replicate = spike seed
+
+**Context**: Grid tooling that runs the real `viralscan run` per condition.
+**Decision**: kb arm = `counts_unique_viral` + `counts_ambiguous_allocated` (multimap_evidence columns) over spike barcodes and truth accessions, taken from adata_multimap.h5ad into a sparse bundle table; call = kb >= 3 AND STAR any-alignment >= 1 on the truth set; called cells frozen per background replicate (top 100 on-list barcodes, external caller); background subsample replicate = spike seed so null replicate s is the baseline of seed s; STAR arm from the old-index run only, flank run repeats the host filter (product path, no hand-wired reuse).
+**Alternatives considered**: emptyDrops per run (Monte-Carlo noise, R dependency, needs star_tmp); matrix-only scoring (undercounts: smoke showed 75 percent of flank spikes in multi-gene classes); reusing host_filtered FASTQ for the flank run (saves ~45 percent of runtime, not the product path).
+**Consequences**: detected column unused; unsupported-molecule floor is accession-level (kb molecules on non-truth accessions with no non-spike STAR read). Tags: spikein, SPIKE-02
