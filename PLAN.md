@@ -24,6 +24,8 @@ completion.
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [x] `F027-01` finding F-027 (`.living/findings/hhv6b-flank-reads-missed-by-cds-only-index.md`): HHV-6B reads in the positional 3' flank class (8.9% of viral reads, GSM6416022, 5' v2) are outside a CDS-only kallisto index.
   - Note (2026-10-22): Lareau comparison done against the public reference at caleblareau/hhv6-reactivation@dd2eb77: 103 CDS-only entries, same NCBI CDS coordinates, no flank/UTR, no masking.
+- **Focus: STARsolo host+virus readiness.** Phases 1-4 are committed on `codex/star-confirm`; next are SPIKE-01 (phase 5, unrun), the
+  STAR-GATE-01 decision, and the phase 6 EBV acceptance run.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -33,6 +35,63 @@ completion.
 - [x] REVIEW-D (WP-4): opt-in candidate-complete source-labelled review.
 - [x] REVIEW-E (WP-5): pool-scoped tier-2 molecule fingerprint.
 - [x] REVIEW-F (WP-9): docs, acceptance ledger, parity/benchmark receipts.
+- [x] STAR-HOSTVIRUS-01: STARsolo alignment of host-unmapped reads to one host + full-viral-panel index
+  (`viralscan.star_hostvirus`: `write_reference` HOST|/VIRUS| FASTA+GTF, `build_star_hostvirus_index`,
+  `align_host_unmapped`; sorted BAM with CB/UB for `plot_coverage_maps`). Code + synthetic tests done; wired into the CLI
+  by STAR-03 (`viralscan star-index`) and STAR-04 (`viralscan run --star-confirm`). Real-library runs (EBV GSM4796271,
+  HHV-6B GSM6416022) remain Track A diagnostics.
+  - Note: multimap cap 100 and relaxed score filters are deliberate (keep host competition visible); STAR 2.7.11b
+    still segfaults in Solo with `--soloCBwhitelist None` when zero reads map (ANDET-09-STAR139); handled since
+    STAR-02 (shared `star_run.run_star`). Docs (`cli_reference`, `output_reference`, `quickstart`, CHANGELOG) done in phase 4;
+    SPIKE-01 (spike-in detection limit) is **not run**, so the arm has no measured sensitivity or specificity, and phase 6
+    (real-library acceptance on EBV GSM4796271) is not done.
+- [x] STAR-04: `viralscan run --star-confirm --star-hostvirus-index DIR` (branch `codex/star-confirm`): rule `star_confirm`
+  (`scripts/star_confirm.py`) aligns the kb input pair (host-filtered reads) with `star_hostvirus.align_host_unmapped(prune=True)`,
+  writes `star_hostvirus/viral.bam(.bai)`, `results/star_support_by_virus.tsv` (per `virus_name`) and `log/star_confirm.done`;
+  `detection` appends `star_reads_primary, star_reads_any, star_molecules, star_host_competing, star_other_virus` to
+  `viral_summary.tsv` only when the flag is on. Labels only: no call, tier or threshold changes.
+  - Note: menu dies without the index, without `--host-filter`, on a failing `validate_index_manifest`, on missing STAR/samtools,
+    or on an index without the flag. `summarise_by_virus(virus_of=...)` aggregates per virus (a read on several accessions of one
+    virus counts once; `star_other_virus` needs a different virus). Review fixes: mypy on `read_index_manifest`, wheel/sdist
+    allowlists carry the three STAR modules, menu wiring/prune-TSV/manifest/run_star tests, docs state the HHV-6/7 telomere
+    100-locus loss and the Unique-mode `star_molecules` lower bound. Viruses STAR saw nothing for read 0; alignment-only rows stay blank. Strand = `--strand` or `unstranded` (kb's
+    effective default). Docs/CLI-reference/output-reference rows landed in phase 4. No real STAR run.
+- [x] STAR-ACCEPT-01 (2026-10-21): real-library acceptance of `star_confirm` on EBV GSM4796271
+  (`analysis/star_confirm_acceptance/`, Slurm 25860995, 10 min, exit 0): the real Snakefile rule + script
+  (`--allowed-rules star_confirm`, so no host_filter/kb_count rerun) on the Track A host-filtered reads, the existing
+  index adopted through a symlink view plus a generated manifest. All 2,343 VIRUS| contigs have the same alignment
+  record count as the earlier manual STAR run (0 mismatches), so on-list correction and strand change only barcode
+  tags, as designed. `star_support_by_virus.tsv`: Epstein-Barr virus 1,170,981 primary / 941,111 molecules;
+  Human gammaherpesvirus 4 type 2 502,137 / 724,380; 1,204,497 reads place on both (`star_other_virus`), the known
+  EBV type 1/type 2 shared-contig signal; `star_host_competing` is 0 because the input is host-filtered.
+  Second library (Slurm 25861544, 24 min, exit 0): R01_SOC4, 3-prime 10xv3, forward, RAW reads (172.4 M pairs), same
+  rule: 2,343/2,343 contigs identical to the pilot STAR run (0 mismatches). It exercises the 10xv3 on-list (6.8 M
+  barcodes gunzipped), --strand forward, a 12-nt UMI and the zero-viral-reads path (header-only table, no crash), but
+  R01_SOC4 has no viral reads, so per-virus counts on 3-prime v3 are untested until the SPIKE-01 EBV spikes. Not yet
+  covered: multi-accession viruses other than EBV.
+  Exit-139 fallback verified on REAL STAR 2.7.11b (Slurm 25864228, 1 min, exit 0): 2,000 random pairs with the Drop-seq
+  chemistry (no on-list, `--soloCBwhitelist None`, zero reads mapped) crash STAR in Solo; `star_run.run_star` retried with a
+  12-nt dummy whitelist, logged the fallback, left `star139_fallback.txt` and the pruned BAM, and wrote the header-only
+  per-virus table (`analysis/star_confirm_acceptance/fallback139.py`).
+- [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
+- [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
+  `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
+  writes `star_hostvirus_index.json` (`write_index_manifest` / `read_index_manifest` / `validate_index_manifest`).
+  - Note: manifest is written last (absent = unfinished build). Refuses a non-empty index dir; `--force` deletes it only
+    if it holds a manifest. No real STAR build run (tests monkeypatch it). Next: STAR-04 (phase 3) validates the manifest.
+- [x] STAR-02: harden `star_hostvirus` (branch `codex/star-confirm`): on-list default via
+  `resolve_whitelist` (kb on-list gunzipped; literal `None` only for list-less chemistries, explicit list wins),
+  `--soloStrand` from a viralscan strand (`SOLO_STRAND`, out of `ALIGN_ARGS`), exit-139 fallback lifted from
+  `anello_align` into `viralscan/star_run.py` (both callers; dummy barcode = `cb_len` As), `summarise_by_virus`
+  / `write_summary` / `STAR_SUMMARY_COLUMNS`, `prune_to_viral` (`prune=` option, default off).
+  - Note: `align_cmd` stays pure (whitelist `None` -> literal `None`; the on-list default lives in
+    `align_host_unmapped`) so the existing `align_cmd` test holds. Summary keys are the VIRUS| contig without
+    its prefix. A pruned BAM no longer holds the HOST| partners of viral multimappers, so coverage-map
+    competition categories need the full BAM or must be taken from the summary TSV.
+  - Review fixes: `anello_align._run_star` takes `cb_len` from `cb_umi_geometry(technology)` (was hardcoded 12,
+    broke the 139 retry for 16-base chemistries); `star_molecules` documented as Solo-assigned (CB, UB) only
+    (not read support; use `star_reads_any`); tests for the on-list default and `cb_len` wiring through
+    `align_host_unmapped`.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 
@@ -51,6 +110,7 @@ completion.
   applies (any `HOST|` partner, else another `VIRUS|` contig, else unique; same-contig hits stay unique). Streams records; memory is the
   multimapper QNAME set. Tested on a synthetic NH/HI BAM.
   **Open:** layout review by the user, a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1, a `environment.coverage.yml` solve in CI.
+- [~] `PATHS-01` (2026-10-22, `codex/strip-institutional-paths`): `PLAN.md` site paths replaced by `$SITE_ROOT` (archive work root), `$SITE_SCRATCH` (scratch checkout root) and `$COLLAB_ROOT` (collaborator root); 10 lines. **Open:** about 190 more hits in `.living/` and about 300 in tracked analysis outputs, manifests, docs and Slurm scripts (`git grep -c -E "/exports/|lumc"`); scope of a repo-wide scrub is the user's call.
 - [x] `RESTREE-01` (2026-10-21, `codex/research-tree-gitignore`): research-tree hygiene before any analysis/ trees are committed. `.gitignore` gains bulk rules (`analysis/computational_bottlenecks_*/{execution,followups}/`, `trackA_report_*/outputs/`, `*.rds *.mtx *.pkl *.stdout *.stderr *.sam *.bam *.bus` under analysis/, `/tmp/`, `.living/archive/`, `/biomni_bundle/`, root `HANDOFF*.md`/`SESSION_RESUME.md`); root-anchored where the name also exists tracked (`.living/HANDOFF_*.md`). New `scripts/check_tracked_file_sizes.py` + `tests/test_tracked_file_sizes.py` fail on any tracked/staged `analysis/` or `results/` blob over 1 MB unless listed in `config/large_file_allowlist.txt` (empty; passes on main as-is). Not hooked into pre-commit: the existing `check-added-large-files --maxkb=500` is already stricter repo-wide; CI runs the pytest. `sources/viral_panel`, `migration_plan/`, `viralscan_lshwcp_spec/` deliberately not covered.
 - [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
   `--soloCBwhitelist None` (chemistries without an on-list, SW-21) when no read mapped: STAR 2.7.11b segfaults (exit
@@ -1093,7 +1153,7 @@ was checked and closed 2026-10-10 (`cellcalling.solo_raw_dir` rejects it; `tests
 
 **Tier 6 — host response** (`HR-01..05`: group-disjoint folds, same-fold baselines, structured null,
 cell-type restriction, provenance and entry-point parity). Spec: `viralscan_lshwcp_spec/04_HOSTRESPONSE_ROBUSTNESS.md`
-and `SOURCE_AUDIT_IMPLEMENTATION_PLAN.md` (in the `/exports/para-lipg-hpc/mdmanurung/ViralScan` checkout). The core was recovered
+and `SOURCE_AUDIT_IMPLEMENTATION_PLAN.md` (in the `$SITE_SCRATCH/ViralScan` checkout). The core was recovered
 into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed against the spec on 2026-10-12 (branch `codex/hr-host-response`):
 - [x] `HR-01` — group-disjoint folds (`--cv group --groups COL --cv-folds N`), canonical row-order-invariant folds, fold tables, in-fold HVG,
   frozen aggregation (`AUC_STATISTIC`), no fallback to cell CV. **Verified 2026-10-12:** acceptance items map to existing passing tests in
@@ -4863,7 +4923,7 @@ strain. No H3N2 and no circulating isolate.
     sharing of each not-excluded candidate against the panel, writes `analysis/panel_expansion/kmer_sharing.tsv`
     (`frac_unique`, `frac_not_in_panel`, `frac_sibling`, `frac_other_group`; "group" = `sibling_group`, else genus,
     else species, with `group_basis` shown). 973 candidates vs the built panel
-    (`/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_final/build/viral.fa`, 2,343 records): median
+    (`$SITE_ROOT/viral_ref_final/build/viral.fa`, 2,343 records): median
     `frac_not_in_panel` 1.0 in every source; **37 have <5 % outside the panel** (25 census-new, 11 catalogue-max,
     1 evonk-new; mostly RefSeq NC_ copies of panel GenBank records the twin check could not see without FASTAs)
     and 62 have <50 %. The unmasked NCBI-cache panel gives the same numbers (max difference 0.0009). 349 candidates
@@ -4990,9 +5050,9 @@ strain. No H3N2 and no circulating isolate.
     D-list is part of what G4 freezes (`REF-08`).
     Run from a clean pinned worktree of merged `main` (the `vs_pinned/<sha>` convention), env `viralscan_test_full`:
     ```bash
-    M=/exports/archive/hg-funcgenom-research/mdmanurung
+    M=$SITE_ROOT
     E=$M/conda/envs/viralscan_test_full
-    GENOME=/exports/para-lipg-hpc/mdmanurung/malaria_bcells/data/refgenome/refdata-gex-GRCh38-2024-A/fasta/genome.fa
+    GENOME=$SITE_SCRATCH/malaria_bcells/data/refgenome/refdata-gex-GRCh38-2024-A/fasta/genome.fa
     git -C $M/ViralScan fetch origin && SHA=$(git -C $M/ViralScan rev-parse --short origin/main)
     CODE=$M/vs_pinned/$SHA && git -C $M/ViralScan worktree add --detach $CODE origin/main
     cp $M/ViralScan/src/viralscan/data/*.gtf $CODE/src/viralscan/data/        # untracked local GTF corpus (393)
@@ -6267,13 +6327,13 @@ virus recovery is contextual evidence, not ground truth.
     *archived* 2.2.0 outputs.
   - **Reference (user decision 2026-09-30): one arm only.** Both versions use
     the **latest reference**: today the final 2,343-genome panel,
-    `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_final/build/{panel.idx,panel.t2g}`.
+    `$SITE_ROOT/viral_ref_final/build/{panel.idx,panel.t2g}`.
     *2026-10-03:* the latest reference is now
-    `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42b/build/{panel.idx,panel.t2g}`
+    `$SITE_ROOT/viral_ref_cat42b/build/{panel.idx,panel.t2g}`
     (CAT-42: same 2,343 genomes, homopolymer and anellovirus low-complexity
     masks). Its anellovirus gene IDs carry the accession prefix.
     *2026-10-05:* the latest reference is now
-    `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42d/build/{panel.idx,panel.t2g}`,
+    `$SITE_ROOT/viral_ref_cat42d/build/{panel.idx,panel.t2g}`,
     which is cat42b plus a GRCh38 genome D-list (REF-06 gates passed).
     If the frozen G4 reference supersedes it, both versions switch to that.
     - Give both versions the same viral-only GTF, extracted from
@@ -6283,9 +6343,9 @@ virus recovery is contextual evidence, not ground truth.
     - There is no native-Serratus-index arm. Reference differences are out of
       scope.
   - **What 2.2.0 is.** The install is in env
-    `/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan`
+    `$COLLAB_ROOT/conda/envs/test_viralscan`
     (`viralscan-2.2.0.dist-info`); evonk's run pattern is
-    `/exports/archive/hg-funcgenom-research/evonk/viralscan/run_viralscan.sh`.
+    `$COLLAB_ROOT/viralscan/run_viralscan.sh`.
     Pin the version and the environment spec before any run. First check that
     2.2.0 accepts the 8-column kb-ref `panel.t2g` and its gene IDs; record
     whatever adapter is needed.
@@ -6964,7 +7024,7 @@ behind the package-completion plan unless the user releases a row.
     equal for both EM methods (only 18 host-virus ambiguous molecules, so no conservative-vs-EM difference in totals).
     The `--mem` in `slurm_rerun_multimap_em_cell_cost.sh` can now drop (not changed here; its 793 k run was not repeated).
 - [x] `DSR-09` — row-2 downloads (user request 2026-10-05) into
-  `/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/dsr_2026-10-05/`:
+  `$SITE_SCRATCH/ViralScan/benchmark_inputs/dsr_2026-10-05/`:
   SRA array 25701724 (GSE190558 all 16 lanes; GSE164690 SRR13419165 HN18 CD45−
   and SRR13418973 HN01 CD45−, one lane each) via `fasterq-dump
   --include-technical`; ENA array 25701725 with md5 check (GSE154900 4 runs;

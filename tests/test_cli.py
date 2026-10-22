@@ -21,7 +21,7 @@ from viralscan.defaults import DEFAULTS
 
 _SUBCOMMANDS = {"run", "data", "build-ref", "evidence", "evidence-plot", "rerun-multimap",
                 "rerun-programs", "doctor", "validate-run", "hostresponse", "check-whitelist",
-                "check-chemistry", "--help"}  # fmt: skip
+                "check-chemistry", "star-index", "--help"}  # fmt: skip
 # `run` requires these; a test that passes its own -o/--r1/--r2 overrides them (last wins).
 _RUN_REQUIRED = ["run", "-o", "out", "--r1", "s_R1.fastq.gz", "--r2", "s_R2.fastq.gz"]
 

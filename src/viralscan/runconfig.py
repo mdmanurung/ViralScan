@@ -214,6 +214,9 @@ class RunConfig:
     # kb index's directory (anello_star/) unless given; None means no index.
     anello_align: bool = DEFAULTS["anello_align"]
     anello_index: Union[str, None] = None
+    # STARsolo host+virus confirmation arm (PLAN STAR-04); the index comes from `viralscan star-index`.
+    star_confirm: bool = DEFAULTS["star_confirm"]
+    star_hostvirus_index: Union[str, None] = None
     # Read-level evidence with host confirmation for detected anellovirus genera
     # (ANDET-04). viral_fasta is resolved to <index dir>/viral.fa unless given.
     auto_evidence: bool = DEFAULTS["auto_evidence"]
@@ -432,6 +435,15 @@ class RunConfig:
 
             anello_index = _opt(cfg_in.get("anello_index")) or resolve_index(cfg_in["index"])
 
+        star_confirm = _coerce_bool(
+            cfg_in.get("star_confirm")
+            if cfg_in.get("star_confirm") is not None
+            else DEFAULTS["star_confirm"]
+        )
+        star_hostvirus_index = _opt(cfg_in.get("star_hostvirus_index"))
+        if star_confirm and not star_hostvirus_index:
+            raise ValueError("star_confirm is set but star_hostvirus_index is missing.")
+
         auto_evidence = _coerce_bool(
             cfg_in.get("auto_evidence")
             if cfg_in.get("auto_evidence") is not None
@@ -635,6 +647,8 @@ class RunConfig:
             programme_min_umi=programme_min_umi,
             anello_align=anello_align,
             anello_index=anello_index,
+            star_confirm=star_confirm,
+            star_hostvirus_index=star_hostvirus_index,
             auto_evidence=auto_evidence,
             review_candidates=_coerce_bool(cfg_in.get("review_candidates", False)),
             host_capture=host_capture,
