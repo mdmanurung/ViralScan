@@ -21,7 +21,8 @@ class TestHostresponseParser:
 
     def test_parses_required_args(self) -> None:
         with patch(
-            "sys.argv", ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "host.h5ad"]
+            "sys.argv",
+            ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "host.h5ad"],
         ):
             from viralscan.menu import create_help
 
@@ -48,7 +49,15 @@ class TestHostresponseParser:
     def test_no_use_hvg_flag(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "h.h5ad", "--no-use-hvg"],
+            [
+                "viralscan",
+                "hostresponse",
+                "--run-dir",
+                "out/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--no-use-hvg",
+            ],
         ):
             from viralscan.menu import create_help
 
@@ -67,7 +76,16 @@ class TestHostresponseParser:
     def test_n_seeds_override(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "h.h5ad", "--n-seeds", "3"],
+            [
+                "viralscan",
+                "hostresponse",
+                "--run-dir",
+                "out/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--n-seeds",
+                "3",
+            ],
         ):
             from viralscan.menu import create_help
 
@@ -86,7 +104,15 @@ class TestHostresponseParser:
     def test_enrichment_flag(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "hostresponse", "--run-dir", "out/", "--host-h5ad", "h.h5ad", "--enrichment"],
+            [
+                "viralscan",
+                "hostresponse",
+                "--run-dir",
+                "out/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--enrichment",
+            ],
         ):
             from viralscan.menu import create_help
 
@@ -124,7 +150,16 @@ class TestHostresponseParser:
     def test_min_umi_override(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "hostresponse", "--run-dir", "o/", "--host-h5ad", "h.h5ad", "--min-umi", "3"],
+            [
+                "viralscan",
+                "hostresponse",
+                "--run-dir",
+                "o/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--min-umi",
+                "3",
+            ],
         ):
             from viralscan.menu import create_help
 
