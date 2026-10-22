@@ -7942,7 +7942,10 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   and host lineage capped at `observation`). Pure functions, 4 new tests; `docs/discovery.md` "Candidate states".
   - Note: the package has no per-taxon alignment summary, so route (ii) and (i) run over a documented evidence table
     (`EVIDENCE_COLUMNS`); cut-offs 3 units / 80% / 1 shared cell are uncalibrated constants.
-  - Left: no CLI (plan §7 specifies none); no producer of the evidence table from kb matrices / STAR confirm outputs /
-    a competitive alignment of the hit genome; `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
+  - Done 2026-10-22: `build_kb_evidence` (route i, `source=kb`) from `molecule_assignments.tsv.gz` + `virus_identity.tsv`;
+    API only (no `discover-evidence` CLI: needs parser, menu dispatch and help wiring). Tests `tests/test_discovery_kb_evidence.py`.
+  - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch); route (ii) producer (competitive alignment of the
+    hit genome vs host + panel).
+  - Left: no CLI (plan §7 specifies none); `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
     need `DISC-12`.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).

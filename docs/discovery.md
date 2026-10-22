@@ -190,6 +190,20 @@ shared cell (route ii also one shared molecule). These cut-offs are documented c
 (`MIN_TAXON_BEST`, `MIN_TAXON_BEST_FRACTION`), not calibrated. Malformed, duplicate or
 unmatched evidence rows abort.
 
+`build_kb_evidence(discovery_dir, sample_dir)` (Python API; no command) writes the route (i)
+`source=kb` table `evidence_kb.tsv` from the primary run's
+`results/molecule_assignments.tsv.gz` (needs `--multimap-molecule-assignments`) and
+`results/virus_identity.tsv`. A viral panel gene belongs to a candidate when its `taxid` equals
+the candidate or sits on one root-to-leaf lineage with it in `taxonomy.tsv` (strain gene for a
+species candidate, or the reverse); host genes never match. Per molecule touching the taxon,
+`n_adjudicated` counts it whatever else it is compatible with, and `n_taxon_best` only when every
+compatible gene belongs to the taxon. Shared cells and (CB, UMI) are those of the taxon-best
+molecules that are resolved called-cell groups of exactly that taxid. A candidate with no panel
+gene gets no row (`not_assessed`); one with panel genes but no molecule gets a zero row
+(`negative`). It refuses unless the called cells are in kb barcode space (a STARsolo or unknown
+space, or kb molecules sharing no barcode with the called cells, aborts). STAR route (i) and
+route (ii) tables are still caller-built.
+
 To count at species, genus or family level, run
 `viralscan discover-collapse OUT --rank {species,genus,family}`. It sums columns into the
 rank ancestor without reclassifying; taxa above the rank stay as themselves with
