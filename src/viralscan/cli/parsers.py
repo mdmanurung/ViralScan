@@ -50,7 +50,11 @@ REMOVED_OPTIONS = {
         "--hostresponse-control-mito": "--hostresponse-mito-control",
         "--no-hostresponse-control-mito": "--no-hostresponse-mito-control",
     },
-    "hostresponse": {"--hostresponse-min-umi": "--min-umi", "--detection-threshold": "--min-umi"},
+    "hostresponse": {
+        "--hostresponse-min-umi": "--min-umi",
+        "--detection-threshold": "--min-umi",
+        "-o": "--run-dir (the input run directory; --output now names where hostresponse writes)",
+    },
     "validate-run": {"--json-output": "--json"},
     "check-whitelist": _READS,
     "check-chemistry": _READS,
@@ -847,19 +851,24 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
             "(Luebbert et al. 2025 approach) on a completed viralscan run.\n\n"
             "The viralscan output directory must already contain a config.yaml and a\n"
             "completed multimap step (log/multimap.done).  Results are written to\n"
-            "<output>/hostresponse/.\n\n"
+            "<run-dir>/hostresponse/ unless --output is given.\n\n"
             "Examples:\n"
-            "  viralscan hostresponse -o out/sample/ --host-h5ad host.h5ad\n"
-            "  viralscan hostresponse -o out/sample/ --host-h5ad host.h5ad \\\n"
+            "  viralscan hostresponse --run-dir out/sample/ --host-h5ad host.h5ad\n"
+            "  viralscan hostresponse --run-dir out/sample/ --host-h5ad host.h5ad \\\n"
             "    --n-stab-iter 200 --enrichment"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument(
-        "--output",
-        "-o",
+        "--run-dir",
         required=True,
-        help="Existing viralscan sample output directory (contains config.yaml).",
+        help="Existing viralscan sample output directory (input; contains config.yaml).",
+    )
+    p.add_argument(
+        "--output",
+        default=None,
+        metavar="DIR",
+        help="Directory hostresponse writes to (default: <run-dir>/hostresponse).",
     )
     p.add_argument(
         "--host-h5ad",

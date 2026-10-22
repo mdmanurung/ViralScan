@@ -132,8 +132,11 @@ completion.
   CLI-UNIFY-02. Not touched: `scripts/run_fresh_control.py` (drives frozen pinned v2/v3 binaries), historical
   `scripts/slurm_*.sh`, `tests/_frozen_oracles/`, `.living/`/`analysis/` notes, `docs/write-docs-prompt.md`.
   Supersedes `CLI-ORIG-01`. Tests: `tests/test_cli_unify.py`; migration table in `docs/migration.md`.
-- [ ] `CLI-UNIFY-02`: post-hoc outputs (`evidence`, `rerun-multimap`, `hostresponse`) default inside the run;
-  `layout_version` 2. After CLI-UNIFY-01.
+- [~] `CLI-UNIFY-02`: `hostresponse` flag done (2026-10-21, `codex/cli-unify-02-hostresponse`): `-o` (an input run
+  dir) removed with an error naming `--run-dir`; optional `--output DIR` is where hostresponse writes (default
+  `<run-dir>/hostresponse`, unchanged, layout stays version 1). Deferred pending the user's decision whether writing
+  inside the run violates "run dir is immutable input": post-hoc outputs (`evidence`, `rerun-multimap`,
+  `hostresponse`) default inside the run; `layout_version` 2.
 
 - [x] `OUT-LAYOUT-01` (2026-10-20, `codex/output-layout`, stacked on `codex/orig-api-docs`): output
   layout kept close to evonk's 2.2.0 (user decisions, grill 2026-10-20). `count_audit.tsv` moves into
