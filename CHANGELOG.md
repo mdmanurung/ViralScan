@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Reviewed diagnostic corrections (unreleased)
 
+- Added `viralscan discover` and `viralscan discover-collapse` (PLAN `DISC`): Kraken2 classification of a completed run's host-unmapped reads, grouped by cell barcode and UMI into `cell_taxon.h5ad`, `candidates.tsv` (observation state only), `qc.json` and `provenance.json`, published atomically with a fingerprint and a no-op rerun. Classifications are not infection calls; the primary counts, `detected` and tiers do not change, and no discovery performance claim is made. Optional `environment.discovery.yml` and `viralscan doctor --profile discovery`. See `docs/discovery.md`.
 - `evidence-plot --coverage-map` now accepts a bare GTF seqid `ACC` for a viral BAM
   reference `CLASS|ACC` (host contigs are never prefix-stripped) and records the matched
   seqid and whether it was normalised in `coverage_map.<target>.json`.

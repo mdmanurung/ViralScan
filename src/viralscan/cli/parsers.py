@@ -532,6 +532,146 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="rerun-multimap")
 
 
+def _unit_interval(value: str) -> float:
+    number = float(value)
+    if not 0.0 <= number <= 1.0:
+        raise argparse.ArgumentTypeError(f"must be in [0, 1], got {value}")
+    return number
+
+
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {value}")
+    return number
+
+
+def _build_discover_parser(subparsers: Any) -> None:
+    """Register the 'discover' subcommand (PLAN DISC; in development)."""
+    p = subparsers.add_parser(
+        "discover",
+        help="Kraken2 taxonomic discovery on a completed run's host-unmapped reads.",
+        description=(
+            "Classify a completed run's STAR host-unmapped cDNA reads with Kraken2 and attribute\n"
+            "them to cells. The source run is never modified; results are candidate taxonomic\n"
+            "observations, not infection calls, and never change viral counts or detection.\n\n"
+            "Example:\n"
+            "  viralscan discover --run-dir out/ --sample S1 -o out_discovery/S1/ "
+            "--kraken2-db /shared/k2db/"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--run-dir",
+        required=True,
+        help="Completed run root (holds run_manifest.json). It is never modified.",
+    )
+    p.add_argument(
+        "--sample",
+        default=None,
+        help="Sample subdirectory to classify; required when the run has more than one.",
+    )
+    p.add_argument(
+        "--output",
+        "-o",
+        required=True,
+        help="Discovery output directory, outside --run-dir; must be empty, absent or a previous publication.",
+    )
+    p.add_argument(
+        "--kraken2-db",
+        required=True,
+        help="Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified.",
+    )
+    p.add_argument(
+        "--host-subtract",
+        choices=["starsolo"],
+        default=None,
+        help=(
+            "Run a discovery-only STAR host subtraction when the source run has no "
+            "host_filtered/ output. Its reads go under --output; the source run is not changed."
+        ),
+    )
+    p.add_argument("--host-index", default=None, help="STAR genomeDir for --host-subtract.")
+    p.add_argument(
+        "--host-filter-star-params",
+        choices=["pinned", "star-default"],
+        default="pinned",
+        help="STAR filter parameter set for --host-subtract (as in the main run). Default: pinned.",
+    )
+    p.add_argument(
+        "--confidence",
+        type=_unit_interval,
+        default=0.05,
+        help=(
+            "Kraken2 --confidence (a k-mer fraction threshold, not a probability). "
+            "Default: 0.05, the Cellsnake documented default; not calibrated here "
+            "(Kraken2's own default is 0.0)."
+        ),
+    )
+    p.add_argument(
+        "--minimum-hit-groups",
+        type=_positive_int,
+        default=4,
+        help=(
+            "Kraken2 --minimum-hit-groups. Default: 4, the Cellsnake documented default; "
+            "not calibrated here (Kraken2's own default is 2)."
+        ),
+    )
+    p.add_argument(
+        "--memory-mapping",
+        action="store_true",
+        help="Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage).",
+    )
+    p.add_argument(
+        "--polya-trim",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Cut a 3' polyA tail (first run of >= 15 A) and a 5' polyT head (leading run of >= 15 T) "
+            "from R2 before Kraken2 (reads.tsv.gz records r2_trim). Default: on."
+        ),
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Replace a previously published --output whose fingerprint differs. Without it a "
+            "matching output is a no-op and a differing one is refused."
+        ),
+    )
+    p.add_argument("--threads", type=int, default=4, help="Kraken2 and STAR threads. Default: 4.")
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="discover")
+
+
+def _build_discover_collapse_parser(subparsers: Any) -> None:
+    """Register the 'discover-collapse' subcommand (PLAN DISC-11)."""
+    p = subparsers.add_parser(
+        "discover-collapse",
+        help="Project a discovery's cell_taxon.h5ad onto species, genus or family.",
+        description=(
+            "Sum each cell_taxon.h5ad column into its ancestor at the chosen rank, using the\n"
+            "published taxonomy.tsv. Taxa above the rank stay as themselves (above_rank = True);\n"
+            "nothing is reclassified and every cell's total is conserved.\n\n"
+            "Example:\n"
+            "  viralscan discover-collapse out_discovery/S1/ --rank genus"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("discovery_dir", metavar="OUT", help="A published discovery output directory.")
+    p.add_argument("--rank", required=True, choices=("species", "genus", "family"))
+    p.add_argument(
+        "-o",
+        "--output",
+        dest="output_file",
+        metavar="FILE",
+        default=None,
+        help="Output .h5ad. Default: OUT/cell_taxon_<rank>.h5ad.",
+    )
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="discover-collapse")
+
+
 def _build_rerun_programs_parser(subparsers: Any) -> None:
     """Register the 'rerun-programs' subcommand."""
     p = subparsers.add_parser(
@@ -594,7 +734,7 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
 
 def _build_doctor_parser(subparsers: Any) -> None:
     p = subparsers.add_parser("doctor", help="Check Python and full-workflow dependencies.")
-    p.add_argument("--profile", choices=("pip", "full"), default="full")
+    p.add_argument("--profile", choices=("pip", "full", "discovery"), default="full")
     p.add_argument("--json", default=None, metavar="PATH", help="Also write the report as JSON.")
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="doctor")
@@ -894,6 +1034,8 @@ def build_parser() -> argparse.ArgumentParser:
             "  evidence-plot   Plot molecule-level host versus virus alignments.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
             "  rerun-programs  Re-score gene programmes on a completed run.\n"
+            "  discover        Kraken2 taxonomic discovery on a completed run.\n"
+            "  discover-collapse  Project a discovery to species/genus/family.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
             "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
             "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n"
@@ -927,6 +1069,8 @@ def build_parser() -> argparse.ArgumentParser:
     _build_evidence_plot_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
     _build_rerun_programs_parser(subparsers)
+    _build_discover_parser(subparsers)
+    _build_discover_collapse_parser(subparsers)
     _build_doctor_parser(subparsers)
     _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)

@@ -40,6 +40,9 @@ pytest-cov = "*"
 ruff = "*"
 mypy = "*"
 
+[feature.discovery.dependencies]
+kraken2 = "==2.17.2"
+
 [feature.docs.pypi-dependencies]
 sphinx = ">=8.0"
 scanpydoc = "*"
@@ -54,6 +57,7 @@ nbsphinx = ">=0.9"
 default = []
 dev = ["dev"]
 docs = ["docs"]
+discovery = ["discovery"]
 
 [tasks]
 doctor = "viralscan doctor --profile full"

@@ -1261,6 +1261,31 @@ def main() -> None:
         _run_rerun_multimap(args)
         return
 
+    if getattr(args, "_subcommand", None) == "discover":
+        from viralscan.discovery import DiscoveryError, run_discover
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        try:
+            run_discover(args)
+        except DiscoveryError as exc:
+            _die(str(exc))
+        return
+
+    if getattr(args, "_subcommand", None) == "discover-collapse":
+        from viralscan.discovery import DiscoveryError, collapse_rank
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        try:
+            collapsed = collapse_rank(
+                Path(args.discovery_dir),
+                args.rank,
+                Path(args.output_file) if args.output_file else None,
+            )
+        except DiscoveryError as exc:
+            _die(str(exc))
+        print(collapsed)
+        return
+
     if getattr(args, "_subcommand", None) in ("doctor", "validate-run"):
         import json as _json
 

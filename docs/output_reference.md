@@ -1164,6 +1164,27 @@ Key layers:
 
 ---
 
+## `viralscan discover` output (PLAN `DISC`)
+
+A separate directory written by `viralscan discover -o DIR`, never inside the run. It holds
+Kraken2 classifications of host-unmapped reads grouped by (corrected barcode, UMI). They
+are taxonomic observations, not infection calls, and nothing here changes `detected`, the
+tiers or the primary H5AD layers. Full description, `qc.json` reading guide and limits:
+[discovery](discovery.md).
+
+| File | Content |
+|------|---------|
+| `cell_taxon.h5ad` | Called cells x resolved taxa (`X` = resolved UMI groups, int32); a separate object, never merged with the primary layers |
+| `umi_groups.tsv.gz` | Per (`corrected_cb`, `umi`): `resolved_taxid`, `group_class` (`resolved`, `ambiguous`, `unclassified`), audit columns |
+| `offcell_taxon.tsv.gz` | Resolved groups on barcodes outside the called cells |
+| `candidates.tsv` | One row per resolved taxon; `state = observation`, uncalibrated 0/1 flags |
+| `taxonomy.tsv` | Taxonomy derived from the Kraken2 database, with `host_relation` |
+| `reads.tsv.gz`, `barcodes.tsv.gz`, `classifications.tsv.gz`, `kraken.out.gz`, `kraken_report.txt`, `kraken_input.fa.gz` | Per-fragment audit trail |
+| `qc.json`, `provenance.json`, `discovery_complete.json` | Invariant counts; hashes, versions and settings; output sha256s and the discovery fingerprint (written last) |
+
+`viralscan discover-collapse OUT --rank {species,genus,family}` writes
+`cell_taxon_<rank>.h5ad` beside these (not listed in `discovery_complete.json`).
+
 ## Multiple samples
 
 When `--r1` and `--r2` contain comma-separated FASTQ lists,

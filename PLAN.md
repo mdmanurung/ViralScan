@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+- [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7763,3 +7765,176 @@ validation. Receipt filenames refer to the separate local delivery packet.
 Next action: review the six-package local delivery and obtain a permitted real
 existing evidence directory for WP-3 qualification. This does not authorize any
 scientific experiment, scheduler submission or remote publication.
+
+## Kraken2 taxonomic discovery (DISC, new 2026-10-21)
+
+Plan, audit and ADR: `docs/plans/2026-10-21-kraken2-discovery-plan.md` (branch `codex/kraken2-discovery-plan`).
+Design: standalone `viralscan discover --run-dir R -o D` on STAR host-unmapped cDNA mates; separate fingerprint;
+never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf only on request (M3).
+
+- [x] `DISC-00` — repository audit (ViralScan b8e5146; mg2sc a8c01f0 / fork e744c2c; scrna-workflow e0b9533;
+  cellsnake 7adf99d; kraken2 2.17.2 8c190b1), critical review, ADR, contracts, gates, tickets.
+  - Note: mg2sc/Cellsnake join BAM and Kraken2 output positionally (`k2sc.py:71`), vote with hash-order ties
+    (`:119-121`) and count taxid 0 as a feature; none of it is reused.
+  - Note: three barcode spaces exist (raw, kb/bustools-corrected, STARsolo with `--soloCBwhitelist None` without `-w`);
+    `called_cells.tsv` may be in STARsolo space under host filtering. Spike `DISC-05` decides correction mechanics.
+  - Note: the primary manifest does not hash `host_filtered/` outputs; discovery can only record its own hash.
+- [x] `DISC-01` optional discovery env (kraken2 2.17.2), `doctor --profile discovery` (2026-10-21): `environment.discovery.yml`,
+  pixi feature/env `discovery`, `DISCOVERY_TOOLS` (kraken2, k2, bustools; `FULL_TOOLS` untouched), CI integration job gains kraken2.
+- [x] `DISC-02` `discover` parser + skeleton (2026-10-21): `src/viralscan/discovery.py`, `tests/test_discovery.py` (10).
+  Refuses an incomplete run, an ambiguous or unknown `--sample`, `-o` inside the run or non-empty, an incomplete DB,
+  and missing `kraken2`/`k2`. G2 test: source-run sha256 inventory unchanged. G1 test: the main parser gains no
+  discovery option. After validation it exits 1 with "not implemented yet" until DISC-03..09.
+  - Note: `--run-dir` is the run root (where `run_manifest.json` lives), plus `--sample`; the plan's example
+    `--run-dir out/S1/` was wrong about the layout.
+- [x] `DISC-03` input resolution (2026-10-21): reuse the primary `host_filtered/` pair only when the FASTQ pair count,
+  the audit's `retained_host_unmapped` and the lineage's retained rows agree (else refuse); otherwise an explicit
+  `--host-subtract starsolo --host-index DIR [--host-filter-star-params]` runs `_starsolo_filter` into
+  `-o/.partial/host_subtraction/`, after checking the sample FASTQs exist and match the primary manifest sha256.
+  The resolved input is staged as `.partial/input.json`; nothing is published yet. Tests: 21 in `tests/test_discovery.py`.
+  - Note: `src/viralscan/discovery.py` added to `config/public_ship_scope.json` (wheel + sdist); DISC-02 broke
+    `test_tracked_package_files_are_in_every_allowlist` without it.
+- [x] `DISC-04` spike: DB-derived taxonomy = `k2 inspect --report-zero-counts` parsed by indentation (2026-10-21).
+  - Note: NCBI rsync is refused from the login node; the test DB uses a hand-written 15-taxon `nodes.dmp`/`names.dmp`
+    (reusable as the DISC-10 fixture). Kraken2 2.17.2 is in env `conda/envs/viralscan_discovery`.
+  - Note: 2.17.2's confidence denominator includes ambiguous k-mers (`562:11 A:45` is unclassified at 0.5),
+    contrary to the manual.
+- [x] `DISC-05` spike: bustools fromtext→correct keeps flags (**done**, 2026-10-21); reconciliation on EBV
+  SRR12682296 (**done**, 2026-10-21, Slurm `25860937`): `_replay_quant_bus` on the kb input pair with the virus-only
+  index, 10xv2 on-list; 1,540,822 of 1,540,822 primary BUS records carry the same corrected CB as discovery's
+  `barcodes.tsv.gz` (agreement 1.0, gate >= 0.999). Script and result: `viralscan_work/discovery_ebv_2026-10-21/disc05/`.
+  - Note: kallisto 0.52.0 `bus` and `bustools fromtext` both encode `N` as `G` (CB and UMI), so discovery passes `N`
+    through to match the primary barcode space instead of rejecting it; plan §6.3 updated. Use kb's bundled bustools
+    (same 0.45.1 version as conda, different sha256).
+- [x] `DISC-06` streaming pass (2026-10-21): `stream_reads` writes `kraken_input.fa.gz` (R2 as `>ordinal`, gzip, which
+  Kraken2 2.17.2 reads natively) and `reads.tsv.gz` (`ordinal, read_id, raw_cb, raw_umi, geometry_ok, cb_has_n,
+  umi_has_n, primary_read_filter`). It aborts on mate mismatch, truncation and duplicate read IDs (8-byte digest sort).
+  The primary read-filter lineage is joined in lockstep (every ID checked) only for a reused primary `host_filtered/`
+  pair; it is `not_joined` for a discovery STAR pass and `not_run` without `--read-filter`. 10xv1 and off-R1 geometries
+  are refused before any STAR work. Tests: 36 in `tests/test_discovery.py`.
+  - Note: every fragment is classified (ordinals cover `[0, n_input)`); bad barcode geometry is excluded later, by
+    ordinal. Plan §5.3/§6.2 updated.
+- [x] `DISC-07` Kraken2 wrapper + exactly-once ordinal join (2026-10-21): `run_kraken2` (list-form `kraken2 --db
+  --threads --confidence --minimum-hit-groups --report --report-minimizer-data --output [--memory-mapping]`; never
+  `--use-names/--paired/--quick`) and `join_kraken2`, which aborts on a duplicate, missing, out-of-range or
+  non-integer ordinal, `C` with taxid 0 or `U` with taxid > 0, and writes ordinal-sorted `classifications.tsv.gz`
+  plus raw `kraken.out.gz`. CLI: `--confidence` (default 0.05 since `DISC-R7b`, [0, 1]), `--minimum-hit-groups` (default 4 since `DISC-R7b`, >= 1),
+  `--memory-mapping`. Tests: 49 in `tests/test_discovery.py`.
+  - Verified end to end with real Kraken2 2.17.2 on the DISC-04 test DB through `viralscan discover`: 6 fragments
+    gave 83333, 10376, 9606, 1280, U, 10376, matching their source genomes.
+- [x] `DISC-08` LCA groups, called/off-cell partition, `cell_taxon.h5ad`; oracle + invariance tests.
+  - [x] `DISC-08a` (2026-10-21): taxonomy from `k2 inspect --report-zero-counts` (`taxonomy.tsv` with
+    `host_relation`); barcode correction with kb's bustools and the primary's on-list (`resolve_onlist`:
+    `-w`, else kb's bundled list, else none), giving `barcodes.tsv.gz` (`onlist / corrected / uncorrectable /
+    no_onlist / bad_geometry`); `umi_groups.tsv.gz`: exact (corrected CB, primary-encoded UMI) groups, taxon =
+    LCA of classified reads, `R*`-rank LCA = ambiguous, CRC32-sharded and globally sorted. Gzip outputs use
+    mtime 0, so they are byte-identical (G8). Tests: 100, including a 40-seed independent oracle checked byte-identical
+    across shards 1/2/7 and permuted input.
+    - Note: in the real-bustools run, a Hamming-1 variant of an on-list barcode with five on-list neighbours was
+      dropped (uncorrectable), as bustools should; the designed truth table had expected a correction.
+  - [x] `DISC-08b` (2026-10-21): `load_called_cells` reads the primary `results/called_cells.tsv` (suffix-stripped;
+    refuses if absent) and records the cell-calling receipt's barcode space (`starsolo` when called on
+    `GeneFull.raw`); `build_cell_matrix` writes `cell_taxon.h5ad` (obs = every called cell, zero rows kept; var = resolved
+    taxids with name/rank/parent/`host_relation`; X = int32 CSR of resolved called groups; `uns.discovery.unit =
+    resolved_umi_group`) and `offcell_taxon.tsv.gz`; matrix total = resolved called groups or abort (G6). Tests: 102.
+    Real run (Kraken2 2.17.2, kb bustools, 10x v3 on-list): EBV 2, E. coli 1 (562), human 1 (`host`) in the one
+    cell with evidence; ambiguous/unclassified groups excluded; two empty called cells kept.
+- [x] `DISC-CMP` mg2sc/Cellsnake comparison (2026-10-21, user request): `analysis/discovery_mg2sc_comparison/`.
+  Synthetic truth (1,200 UMIs; family-shared and EVE-like homology, collisions, novel genome); Kraken2 0.0/2 vs
+  Cellsnake 0.05/4 vs fallback 0.01/3; ViralScan LCA vs audit deepest-consistent vs mg2sc vote. Results reproduce
+  byte for byte. Settings change at most 8 UMIs. mg2sc vote: 11 % of labels change with the hash seed, 118/121 collisions
+  are claimed as one species, 87 root features. LCA: 606 exact vs mg2sc 752; deepest-consistent: 799.
+  - [x] Decision 4 changed by the user (2026-10-21) to deepest-consistent: see `DISC-R5`.
+- [x] `DISC-R5` (2026-10-21, plan step R5; user decision 2026-10-21, replaces approved decision 4): per-UMI taxon =
+  deepest classified taxon when all classified taxids lie on one root-to-leaf path, else their LCA; an `R*`-rank result
+  stays `ambiguous`. `lineage_consistent` / `deepest_consistent_taxid` / `conflict` columns unchanged (audit).
+  - G7 reworded: no group is counted below the LCA of its *conflicting* classified reads. Plan doc §6.4, §6.1/§7 tables,
+    §14 (G7, case table) and §16 decision 4 updated; `_oracle` and the designed-case test updated (107 tests pass).
+  - `compare.py` rerun (columns renamed `viralscan_deepest_consistent` / `viralscan_lca_only_previous`, the latter
+    recomputed from `taxids`): exact species 799 vs 606 (LCA-only) vs 752 (mg2sc); collision overcalls 8 vs 2 vs 118.
+    Outputs reproduce byte for byte (`comparison.tsv` `881a98e0…`, `umi_detail.tsv.gz` `7d03ef77…`).
+  - Known limit: a species unit can rest on one species-specific read while the others are ancestral.
+- [x] `DISC-R1` (2026-10-21, plan step R1): taxonomy path cache (root-first tuples memoised per tree, lazy per queried
+  taxid); `lca` is a common-prefix walk, `host_relation`/`_group_shard` read the cache. No behaviour change: 40-seed oracle
+  and a new all-subsets LCA test pass. Not re-timed on the EBV grouping step (needs Slurm; R10 records it).
+- [x] `DISC-09` (2026-10-21, plan step R2): `provenance.json`, `qc.json` (all counts, called-cell overlap, fractions),
+  `discovery_fingerprint` (sha256 of the output-determining subset), `discovery_complete.json` (output sha256s)
+  published last; `input.json` removed; `discover` now exits 0. Same fingerprint on rerun is a no-op; a different one
+  is refused unless `--force` (removes only what the marker lists). `--threads`/`--memory-mapping` are not
+  fingerprinted. `db_identity` is the sha256 of the three `.k2d` files (+ a refused md5-manifest mismatch).
+  Decisions: the fingerprint is computed before Kraken2 (so a no-op costs DB hashing only); `--host-subtract` inputs
+  are identified by the manifest's sample fingerprints plus the index path (not its bytes). Taxonomy cache skipped
+  (cheap after R1). A crash mid-publish leaves files without the marker and needs a manual clean.
+  - Follow-up (2026-10-21, review minors): `fingerprint_inputs` is a deep copy, so `provenance.json` re-hashes to the
+    marker (tested); resolved paths/counts moved to `provenance.resolved_input`; `provenance.discovery_fingerprint`
+    added; `--force` refuses a marker that lists a non-local name (`../x`); `--minimum-hit-groups` covered by the
+    rerun test. New `kb_input_check`: when the primary `kb count` read a `host_filtered/` pair at another path (a
+    copied run), its sha256 must match the pair discovery classifies, else refused; the outcome is recorded.
+- [x] `DISC-R6` (2026-10-21, plan step R6): `--polya-trim/--no-polya-trim` (default on). `trim_r2` cuts R2 from the first
+  run of >= 15 A to the end, then a leading run of >= 15 T (constants `POLYA_MIN_RUN`/`POLYT_MIN_RUN`); applied in
+  `stream_reads` before `kraken_input.fa.gz`. `reads.tsv.gz` gains `r2_trim` (none/polyA/polyT/both) and
+  `r2_len_classified`; `qc.json` stream counts `n_r2_trimmed`/`n_r2_bases_trimmed`. Recorded in provenance and the
+  fingerprint (a toggle needs `--force`). Decision: a read trimmed to nothing is sent to Kraken2 as `N` so it keeps its
+  ordinal and returns unclassified (an empty FASTA record is not guaranteed to be emitted). R10 measures the effect.
+- [x] `DISC-R7b` (2026-10-21, plan step R7b; user decision 2026-10-21, replaces approved decision 5): `--confidence`
+  default 0.05 and `--minimum-hit-groups` default 4 (Cellsnake documented defaults); help text says they are not
+  calibrated and gives Kraken2's own 0.0 / 2. Design doc §2.3/§4/§16 and `docs/cli_reference.md` updated. R10 still
+  reports EBV at both 0.05/4 and 0.0/2. Tests pass explicit values, so none assumed the old defaults.
+- [x] `DISC-10` (2026-10-21, plan step R4): `tests/test_discovery_integration.py` (`-m integration`; skips without
+  `kraken2-build`, `kraken2`, `k2`, `bustools`). Builds the hand-taxonomy DB at test time (`--no-masking`, seeded, no
+  network), runs `viralscan discover` end to end on a fixture run with real 10x v3 on-list barcodes at 0.5 / 2, and
+  asserts `umi_groups`, `cell_taxon.h5ad` and `offcell_taxon.tsv.gz` equal designed truth (exact, parent/child ->
+  deepest, conflicting -> LCA, root-LCA -> ambiguous, novel -> unclassified). Pins the confidence denominator: a read
+  `562:11 A:45` is unclassified at 0.5 and classified at 0.05 (ambiguous k-mers count in the denominator). Passes
+  in 27 s with kraken2 2.17.2. A one-substitution barcode was dropped from the fixture: bustools left it
+  uncorrectable, which tests bustools rather than discovery.
+- [x] `DISC-11` (2026-10-21, plan step R7): `viralscan discover-collapse OUT --rank {species,genus,family} [-o FILE]`
+  (default `OUT/cell_taxon_<rank>.h5ad`). Each `cell_taxon.h5ad` column moves to its nearest ancestor-or-self at the
+  Kraken2 rank code S/G/F via `taxonomy.tsv` (subspecies collapse to species); taxa with no ancestor at the rank stay
+  as themselves with `above_rank = True`. No reclassification; row sums conserved (gate G6, tested and enforced at
+  run time). Non-obvious: a taxon already at the rank is `above_rank = False`; the default output sits inside the
+  published dir but is not listed in `discovery_complete.json`.
+- [x] `DISC-R8` (2026-10-21, plan step R8): `candidates.tsv` (observation state only), written by `discover` before
+  provenance and published (listed in `discovery_complete.json`). One row per taxon with a resolved group: `groups_called`,
+  `groups_offcell`, `n_cells`, `reads` (Kraken2 report own reads), `distinct_minimizers`, `minimizer_per_read`,
+  `host_relation`, `db_has_9606`, `state = observation`, 0/1 flags `low_minimizer_diversity`, `offcell_dominant`,
+  `host_lineage`, `viral_only_db`. Thresholds are documented constants, not calibrated: `LOW_MINIMIZER_DISTINCT = 20`,
+  `OFFCELL_DOMINANT_FRACTION = 0.5`.
+  - Note: the low-diversity flag uses the absolute distinct-minimizer count, not the ratio, because a deeply
+    sequenced small genome has a legitimately tiny distinct/reads ratio (EBV: ~600k reads). The ratio is informational.
+    `host_lineage` covers `host` and `host_ancestor`; `viral_only_db` means taxid 9606 is absent from the DB taxonomy.
+    No `prioritized`/`sequence_supported` states (need the frozen benchmark, `DISC-12`/`DISC-13`).
+- [x] `DISC-R9` (2026-10-21, plan step R9): `docs/discovery.md` (scope: classification is not infection; manual database download with md5
+  check, no auto-download; command and Slurm example on partition `all`, since `medium` is capped at 4 CPUs / 8 GB by QOS
+  `restrictmedium`; outputs; `qc.json` guide; limits), toctree entry in `docs/index.md`, `output_reference.md` section, CHANGELOG entry.
+  - Note: `docs/output_reference.md` is pinned by inventory row 17 (`output-reference-doc`); re-pinned in a follow-up
+    `chore(inventory)` commit because the pin names the commit that holds the new file.
+  - Note: the only real-data numbers cited are labelled "first EBV run, read level" and "not a performance claim"; R10 replaces them with
+    the validated arms.
+- [x] `DISC-R10` (2026-10-22, plan step R10): EBV SRR12682296, PlusPF-16 2026-06-26, code `c41e330`, Slurm array
+  `25862538` (partition `all`, 8 CPUs). Arms: default 0.05/4 + trim; 0.0/2 + trim; 0.05/4 `--no-polya-trim`. All three
+  published `discovery_complete.json`; the same-input rerun logged "nothing to do" (7.7 min, 0.2 GB: DB hashing);
+  the source run's sha256 inventory (76 files) was unchanged before/after (G2). All 2,524 called cells seen.
+  Per arm (default / 0.0-2 / notrim): unclassified 93.4 / 71.3 / 92.9 %; human clade 4.1 / 20.9 / 4.5 %; EBV clade
+  2.3 / 6.8 / 2.3 %; EBV groups in called cells 246,233 / 623,096 / 246,882; EBV+ cells 2,224 / 2,471 / 2,227 (primary
+  2,524); per-cell Spearman vs primary EBV molecules 0.890 / 0.966 / 0.891; median ratio 0.26 / 0.82 / 0.27;
+  candidates 47 / 1,906 / 56 (low-minimizer 26 / 1,680 / 34). Run 1: 35-37 min, 15.2 GB. Trim touched 2.03 M reads.
+  Outputs, inventories, `summarize.py` and `r10_summary.tsv`: `viralscan_work/discovery_ebv_2026-10-21/r10/`.
+  - Note: the defaults (user decision R7b) trade ~60 % of EBV groups for a 5x smaller human fraction and a 40x
+    shorter candidate list; documented in `docs/discovery.md` with the 0.0/2 alternative. The user kept 0.05/4 on 2026-10-22.
+  - Note: R1 grouping was not timed separately (the log has no timestamps). Whole runs took 35-37 min (the pre-R1
+    run, 26 min, stopped before grouping finished and before publication; ~8 min is now DB hashing). No grouping
+    speed-up is claimed beyond the runs completing. Taxonomy cache still skipped.
+  - Called-cells discrepancy (2,524 vs 2,764) explained earlier: `viral_summary.tsv` uses `host_called_cells.tsv`;
+    discovery uses `called_cells.tsv`, as intended. The Drop-seq `no_onlist` library (R10.5) was skipped: that run
+    has no `called_cells.tsv`.
+- [x] `DISC-R11` (2026-10-22, plan step R11): merged `origin/main` (CLI-UNIFY-01) at `5ff8011`, inventory re-pinned;
+  full suite in 3 foreground chunks 6,037 passed / 0 failed; `pytest -m integration tests/test_discovery_integration.py`
+  2 passed (discovery env); `ruff check .` / `ruff format --check .` clean; `gen_cli_reference.py --check` clean;
+  `doctor --profile discovery` ok in the discovery env, fails on missing kraken2/k2 in the main env. "(In development)"
+  labels dropped. Branch handed over for push / PR.
+  - Note: PR #89 CI lint failed on `mypy src/viralscan` (not run locally before): 7 annotations in `discovery.py`
+    and an `out` name reused as Path/str in `menu.main`; fixed, `mypy src/viralscan` clean locally.
+- [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
+- [ ] `DISC-13` candidate states + evidence adapter.
+- [ ] `DISC-14` optional Snakemake leaf (only on request).

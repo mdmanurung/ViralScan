@@ -115,6 +115,7 @@ installation
 quickstart
 cli_reference
 output_reference
+discovery
 api
 api_reference
 ```
