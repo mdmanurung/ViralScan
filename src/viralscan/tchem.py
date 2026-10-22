@@ -168,9 +168,7 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
         raise TchemError(f"could not run {cmd[0]}: {exc}") from exc
 
 
-def call(
-    r1: str, r2: Optional[str], *, binary: str, whitelists: Optional[str]
-) -> TchemCall:
+def call(r1: str, r2: Optional[str], *, binary: str, whitelists: Optional[str]) -> TchemCall:
     """Run ``tchem`` on one sample's reads and parse what it says."""
     base = [binary]
     if whitelists:
@@ -192,7 +190,9 @@ def call(
         if proc.returncode == EXIT_OK:
             emit = proc.stdout
         elif proc.returncode != 3:
-            raise TchemError(f"tchem --emit kb exited {proc.returncode}: {proc.stderr.strip()[:300]}")
+            raise TchemError(
+                f"tchem --emit kb exited {proc.returncode}: {proc.stderr.strip()[:300]}"
+            )
     return parse_report(report, emit)
 
 
@@ -225,7 +225,9 @@ def compare(technology: Optional[str], tc: TchemCall) -> Opinion:
     except ValueError as exc:
         return Opinion("no_call", f"geometry not comparable: {exc}", tc)
     if theirs == ours:
-        return Opinion("agree", f"tchem: {tc.layout} ({tc.confidence}); same barcode+UMI geometry", tc)
+        return Opinion(
+            "agree", f"tchem: {tc.layout} ({tc.confidence}); same barcode+UMI geometry", tc
+        )
     return Opinion(
         "disagree",
         f"-x {technology} is {ours[0]} bp barcode + {ours[1]} bp UMI but tchem reads "

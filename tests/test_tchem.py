@@ -31,7 +31,9 @@ def _report(verdict="match", layout="10x 3' v2", confidence="high", schema="1.1"
         "schema_version": schema,
         "verdict": verdict,
         "confidence": confidence if verdict == "match" else None,
-        "layout": {"name": layout, "validation": {"level": "validated"}} if verdict == "match" else None,
+        "layout": {"name": layout, "validation": {"level": "validated"}}
+        if verdict == "match"
+        else None,
         "candidates": ["10x 3' v2", "10x 3' v3"] if verdict == "ambiguous" else [],
         "cdna_strand": "forward" if verdict == "match" else None,
         "hint": "no list matched" if verdict == "no_match" else None,
@@ -77,17 +79,44 @@ kb count \\
   -o kb_count /data/S_R1.fastq.gz /data/S_R2.fastq.gz
 """
 REAL_REPORT = {
-    "tool": "tussl-chemistry", "version": "0.1.0", "schema_version": "1.1", "verdict": "match",
+    "tool": "tussl-chemistry",
+    "version": "0.1.0",
+    "schema_version": "1.1",
+    "verdict": "match",
     "confidence": "high",
-    "layout": {"name": "10x 3' v2", "geometry": "1{b[16]u[10]x:}2{r:}", "barcode_lists": ["/lists/10x_v2_permit.txt"],
-               "note": "", "long_read_kit": "3prime:v2",
-               "validation": {"applies_to": "high", "level": "error_under_3pct", "held_out_high_calls": 626,
-                              "studies": 335, "family_only_calls": 0, "disputed": 85, "wrong": 0,
-                              "error_bound_95": 0.008955223880597015}, "family_validation": None},
-    "candidates": [], "files": {"barcode_read": "R1", "cdna_read": "R2"}, "cdna_strand": "forward",
-    "library": {"kind": "gene expression"}, "swapped": False, "strand_evidence": {}, "contradictions": [],
-    "notes": [], "hint": None, "not_checked": ["10x Flex v1"], "reads_sampled": 100000, "read_kind": "short",
-    "instrument": {}, "long_read_evidence": None, "fingerprint": None,
+    "layout": {
+        "name": "10x 3' v2",
+        "geometry": "1{b[16]u[10]x:}2{r:}",
+        "barcode_lists": ["/lists/10x_v2_permit.txt"],
+        "note": "",
+        "long_read_kit": "3prime:v2",
+        "validation": {
+            "applies_to": "high",
+            "level": "error_under_3pct",
+            "held_out_high_calls": 626,
+            "studies": 335,
+            "family_only_calls": 0,
+            "disputed": 85,
+            "wrong": 0,
+            "error_bound_95": 0.008955223880597015,
+        },
+        "family_validation": None,
+    },
+    "candidates": [],
+    "files": {"barcode_read": "R1", "cdna_read": "R2"},
+    "cdna_strand": "forward",
+    "library": {"kind": "gene expression"},
+    "swapped": False,
+    "strand_evidence": {},
+    "contradictions": [],
+    "notes": [],
+    "hint": None,
+    "not_checked": ["10x Flex v1"],
+    "reads_sampled": 100000,
+    "read_kind": "short",
+    "instrument": {},
+    "long_read_evidence": None,
+    "fingerprint": None,
 }
 
 
@@ -96,7 +125,13 @@ class TestParse:
         assert tchem.parse_emit(REAL_EMIT) == (V2, "/lists/10x_v2_permit.txt", "forward")
         c = tchem.parse_report(REAL_REPORT, REAL_EMIT)
         assert (c.verdict, c.layout, c.technology, c.strand, c.validation, c.version) == (
-            "match", "10x 3' v2", V2, "forward", "error_under_3pct", "0.1.0")
+            "match",
+            "10x 3' v2",
+            V2,
+            "forward",
+            "error_under_3pct",
+            "0.1.0",
+        )
         assert tchem.compare("10xv2", c).status == "agree"
 
     def test_multiome_gex_geometry_agrees_with_a_10xv3_run(self):
@@ -116,7 +151,12 @@ class TestParse:
     def test_match_report(self):
         c = tchem.parse_report(_report(), _emit())
         assert (c.verdict, c.layout, c.technology, c.strand, c.validation) == (
-            "match", "10x 3' v2", V2, "forward", "validated")
+            "match",
+            "10x 3' v2",
+            V2,
+            "forward",
+            "validated",
+        )
         assert "high" in c.reason
 
     def test_ambiguous_and_no_match(self):
@@ -169,7 +209,9 @@ class TestBinary:
         a = _fake(tmp_path, _report())
         monkeypatch.setenv(tchem.ENV_BIN, "/nonexistent/tchem")
         assert tchem.find_binary(a) == a
-        assert tchem.find_binary() is None  # the env path is set but not executable: no PATH fallback
+        assert (
+            tchem.find_binary() is None
+        )  # the env path is set but not executable: no PATH fallback
         monkeypatch.delenv(tchem.ENV_BIN)
         monkeypatch.setenv("PATH", str(tmp_path))
         assert tchem.find_binary() == str(tmp_path / "tchem")
@@ -180,7 +222,9 @@ class TestBinary:
         assert tchem.find_whitelists() == "/lists"
         assert tchem.find_whitelists("/x") == "/x"
         monkeypatch.delenv(tchem.ENV_LISTS)
-        monkeypatch.setenv(tchem.ENV_TCHEM_LISTS, "/tchem-lists")  # tchem's own variable is the last fallback
+        monkeypatch.setenv(
+            tchem.ENV_TCHEM_LISTS, "/tchem-lists"
+        )  # tchem's own variable is the last fallback
         assert tchem.find_whitelists() == "/tchem-lists"
 
 
@@ -237,14 +281,24 @@ class TestMenuWiring:
     def _args(self, tmp_path, tech="10xv2", **kw):
         r1 = tmp_path / "s_R1.fastq.gz"
         r1.write_bytes(b"")
-        base = dict(sample1=str(r1), sample2=None, whitelist=None, technology=tech,
-                    force_technology=False, tchem="auto", tchem_bin=None, tchem_whitelists=None)
+        base = dict(
+            sample1=str(r1),
+            sample2=None,
+            whitelist=None,
+            technology=tech,
+            force_technology=False,
+            tchem="auto",
+            tchem_bin=None,
+            tchem_whitelists=None,
+        )
         base.update(kw)
         return argparse.Namespace(**base)
 
     @pytest.fixture(autouse=True)
     def _builtin_says_v2(self, monkeypatch):
-        det = chemistry.Detection("10xv2", "bundled on-list", "97.3% on the 10xv2 list", 26, None, 10, 100)
+        det = chemistry.Detection(
+            "10xv2", "bundled on-list", "97.3% on the 10xv2 list", 26, None, 10, 100
+        )
         monkeypatch.setattr(chemistry, "detect", lambda samples, wl: [det] * len(samples))
 
     def test_agreement_is_recorded_in_the_manifest_block(self, tmp_path):

@@ -901,7 +901,9 @@ def _tchem_second_opinion(
                 whitelists=getattr(args, "tchem_whitelists", None),
             )
             opinions.append(op)
-            if _sample_id(s1) in blocks:  # no block when the built-in detector could not run (forced -x)
+            if (
+                _sample_id(s1) in blocks
+            ):  # no block when the built-in detector could not run (forced -x)
                 blocks[_sample_id(s1)]["tchem"] = op.as_block()
             level = logging.WARNING if op.status in ("disagree", "no_call") else logging.INFO
             log.log(level, "tchem on %s: %s - %s", _sample_id(s1), op.status, op.reason)
