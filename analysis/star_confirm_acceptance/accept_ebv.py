@@ -8,6 +8,7 @@ and the run directory is new.
 """
 
 import argparse
+import os
 import subprocess
 from pathlib import Path
 
@@ -15,13 +16,11 @@ import yaml
 
 from viralscan import star_hostvirus as sh
 
-M = Path("/exports/archive/hg-funcgenom-research/mdmanurung")
+M = Path(os.environ["VIRALSCAN_SITE_ROOT"])  # site work root (holds viralscan_work/, viral_ref_cat42d/)
 W = M / "viralscan_work"
 SRC_RUN = W / "trackA_round1/runs/ebv/twostep/GSM4796271/GSM4796271"
 OLD_IDX = W / "star_hostvirus/index"
-HG = Path(
-    "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A"
-)
+HG = Path(os.environ["VIRALSCAN_HOST_REF"])  # Cell Ranger GRCh38-2024-A reference
 SNAKEFILE = Path(sh.__file__).parent / "Snakefile"
 EBV_BAM = W / "star_hostvirus/GSM4796271/Aligned.sortedByCoord.out.bam"
 

@@ -5,9 +5,9 @@
 #SBATCH --mem=60G
 #SBATCH -t 01:00:00
 #SBATCH -p highmem
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/star_confirm_accept_2026-10/slurm_%x_%j.log
+#SBATCH -o slurm_%x_%j.log
 set -euo pipefail
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
 export PATH=$M/conda/envs/viralscan_test_full/bin:$PATH PYTHONPATH=$M/vs_work/star-confirm/src
 date; STAR --version
 python $M/vs_work/star-confirm/analysis/star_confirm_acceptance/fallback139.py $M/viralscan_work/star_confirm_accept_2026-10/fallback139 \

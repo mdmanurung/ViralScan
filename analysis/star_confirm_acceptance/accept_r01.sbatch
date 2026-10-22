@@ -6,9 +6,9 @@
 #SBATCH --mem=80G
 #SBATCH -t 06:00:00
 #SBATCH -p highmem
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/star_confirm_accept_2026-10/slurm_%x_%j.log
+#SBATCH -o slurm_%x_%j.log
 set -euo pipefail
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
 W=$M/viralscan_work; X=$W/trackB_explore_2026-10
 export PATH=$M/conda/envs/viralscan_test_full/bin:$PATH PYTHONPATH=$M/vs_work/star-confirm/src
 date; STAR --version
