@@ -21,7 +21,7 @@ completion.
 ## Next action
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
-  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Next: user review of the default settings in light of R10 (0.05 / 4 drops ~60% of EBV groups), push and PR; then `DISC-12`.
+  `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -7921,7 +7921,7 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   candidates 47 / 1,906 / 56 (low-minimizer 26 / 1,680 / 34). Run 1: 35-37 min, 15.2 GB. Trim touched 2.03 M reads.
   Outputs, inventories, `summarize.py` and `r10_summary.tsv`: `viralscan_work/discovery_ebv_2026-10-21/r10/`.
   - Note: the defaults (user decision R7b) trade ~60 % of EBV groups for a 5x smaller human fraction and a 40x
-    shorter candidate list; documented in `docs/discovery.md` with the 0.0/2 alternative. Not changed: the user's call.
+    shorter candidate list; documented in `docs/discovery.md` with the 0.0/2 alternative. The user kept 0.05/4 on 2026-10-22.
   - Note: R1 grouping was not timed separately (the log has no timestamps). Whole runs took 35-37 min (the pre-R1
     run, 26 min, stopped before grouping finished and before publication; ~8 min is now DB hashing). No grouping
     speed-up is claimed beyond the runs completing. Taxonomy cache still skipped.

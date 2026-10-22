@@ -2030,7 +2030,7 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 
 - Decision: `viralscan discover` defaults to `--confidence 0.05` and `--minimum-hit-groups 4` (Cellsnake documented defaults), replacing the earlier Kraken2-own 0.0 / 2 baseline (user decision 2026-10-21).
 - Help text states they are not calibrated; the M5 grid still spans 0.0/2 and R10 reports EBV at both settings.
-- R10 (2026-10-22): on EBV SRR12682296, 0.05/4 kept ~40% of the EBV groups of 0.0/2 (Spearman with ViralScan 0.890 vs 0.966) for a 5x smaller human fraction and 40x fewer candidates. Returned to the user to confirm or revert.
+- R10 (2026-10-22): on EBV SRR12682296, 0.05/4 kept ~40% of the EBV groups of 0.0/2 (Spearman with ViralScan 0.890 vs 0.966) for a 5x smaller human fraction and 40x fewer candidates. The user confirmed 0.05/4 on 2026-10-22 after seeing R10.
 - Tags: discovery, defaults
 
 ### [2026-10-21] Discovery per-UMI rule: deepest-consistent
