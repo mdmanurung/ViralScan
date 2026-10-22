@@ -1276,14 +1276,14 @@ def main() -> None:
 
         configure_logging(verbose=args.verbose, quiet=args.quiet)
         try:
-            out = collapse_rank(
+            collapsed = collapse_rank(
                 Path(args.discovery_dir),
                 args.rank,
                 Path(args.output_file) if args.output_file else None,
             )
         except DiscoveryError as exc:
             _die(str(exc))
-        print(out)
+        print(collapsed)
         return
 
     if getattr(args, "_subcommand", None) in ("doctor", "validate-run"):

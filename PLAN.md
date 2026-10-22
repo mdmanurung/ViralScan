@@ -7933,6 +7933,8 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   2 passed (discovery env); `ruff check .` / `ruff format --check .` clean; `gen_cli_reference.py --check` clean;
   `doctor --profile discovery` ok in the discovery env, fails on missing kraken2/k2 in the main env. "(In development)"
   labels dropped. Branch handed over for push / PR.
+  - Note: PR #89 CI lint failed on `mypy src/viralscan` (not run locally before): 7 annotations in `discovery.py`
+    and an `out` name reused as Path/str in `menu.main`; fixed, `mypy src/viralscan` clean locally.
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
 - [ ] `DISC-13` candidate states + evidence adapter.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).

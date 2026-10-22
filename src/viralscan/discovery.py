@@ -388,7 +388,7 @@ def barcode_geometry(technology: str) -> tuple[int, int]:
         raise DiscoveryError(f"Unsupported barcode geometry for discovery: {exc}") from exc
 
 
-def _read_filter_rows(path: Path):
+def _read_filter_rows(path: Path) -> Iterator[tuple[str, str]]:
     with gzip.open(path, "rt", newline="") as handle:
         for row in csv.DictReader(handle, delimiter="\t"):
             decision = row["filter_decision"]
@@ -659,7 +659,7 @@ def load_taxonomy(db: Path, memory_mapping: bool = False) -> dict[int, tuple[int
 
 # One memo per taxonomy tree (identity-checked; the tree is built once per run). Paths are
 # root-first tuples filled lazily for the taxids actually queried, so a 2M-node tree costs nothing.
-_PATHS: tuple[dict, dict[int, tuple[int, ...]]] = ({}, {})
+_PATHS: tuple[dict[Any, Any], dict[int, tuple[int, ...]]] = ({}, {})
 
 
 def _path(tree: dict[int, tuple[int, str, str]], taxid: int) -> tuple[int, ...]:
@@ -854,8 +854,8 @@ def _shard_fragments(out_dir: Path, n_shards: int) -> list[Path]:
     return paths
 
 
-def _group_shard(path: Path, tree: dict[int, tuple[int, str, str]]) -> list[tuple]:
-    reads: dict[tuple[str, str], list] = {}
+def _group_shard(path: Path, tree: dict[int, tuple[int, str, str]]) -> list[tuple[Any, ...]]:
+    reads: dict[tuple[str, str], list[Any]] = {}
     with path.open() as handle:
         for line in handle:
             cb, umi, tax = line.rstrip("\n").split("\t")
@@ -868,7 +868,10 @@ def _group_shard(path: Path, tree: dict[int, tuple[int, str, str]]) -> list[tupl
     path.unlink()
     rows = []
     for (cb, umi), (n, n_unclassified, taxids) in reads.items():
-        resolved, cls, consistent, deepest = "", "unclassified", "", ""
+        resolved: int | str = ""
+        consistent: bool | str = ""
+        deepest: int | str = ""
+        cls = "unclassified"
         if taxids:
             deep = max(taxids, key=lambda t: len(_path(tree, t)))
             consistent = all(t in _path(tree, deep) for t in taxids)
@@ -1082,7 +1085,7 @@ def build_candidates(
                 len(cells.get(taxid, ())),
                 "" if reads is None else reads,
                 "" if distinct is None else distinct,
-                "" if not reads else f"{distinct / reads:.4g}",
+                "" if not reads or distinct is None else f"{distinct / reads:.4g}",
                 relation,
                 int(has_human),
                 "observation",
