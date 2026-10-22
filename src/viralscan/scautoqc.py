@@ -9,6 +9,14 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+#: Curated globins (uppercased symbols) avoid broad ^HB matches such as HBEGF, HBP1 and HBS1L.
+#: Human: HBA1/2, HBB, HBD, HBE1, HBG1/2, HBM, HBQ1, HBZ (+ pseudogenes). Mouse (MGI, uppercased):
+#: Hba-a1/a2, Hba-x, Hbb-bs/bt/b1/b2, Hbb-bh1, Hbb-y, Hbq1a/b.
+GLOBIN_PATTERN = (
+    r"^(?:(?:HBA|HBA[12]|HBB|HBD|HBE1|HBG[12]|HBM|HBQ1|HBZ)(?:P\d+)?"
+    r"|HBA-(?:A[12]|X)|HBB-(?:B[ST12]|BH\d|Y)|HBQ1[AB])$"
+)
+
 
 def query_gene_annotations(gene_ids: Any) -> pd.DataFrame:
     """Retrieve symbols and mitochondrial membership for Ensembl IDs with Scanpy."""
@@ -165,13 +173,7 @@ def add_scautoqc(
     )
     marker_symbols = symbols.str.upper()
     ribo = marker_symbols.str.match(r"^RP[LS]", na=False).to_numpy() & host
-    # Curated globins avoid broad ^HB matches such as HBEGF, HBP1, and HBS1L.
-    hb = (
-        marker_symbols.str.match(
-            r"^(?:HBA|HBA[12]|HBB|HBD|HBE1|HBG[12]|HBM|HBQ1|HBZ)(?:P\d+)?$", na=False
-        ).to_numpy()
-        & host
-    )
+    hb = marker_symbols.str.match(GLOBIN_PATTERN, na=False).to_numpy() & host
     for key, values in (("mito", mito), ("ribo", ribo), ("hb", hb)):
         if not values.any():
             raise ValueError(

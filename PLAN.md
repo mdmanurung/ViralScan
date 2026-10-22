@@ -170,6 +170,9 @@ completion.
   raw 10x matrix are not meaningful and clustering may be slow until the rule is moved after cell calling (gated
   on the real run). Added BioMart failure handling + low-mapping warning, case-insensitive `MT-`, extra tests;
   virus-only/no-host index still hard-fails (documented). Clustering path needs `scanpy[leiden]` (the extra).
+  - Note (2026-10-22, PR #100 review): globin markers matched human symbols only, so every mouse `--scautoqc` run
+    aborted on the mandatory hb check; `GLOBIN_PATTERN` now also covers mouse (Hba-a1/a2, Hba-x, Hbb-bs/bt/b1/b2,
+    Hbb-bh1, Hbb-y, Hbq1a/b), with a regex test that needs no SCTK.
 
 - [x] `PERF-PLAN-02`: draft and review actionable cards for all 27 remaining
   performance candidates; preserve completed B05/B07/B20. Plan:

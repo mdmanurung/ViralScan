@@ -185,3 +185,14 @@ def test_biomart_failure_is_actionable(monkeypatch):
     monkeypatch.setattr(sc.queries, "biomart_annotations", down)
     with pytest.raises(RuntimeError, match="BioMart"):
         query_gene_annotations(["ENSG00000000001"])
+
+
+def test_globin_pattern_matches_human_and_mouse_but_not_lookalikes():
+    import re
+
+    from viralscan.scautoqc import GLOBIN_PATTERN
+
+    hits = ["HBA1", "HBB", "HBG2", "HBZ", "HBA-A1", "HBA-A2", "HBB-BS", "HBB-BT", "HBB-Y", "HBQ1A"]
+    misses = ["HBEGF", "HBP1", "HBS1L", "HBB-FOO", "HBA-A3"]
+    assert all(re.match(GLOBIN_PATTERN, s) for s in hits)
+    assert not any(re.match(GLOBIN_PATTERN, s) for s in misses)
