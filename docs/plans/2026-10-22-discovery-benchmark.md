@@ -1,14 +1,15 @@
 # DISC-12 — discovery benchmark protocol (DRAFT, not frozen)
 
-**Status:** draft for user approval. Nothing here has been run. The protocol is frozen only when the user approves it
-and the approving commit SHA is written into §8. Until then no discovery performance number may be quoted (gate G13 of
+**Status:** decisions recorded 2026-10-22 (grilling Q1–Q6, Q12); nothing has been run. The protocol is frozen when the
+user approves this PR after the viral-only DB is downloaded and the spike-in truth check (§2) is done, so §8 pins every
+hash at once. Until then no discovery performance number may be quoted (gate G13 of
 `docs/plans/2026-10-21-kraken2-discovery-plan.md`).
 
 **Parent plan:** `docs/plans/2026-10-21-kraken2-discovery-plan.md` §12.2 (scientific performance), §9.2 (states) and
 §9.3 (evidence adapter). PLAN rows: `DISC-12` (this), `DISC-13` (cut-offs that need this), `HOST-05`, `SW-07`.
 
-Items marked **UNDECIDED** need a user decision before freezing. Items marked **PROPOSED** are defaults the user may
-change.
+Items marked **DECIDED** record the 2026-10-22 grilling answers (`.living/decisions.md`). Rows still marked
+**PROPOSED** were accepted as written; they can change only before the freeze.
 
 ---
 
@@ -31,12 +32,12 @@ Out of scope: any change to the primary ViralScan counts, `detected` or tiers; a
 | Role | Library | Truth | Status |
 |---|---|---|---|
 | Positive, panel virus | EBV SRR12682296 (used in DISC-R10) | EBV; cells with primary unique EBV molecules | PROPOSED |
-| Positive, panel virus | HHV-6B library from Track A | HHV-6B; primary unique molecules | PROPOSED; library ID UNDECIDED |
-| Positive, panel virus | HSV-1 Drop-seq (no on-list) | HSV-1 | PROPOSED; DISC-R10.5 skipped a Drop-seq `no_onlist` run for lacking `called_cells.tsv`, so check this one has it |
+| Positive, panel virus | HHV-6B: the Track A library with the most primary unique HHV-6B molecules (rule fixed before any discovery run) | HHV-6B; primary unique molecules | DECIDED (Q2) |
+| Positive, panel virus | HSV-1 Drop-seq (no on-list) | HSV-1 | EXCLUDED from v1 (Q3): no Track A run has `called_cells.tsv`; reported `not_assessed` |
 | Positive, panel virus | covid PBMC | SARS-CoV-2 | PROPOSED; primary calls SARS-CoV-2 = 0 here (SENS-03), so it tests capture, not recovery |
 | Negative | hsv1 37 °C uninfected | none expected | PROPOSED |
 | Negative | L-94 | none expected | PROPOSED |
-| Spike-in | host background + known viral reads incl. EVE-like and host-homologous segments | per-read truth label | UNDECIDED: reuse the spike-in detection-limit grid (array 25864985) truth, or build a separate set |
+| Spike-in | host background + known viral reads incl. EVE-like and host-homologous segments | per-read truth label | DECIDED (Q4): reuse the spike-in detection-limit grid (array 25864985) inputs if its truth has per-read labels; a separate set only if it lacks them or lacks host-homologous segments |
 
 **Truth for panel positives** is the primary run's per-cell unique molecules, which is independent of Kraken2 but not
 of the kallisto reference. Recovery is therefore "agreement with ViralScan", not accuracy against ground truth. Only the
@@ -45,8 +46,8 @@ spike-in set has read-level truth.
 ## 3. Fixed configuration
 
 - **Code:** one ViralScan commit for all arms (SHA in §8).
-- **Databases:** PlusPF-16 2026-06-26 (as in DISC-R10) and one RefSeq viral-only build; `hash.k2d` sha256 recorded.
-  Viral-only build version UNDECIDED.
+- **Databases:** PlusPF-16 2026-06-26 (as in DISC-R10) and RefSeq viral `k2_viral_20260626` (same release; Q1);
+  `hash.k2d` sha256 recorded for both.
 - **Host subtraction:** computed once per library (STAR `pinned`); `star-default` as the second arm for question 1
   only.
 - **Grid:** confidence {0.0, 0.05, 0.1, 0.2} × minimum hit groups {2, 3, 4} = 12 configurations per library per DB.
@@ -70,11 +71,12 @@ Per library × DB × configuration:
 
 ## 5. Decision rules (fixed before results)
 
-1. **Kraken2 defaults.** Keep 0.05 / 4 unless another configuration meets the rule below on every positive and
-   negative library. Rule: UNDECIDED. Candidate: higher panel-virus cell recovery with no more false-positive taxa at
-   `prioritized` in either negative.
-2. **`k` for `prioritized`.** Candidate rule: the smallest `k` at which neither negative has any taxon at
-   `prioritized`. The recovery floor that `k` must still meet on positives is UNDECIDED.
+1. **Kraken2 defaults (Q5).** Keep 0.05 / 4 unless a configuration has no more `prioritized` false-positive taxa than
+   0.05 / 4 in **both** negatives **and** a higher median per-cell recovery of the panel virus in **every** positive. If
+   several qualify: fewest false-positive taxa, then higher confidence.
+2. **`k` for `prioritized` (Q6).** The smallest `k` at which neither negative has any taxon at `prioritized` while the
+   panel virus still reaches `prioritized` in **every** benchmark positive. If no `k` meets both, report it and leave
+   `prioritized` unbuilt.
 3. **DISC-13 route constants.** Re-derived from the spike-in set only; the panel positives can confirm but not set them.
 4. **DB.** Reported side by side; no automatic choice. The viral-only DB stays capped at `observation` (G15) whatever
    it scores.
