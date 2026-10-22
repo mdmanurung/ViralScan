@@ -55,13 +55,13 @@ from viralscan.evidence import (
     write_tagged_bam,
 )
 from viralscan.kb_outputs import KbCountOutputs
-from viralscan.outputs import posthoc_dir
 from viralscan.molecule_verdict import (
     _read_number,
     select_representatives,
     write_from_bam,
     write_umi_query_fasta,
 )
+from viralscan.outputs import posthoc_dir
 from viralscan.read_support import write_molecule_support
 from viralscan.run_safety import sha256_file, software_identity
 from viralscan.runconfig import RunConfig
