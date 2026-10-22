@@ -137,7 +137,7 @@ class TestDetectAndNormalize:
     def test_raw_depth_is_not_normalized_values(self):
         adata = _make_host_adata(raw=True)
         _detect_and_normalize(adata)
-        # After normalization, row sums ≈ 1e4; raw depth is the original integer sum
+        # Raw depth remains the original library size after shifted-log normalization.
         depth = adata.obs["_raw_depth"].values
         assert depth.max() > 100  # integer counts, not normalized
 

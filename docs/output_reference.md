@@ -231,7 +231,7 @@ and warn once when viral table genes are absent from the matrix (they cannot car
 | `species_taxid`, `species_ncbi`, `genus_ncbi`, `subfamily_ncbi`, `family_ncbi` | NCBI Taxonomy lineage of `taxid` from the packaged `data/virus_taxonomy.tsv` (PLAN `TAXO-01`; regenerate with `extras/build_virus_taxonomy.py`): EBV types 1 and 2 share species taxid 3050299 *Lymphocryptovirus humangamma4*. Empty for uncatalogued genomes and for NCBI "… sp." bins (unclassified isolates are not one species). Tables written before this change lack these columns and still read | observation |
 | `segment`, `strain` | Segment and strain/isolate of the genome, when recorded | observation |
 | `sibling_group` | Near-identical viruses that allocation can move molecules between (e.g. `HHV-4` for EBV types 1 and 2) | observation |
-| `risk_class` | `eve` for families with endogenous or ubiquitous-commensal risk | diagnostic flag |
+| `risk_class` | `eve` for families with endogenous or ubiquitous-commensal risk, `low_complexity` for a known low-complexity read-artefact risk. **Blank means unknown (not assessed), not "no risk"**; a blank row is not evidence that the virus is free of endogenous or artefact risk | diagnostic flag |
 | `role` | `decoy` for lab-contaminant decoy genomes | diagnostic flag |
 
 A run with no viral gene in its index stops at this step.
@@ -1093,6 +1093,28 @@ Contamination, expected 3-prime bias, and subgenomic-RNA-like patterns remain
 available. No diagnostic flag is an automatic biological conclusion.
 
 ---
+
+## Expression normalization
+
+UMAP preprocessing and detected raw host-response inputs use shifted-log
+normalization: Scanpy `normalize_total(target_sum=None)` uses its default
+median-library scaling, then `log1p` applies the natural logarithm
+with pseudocount one. There is no fixed TP10K target. The host-only PCA graph
+computes its library totals after excluding viral genes; host-response normalization
+is within each analyzed cohort. Existing QC/HVG thresholds are unchanged.
+
+Input count files and count layers are preserved. Host-response raw-depth covariates
+are captured before normalization; inputs already marked as log-normalized are
+preserved. The existing raw-input detection heuristic still applies. Its manifest's
+`raw_input_normalization` field describes this conditional preprocessing policy;
+source identity and logs distinguish it from older TP10K runs. Feature selection,
+embeddings and fitted results can change; rerun downstream analyses in new output
+roots when adopting this method. Previous outputs are not rewritten. Scanpy version
+is recorded in the host-response
+normalization policy; its treatment of zero-count rows can depend on representation
+and version. Empty rows remain empty, with raw counts and depths preserved.
+
+Reference: [Single-cell best practices: shifted logarithm](https://www.sc-best-practices.org/preprocessing-visualization/normalization/#shifted-logarithm).
 
 ## `hostresponse/` — host-response outputs
 
