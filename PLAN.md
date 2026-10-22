@@ -8026,7 +8026,10 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   labels dropped. Branch handed over for push / PR.
   - Note: PR #89 CI lint failed on `mypy src/viralscan` (not run locally before): 7 annotations in `discovery.py`
     and an `out` name reused as Path/str in `menu.main`; fixed, `mypy src/viralscan` clean locally.
-- [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
+- [~] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`. Draft (2026-10-22, `codex/disc12-protocol`):
+  `docs/plans/2026-10-22-discovery-benchmark.md`, not frozen, nothing run. Open for the user: viral-only DB build,
+  HHV-6B library ID, spike-in truth source (reuse array 25864985 or a new set), the default-change and `k` decision
+  rules (§5). Freeze = user approval + SHA in its §8.
 - [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
   `read_evidence_table` in `discovery.py` write `candidate_states.tsv` (`observation`, `corroborated` route i,
   `read_supported_observation` route ii; `corroboration` / `read_support` = `not_assessed|negative|positive`; viral-only DB
