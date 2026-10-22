@@ -6303,6 +6303,29 @@ behind the package-completion plan unless the user releases a row.
     (reads are already host-free).
   - Done: the diagnosis is in `run_manifest.json` (`analysis.py:140-159`); the gate is fail-closed behind
     `--require-chemistry-sanity`. Decision: the bulk path only advises (`kb count -x BULK` is not wired).
+- [x] `CHEM-02` — TusslChemistry (`tchem`, Apache-2.0 Rust binary, v0.1.0) as a second opinion on the chemistry
+  (user request and decisions 2026-10-17/18: second opinion, prebuilt release binary, include in viralscan, use it to
+  resolve the Track A chemistry). Branch `codex/tchem-second-opinion` (worktree `vs_work/tchem`, off `codex/drop-py39` 5e551c9).
+  - **Code:** `src/viralscan/tchem.py` (binary via `--tchem-bin`, `$VIRALSCAN_TCHEM`, `PATH`; lists via `--tchem-whitelists`,
+    `$VIRALSCAN_TCHEM_WHITELISTS`, then tchem's own `$TUSSL_CHEMISTRY_WHITELISTS`; two calls per sample: `--format json` for
+    the verdict, `--emit kb` for `-x/-w/--strand`; compared on barcode+UMI geometry), flags `--tchem {auto,require,off}`,
+    `--tchem-bin`, `--tchem-whitelists` on the run and on `check-chemistry`, a `tchem` block per sample in the manifest,
+    generated CLI reference, changelog and `config/public_ship_scope.json` (tchem.py in both lists) updated. Policy (user): agreement passes; a disagreement with `-x`, or a tchem
+    `ambiguous`/`no_match`, stops the run unless `--force-technology`; a missing tchem never stops it in `auto`.
+  - **Verified against the real binary (2026-10-18):** release `tchem-v0.1.0-x86_64-unknown-linux-musl.tar.gz` sha256
+    `9112e5018c26868317fa6547490094b59915927ef1482bb361f0b60ce5fe488e` matches the published `.sha256`; installed at
+    `mdmanurung/tools/tchem_0.1.0`, 23 barcode lists fetched and packed in `tools/tchem_whitelists` (10x Flex skipped: Cell
+    Ranger only). The real `--emit kb` text and JSON (schema 1.1) parse as the code expects (the former open item); the
+    captured outputs are fixtures in `tests/test_tchem.py`, plus an env-gated real-binary test. One regression found and fixed:
+    `menu._tchem_second_opinion` indexed an empty `blocks` when a forced `-x` skipped detection (KeyError).
+  - **Track A re-check (read-only, 80 libraries with reads on disk, `-x` = recorded chemistry):** HNSCC 34/34 and hpv16 2/2
+    agree (10x 3' v2 / 3' v3), 8 tonsil libraries agree (3' v3 and Multiome GEX). New calls: `188573`, `182656`, `269550`
+    are 10x Multiome GEX, HIGH, forward, `-x 0,0,16:0,16,28:1,0,0` (their earlier "unresolved" was the missing multiome on-list in
+    the manifest, not the library). `187505`, `167868`, `187508` stay AMBIGUOUS between 10x 3' v2 and 5' v1/v2 even at 1M reads
+    (same 16+10 geometry, 2 trailing bases, cDNA strand unclear); `182636` is 5' v1/v2 and `187507` 3' v2, both MEDIUM. HHV-6B and
+    EBV FASTQs are deleted, so they could not be re-checked; HSV-1 Drop-seq libraries read `no_call` (tchem names Drop-seq but
+    gives no kb technology).
+  - **Left:** decide the five non-HIGH libraries (tchem narrows them to the 10x v2 geometry but cannot call 3' vs 5').
 - [ ] `DSR-10` — standard arm set on every dataset (user, 2026-10-06; see
   `.living/decisions.md` "Same standard arm set on every dataset"). Each
   dataset × arm cell is run or marked n/a with a reason in the run plan's arm
