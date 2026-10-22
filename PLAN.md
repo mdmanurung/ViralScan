@@ -192,11 +192,23 @@ completion.
   CLI-UNIFY-02. Not touched: `scripts/run_fresh_control.py` (drives frozen pinned v2/v3 binaries), historical
   `scripts/slurm_*.sh`, `tests/_frozen_oracles/`, `.living/`/`analysis/` notes, `docs/write-docs-prompt.md`.
   Supersedes `CLI-ORIG-01`. Tests: `tests/test_cli_unify.py`; migration table in `docs/migration.md`.
-- [~] `CLI-UNIFY-02`: `hostresponse` flag done (2026-10-21, `codex/cli-unify-02-hostresponse`): `-o` (an input run
-  dir) removed with an error naming `--run-dir`; optional `--output DIR` is where hostresponse writes (default
-  `<run-dir>/hostresponse`, unchanged, layout stays version 1). Deferred pending the user's decision whether writing
-  inside the run violates "run dir is immutable input": post-hoc outputs (`evidence`, `rerun-multimap`,
-  `hostresponse`) default inside the run; `layout_version` 2.
+- [x] `CLI-UNIFY-02` (2026-10-21, `codex/cli-unify-02-layout`, stacked on `codex/cli-unify-02-hostresponse`):
+  `hostresponse` takes `--run-dir` (input) + optional `--output`; user decision 2026-10-21: post-hoc outputs
+  default INSIDE the run in a reserved `<run-dir>/posthoc/` (one folder per verb), `--output` overrides,
+  `layout_version` 2. Design: `outputs.posthoc_dir/is_posthoc/SUPPORTED_LAYOUT_VERSIONS`. `evidence` ->
+  `posthoc/evidence/<virus>` (`review_candidates` for `--review-candidates`, whose TSV moved out of `results/`);
+  `rerun-multimap` -> `posthoc/multimap_<method>` (copy skips `posthoc/`; non-empty output still refused; an
+  explicit `-o` inside the run but outside `posthoc/` is refused); `rerun-programs` -> `posthoc/programs`
+  (`gene_programs.main(results_root=)`; no `log/gene_programs.done`, no marker re-stamp); `hostresponse` ->
+  `posthoc/hostresponse` (no marker re-stamp); `evidence-plot` unchanged (writes beside its evidence dir).
+  `validate-run` accepts layout 1, 2 and absent, errors on others, and its rglobs skip `posthoc/`. `run
+  --hostresponse` / `--auto-evidence` are part of the run and keep their paths. Tests:
+  `tests/test_posthoc_layout.py` (hashes the run before/after). Docs: migration, output_reference, faq, CHANGELOG,
+  cli_reference. Not re-pinned: `analysis/v3_artifact_inventory.tsv`, claim registry.
+  - Note (2026-10-22, PR #99 review): `run` now refuses a derived sample ID `posthoc` (it would be read as
+    post-hoc output by `validate-run` and the `rerun-multimap` copy); `menu._check_sample_ids` holds this and the
+    duplicate check. Hand-written `cli_reference` sections for evidence / rerun-multimap / hostresponse /
+    rerun-programs updated to the layout 2 defaults.
 
 - [x] `OUT-LAYOUT-01` (2026-10-20, `codex/output-layout`, stacked on `codex/orig-api-docs`): output
   layout kept close to evonk's 2.2.0 (user decisions, grill 2026-10-20). `count_audit.tsv` moves into
@@ -8117,8 +8129,14 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     API only (no `discover-evidence` CLI: needs parser, menu dispatch and help wiring). Tests `tests/test_discovery_kb_evidence.py`.
     Review fixes: empty/no-called-cell molecule file raises; counts are distinct (CB, UMI); above-species ancestor genes compete
     (`n_adjudicated`) but never make a molecule taxon-best.
-  - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch); route (ii) producer (competitive alignment of the
-    hit genome vs host + panel).
+  - Done 2026-10-22: route (ii) producer `build_read_support_evidence` (`source=minimap2`, `evidence_read_support.tsv`), API only
+    (no CLI, plan §7). Per `--candidate-fasta` taxid (cap `max_candidates=3`): exact R2 reads of the taxon's resolved called-cell
+    groups -> `HOST|` + `VIRUS|CAND_*` (+ optional `VIRUS|PANEL_*`) -> alignment (injectable aligner/hit reader). Unmapped reads
+    count in `n_adjudicated` (tested, no support); taxon-best needs a strictly higher AS on candidate contigs than on any
+    host/panel contig (ties, host/panel wins are not best). No resolved called-cell read -> no row (`not_assessed`). Read IDs
+    of the FASTQ pair are checked against `reads.tsv.gz`. Tests `tests/test_discovery_read_support.py` (stubbed aligner; no
+    real-minimap2 test: not installed in the dev env). `coverage_table`/QC tables of plan §9.3 not emitted (evidence row only).
+  - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch).
   - Left: no CLI (plan §7 specifies none); `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
     need `DISC-12`.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).

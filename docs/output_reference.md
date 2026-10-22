@@ -119,7 +119,7 @@ output/
 The sample directory keeps the files the original ViralScan 2.2.0 wrote (`config.yaml`,
 `summary.txt`, `log/`, `kb-python/`, `plots/`, same names); everything v3 added lives under
 `results/` (and `read_filtered/`, `report.html`). `layout_version` in `run_manifest.json` (outside
-`run_fingerprint`) is bumped whenever a published path moves; this layout is version 1.
+`run_fingerprint`) is bumped whenever a published path moves; this layout is version 2 (version 1 runs, which lack the `posthoc/` folder below, still validate).
 `combined_summary.tsv` at the run root stacks every sample's `results/viral_summary.tsv` under a
 leading `sample` column; it is rewritten with `run_complete.json` and holds no recomputed value.
 `summary.txt` opens with the original's block (`Found viral Gene IDs including the count:`,
@@ -207,9 +207,9 @@ kinds, so an observed count is never read as a model output or a conclusion:
 
 ## `run_complete.json`
 
-Written at the run root (beside `run_manifest.json`) only after every sample has finished, and again after `rerun-multimap`. It is the completion marker: a run without it was interrupted or is still in progress. Fields: `schema_version`, `run_fingerprint` (must equal the manifest's), `viralscan_version`, `samples`, `completed_at`, and `artifacts`, a map of `<sample>/<path>` to sha256 for the narrow set `results/viral_summary.tsv`, `results/virus_identity.tsv`, `results/multimap_evidence.tsv` and `kb-python/counts_unfiltered/adata_multimap.h5ad` (each only if present).
+Written at the run root (beside `run_manifest.json`) only after every sample has finished, and again in the new result directory of `rerun-multimap`. It is the completion marker: a run without it was interrupted or is still in progress. Fields: `schema_version`, `run_fingerprint` (must equal the manifest's), `viralscan_version`, `samples`, `completed_at`, and `artifacts`, a map of `<sample>/<path>` to sha256 for the narrow set `results/viral_summary.tsv`, `results/virus_identity.tsv`, `results/multimap_evidence.tsv` and `kb-python/counts_unfiltered/adata_multimap.h5ad` (each only if present).
 
-The marker is deleted whenever a run starts, resumes or overwrites, and re-computed by in-place commands (`rerun-programs`, `hostresponse`) when one existed. New runs set `completion_marker: true` in `run_manifest.json`; `viralscan validate-run` then treats a missing marker, a fingerprint mismatch or an artifact hash mismatch as an error. Runs whose manifest lacks the field only get a warning for a missing marker. Schema: `schemas/v3/run_complete.schema.json`.
+The marker is deleted whenever a run starts, resumes or overwrites, and never touched by post-hoc commands. New runs set `completion_marker: true` in `run_manifest.json`; `viralscan validate-run` then treats a missing marker, a fingerprint mismatch or an artifact hash mismatch as an error. Runs whose manifest lacks the field only get a warning for a missing marker. Schema: `schemas/v3/run_complete.schema.json`.
 
 `run_manifest.json` also carries `defaults_status`. It is `provisional` on every `3.0.0.devN` build: the detection defaults are not yet validated against the truth panel (gate G5), so any number from such a run is provisional. It becomes `final` from the release candidate. Like `completion_marker`, the field is outside `run_fingerprint`, so `--resume` still matches older manifests.
 
@@ -1040,9 +1040,26 @@ These are **labels, not a gate**: no call, tier, threshold or `detection_source`
 ---
 
 <!-- viralscan-claim:v3-evidence-workflow status=provenance_incomplete -->
+## `posthoc/` — post-hoc verb outputs (layout version 2)
+
+`<run-dir>/posthoc/` is reserved for the post-hoc verbs; each writes there by default and
+never modifies the run's own outputs (matrix, `results/`, `config.yaml`, `run_manifest.json`,
+`run_complete.json`). `--output` overrides the location. `validate-run` ignores `posthoc/`.
+
+| Verb | Default output |
+|---|---|
+| `evidence` | `posthoc/evidence/<virus>/` (`posthoc/evidence/review_candidates/` with `--review-candidates`) |
+| `evidence-plot` | inside each `--evidence-dir` (unchanged) |
+| `rerun-multimap` | `posthoc/multimap_<method>/` (a complete copy of the run; `posthoc/` itself is not copied) |
+| `rerun-programs` | `posthoc/programs/results/gene_program_{summary,cells}.tsv` |
+| `hostresponse` | `posthoc/hostresponse/` |
+
+`run --hostresponse` and `--auto-evidence` are part of the run itself and still write
+`<output>/hostresponse/` and `results/evidence/<genus>/`.
+
 ## `viralscan evidence` output
 
-Evidence is generated in the explicit `--output` directory for one exact
+Evidence is generated in the `--output` directory (default `<run-dir>/posthoc/evidence/<virus>`) for one exact
 accession, registered alias, or canonical call. With `--viral-fasta` it also
 requires a full `--host-fasta`; alignment and BLAST are competitive rather
 than virus-only.
@@ -1176,7 +1193,7 @@ Reference: [Single-cell best practices: shifted logarithm](https://www.sc-best-p
 ## `hostresponse/` — host-response outputs
 
 Written by `viralscan hostresponse` (or a main run with `--host-h5ad`) under
-`<output>/hostresponse/`. See the CLI reference for the flags; the key point is
+`<output>/hostresponse/` (the post-hoc command: `<run-dir>/posthoc/hostresponse/`). See the CLI reference for the flags; the key point is
 that the raw candidate-support label can be **depth-confounded**, so interpret
 the model AUC together with the depth baseline, cohort balance, and sensitivity
 metrics.
@@ -1372,10 +1389,10 @@ raw and deduplicated depth TSVs and samtools depth policy are unchanged.
 
 ```bash
 viralscan evidence --review-candidates --run-dir completed/sample \
-    --output completed/sample/results/evidence
+    --output completed/sample/posthoc/evidence/review
 ```
 
-This opt-in diagnostic writes `results/evidence_review.tsv`, one row per
+This opt-in diagnostic writes `evidence_review.tsv` in the output directory (default `posthoc/evidence/review_candidates/`), one row per
 Anelloviridae candidate, including below-gate and `alignment_only` candidates.
 Columns are `virus_name`, `detection_source`, `detected`, `evidence_source`,
 `n_reads`, `n_unique_cb_umi`, `complex_body_fraction`, `reagent_fraction`, `status`,

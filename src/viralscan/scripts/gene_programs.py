@@ -297,7 +297,9 @@ def run_one(
     return df
 
 
-def main(adata_path: str, summary_path: str, done_path: str) -> None:
+def main(
+    adata_path: str, summary_path: str, done_path: str, results_root: str | None = None
+) -> None:
     catalogue = load_catalogue()
     problems = validate_catalogue(catalogue)
     if problems:
@@ -332,7 +334,7 @@ def main(adata_path: str, summary_path: str, done_path: str) -> None:
     _attach_layer1_totals(summary, summary_path, molecule_column)
     summary["n_called_cells"] = adata.n_obs
 
-    paths = write_program_outputs(cells, summary, output)
+    paths = write_program_outputs(cells, summary, results_root or output)
     log.info("Wrote %s and %s", os.path.basename(paths[0]), os.path.basename(paths[1]))
     if done_path:
         with open(done_path, "w") as handle:

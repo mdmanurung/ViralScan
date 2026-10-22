@@ -425,8 +425,8 @@ HBV cccDNA pool all produce no reads, so they are **invisible, not latent**. And
 `indeterminate` is not a negative — it means the virus was detected but no
 programme met its threshold, which is a statement about breadth, not virology.
 
-Already have a run? `viralscan rerun-programs --run-dir <dir>` works in place,
-because layer 2 only reads the counts and layer 1's summary.
+Already have a run? `viralscan rerun-programs --run-dir <dir>` writes its tables under
+`<dir>/posthoc/programs/`, because layer 2 only reads the counts and layer 1's summary.
 
 ---
 
