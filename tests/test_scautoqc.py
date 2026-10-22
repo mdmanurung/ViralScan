@@ -45,7 +45,7 @@ def test_scautoqc_adds_flags_and_qc_umap_without_changing_matrix():
 def test_scautoqc_cli_is_opt_in_and_recorded_in_run_config():
     from viralscan.menu import _build_run_config, build_parser
 
-    base = ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3"]
+    base = ["run", "--r1", "R1.fq", "--r2", "R2.fq", "-o", "out", "-x", "10xv3"]
     default_args = build_parser().parse_args(base)
     assert default_args.scautoqc is False
     enabled_args = build_parser().parse_args([*base, "--scautoqc"])
@@ -73,7 +73,7 @@ def test_flag_off_adds_no_config_key_and_no_rule(tmp_path):
     from viralscan.menu import _build_run_config, build_parser
     from viralscan.runconfig import RunConfig
 
-    base = ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3"]
+    base = ["run", "--r1", "R1.fq", "--r2", "R2.fq", "-o", "out", "-x", "10xv3"]
     cfg = _build_run_config(build_parser().parse_args(base), "out/", "i", "t", None, "a", "b")
     assert "scautoqc" not in cfg.to_dict()
     cfg.to_yaml(tmp_path / "config.yaml")

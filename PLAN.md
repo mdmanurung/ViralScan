@@ -154,7 +154,7 @@ completion.
   `tests/test_original_cli_compat.py`. `-umap` stays a bare flag. Known limit: a bare flag directly before a subcommand name takes it
   as the value (`-v data` is a usage error); documented, pinned by test.
 
-- [~] `SCAUTOQC-01` (2026-10-19, branch `codex/scautoqc`, ported from `codex/scautoqc-wip` 92dd88e): optional
+- [~] `SCAUTOQC-01` (2026-10-19, branch `codex/scautoqc`, ported from `codex/scautoqc-wip` 92dd88e): optional 2026-10-22: rebased onto origin/main via tmp/wave2-base-2026-10-22; tests adapted to the `run` subcommand.
   `--scautoqc` SCTK cell/cluster QC flags added in place to the count H5ADs and UMAP outputs; cells are flagged,
   never removed. Opt-in rule/flag/config key are absent when off. Conservative defaults on the two open design
   questions (user to confirm): (a) the legacy n_counts/n_genes filter in `umap.py` is UNCHANGED with the flag
