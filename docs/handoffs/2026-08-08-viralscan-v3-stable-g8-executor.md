@@ -1,5 +1,7 @@
 # No-Parent-History Executor Handoff: ViralScan stable G8
 
+> Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
+
 ## Objective
 
 Advance ViralScan strictly from the earliest open gate toward stable `G8`,
@@ -9,13 +11,13 @@ genuine scientific, dependency, permission, or external-approval boundary.
 
 ## Repository
 
-`/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan`
+`$SITE_ROOT/ViralScan`
 
 Revised Plan Path:
-`/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/docs/plans/2026-08-08-viralscan-v3-stable-g8.md`
+`$SITE_ROOT/ViralScan/docs/plans/2026-08-08-viralscan-v3-stable-g8.md`
 
 Task List Path:
-`/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/docs/plans/2026-08-08-viralscan-v3-stable-g8-tasks.md`
+`$SITE_ROOT/ViralScan/docs/plans/2026-08-08-viralscan-v3-stable-g8-tasks.md`
 
 ## Frozen Plan
 

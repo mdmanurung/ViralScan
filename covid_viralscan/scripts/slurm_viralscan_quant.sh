@@ -19,6 +19,9 @@
 #SBATCH -o covid_viralscan/logs/quant_%A_%a.log
 #SBATCH -e covid_viralscan/logs/quant_%A_%a.err
 
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
 
 # ── Sample table ──────────────────────────────────────────────────────────────
@@ -26,13 +29,13 @@ SAMPLES=("LUM-SJ-x213-g" "LUM-SJ-x216-g")
 SAMPLE=${SAMPLES[$SLURM_ARRAY_TASK_ID]}
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-REPO=/exports/para-lipg-hpc/mdmanurung/ViralScan
-VS_CONDA_ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+REPO=$SITE_SCRATCH/ViralScan
+VS_CONDA_ENV=$COLLAB_ROOT/conda/envs/test_viralscan
 
 export PATH="$VS_CONDA_ENV/bin:$PATH"
 export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"
 
-FASTQ_ROOT=/exports/para-lipg-hpc/mdmanurung/covid_viralscan_fastqs/2025-3089-LUM-SJ-x213-x218-gtm/raw_fastq
+FASTQ_ROOT=$SITE_SCRATCH/covid_viralscan_fastqs/2025-3089-LUM-SJ-x213-x218-gtm/raw_fastq
 GEX_DIR=$FASTQ_ROOT/${SAMPLE}_fastq
 REF_DIR=$REPO/covid_viralscan/viralscan_ref
 MERGED_DIR=$REPO/covid_viralscan/data/$SAMPLE

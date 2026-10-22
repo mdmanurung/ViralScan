@@ -13,15 +13,17 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --time=12:00:00
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/sfl_tonsil/logs/%x_%j.log
+#SBATCH -o slurm_%x_%j.log
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+
 set -euo pipefail
-CODE=/exports/archive/hg-funcgenom-research/mdmanurung/vs_pinned/4346dc8
-ENV=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench
-R_BIN=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/R4_51/bin
-REF=/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42d/build
-W=/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/sfl_tonsil
+CODE=$SITE_ROOT/vs_pinned/4346dc8
+ENV=$SITE_ROOT/conda/envs/viralscan_bench
+R_BIN=$SITE_ROOT/conda/envs/R4_51/bin
+REF=$SITE_ROOT/viral_ref_cat42d/build
+W=$SITE_ROOT/viralscan_work/sfl_tonsil
 WL=$W/ref/cellranger_raw_whitelist.txt
-FQ=/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/benchmark_runs/sfl_tonsil_screen_2026-09-26/2025-3178-LUM-SJ-x223-x226/raw_fastq/LUM-SJ-x223_fastq
+FQ=$SITE_ROOT/ViralScan/benchmark_runs/sfl_tonsil_screen_2026-09-26/2025-3178-LUM-SJ-x223-x226/raw_fastq/LUM-SJ-x223_fastq
 export PATH="$ENV/bin:$PATH:$R_BIN" PYTHONPATH="$CODE/src" MPLBACKEND=Agg
 echo "code_sha $(git -C "$CODE" rev-parse HEAD)"
 

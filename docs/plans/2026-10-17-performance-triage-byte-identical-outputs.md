@@ -1,5 +1,7 @@
 # Performance triage and byte-identical output plan
 
+> Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
+
 Date: 2026-10-17. Project: ViralScan.
 Status: first-wave implementation complete; E01–E05 passed; E06 assessed/deferred.
 Original source baseline: `5e551c96831c0c152da9fa450af6a75b1266e610`; the 56-file
@@ -421,7 +423,7 @@ outputs to make a candidate look compatible.
 Current execution verification (does not regenerate goldens):
 
 ```bash
-/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/bin/python analysis/computational_bottlenecks_2026-10-17/execution/verify.py
+$SITE_ROOT/conda/envs/viralscan_test_full/bin/python analysis/computational_bottlenecks_2026-10-17/execution/verify.py
 ```
 
 The historical triage probe below expects the pre-edit source inventory. It now
@@ -430,7 +432,7 @@ its hash guard; use the execution verifier and captured original instead. Histor
 command, for a checkout containing the original source and pinned environment:
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMBA_CACHE_DIR=/tmp/viralscan-survey-numba MPLCONFIGDIR=/tmp/viralscan-survey-mpl /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/bin/python analysis/computational_bottlenecks_2026-10-17/byte_identity_probe.py
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMBA_CACHE_DIR=/tmp/viralscan-survey-numba MPLCONFIGDIR=/tmp/viralscan-survey-mpl $SITE_ROOT/conda/envs/viralscan_test_full/bin/python analysis/computational_bottlenecks_2026-10-17/byte_identity_probe.py
 ```
 
 The probe verifies the package source hash inventory before execution and records

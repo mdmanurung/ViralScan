@@ -1,11 +1,13 @@
 # DSR round 2b (SENS-07 planted sensitivity) - comparability guard (binding on every agent)
 
+> Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
+
 Template. Copy to `dsr_round2b/GUARD.md` after the user has answered Q48 and Q49 and `config.tsv` is filled in;
 never edit the copy afterwards. Mirrors `docs/plans/dsr_round2_GUARD.md` (PLAN `DSR-16`, `SENS-07`).
 Every run is exploratory: labelled `explore`, unscored, one library per dataset (n = 1), no scored-gate (G5b) and
 no VAL-01 claim. No pass/fail threshold anywhere.
 
-Pinned code: /exports/archive/hg-funcgenom-research/mdmanurung/vs_pinned/35de249 (clean `main` commit; never edit it).
+Pinned code: $SITE_ROOT/vs_pinned/35de249 (clean `main` commit; never edit it).
 **Deviation from round 2 (user, Q49):** round 2 ran on `vs_pinned/e7c1b08`; round 2b uses `35de249` because the
 `SENS-07` scorer-group and exact-sequence receipt repairs landed after `e7c1b08`. The planted run is a separate
 measurement, not a re-run of round 2's cells, so the code difference does not change any round-2 cell; the ledger
@@ -29,8 +31,8 @@ emptydrops`, `--anellovirus-gene-ids`, no filter flag); `score` (planted minus t
 `--seed 20261012`.
 
 Environment (set before every sbatch):
-  ROUND_DIR=/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2b
-  CODE_DIR=/exports/archive/hg-funcgenom-research/mdmanurung/vs_pinned/35de249
+  ROUND_DIR=$SITE_ROOT/viralscan_work/dsr_round2b
+  CODE_DIR=$SITE_ROOT/vs_pinned/35de249
 Pass `-o $ROUND_DIR/logs/%x_%A_%a.log` on every sbatch line (the in-script #SBATCH -o is only the default).
 
 ## Explore ledger (mandatory)
@@ -65,5 +67,5 @@ A planting error (too few barcodes for the conditions, geometry mismatch): repor
 `--cells-per-condition` or trim reads to make it pass.
 
 ## Write only under dsr_round2b/ (runs/, status/, logs/). Never write under dsr_round1/ or dsr_round2/ (read-only). Do not write inside the repo tree.
-## Submit from the repo dir: /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan
+## Submit from the repo dir: $SITE_ROOT/ViralScan
 ## Wait with Monitor or a Bash until-loop (run_in_background), checking sacct no more than once per 5 minutes.

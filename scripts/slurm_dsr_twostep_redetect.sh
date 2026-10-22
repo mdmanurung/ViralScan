@@ -6,10 +6,10 @@
 # with the copied kb-python/counts_unfiltered (25715231, 25715437).
 #   sbatch --array=<manifest rows> -J dsr_two_redet --cpus-per-task=4 --mem=16G --time=4:00:00 \
 #       scripts/slurm_dsr_twostep_redetect.sh
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round1/logs/%x_%A_%a.log
+#SBATCH -o slurm_%x_%j.log
 set -euo pipefail
 # >>> dsr-env (tests/test_dsr_round_env.py evaluates this block alone)
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
 R=${ROUND_DIR:-$M/viralscan_work/dsr_round1}
 # <<< dsr-env
 CODE=${CODE_DIR:-${CODE:?pinned worktree with the DSR-15 patch}}

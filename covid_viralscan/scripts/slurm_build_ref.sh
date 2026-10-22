@@ -27,11 +27,14 @@
 #SBATCH -o covid_viralscan/logs/build_ref_%j.log
 #SBATCH -e covid_viralscan/logs/build_ref_%j.err
 
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-REPO=/exports/para-lipg-hpc/mdmanurung/ViralScan
-VS_CONDA_ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+REPO=$SITE_SCRATCH/ViralScan
+VS_CONDA_ENV=$COLLAB_ROOT/conda/envs/test_viralscan
 
 export PATH="$VS_CONDA_ENV/bin:$PATH"
 export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"
@@ -41,7 +44,7 @@ PANEL_FA=$REPO/references/starsolo/all_virus_serratus_plus_anellovirus/viral_gen
 PANEL_GTF=$REPO/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.gtf
 
 # Ensembl download cache — keep outside repo to avoid re-downloading on reruns
-CACHE_DIR=/exports/para-lipg-hpc/mdmanurung/viralscan_cache
+CACHE_DIR=$SITE_SCRATCH/viralscan_cache
 
 mkdir -p "$OUTDIR" "$CACHE_DIR" "$REPO/covid_viralscan/logs"
 

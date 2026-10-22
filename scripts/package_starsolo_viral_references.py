@@ -9,35 +9,42 @@ commands recorded in ``reference_manifest.json``.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import sys
 from pathlib import Path
 
 
-DEFAULT_SERRATUS_FASTA = Path(
-    "/exports/archive/hg-funcgenom-research/evonk/old/intern/fasta_viruses/Serratus/all_fastas.fasta"
+def _site(var: str, rel: str) -> Path:
+    """Site-specific default under $VAR; unset leaves a literal ``$VAR`` that fails visibly on use."""
+    return Path(os.environ.get(var, "$" + var)) / rel
+
+
+DEFAULT_SERRATUS_FASTA = _site(
+    "VIRALSCAN_COLLAB_ROOT", "old/intern/fasta_viruses/Serratus/all_fastas.fasta"
 )
-DEFAULT_SERRATUS_FASTA_DIR = Path(
-    "/exports/archive/hg-funcgenom-research/evonk/old/intern/fasta_viruses/Serratus/fasta_split"
+DEFAULT_SERRATUS_FASTA_DIR = _site(
+    "VIRALSCAN_COLLAB_ROOT", "old/intern/fasta_viruses/Serratus/fasta_split"
 )
-DEFAULT_SERRATUS_GTF = Path(
-    "/exports/archive/hg-funcgenom-research/evonk/old/intern/fasta_viruses/Serratus/all_gtf.gtf"
+DEFAULT_SERRATUS_GTF = _site(
+    "VIRALSCAN_COLLAB_ROOT", "old/intern/fasta_viruses/Serratus/all_gtf.gtf"
 )
-DEFAULT_ANELLO_FASTA = Path(
-    "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/anellovirus/anellovirus.fa"
+DEFAULT_ANELLO_FASTA = _site(
+    "VIRALSCAN_SITE_SCRATCH", "viralscan_showcase/fullrun/refs/anellovirus/anellovirus.fa"
 )
-DEFAULT_ANELLO_GTF = Path(
-    "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/anellovirus/anellovirus.gtf"
+DEFAULT_ANELLO_GTF = _site(
+    "VIRALSCAN_SITE_SCRATCH", "viralscan_showcase/fullrun/refs/anellovirus/anellovirus.gtf"
 )
-DEFAULT_HUMAN_FASTA = Path(
-    "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa"
+DEFAULT_HUMAN_FASTA = _site(
+    "VIRALSCAN_COLLAB_ROOT", "old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa"
 )
-DEFAULT_HUMAN_GTF = Path(
-    "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf"
+DEFAULT_HUMAN_GTF = _site(
+    "VIRALSCAN_COLLAB_ROOT", "old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf"
 )
-DEFAULT_VIRALSCAN_TRANSCRIPTOME = Path(
-    "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/transcriptome_plus_anellovirus.fa"
+DEFAULT_VIRALSCAN_TRANSCRIPTOME = _site(
+    "VIRALSCAN_SITE_SCRATCH",
+    "viralscan_showcase/fullrun/refs/merged/transcriptome_plus_anellovirus.fa",
 )
 
 

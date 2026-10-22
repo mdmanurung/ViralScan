@@ -1,5 +1,7 @@
 # ViralScan v2.2.0 versus v3 legacy diagnostic execution plan
 
+> Path placeholders: `$SITE_ROOT` = site work root, `$COLLAB_ROOT` = collaborator root (institutional filesystem paths, replaced by placeholders).
+
 ## Objective
 
 Build and execute a reproducible diagnostic comparison between Emma Vonk's
@@ -29,9 +31,9 @@ inspection.
 
 ## Repository and preservation rules
 
-- Work in `/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan`.
+- Work in `$SITE_ROOT/ViralScan`.
 - Preserve the existing `.living/**` changes and `docs/handoffs/` artifacts.
-- Treat `/exports/archive/hg-funcgenom-research/evonk/viralscan/results` and
+- Treat `$COLLAB_ROOT/viralscan/results` and
   Emma's installed v2.2.0 environment as read-only.
 - Store large artifacts, environments, BUS intermediates, H5AD files, FASTQs,
   scheduler logs, and absolute-path manifests under the ignored

@@ -18,19 +18,23 @@
 #SBATCH -o logs/ebv_starsolo_%j.log
 #SBATCH -e logs/ebv_starsolo_%j.err
 
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-REPO=/exports/para-lipg-hpc/mdmanurung/ViralScan
+REPO=$SITE_SCRATCH/ViralScan
 WORKDIR=$REPO/starsolo_p22_6
 
-STAR=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/STAR
-PYTHON=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/scale_py/bin/python
+STAR=$SITE_ROOT/conda/envs/starsolo/bin/STAR
+PYTHON=$SITE_ROOT/conda/envs/scale_py/bin/python
 
-GRCH38_FA=/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa
-GRCH38_GTF=/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf
-EBV_FA=/exports/archive/hg-funcgenom-research/evonk/old/intern/fasta_viruses/Serratus/fasta_split/Epstein-Barr_virus_NC_007605.fasta
-EBV_GTF=/exports/archive/hg-funcgenom-research/evonk/old/intern/fasta_viruses/Serratus/split_gtf/Epstein_Barr_virus_NC_007605.gtf
+GRCH38_FA=$COLLAB_ROOT/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa
+GRCH38_GTF=$COLLAB_ROOT/old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf
+EBV_FA=$COLLAB_ROOT/old/intern/fasta_viruses/Serratus/fasta_split/Epstein-Barr_virus_NC_007605.fasta
+EBV_GTF=$COLLAB_ROOT/old/intern/fasta_viruses/Serratus/split_gtf/Epstein_Barr_virus_NC_007605.gtf
 
 SRR=SRR12682296
 GENOME_DIR=$WORKDIR/genome_GRCh38_EBV

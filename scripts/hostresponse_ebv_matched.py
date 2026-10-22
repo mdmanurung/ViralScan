@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,12 +19,19 @@ from viralscan.scripts.hostresponse import DEFAULT_SEEDS, _safe_name, run_hostre
 from viralscan.virus_grouping import group_genes_by_virus
 
 EBV_NAME = "Epstein-Barr virus"
-DEFAULT_RUN_DIR = Path(
-    "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/out_full_depth_wl/lcl_5lines/SRR12682296"
+
+
+def _site(var: str, rel: str) -> Path:
+    """Site-specific default under $VAR; unset leaves a literal ``$VAR`` that fails visibly on use."""
+    return Path(os.environ.get(var, "$" + var)) / rel
+
+
+DEFAULT_RUN_DIR = _site(
+    "VIRALSCAN_SITE_SCRATCH", "viralscan_showcase/out_full_depth_wl/lcl_5lines/SRR12682296"
 )
-DEFAULT_PAPER_BARCODES = Path(
-    "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/geo_GSE158275/"
-    "GSM4796271_LCL_777_B958_UMI_barcodes.tsv.gz"
+DEFAULT_PAPER_BARCODES = _site(
+    "VIRALSCAN_SITE_SCRATCH",
+    "viralscan_showcase/data/geo_GSE158275/GSM4796271_LCL_777_B958_UMI_barcodes.tsv.gz",
 )
 DEFAULT_OUTPUT_DIR = Path("results/hostresponse_ebv_matched")
 

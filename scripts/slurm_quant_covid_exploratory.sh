@@ -13,19 +13,23 @@
 #SBATCH --time=2-00:00:00
 #SBATCH -o logs/vs_covid_expl_%A_%a.log
 #SBATCH -e logs/vs_covid_expl_%A_%a.err
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
-REPO=/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan
-ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
-C=/exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan
+REPO=$SITE_ROOT/ViralScan
+ENV=$COLLAB_ROOT/conda/envs/test_viralscan
+C=$SITE_SCRATCH/ViralScan/covid_viralscan
 R=$C/viralscan_ref
 export PATH="$ENV/bin:$PATH"
 # emptyDrops (cell calling, decided 2026-10-01, PLAN SW-23) needs Rscript with DropletUtils.
-export PATH="$PATH:/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/R4_51/bin"; export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"
+export PATH="$PATH:$SITE_ROOT/conda/envs/R4_51/bin"; export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"
 S=(LUM-SJ-x213-g LUM-SJ-x216-g); s=${S[$SLURM_ARRAY_TASK_ID]}
 OUT=$C/results_v3_exploratory/$s; mkdir -p "$OUT"
 git -C "$REPO" rev-parse HEAD
 python -m viralscan.menu -o "$OUT" \
   -s1 "$C/data/$s/${s}_merged_R1.fastq.gz" -s2 "$C/data/$s/${s}_merged_R2.fastq.gz" \
   -i "$R/index.idx" -t "$R/t2g.txt" \
-  -gtf "$R/viral/viral_whole_genome.gtf,/exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.gtf" \
+  -gtf "$R/viral/viral_whole_genome.gtf,$SITE_SCRATCH/ViralScan/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.gtf" \
   -w "$R/cellranger_whitelist.txt" -x 10xv3 -c 16 --cell-calling emptydrops --yes --verbose

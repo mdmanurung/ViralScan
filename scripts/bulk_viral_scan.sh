@@ -29,19 +29,21 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=04:00:00
-#SBATCH --chdir=/exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078
 #SBATCH --output=logs/vs_bulk_%A_%a.out
 #SBATCH --error=logs/vs_bulk_%A_%a.err
+
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
 
 set -euo pipefail
 
 # ── paths (edit if your workspace differs) ────────────────────────────────────
-REPO=/exports/para-lipg-hpc/mdmanurung/ViralScan
-WORKDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078
+REPO=$SITE_SCRATCH/ViralScan
+WORKDIR=$SITE_SCRATCH/viralscan_bulk_gse128078
 # Panel index: the complete host+viral build lives at viralscan_panel_ref/ref
 # (P23.op1, 2026-07-02). The old $WORKDIR/ref/panel.idx is a host-less viral-only
 # build (June 24 died at the Ensembl 404) — do NOT use it. Override with REFDIR=… if needed.
-REFDIR=${REFDIR:-/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/ref}
+REFDIR=${REFDIR:-$SITE_SCRATCH/viralscan_panel_ref/ref}
 OUTDIR=$WORKDIR/out
 SRR_LIST=$WORKDIR/srr_list.txt
 THREADS=${SLURM_CPUS_PER_TASK:-4}
@@ -51,7 +53,7 @@ export PYTHONPATH=$REPO/src
 # ── conda env ─────────────────────────────────────────────────────────────────
 # Activate explicitly so SLURM jobs inherit kb on PATH even without a login shell.
 CONDA_INIT=/share/software/tools/miniconda/3.10/23.3.1/etc/profile.d/conda.sh
-CONDA_ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+CONDA_ENV=$COLLAB_ROOT/conda/envs/test_viralscan
 if [[ -f $CONDA_INIT ]]; then
     # shellcheck source=/dev/null
     source "$CONDA_INIT"

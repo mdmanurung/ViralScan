@@ -21,14 +21,18 @@
 #SBATCH -o covid_viralscan/logs/starsolo_%x_%A_%a.log
 #SBATCH -e covid_viralscan/logs/starsolo_%x_%A_%a.err
 
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
 
-REPO=/exports/para-lipg-hpc/mdmanurung/ViralScan
-STAR=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/STAR
+REPO=$SITE_SCRATCH/ViralScan
+STAR=$SITE_ROOT/conda/envs/starsolo/bin/STAR
 
 # ── inputs ────────────────────────────────────────────────────────────────────
-GRCH38_FA=/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa
-GRCH38_GTF=/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf
+GRCH38_FA=$COLLAB_ROOT/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa
+GRCH38_GTF=$COLLAB_ROOT/old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf
 PANEL_FA=$REPO/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.fa
 PANEL_GTF=$REPO/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.gtf
 SARS_FA=$REPO/covid_viralscan/viralscan_ref/viral/reference.fasta
@@ -38,7 +42,7 @@ SARS_GTF=$REPO/covid_viralscan/viralscan_ref/viral/viral_whole_genome.gtf
 WHITELIST=$REPO/covid_viralscan/viralscan_ref/cellranger_whitelist.txt
 FASTQ_DATA=$REPO/covid_viralscan/data
 
-OUT=/exports/para-lipg-hpc/mdmanurung/covid_viralscan_starsolo
+OUT=$SITE_SCRATCH/covid_viralscan_starsolo
 GENOME_DIR=$OUT/genome_GRCh38_viral
 COMBINED_FA=$OUT/GRCh38_viral_combined.fa
 COMBINED_GTF=$OUT/GRCh38_viral_combined.gtf

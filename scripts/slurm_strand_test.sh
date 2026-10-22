@@ -11,22 +11,26 @@
 #SBATCH --time=12:00:00
 #SBATCH -o logs/vs_strand_%A_%a.log
 #SBATCH -e logs/vs_strand_%A_%a.err
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
-P=/exports/para-lipg-hpc/mdmanurung/ViralScan
+P=$SITE_SCRATCH/ViralScan
 C=$P/covid_viralscan; V1=$P/ebv_latest_ref_2026-09-27/full_panel
 case $SLURM_ARRAY_TASK_ID in
-  0) NAME=SRR20710641; ENV=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench
+  0) NAME=SRR20710641; ENV=$SITE_ROOT/conda/envs/viralscan_bench
      R1=$P/benchmark_inputs/reference_strategy/SRR20710641/SRR20710641_1.fastq.gz
      R2=$P/benchmark_inputs/reference_strategy/SRR20710641/SRR20710641_2.fastq.gz
      IDX=$V1/index.idx; T2G=$V1/t2g.txt; TECH=10xv2; WL=() ;;
   1|2) S=(x x LUM-SJ-x213-g LUM-SJ-x216-g); NAME=${S[$((SLURM_ARRAY_TASK_ID+1))]}
-     ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+     ENV=$COLLAB_ROOT/conda/envs/test_viralscan
      R1=$C/data/$NAME/${NAME}_merged_R1.fastq.gz; R2=$C/data/$NAME/${NAME}_merged_R2.fastq.gz
      IDX=$C/viralscan_ref/index.idx; T2G=$C/viralscan_ref/t2g.txt; TECH=10xv3
      WL=(-w "$C/viralscan_ref/cellranger_whitelist.txt") ;;
 esac
 export PATH="$ENV/bin:$PATH"
-OUT=/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/strand_test/$NAME
+OUT=$SITE_ROOT/viralscan_work/strand_test/$NAME
 mkdir -p "$OUT"; cd "$OUT"
 set +o pipefail  # zcat gets SIGPIPE when head stops reading
 zcat "$R1" | head -n 16000000 | gzip -1 > sub_R1.fastq.gz
