@@ -377,7 +377,6 @@ EVIDENCE_ARTIFACTS = (
     "coverage.deduplicated.tsv",
     "alignment_qc.tsv",
     "per_cell_alignment_qc.tsv",
-    "coverage.raw_vs_deduplicated.png",
     "interpretation_flags.tsv",
     "blast_identity.tsv",
     "blast_sampling.json",

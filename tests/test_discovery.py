@@ -1,0 +1,1248 @@
+"""DISC-02/03/06/07: `viralscan discover` refuses unsafe inputs, never touches the source run, and
+resolves the host-unmapped pair fail-closed."""
+
+import gzip
+import hashlib
+import itertools
+import json
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import pytest
+
+from viralscan import discovery
+from viralscan.discovery import DiscoveryError
+
+
+def _run(tmp_path: Path, samples=("S1",), complete: bool = True) -> Path:
+    root = tmp_path / "run"
+    for sample in samples:
+        (root / sample / "results").mkdir(parents=True)
+        (root / sample / "config.yaml").write_text("output: x\n")
+        (root / sample / "results" / "viral_summary.tsv").write_text("virus\tdetected\nEBV\tTrue\n")
+        (root / sample / "results" / "called_cells.tsv").write_text("barcode\nAAAAAAAAAAAAAAAA-1\n")
+    (root / "run_manifest.json").write_text("{}\n")
+    if complete:
+        (root / "run_complete.json").write_text("{}\n")
+    return root
+
+
+def _fastq_pair(r1: Path, r2: Path, n: int) -> None:
+    r1.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.open(r1, "wt") as f1, gzip.open(r2, "wt") as f2:
+        for i in range(n):
+            f1.write(f"@frag{i} 1:N\n{'A' * 28}\n+\n{'I' * 28}\n")
+            f2.write(f"@frag{i} 2:N\n{'C' * 90}\n+\n{'I' * 90}\n")
+
+
+def _host_filtered(
+    hf: Path, n: int, audit_n: int | None = None, lineage_n: int | None = None
+) -> None:
+    """The host-filter layout: retained pair, audit and per-fragment lineage."""
+    _fastq_pair(hf / "R1.fastq.gz", hf / "R2.fastq.gz", n)
+    (hf / "host_filter_audit.tsv").write_text(
+        "category\tfragments\tinterpretation\n"
+        f"input\t{n + 5}\tx\nretained_host_unmapped\t{n if audit_n is None else audit_n}\tx\n"
+        "star_param_set\tpinned\tx\nstar_param:outFilterMultimapNmax\t20\tx\n"
+    )
+    kept = n if lineage_n is None else lineage_n
+    with gzip.open(hf / "fragment_lineage.tsv.gz", "wt") as handle:
+        handle.write("read_id\tfilter_decision\treason\n")
+        for i in range(kept + 5):
+            decision = "retained" if i < kept else "removed"
+            handle.write(f"frag{i}\t{decision}\thost\n")
+
+
+def _args(**kw) -> SimpleNamespace:
+    base = dict(host_subtract=None, host_index=None, host_filter_star_params="pinned", threads=1)
+    return SimpleNamespace(**{**base, **kw})
+
+
+#: A `k2 inspect --report-zero-counts` tree: root > cellular organisms > Bacteria > ... > 562.
+INSPECT = """# Database options: nucleotide db, k = 35, l = 31
+  0.00\t0\t0\tU\t0\tunclassified
+100.00\t9\t0\tR\t1\troot
+ 90.00\t8\t0\tR1\t131567\t  cellular organisms
+ 80.00\t7\t0\tD\t2\t    Bacteria
+ 70.00\t6\t0\tG\t561\t      Escherichia
+ 60.00\t5\t5\tS\t562\t        Escherichia coli
+ 10.00\t1\t1\tS1\t83333\t          Escherichia coli K-12
+ 10.00\t1\t0\tD\t2759\t    Eukaryota
+ 10.00\t1\t1\tS\t9606\t      Homo sapiens
+ 10.00\t1\t1\tD\t10239\t  Viruses
+"""
+
+
+#: `--report-minimizer-data` columns: pct, clade reads, own reads, minimizers, distinct, rank, taxid, name.
+REPORT = (
+    "33.33\t1\t1\t0\t0\tU\t0\tunclassified\n"
+    "66.67\t2\t0\t0\t0\tR\t1\troot\n"
+    "66.67\t2\t2\t112\t25\tS\t562\t  Escherichia coli\n"
+)
+
+
+def _fake_kraken2(cmd, capture=False, **kw):
+    """Stand-in for `kraken2`/`k2`: ordinal 0 unclassified, the rest taxid 562, reverse order.
+
+    bustools calls go to the real binary (kb's), so barcode correction is exercised for real.
+    """
+    if cmd[0] not in ("kraken2", "k2"):
+        from viralscan.evidence import _run
+
+        return _run(cmd, capture=capture, **kw)
+    if cmd[:2] == ["k2", "inspect"]:
+        return INSPECT.encode()
+    if "--version" in cmd:
+        return b"Kraken version 2.17.2\nCopyright\n"
+    with gzip.open(cmd[-1], "rt") as fasta:
+        ordinals = [int(line[1:]) for line in fasta if line.startswith(">")]
+    out = Path(cmd[cmd.index("--output") + 1])
+    lines = [f"U\t{o}\t0\t90\t0:56" if o == 0 else f"C\t{o}\t562\t90\t562:56" for o in ordinals]
+    out.write_text("".join(line + "\n" for line in reversed(lines)))
+    Path(cmd[cmd.index("--report") + 1]).write_text(REPORT)
+    return b""
+
+
+def _db(tmp_path: Path, empty: str | None = None) -> Path:
+    db = tmp_path / "k2db"
+    db.mkdir()
+    for name in discovery.KRAKEN2_DB_FILES:
+        (db / name).write_bytes(b"" if name == empty else b"x")
+    return db
+
+
+def _inventory(root: Path) -> dict[str, str]:
+    return {
+        str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(root.rglob("*"))
+        if p.is_file()
+    }
+
+
+def test_resolves_single_sample(tmp_path):
+    root = _run(tmp_path)
+    assert discovery.resolve_sample_dir(root, None) == root / "S1"
+
+
+@pytest.mark.parametrize(
+    "samples,sample,complete,match",
+    [
+        (("S1",), None, False, "not a completed"),
+        (("S1", "S2"), None, True, "several samples"),
+        (("S1",), "S9", True, "not in run"),
+    ],
+)
+def test_refuses_bad_run(tmp_path, samples, sample, complete, match):
+    root = _run(tmp_path, samples, complete)
+    with pytest.raises(DiscoveryError, match=match):
+        discovery.resolve_sample_dir(root, sample)
+
+
+def test_refuses_output_inside_run_or_non_empty(tmp_path):
+    root = _run(tmp_path)
+    for inside in (root, root / "S1" / "discovery"):
+        with pytest.raises(DiscoveryError, match="outside --run-dir"):
+            discovery.check_output_dir(inside, root)
+    busy = tmp_path / "busy"
+    busy.mkdir()
+    (busy / "old.tsv").write_text("x")
+    with pytest.raises(DiscoveryError, match="empty or absent"):
+        discovery.check_output_dir(busy, root)
+    # A leftover staging directory alone does not count as results.
+    stale = tmp_path / "stale"
+    (stale / discovery.PARTIAL).mkdir(parents=True)
+    discovery.check_output_dir(stale, root)
+
+
+def test_refuses_incomplete_db(tmp_path):
+    with pytest.raises(DiscoveryError, match="does not exist"):
+        discovery.validate_kraken2_db(tmp_path / "absent")
+    with pytest.raises(DiscoveryError, match="hash.k2d"):
+        discovery.validate_kraken2_db(_db(tmp_path, empty="hash.k2d"))
+
+
+def test_refuses_missing_tools():
+    with patch("viralscan.discovery.shutil.which", return_value=None):
+        with pytest.raises(DiscoveryError, match="kraken2, k2"):
+            discovery.check_tools()
+
+
+def test_stage_and_publish(tmp_path):
+    out = tmp_path / "out"
+    partial = discovery.stage(out)
+    (partial / "leftover.txt").write_text("from an interrupted run")
+    partial = discovery.stage(out)  # restart discards the leftover
+    (partial / "qc.json").write_text("{}")
+    discovery.publish(out)
+    assert sorted(p.name for p in out.iterdir()) == ["qc.json"]
+
+
+def _discover(root: Path, out: Path, db: Path, *extra: str, kraken=_fake_kraken2) -> int:
+    """Run `viralscan discover` against the stand-in Kraken2; returns the exit code."""
+    from viralscan.menu import main
+
+    argv = ["viralscan", "discover", "--run-dir", str(root), "-o", str(out)]
+    argv += ["--kraken2-db", str(db), *extra]
+    with (
+        patch("sys.argv", argv),
+        patch("viralscan.discovery.shutil.which", return_value="/bin/true"),
+        patch("viralscan.discovery._run", side_effect=kraken) as run,
+    ):
+        try:
+            main()
+            code = 0
+        except SystemExit as exc:
+            code = exc.code or 0
+    _discover.kraken_calls = sum(
+        1 for c in run.call_args_list if c.args[0][0] == "kraken2" and "--db" in c.args[0]
+    )
+    return code
+
+
+@pytest.fixture
+def published(tmp_path):
+    from viralscan.validation import tool_path
+
+    if tool_path("bustools") is None:
+        pytest.skip("kb-python's bustools is not available")
+    root = _run(tmp_path)
+    _host_filtered(root / "S1" / "host_filtered", 3)
+    db, out = _db(tmp_path), tmp_path / "disc"
+    assert _discover(root, out, db) == 0
+    return root, out, db
+
+
+def test_cli_publishes_and_leaves_source_run_untouched(tmp_path):
+    """G2: the source inventory is byte-identical and the outputs are published atomically."""
+    from viralscan.validation import tool_path
+
+    if tool_path("bustools") is None:
+        pytest.skip("kb-python's bustools is not available")
+    root = _run(tmp_path)
+    _host_filtered(root / "S1" / "host_filtered", 3)
+    before = _inventory(root)
+    out = tmp_path / "disc"
+    assert _discover(root, out, _db(tmp_path)) == 0
+    assert _inventory(root) == before
+    names = {p.name for p in out.iterdir()}
+    assert not {discovery.PARTIAL, "input.json"} & names
+    assert {
+        discovery.KRAKEN_INPUT,
+        discovery.CELL_TAXON_H5AD,
+        discovery.CANDIDATES_TSV,
+        discovery.PROVENANCE_JSON,
+        discovery.QC_JSON,
+        discovery.COMPLETE_JSON,
+    } <= names
+    qc = json.loads((out / discovery.QC_JSON).read_text())
+    assert (qc["stream"]["n_input"], qc["n_fragments"]) == (3, 3)
+    assert (qc["kraken2"]["n_classified"], qc["kraken2"]["n_unclassified"]) == (2, 1)
+    assert qc["cells"]["n_called_cells"] == 1
+    assert qc["called_cells_overlap"] == 0.0  # the fixture reads carry no called barcode
+    assert qc["fractions"]["kraken2_unclassified"] == pytest.approx(1 / 3)
+    prov = json.loads((out / discovery.PROVENANCE_JSON).read_text())
+    assert prov["kraken2"]["version"] == "Kraken version 2.17.2"
+    assert prov["polya_trim"] == {"min_polya_run": 15, "min_polyt_run": 15}
+    assert prov["polya_trim"] == prov["fingerprint_inputs"]["polya_trim"]
+    assert qc["stream"]["n_r2_trimmed"] == 0
+    assert prov["input_source"]["source"] == "primary_host_filtered"
+    assert set(prov["db_identity"]["sha256"]) == set(discovery.KRAKEN2_DB_FILES)
+    assert (
+        prov["taxonomy_sha256"] == hashlib.sha256((out / "taxonomy.tsv").read_bytes()).hexdigest()
+    )
+    done = json.loads((out / discovery.COMPLETE_JSON).read_text())
+    assert len(done["discovery_fingerprint"]) == 64
+    assert (
+        done["outputs"][discovery.QC_JSON]
+        == hashlib.sha256((out / discovery.QC_JSON).read_bytes()).hexdigest()
+    )
+    assert set(done["outputs"]) == names - {discovery.COMPLETE_JSON}
+    # The published subset re-hashes to the marker (it is not mutated after fingerprinting).
+    assert discovery.discovery_fingerprint(prov) == done["discovery_fingerprint"]
+    assert prov["discovery_fingerprint"] == done["discovery_fingerprint"]
+    assert "r1" not in prov["fingerprint_inputs"]["input_source"]
+    assert prov["resolved_input"]["n_fragments"] == 3
+
+
+def test_candidates_table_flags_and_counts(tmp_path):
+    tree = discovery.parse_inspect(INSPECT)
+    (tmp_path / discovery.KRAKEN_REPORT).write_text(
+        REPORT + "10.00\t5\t5\t50\t5\tS\t9606\t  Homo sapiens\n"
+    )
+    header = "\t".join(discovery.UMI_GROUP_COLUMNS)
+
+    def group(cb, taxid, cls="resolved"):
+        return f"{cb}\tACGT\t1\t1\t0\t{taxid}\t{taxid}\t{cls}\t1\t\t0\n"
+
+    rows = [group("C1", 562), group("C2", 562), group("C2", 562), group("X", 562)] + [
+        group("X", 9606),
+        group("Y", 9606),
+        group("C1", 9606, "ambiguous"),
+    ]
+    with gzip.open(tmp_path / discovery.UMI_GROUPS_TSV, "wt") as handle:
+        handle.write(header + "\n" + "".join(rows))
+    assert discovery.build_candidates(tmp_path, tree, ["C1", "C2"]) == 2
+    lines = (tmp_path / discovery.CANDIDATES_TSV).read_text().splitlines()
+    assert lines[0].split("\t") == list(discovery.CANDIDATE_COLUMNS)
+    ecoli, human = (dict(zip(discovery.CANDIDATE_COLUMNS, ln.split("\t"))) for ln in lines[1:])
+    assert (ecoli["taxid"], ecoli["groups_called"], ecoli["groups_offcell"]) == ("562", "3", "1")
+    assert (ecoli["n_cells"], ecoli["reads"], ecoli["distinct_minimizers"]) == ("2", "2", "25")
+    assert (ecoli["minimizer_per_read"], ecoli["state"], ecoli["db_has_9606"]) == (
+        "12.5",
+        "observation",
+        "1",
+    )
+    assert [ecoli[c] for c in ("low_minimizer_diversity", "offcell_dominant")] == ["0", "0"]
+    assert [ecoli[c] for c in ("host_lineage", "viral_only_db")] == ["0", "0"]
+    # Human: both resolved groups off-cell (the ambiguous called one is not counted), 5 distinct.
+    assert (human["groups_called"], human["groups_offcell"], human["n_cells"]) == ("0", "2", "0")
+    assert [human[c] for c in ("low_minimizer_diversity", "offcell_dominant")] == ["1", "1"]
+    assert (human["host_relation"], human["host_lineage"]) == ("host", "1")
+    # A database without 9606 is flagged viral_only_db and nothing is host.
+    no_human = {t: v for t, v in tree.items() if t != 9606}
+    (tmp_path / discovery.UMI_GROUPS_TSV).unlink()
+    with gzip.open(tmp_path / discovery.UMI_GROUPS_TSV, "wt") as handle:
+        handle.write(header + "\n" + group("C1", 562))
+    discovery.build_candidates(tmp_path, no_human, ["C1"])
+    last = (tmp_path / discovery.CANDIDATES_TSV).read_text().splitlines()[1].split("\t")
+    assert last[-1] == "1" and last[10] == "0"
+
+
+def test_parse_kraken_report_rejects_malformed(tmp_path):
+    (tmp_path / "r.txt").write_text("report\n")
+    with pytest.raises(DiscoveryError, match="8 report columns"):
+        discovery.parse_kraken_report(tmp_path / "r.txt")
+
+
+def test_rerun_is_noop_and_changed_setting_needs_force(published):
+    root, out, db = published
+    marker = out / discovery.COMPLETE_JSON
+    first = marker.read_text()
+    assert _discover(root, out, db) == 0
+    assert _discover.kraken_calls == 0  # no-op: Kraken2 never ran again
+    assert marker.read_text() == first
+    # --threads and --memory-mapping change speed, not output, so they stay a no-op.
+    assert _discover(root, out, db, "--threads", "2", "--memory-mapping") == 0
+    assert _discover.kraken_calls == 0
+    assert _discover(root, out, db, "--confidence", "0.5") == 1
+    assert _discover(root, out, db, "--no-polya-trim") == 1  # trimming changes the output
+    assert _discover(root, out, db, "--minimum-hit-groups", "9") == 1
+    assert marker.read_text() == first  # refused, nothing touched
+    assert _discover(root, out, db, "--confidence", "0.5", "--force") == 0
+    assert _discover.kraken_calls == 1
+    assert (
+        json.loads(marker.read_text())["discovery_fingerprint"]
+        != json.loads(first)["discovery_fingerprint"]
+    )
+    assert not (out / discovery.PARTIAL).exists()
+
+
+def test_force_refuses_a_marker_naming_paths_outside_the_output(published, tmp_path):
+    root, out, db = published
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep")
+    marker = out / discovery.COMPLETE_JSON
+    done = json.loads(marker.read_text())
+    done["outputs"]["../victim.txt"] = "0" * 64
+    marker.write_text(json.dumps(done))
+    assert _discover(root, out, db, "--confidence", "0.5", "--force") == 1
+    assert victim.read_text() == "keep"
+
+
+def test_kb_input_check(tmp_path):
+    hf = tmp_path / "a" / "host_filtered"
+    _host_filtered(hf, 2)
+    resolved = discovery.read_host_filtered(hf)
+    copy_dir = tmp_path / "b" / "host_filtered"
+    copy_dir.mkdir(parents=True)
+    for name in ("R1.fastq.gz", "R2.fastq.gz"):
+        (copy_dir / name).write_bytes((hf / name).read_bytes())
+
+    def check(r1, r2):
+        return discovery.kb_input_check(SimpleNamespace(kb_r1=str(r1), kb_r2=str(r2)), resolved)
+
+    assert check(hf / "R1.fastq.gz", hf / "R2.fastq.gz") == "same_path"
+    assert check(copy_dir / "R1.fastq.gz", copy_dir / "R2.fastq.gz") == "same_content"
+    assert check(tmp_path / "read_filtered" / "R1.fastq.gz", "x/R2.fastq.gz") == (
+        "kb_reads_other_pair"
+    )
+    assert check(tmp_path / "c" / "host_filtered" / "R1.fastq.gz", copy_dir / "R2.fastq.gz") == (
+        "kb_input_absent"
+    )
+    (copy_dir / "R1.fastq.gz").write_bytes(b"other")
+    with pytest.raises(DiscoveryError, match="differ"):
+        check(copy_dir / "R1.fastq.gz", copy_dir / "R2.fastq.gz")
+    assert discovery.kb_input_check(SimpleNamespace(kb_r1="", kb_r2=""), resolved) == (
+        "not_recorded"
+    )
+
+
+def test_fingerprint_changes_with_each_input(published):
+    root, out, db = published
+    fp = json.loads((out / discovery.COMPLETE_JSON).read_text())["discovery_fingerprint"]
+
+    def refused() -> bool:
+        return _discover(root, out, db) == 1
+
+    assert not refused()
+    (db / "opts.k2d").write_bytes(b"y")
+    assert refused()
+    (db / "opts.k2d").write_bytes(b"x")
+    (root / "S1" / "results" / "called_cells.tsv").write_text("barcode\nCCCCCCCCCCCCCCCC-1\n")
+    assert refused()
+    (root / "S1" / "results" / "called_cells.tsv").write_text("barcode\nAAAAAAAAAAAAAAAA-1\n")
+    (root / "run_manifest.json").write_text('{"run_fingerprint": "new"}\n')
+    assert refused()
+    (root / "run_manifest.json").write_text("{}\n")
+    assert not refused()
+    assert json.loads((out / discovery.COMPLETE_JSON).read_text())["discovery_fingerprint"] == fp
+
+
+def test_md5_manifest_mismatch_is_refused(tmp_path):
+    db = _db(tmp_path)
+    good = hashlib.md5(b"x", usedforsecurity=False).hexdigest()
+    (db / "db.md5").write_text(f"{good}  hash.k2d\n")
+    assert discovery.db_identity(db)["md5_manifest"]["checked"] == {"hash.k2d": "ok"}
+    (db / "db.md5").write_text(f"{'0' * 32}  hash.k2d\n")
+    with pytest.raises(DiscoveryError, match="md5"):
+        discovery.db_identity(db)
+
+
+def test_leftover_partial_restarts(tmp_path):
+    from viralscan.validation import tool_path
+
+    if tool_path("bustools") is None:
+        pytest.skip("kb-python's bustools is not available")
+    root = _run(tmp_path)
+    _host_filtered(root / "S1" / "host_filtered", 3)
+    out = tmp_path / "disc"
+    (out / discovery.PARTIAL).mkdir(parents=True)
+    (out / discovery.PARTIAL / "junk").write_text("interrupted")
+    assert _discover(root, out, _db(tmp_path)) == 0
+    assert not (out / "junk").exists()
+
+
+def test_run_parser_gains_no_discovery_options():
+    """G1: discovery adds nothing to the primary run's options (and so to its fingerprint)."""
+    from viralscan.menu import build_parser
+
+    with patch("sys.argv", ["viralscan"]):
+        args = build_parser().parse_args([])
+    assert not {"kraken2_db", "sample", "threads", "host_subtract"} & set(vars(args))
+
+
+def test_reuses_primary_host_filtered(tmp_path):
+    hf = tmp_path / "S1" / "host_filtered"
+    _host_filtered(hf, 4)
+    resolved = discovery.read_host_filtered(hf)
+    assert resolved["n_fragments"] == 4
+    assert resolved["star_param_set"] == "pinned"
+    assert resolved["star_args"] == {"outFilterMultimapNmax": "20"}
+    assert resolved["primary_verified"] is False
+    assert resolved["sha256"]["r1"] == hashlib.sha256((hf / "R1.fastq.gz").read_bytes()).hexdigest()
+
+
+def test_no_host_filter_output_is_none(tmp_path):
+    assert discovery.read_host_filtered(tmp_path / "host_filtered") is None
+
+
+@pytest.mark.parametrize("kw,match", [({"audit_n": 3}, "disagree"), ({"lineage_n": 5}, "disagree")])
+def test_refuses_inconsistent_host_filter_audit(tmp_path, kw, match):
+    hf = tmp_path / "host_filtered"
+    _host_filtered(hf, 4, **kw)
+    with pytest.raises(DiscoveryError, match=match):
+        discovery.read_host_filtered(hf)
+
+
+def test_refuses_partial_or_truncated_host_filter_output(tmp_path):
+    hf = tmp_path / "host_filtered"
+    _host_filtered(hf, 4)
+    (hf / "fragment_lineage.tsv.gz").unlink()
+    with pytest.raises(DiscoveryError, match="Incomplete"):
+        discovery.read_host_filtered(hf)
+    _host_filtered(hf, 4)
+    _fastq_pair(hf / "R1.fastq.gz", tmp_path / "unused_R2.fastq.gz", 3)  # R1 one record short
+    with pytest.raises(DiscoveryError, match="unreadable"):
+        discovery.read_host_filtered(hf)
+
+
+def test_input_resolution_refusals(tmp_path):
+    root = _run(tmp_path)
+    sample = root / "S1"
+    with pytest.raises(DiscoveryError, match="--host-subtract starsolo --host-index"):
+        discovery.resolve_input(root, sample, tmp_path / "p", _args())
+    with pytest.raises(DiscoveryError, match="requires --host-index"):
+        discovery.resolve_input(root, sample, tmp_path / "p", _args(host_subtract="starsolo"))
+    _host_filtered(sample / "host_filtered", 2)
+    with pytest.raises(DiscoveryError, match="drop --host-subtract"):
+        discovery.resolve_input(root, sample, tmp_path / "p", _args(host_subtract="starsolo"))
+
+
+def _star_run(tmp_path: Path, tamper: bool = False, delete: bool = False):
+    """A run without host filtering whose manifest hashes its sample FASTQs."""
+    root = _run(tmp_path)
+    r1, r2 = tmp_path / "raw" / "R1.fastq.gz", tmp_path / "raw" / "R2.fastq.gz"
+    _fastq_pair(r1, r2, 6)
+    manifest = {
+        "input_paths": {"sample1:0": str(r1.resolve()), "sample2:0": str(r2.resolve())},
+        "input_fingerprints": {
+            "sample1:0": hashlib.sha256(r1.read_bytes()).hexdigest(),
+            "sample2:0": hashlib.sha256(r2.read_bytes()).hexdigest(),
+        },
+    }
+    (root / "run_manifest.json").write_text(json.dumps(manifest))
+    if tamper:
+        _fastq_pair(r1, r2, 5)
+    if delete:
+        r1.unlink()
+    config = SimpleNamespace(sample1=str(r1), sample2=str(r2), technology="10xv3", whitelist=None)
+    host_index = tmp_path / "star_index"
+    host_index.mkdir()
+    return root, config, host_index
+
+
+def _fake_starsolo(
+    r1, r2, host_index, technology, whitelist, out_dir, fr1, fr2, threads, param_set
+):
+    _host_filtered(Path(out_dir), 2)
+
+
+def test_discovery_star_pass_writes_only_under_output(tmp_path):
+    root, config, host_index = _star_run(tmp_path)
+    before = _inventory(root)
+    args = _args(host_subtract="starsolo", host_index=str(host_index))
+    with (
+        patch("viralscan.runconfig.RunConfig.from_yaml", return_value=config),
+        patch("viralscan.scripts.host_filter.check_host_filter_tools"),
+        patch("viralscan.scripts.host_filter._starsolo_filter", side_effect=_fake_starsolo) as star,
+    ):
+        resolved = discovery.resolve_input(root, root / "S1", tmp_path / "out" / ".partial", args)
+    assert star.call_args.args[:5] == (
+        config.sample1,
+        config.sample2,
+        str(host_index),
+        "10xv3",
+        None,
+    )
+    assert star.call_args.args[-1] == "pinned"
+    assert resolved["source"] == "discovery_star_pass"
+    assert resolved["n_fragments"] == 2
+    assert Path(resolved["r2"]).parent == tmp_path / "out" / ".partial" / "host_subtraction"
+    assert _inventory(root) == before
+
+
+@pytest.mark.parametrize("kw,match", [({"tamper": True}, "changed"), ({"delete": True}, "absent")])
+def test_discovery_star_pass_checks_primary_fastqs(tmp_path, kw, match):
+    root, config, host_index = _star_run(tmp_path, **kw)
+    args = _args(host_subtract="starsolo", host_index=str(host_index))
+    with (
+        patch("viralscan.runconfig.RunConfig.from_yaml", return_value=config),
+        patch("viralscan.scripts.host_filter._starsolo_filter") as star,
+        pytest.raises(DiscoveryError, match=match),
+    ):
+        discovery.resolve_input(root, root / "S1", tmp_path / "out" / ".partial", args)
+    star.assert_not_called()
+
+
+def _pair(tmp_path: Path, records, r1_name="R1.fastq.gz", r2_name="R2.fastq.gz"):
+    """Write (read_id, r1_seq, r2_seq) records; returns the two paths."""
+    r1, r2 = tmp_path / r1_name, tmp_path / r2_name
+    with gzip.open(r1, "wt") as f1, gzip.open(r2, "wt") as f2:
+        for rid, s1, s2 in records:
+            f1.write(f"@{rid} 1:N\n{s1}\n+\n{'I' * len(s1)}\n")
+            f2.write(f"@{rid} 2:N\n{s2}\n+\n{'I' * len(s2)}\n")
+    return str(r1), str(r2)
+
+
+def _rows(path: Path) -> list[dict]:
+    import csv
+
+    with gzip.open(path, "rt") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def test_stream_reads_writes_ordinal_fasta_and_identity(tmp_path):
+    cb, umi = "AAAACCCCGGGGTTTT", "ACGTACGTACGT"
+    r1, r2 = _pair(
+        tmp_path,
+        [
+            ("fragA/1", cb + umi + "TTTTT", "CCCCCCCCCC"),
+            ("fragB", "AAAACCCCGGGGTTTN" + "ACGTACGTACGN", "GGGGGGGGGG"),
+            ("fragC", "SHORT", "TTTTTTTTTT"),
+        ],
+    )
+    counts = discovery.stream_reads(r1, r2, 16, 12, tmp_path)
+    assert counts == {
+        "n_input": 3,
+        "n_bad_geometry": 1,
+        "n_cb_has_n": 1,
+        "n_umi_has_n": 1,
+        "n_r2_trimmed": 0,
+        "n_r2_bases_trimmed": 0,
+        "read_filter:not_run": 3,
+    }
+    with gzip.open(tmp_path / discovery.KRAKEN_INPUT, "rt") as handle:
+        assert handle.read() == ">0\nCCCCCCCCCC\n>1\nGGGGGGGGGG\n>2\nTTTTTTTTTT\n"
+    rows = _rows(tmp_path / discovery.READS_TSV)
+    assert [r["read_id"] for r in rows] == ["fragA", "fragB", "fragC"]
+    assert (rows[0]["raw_cb"], rows[0]["raw_umi"], rows[0]["geometry_ok"]) == (cb, umi, "1")
+    assert (rows[1]["cb_has_n"], rows[1]["umi_has_n"]) == ("1", "1")
+    assert (rows[2]["raw_cb"], rows[2]["geometry_ok"]) == ("", "0")
+
+
+@pytest.mark.parametrize(
+    "seq, kept, kind",
+    [
+        ("ACGTACGTCC" + "A" * 20, "ACGTACGTCC", "polyA"),
+        ("ACGTACGTCC" + "A" * 20 + "GGTT", "ACGTACGTCC", "polyA"),  # cut to the end
+        ("T" * 18 + "ACGTACGTCC", "ACGTACGTCC", "polyT"),
+        ("T" * 16 + "ACGTCCGG" + "A" * 15, "ACGTCCGG", "both"),
+        ("ACGTACGTCC" + "A" * 14 + "C", "ACGTACGTCC" + "A" * 14 + "C", "none"),  # 14 nt: kept
+        ("T" * 14 + "ACGTCC", "T" * 14 + "ACGTCC", "none"),
+        ("ACGT" + "T" * 20 + "ACGT", "ACGT" + "T" * 20 + "ACGT", "none"),  # internal polyT
+        ("A" * 30, "", "polyA"),  # trimmed to empty
+    ],
+)
+def test_trim_r2(seq, kept, kind):
+    assert discovery.trim_r2(seq) == (kept, kind)
+
+
+def test_stream_reads_polya_trim_records_and_counts(tmp_path):
+    cb, umi = "AAAACCCCGGGGTTTT", "ACGTACGTACGT"
+    tail = "ACGTCCGGTTAC"
+    r1, r2 = _pair(
+        tmp_path,
+        [(f"f{i}", cb + umi, s) for i, s in enumerate([tail + "A" * 20, tail, "A" * 25])],
+    )
+    counts = discovery.stream_reads(r1, r2, 16, 12, tmp_path)
+    assert (counts["n_r2_trimmed"], counts["n_r2_bases_trimmed"]) == (2, 45)
+    with gzip.open(tmp_path / discovery.KRAKEN_INPUT, "rt") as handle:
+        # Every fragment keeps its ordinal; an emptied read is sent as N (never dropped).
+        assert handle.read() == f">0\n{tail}\n>1\n{tail}\n>2\nN\n"
+    rows = _rows(tmp_path / discovery.READS_TSV)
+    assert [(r["r2_trim"], r["r2_len_classified"]) for r in rows] == [
+        ("polyA", "12"),
+        ("none", "12"),
+        ("polyA", "0"),
+    ]
+    off = tmp_path / "off"
+    off.mkdir()
+    counts = discovery.stream_reads(r1, r2, 16, 12, off, polya_trim=False)
+    assert counts["n_r2_trimmed"] == 0
+    with gzip.open(off / discovery.KRAKEN_INPUT, "rt") as handle:
+        assert handle.read() == f">0\n{tail}{'A' * 20}\n>1\n{tail}\n>2\n{'A' * 25}\n"
+    assert {r["r2_trim"] for r in _rows(off / discovery.READS_TSV)} == {"none"}
+
+
+def test_stream_reads_empty_pair(tmp_path):
+    r1, r2 = _pair(tmp_path, [])
+    assert discovery.stream_reads(r1, r2, 16, 12, tmp_path)["n_input"] == 0
+
+
+@pytest.mark.parametrize(
+    "records2,match",
+    [
+        ([("x0", "C"), ("x9", "C")], "mate mismatch"),
+        ([("x0", "C")], "Truncated or unpaired"),
+    ],
+)
+def test_stream_reads_refuses_broken_pairs(tmp_path, records2, match):
+    r1, _ = _pair(tmp_path, [("x0", "A" * 28, "C"), ("x1", "A" * 28, "C")])
+    _, r2 = _pair(tmp_path, [(rid, "A" * 28, s) for rid, s in records2], r1_name="unused.fq.gz")
+    with pytest.raises(DiscoveryError, match=match):
+        discovery.stream_reads(r1, r2, 16, 12, tmp_path)
+
+
+def test_stream_reads_refuses_duplicate_read_ids(tmp_path):
+    r1, r2 = _pair(
+        tmp_path, [("dup", "A" * 28, "C"), ("ok", "A" * 28, "C"), ("dup", "A" * 28, "G")]
+    )
+    with pytest.raises(DiscoveryError, match="Duplicate read IDs"):
+        discovery.stream_reads(r1, r2, 16, 12, tmp_path)
+
+
+def _lineage(path: Path, rows) -> Path:
+    with gzip.open(path, "wt") as handle:
+        handle.write("read_id\tfilter_decision\treason\n")
+        for rid, decision, reason in rows:
+            handle.write(f"{rid}\t{decision}\t{reason}\n")
+    return path
+
+
+def test_stream_reads_joins_read_filter_lineage_in_lockstep(tmp_path):
+    r1, r2 = _pair(tmp_path, [("a", "A" * 28, "C"), ("b", "A" * 28, "C")])
+    lineage = _lineage(
+        tmp_path / "lin.tsv.gz", [("a", "retained", "complex_body"), ("b", "removed", "r2_reagent")]
+    )
+    counts = discovery.stream_reads(r1, r2, 16, 12, tmp_path, lineage)
+    assert [r["primary_read_filter"] for r in _rows(tmp_path / discovery.READS_TSV)] == [
+        "retained",
+        "removed:r2_reagent",
+    ]
+    assert counts["read_filter:retained"] == counts["read_filter:removed"] == 1
+
+
+@pytest.mark.parametrize(
+    "lineage_rows,match",
+    [
+        ([("b", "retained", "x"), ("a", "retained", "x")], "out of step"),
+        ([("a", "retained", "x")], "out of step"),
+        ([("a", "retained", "x"), ("b", "retained", "x"), ("c", "retained", "x")], "more rows"),
+    ],
+)
+def test_stream_reads_refuses_misaligned_lineage(tmp_path, lineage_rows, match):
+    r1, r2 = _pair(tmp_path, [("a", "A" * 28, "C"), ("b", "A" * 28, "C")])
+    lineage = _lineage(tmp_path / "lin.tsv.gz", lineage_rows)
+    with pytest.raises(DiscoveryError, match=match):
+        discovery.stream_reads(r1, r2, 16, 12, tmp_path, lineage)
+
+
+@pytest.mark.parametrize(
+    "technology,expected",
+    [
+        ("10xv3", (16, 12)),
+        ("10xv2", (16, 10)),
+        ("dropseq", (12, 8)),
+        ("0,0,16:0,16,28:1,0,0", (16, 12)),
+    ],
+)
+def test_barcode_geometry_supported(technology, expected):
+    assert discovery.barcode_geometry(technology) == expected
+
+
+@pytest.mark.parametrize("technology", ["10xv1", "0,0,16:1,0,12:1,0,0", "nonsense"])
+def test_barcode_geometry_refused(technology):
+    with pytest.raises(DiscoveryError):
+        discovery.barcode_geometry(technology)
+
+
+def test_read_filter_lineage_choice(tmp_path):
+    star = {"source": "discovery_star_pass"}
+    primary = {"source": "primary_host_filtered"}
+    assert discovery.read_filter_lineage_for(tmp_path, primary, "off") == (None, "not_run")
+    assert discovery.read_filter_lineage_for(tmp_path, star, "artefact") == (None, "not_joined")
+    with pytest.raises(DiscoveryError, match="read-filter artefact"):
+        discovery.read_filter_lineage_for(tmp_path, primary, "artefact")
+    path = _lineage(tmp_path / "unused.tsv.gz", [])
+    (tmp_path / "read_filtered").mkdir()
+    path.rename(tmp_path / "read_filtered" / "fragment_lineage.tsv.gz")
+    assert discovery.read_filter_lineage_for(tmp_path, primary, "artefact")[0] is not None
+
+
+def _kraken_out(tmp_path: Path, lines) -> Path:
+    path = tmp_path / "kraken.out"
+    path.write_text("".join(line + "\n" for line in lines))
+    return path
+
+
+def test_join_kraken2_is_order_free_and_writes_sorted_calls(tmp_path):
+    plain = _kraken_out(
+        tmp_path, ["C\t2\t562\t90\t562:56", "U\t0\t0\t90\t0:56", "C\t1\t9606\t90\t9606:56"]
+    )
+    assert discovery.join_kraken2(plain, 3, tmp_path) == {"n_classified": 2, "n_unclassified": 1}
+    assert not plain.exists()
+    rows = _rows(tmp_path / discovery.CLASSIFICATIONS_TSV)
+    assert [(r["ordinal"], r["kraken_status"], r["taxid"]) for r in rows] == [
+        ("0", "U", "0"),
+        ("1", "C", "9606"),
+        ("2", "C", "562"),
+    ]
+    with gzip.open(tmp_path / discovery.KRAKEN_OUT, "rt") as raw:
+        assert raw.readline().startswith("C\t2\t562")  # raw output kept as written
+
+
+@pytest.mark.parametrize(
+    "lines,match",
+    [
+        (["C\t0\t562\t90\tx", "C\t0\t562\t90\tx"], "twice"),
+        (["C\t0\t562\t90\tx"], "lacks 1 ordinals"),
+        (["C\t0\t562\t90\tx", "C\t2\t562\t90\tx"], "outside"),
+        (["C\tread0\t562\t90\tx", "C\t1\t562\t90\tx"], "non-integer"),
+        (["C\t0\tEscherichia coli (taxid 562)\t90\tx", "U\t1\t0\t90\tx"], "non-integer"),
+        (["C\t0\t0\t90\tx", "U\t1\t0\t90\tx"], "status"),
+        (["U\t0\t562\t90\tx", "U\t1\t0\t90\tx"], "status"),
+        (["C\t0\t562", "U\t1\t0\t90\tx"], "columns"),
+    ],
+)
+def test_join_kraken2_refuses_identity_violations(tmp_path, lines, match):
+    with pytest.raises(DiscoveryError, match=match):
+        discovery.join_kraken2(_kraken_out(tmp_path, lines), 2, tmp_path)
+
+
+def test_run_kraken2_command(tmp_path):
+    with patch("viralscan.discovery._run") as run:
+        plain = discovery.run_kraken2(tmp_path / "db", tmp_path, 8, 0.1, 3, memory_mapping=True)
+    cmd = run.call_args.args[0]
+    assert cmd[0] == "kraken2" and cmd[-1] == str(tmp_path / discovery.KRAKEN_INPUT)
+    assert cmd[cmd.index("--confidence") + 1] == "0.1"
+    assert cmd[cmd.index("--minimum-hit-groups") + 1] == "3"
+    assert cmd[cmd.index("--output") + 1] == str(plain)
+    assert "--report-minimizer-data" in cmd and "--memory-mapping" in cmd
+    assert not {"--use-names", "--paired", "--quick"} & set(cmd)
+
+
+def test_run_kraken2_failure_is_a_discovery_error(tmp_path):
+    with (
+        patch("viralscan.discovery._run", side_effect=RuntimeError("kraken2 failed (exit 1): x")),
+        pytest.raises(DiscoveryError, match="kraken2 failed"),
+    ):
+        discovery.run_kraken2(tmp_path / "db", tmp_path, 1, 0.0, 2)
+
+
+@pytest.mark.parametrize("flag,value", [("--confidence", "1.5"), ("--minimum-hit-groups", "0")])
+def test_discover_parser_rejects_bad_kraken2_settings(tmp_path, flag, value):
+    from viralscan.menu import build_parser
+
+    argv = ["discover", "--run-dir", "r", "-o", "o", "--kraken2-db", "d", flag, value]
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(argv)
+
+
+# ── DISC-08a: taxonomy, barcode correction, UMI groups ──────────────────────
+
+TREE = discovery.parse_inspect(INSPECT)
+
+
+def test_parse_inspect_tree():
+    assert TREE[1] == (1, "R", "root")
+    assert TREE[83333] == (562, "S1", "Escherichia coli K-12")
+    assert TREE[9606] == (2759, "S", "Homo sapiens")
+    assert TREE[10239][0] == 1 and 0 not in TREE
+    assert discovery.lineage(TREE, 83333) == [83333, 562, 561, 2, 131567, 1]
+
+
+def test_parse_inspect_refuses_indentation_jump():
+    with pytest.raises(DiscoveryError, match="indentation"):
+        discovery.parse_inspect("100\t1\t0\tR\t1\troot\n 1\t1\t1\tS\t5\t      deep\n")
+
+
+@pytest.mark.parametrize(
+    "taxids,expected",
+    [({562, 83333}, 562), ({83333}, 83333), ({562, 9606}, 131567), ({10239, 9606}, 1)],
+)
+def test_lca(taxids, expected):
+    assert discovery.lca(TREE, taxids) == expected
+
+
+def test_lca_matches_set_intersection_on_all_subsets():
+    taxa = sorted(TREE)
+    for r in (1, 2, 3):
+        for combo in itertools.combinations(taxa, r):
+            common = set.intersection(*(set(discovery.lineage(TREE, t)) for t in combo))
+            assert discovery.lca(TREE, set(combo)) == max(
+                common, key=lambda t: len(discovery.lineage(TREE, t))
+            )
+
+
+def test_host_relation():
+    assert discovery.host_relation(TREE, 9606) == "host"
+    assert discovery.host_relation(TREE, 2759) == "host_ancestor"
+    assert discovery.host_relation(TREE, 131567) == "other"  # root-level, not a host call
+    assert discovery.host_relation(TREE, 562) == "other"
+
+
+def _stage_reads(out: Path, rows) -> None:
+    """Write READS_TSV rows of (raw_cb, raw_umi); geometry_ok when both are present."""
+    with gzip.open(out / discovery.READS_TSV, "wt") as handle:
+        handle.write("\t".join(discovery.READS_COLUMNS) + "\n")
+        for i, (cb, umi) in enumerate(rows):
+            ok = int(bool(cb))
+            handle.write(
+                f"{i}\tr{i}\t{cb}\t{umi}\t{ok}\t{int('N' in cb)}\t{int('N' in umi)}\tnot_run\tnone\t0\n"
+            )
+
+
+ONLIST = ["AAAAAAAAAAAAAAAA", "CCCCCCCCCCCCCCCC", "GGGGGGGGGGGGGGGA", "GGGGGGGGGGGGGGGC"]
+
+
+@pytest.fixture
+def bustools_available():
+    from viralscan.validation import tool_path
+
+    if tool_path("bustools") is None:
+        pytest.skip("kb-python's bustools is not available")
+
+
+def test_correct_barcodes_matches_bustools(tmp_path, bustools_available):
+    onlist = tmp_path / "onlist.txt"
+    onlist.write_text("\n".join(ONLIST) + "\n")
+    _stage_reads(
+        tmp_path,
+        [
+            ("AAAAAAAAAAAAAAAA", "ACGTACGTACGT"),  # on-list
+            ("AAAAAAAAAAAAAAAT", "ACGTACGTACGT"),  # unique Hamming-1 -> corrected
+            ("GGGGGGGGGGGGGGGT", "ACGTACGTACGT"),  # Hamming-1 to two on-list codes -> dropped
+            ("TTTTTTTTTTTTTTTT", "ACGTACGTACGT"),  # off-list
+            ("", ""),  # bad geometry
+            ("CCCCCCCCCCCCCCCN", "ACGTACGTACGN"),  # N encodes as G, then corrects to C...C
+        ],
+    )
+    counts = discovery.correct_barcodes(tmp_path, str(onlist), 1)
+    assert counts == {
+        "n_cb_onlist": 1,
+        "n_cb_corrected": 2,
+        "n_cb_uncorrectable": 2,
+        "n_cb_no_onlist": 0,
+        "n_cb_bad_geometry": 1,
+    }
+    rows = _rows(tmp_path / discovery.BARCODES_TSV)
+    assert [r["cb_status"] for r in rows] == [
+        "onlist",
+        "corrected",
+        "uncorrectable",
+        "uncorrectable",
+        "bad_geometry",
+        "corrected",
+    ]
+    assert rows[1]["corrected_cb"] == "AAAAAAAAAAAAAAAA"
+    assert (rows[5]["corrected_cb"], rows[5]["umi"]) == ("CCCCCCCCCCCCCCCC", "ACGTACGTACGG")
+    assert not (tmp_path / "bus").exists()
+
+
+def test_correct_barcodes_without_onlist_only_encodes(tmp_path, bustools_available):
+    _stage_reads(tmp_path, [("ACGTACGTACGN", "ACGTACGN"), ("TTTTGGGGCCCC", "AAAACCCC")])
+    counts = discovery.correct_barcodes(tmp_path, None, 1)
+    assert counts["n_cb_no_onlist"] == 2
+    rows = _rows(tmp_path / discovery.BARCODES_TSV)
+    assert [(r["corrected_cb"], r["umi"]) for r in rows] == [
+        ("ACGTACGTACGG", "ACGTACGG"),
+        ("TTTTGGGGCCCC", "AAAACCCC"),
+    ]
+
+
+def _stage_groups(out: Path, fragments) -> None:
+    """BARCODES_TSV + CLASSIFICATIONS_TSV for (cb, umi, taxid) fragments, all eligible."""
+    with (
+        gzip.open(out / discovery.BARCODES_TSV, "wt") as bc,
+        gzip.open(out / discovery.CLASSIFICATIONS_TSV, "wt") as cl,
+    ):
+        bc.write("ordinal\tcorrected_cb\tumi\tcb_status\n")
+        cl.write("ordinal\tkraken_status\ttaxid\n")
+        for i, (cb, umi, tax) in enumerate(fragments):
+            status = "uncorrectable" if cb is None else "onlist"
+            bc.write(f"{i}\t{cb or ''}\t{umi}\t{status}\n")
+            cl.write(f"{i}\t{'C' if tax else 'U'}\t{tax}\n")
+
+
+def test_umi_groups_designed_cases(tmp_path):
+    _stage_groups(
+        tmp_path,
+        [
+            ("A", "u1", 562),
+            ("A", "u1", 83333),  # parent/child -> one path, deepest 83333
+            ("A", "u2", 562),
+            ("A", "u2", 9606),  # cross-domain collision -> LCA R1 -> ambiguous
+            ("A", "u3", 0),
+            ("A", "u3", 0),  # unclassified
+            ("A", "u4", 83333),
+            ("A", "u4", 0),
+            ("A", "u4", 0),  # unclassified reads do not vote
+            ("B", "u1", 10239),
+            ("B", "u1", 9606),  # LCA root -> ambiguous
+            (None, "u9", 562),  # ineligible barcode -> no group
+        ],
+    )
+    counts = discovery.build_umi_groups(tmp_path, TREE, n_shards=3)
+    assert counts == {
+        "n_groups_resolved": 2,
+        "n_groups_ambiguous": 2,
+        "n_groups_unclassified": 1,
+        "n_group_reads": 11,
+    }
+    rows = {(r["corrected_cb"], r["umi"]): r for r in _rows(tmp_path / discovery.UMI_GROUPS_TSV)}
+    assert (rows["A", "u1"]["resolved_taxid"], rows["A", "u1"]["deepest_consistent_taxid"]) == (
+        "83333",
+        "83333",
+    )
+    assert rows["A", "u1"]["conflict"] == "0"
+    assert (rows["A", "u2"]["group_class"], rows["A", "u2"]["conflict"]) == ("ambiguous", "1")
+    assert rows["A", "u3"]["group_class"] == "unclassified"
+    assert (rows["A", "u4"]["resolved_taxid"], rows["A", "u4"]["n_reads_unclassified"]) == (
+        "83333",
+        "2",
+    )
+    assert rows["B", "u1"]["group_class"] == "ambiguous"
+
+
+def test_umi_groups_refuse_unknown_taxid(tmp_path):
+    _stage_groups(tmp_path, [("A", "u1", 424242)])
+    with pytest.raises(DiscoveryError, match="absent from the database taxonomy"):
+        discovery.build_umi_groups(tmp_path, TREE)
+
+
+def _oracle(fragments) -> list[tuple]:
+    """Independent re-derivation of plan §6.4 from raw (cb, umi, taxid) fragments."""
+    from itertools import groupby
+
+    parent = {t: p for t, (p, _r, _n) in TREE.items()}
+    rank = {t: r for t, (_p, r, _n) in TREE.items()}
+
+    def up(t):
+        out = [t]
+        while parent[out[-1]] != out[-1]:
+            out.append(parent[out[-1]])
+        return out
+
+    rows = []
+    eligible = sorted((cb, umi, tax) for cb, umi, tax in fragments if cb is not None)
+    for (cb, umi), grp in groupby(eligible, key=lambda f: (f[0], f[1])):
+        taxes = [tax for _cb, _umi, tax in grp]
+        classified = {t for t in taxes if t}
+        if not classified:
+            rows.append((cb, umi, len(taxes), "unclassified", ""))
+            continue
+        deep = max(classified, key=lambda t: len(up(t)))
+        if all(t in up(deep) for t in classified):
+            top = deep  # consistent: one root-to-leaf path
+        else:
+            shared = set.intersection(*(set(up(t)) for t in classified))
+            top = max(shared, key=lambda t: len(up(t)))
+        cls = "ambiguous" if rank[top].startswith("R") else "resolved"
+        rows.append((cb, umi, len(taxes), cls, str(top) if cls == "resolved" else ""))
+    return rows
+
+
+@pytest.mark.parametrize("seed", range(40))
+def test_umi_groups_match_oracle_and_ignore_order_and_shards(tmp_path, seed):
+    import random
+
+    rng = random.Random(seed)
+    taxa = [0, 0, 562, 83333, 9606, 2759, 10239, 131567, 561, 2]
+    fragments = [
+        (
+            rng.choice([None, "AAA", "CCC", "GGG", "TTT"]),
+            rng.choice(["u1", "u2", "u3"]),
+            rng.choice(taxa),
+        )
+        for _ in range(rng.randint(0, 60))
+    ]
+    outputs = []
+    for shards, order in (
+        (1, fragments),
+        (2, fragments[::-1]),
+        (7, rng.sample(fragments, len(fragments))),
+    ):
+        work = tmp_path / f"s{shards}"
+        work.mkdir()
+        _stage_groups(work, order)
+        counts = discovery.build_umi_groups(work, TREE, n_shards=shards)
+        outputs.append((work / discovery.UMI_GROUPS_TSV).read_bytes())
+        assert counts["n_group_reads"] == sum(cb is not None for cb, _u, _t in fragments)
+    assert outputs[0] == outputs[1] == outputs[2]  # byte-identical (G8)
+    got = [
+        (r["corrected_cb"], r["umi"], int(r["n_reads"]), r["group_class"], r["resolved_taxid"])
+        for r in _rows(tmp_path / "s1" / discovery.UMI_GROUPS_TSV)
+    ]
+    assert got == _oracle(fragments)
+
+
+# ── DISC-08b: called-cell partition and matrix ──────────────────────────────
+
+
+def _stage_umi_groups(out: Path, rows) -> None:
+    """UMI_GROUPS_TSV from (cb, umi, group_class, resolved_taxid) rows."""
+    with gzip.open(out / discovery.UMI_GROUPS_TSV, "wt") as handle:
+        handle.write("\t".join(discovery.UMI_GROUP_COLUMNS) + "\n")
+        for cb, umi, cls, tax in sorted(rows):
+            fields = [cb, umi, "1", "1", "0", str(tax or ""), str(tax or ""), cls, "1", "", "0"]
+            handle.write("\t".join(fields) + "\n")
+
+
+def test_cell_matrix_counts_resolved_groups_once_and_keeps_empty_cells(tmp_path):
+    import anndata as ad
+
+    _stage_umi_groups(
+        tmp_path,
+        [
+            ("C1", "u1", "resolved", 562),
+            ("C1", "u2", "resolved", 562),
+            ("C1", "u3", "resolved", 9606),
+            ("C1", "u4", "ambiguous", None),
+            ("C2", "u1", "unclassified", None),
+            ("OFF", "u1", "resolved", 562),
+            ("OFF", "u2", "resolved", 562),
+        ],
+    )
+    summary = discovery.build_cell_matrix(tmp_path, TREE, ["C1", "C2", "C3"])
+    adata = ad.read_h5ad(tmp_path / discovery.CELL_TAXON_H5AD)
+    assert list(adata.obs_names) == ["C1", "C2", "C3"]  # cells without evidence stay in X
+    assert list(adata.var_names) == ["562", "9606"]
+    assert adata.X.toarray().tolist() == [[2, 1], [0, 0], [0, 0]]
+    assert list(adata.var["host_relation"]) == ["other", "host"]
+    assert adata.uns["discovery"]["unit"] == "resolved_umi_group"
+    assert summary["n_groups_called"] == 5 and summary["n_groups_called_ambiguous"] == 1
+    assert (summary["n_called_cells_seen"], summary["n_called_cells_with_resolved"]) == (2, 1)
+    assert _rows(tmp_path / discovery.OFFCELL_TSV) == [
+        {"corrected_cb": "OFF", "taxid": "562", "n_groups": "2"}
+    ]
+
+
+def test_load_called_cells(tmp_path):
+    with pytest.raises(DiscoveryError, match="called cells"):
+        discovery.load_called_cells(tmp_path)
+    results = tmp_path / "results"
+    results.mkdir()
+    (results / "called_cells.tsv").write_text("barcode\nCCC-1\nAAA-1\nAAA\n")
+    assert discovery.load_called_cells(tmp_path)[1]["called_cells_barcode_space"] == "unknown"
+    (results / "cell_calling_input.json").write_text(
+        json.dumps({"method": "emptydrops", "count_layer": "GeneFull.raw"})
+    )
+    called, info = discovery.load_called_cells(tmp_path)
+    assert called == ["AAA", "CCC"]
+    assert (info["cell_calling_method"], info["called_cells_barcode_space"]) == (
+        "emptydrops",
+        "starsolo",
+    )
+
+
+# ── DISC-11: rank views ─────────────────────────────────────────────────────
+
+
+def _collapse_fixture(tmp_path):
+    import anndata as ad
+    import numpy as np
+    import pandas as pd
+    from scipy import sparse
+
+    discovery.write_taxonomy(TREE, tmp_path)
+    taxa = ["83333", "562", "561", "9606", "2"]  # strain, species, genus, human, domain
+    X = sparse.csr_matrix(
+        np.array([[1, 2, 3, 4, 5], [0, 0, 6, 0, 0], [0, 0, 0, 0, 0]], dtype=np.int32)
+    )
+    adata = ad.AnnData(
+        X=X,
+        obs=pd.DataFrame(index=pd.Index(["C1", "C2", "C3"], name="barcode")),
+        var=pd.DataFrame(index=pd.Index(taxa, name="taxid")),
+    )
+    adata.write_h5ad(tmp_path / discovery.CELL_TAXON_H5AD)
+
+
+def test_collapse_rank_projects_conserves_and_flags_above_rank(tmp_path):
+    import anndata as ad
+
+    _collapse_fixture(tmp_path)
+    out = ad.read_h5ad(discovery.collapse_rank(tmp_path, "species"))
+    assert sorted(out.var_names) == ["2", "561", "562", "9606"]
+    sp = out[:, "562"].X.toarray().ravel().tolist()
+    assert sp == [3, 0, 0]  # strain + species
+    assert out.var.loc["561", "above_rank"] and not out.var.loc["562", "above_rank"]
+    # Homo sapiens is rank S in the fixture, so it is a species column itself.
+    assert not out.var.loc["9606", "above_rank"]
+    src = ad.read_h5ad(tmp_path / discovery.CELL_TAXON_H5AD)
+    assert out.X.sum(axis=1).A1.tolist() == src.X.sum(axis=1).A1.tolist()  # gate G6
+    genus = ad.read_h5ad(discovery.collapse_rank(tmp_path, "genus", tmp_path / "g.h5ad"))
+    assert genus[:, "561"].X.toarray().ravel().tolist() == [6, 6, 0]
+    assert genus.var.loc["2", "above_rank"] and genus.X.sum() == src.X.sum()
+
+
+def test_collapse_rank_errors_and_cli(tmp_path):
+    from viralscan.menu import build_parser
+
+    with pytest.raises(DiscoveryError, match="not found"):
+        discovery.collapse_rank(tmp_path, "genus")
+    ns = build_parser().parse_args(["discover-collapse", "o", "--rank", "family"])
+    assert (ns._subcommand, ns.rank, ns.output_file) == ("discover-collapse", "family", None)
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["discover-collapse", "o", "--rank", "order"])
+
+
+def _cand(taxid, host=0, viral_only=0):
+    return {
+        "taxid": str(taxid),
+        "name": f"t{taxid}",
+        "rank": "S",
+        "host_lineage": str(host),
+        "viral_only_db": str(viral_only),
+    }
+
+
+def _ev(taxid, route, best=10, tested=10, cells=2, umis=5, source="kb"):
+    return {
+        "taxid": taxid,
+        "route": route,
+        "source": source,
+        "n_adjudicated": tested,
+        "n_taxon_best": best,
+        "n_shared_cells": cells,
+        "n_shared_umis": umis,
+    }
+
+
+def test_states_routes_and_caps():
+    ev = {
+        (1, "corroboration"): _ev(1, "corroboration", source="star"),
+        (2, "read_support"): _ev(2, "read_support", source="minimap2"),
+    }
+    assert discovery.assign_state(_cand(1), ev)["state"] == "corroborated"
+    assert discovery.assign_state(_cand(2), ev)["state"] == "read_supported_observation"
+    both = {**ev, (1, "read_support"): _ev(1, "read_support")}
+    assert discovery.assign_state(_cand(1), both)["state"] == "corroborated"
+    # Kraken2 alone, and caps (host lineage, viral-only DB), stay at observation.
+    assert discovery.assign_state(_cand(3), ev)["state"] == "observation"
+    assert (
+        discovery.assign_state(_cand(1, viral_only=1), ev)["reason"]
+        == "capped: viral-only database"
+    )
+    assert discovery.assign_state(_cand(2, host=1), ev)["state"] == "observation"
+
+
+def test_states_not_assessed_is_not_negative():
+    none = discovery.assign_state(_cand(1), {})
+    assert (none["corroboration"], none["read_support"]) == ("not_assessed", "not_assessed")
+    neg = discovery.assign_state(_cand(1), {(1, "corroboration"): _ev(1, "corroboration", best=2)})
+    assert (neg["corroboration"], neg["read_support"], neg["state"]) == (
+        "negative",
+        "not_assessed",
+        "observation",
+    )
+
+
+@pytest.mark.parametrize(
+    "route, kw",
+    [
+        (
+            "corroboration",
+            {"best": 7},
+        ),  # 7/10 < 0.8: ties/other-reference wins stay in the denominator
+        ("corroboration", {"cells": 0}),  # incompatible barcode evidence
+        ("read_support", {"umis": 0}),  # no UMI-compatible molecule
+        ("read_support", {"best": 2, "tested": 2}),  # too few
+    ],
+)
+def test_states_negative_cases(route, kw):
+    got = discovery.assign_state(_cand(1), {(1, route): _ev(1, route, **kw)})
+    assert got["state"] == "observation" and got[route] == "negative"
+
+
+def test_build_candidate_states_and_input_validation(tmp_path):
+    (tmp_path / discovery.CANDIDATES_TSV).write_text(
+        "\t".join(("taxid", "name", "rank", "host_lineage", "viral_only_db"))
+        + "\n1\ta\tS\t0\t0\n2\tb\tS\t0\t0\n"
+    )
+    ev = tmp_path / "ev.tsv"
+    head = "\t".join(discovery.EVIDENCE_COLUMNS)
+    ev.write_text(head + "\n2\tread_support\tminimap2\t10\t9\t3\t4\n")
+    assert discovery.build_candidate_states(tmp_path, ev) == 2
+    rows = [
+        ln.split("\t")
+        for ln in (tmp_path / discovery.CANDIDATE_STATES_TSV).read_text().splitlines()
+    ]
+    assert rows[0] == list(discovery.CANDIDATE_STATE_COLUMNS)
+    assert [r[3] for r in rows[1:]] == ["observation", "read_supported_observation"]
+    discovery.build_candidate_states(tmp_path)  # no evidence: all observation, not_assessed
+    assert all(
+        ln.split("\t")[4] == "not_assessed"
+        for ln in (tmp_path / discovery.CANDIDATE_STATES_TSV).read_text().splitlines()[1:]
+    )
+    for bad in (
+        "9\tread_support\tx\t1\t1\t1\t1\n",  # taxid not a candidate
+        "1\tcorroboration\tbwa\t1\t1\t1\t1\n",  # corroboration source must be kb/star
+        "1\tread_support\tkb\t1\t1\t1\t1\n",  # read_support must be kb-independent
+        "1\tread_support\tx\t1\t2\t1\t1\n",  # best > adjudicated
+        "1\tread_support\tx\t1\tNA\t1\t1\n",
+        "1\tread_support\tx\t1\t1\t1\t1\n1\tread_support\ty\t1\t1\t1\t1\n",  # duplicate
+    ):
+        ev.write_text(head + "\n" + bad)
+        with pytest.raises(DiscoveryError):
+            discovery.build_candidate_states(tmp_path, ev)

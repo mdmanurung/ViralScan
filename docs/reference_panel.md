@@ -185,6 +185,21 @@ integrated genome is invisible rather than negative.
 
 ---
 
+## Known limitations
+
+- **HSV-1 latency (LAT).** HSV-1 LAT is modelled as the two-exon 6,391 nt transcript
+  (660 nt + 5,731 nt). The stable major LAT intron is not polyadenylated, so sensitivity to latent
+  HSV-1 in poly(A)-selected, 3' or 5' 10x libraries is not established either way.
+  `panel_completeness` for HSV-1 stays `partial`.
+- **`kmer_twin_of` exclusions.** A candidate excluded as `kmer_twin_of:<panel id>` (fewer than 5% of its
+  31-mers lie outside the panel) is excluded on a genomic redundancy heuristic. That is not proof that
+  the captured transcripts are equivalent: a small divergent region could dominate captured RNA.
+  Catalogue-only additions do not change the sensitivity of the shipped index.
+- **Blank `risk_class`.** A blank `risk_class` in the identity table means unknown, not "no risk"
+  (see `docs/output_reference.md`).
+
+---
+
 ## Adding custom references
 
 Supplement the cached panel with your own annotation files. Pass the `--gtf` flag

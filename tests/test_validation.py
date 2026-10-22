@@ -487,3 +487,20 @@ def test_unreadable_kb_info_falls_back_to_path(kb_bins):
         patch.object(validation.subprocess, "run", _fake_run("kallisto: 0.52.0 (/gone)\n")),
     ):
         assert validation.tool_path("kallisto") == "/conda/bin/kallisto"
+
+
+def test_doctor_discovery_profile_checks_kraken_tools_only() -> None:
+    from viralscan.validation import FULL_TOOLS
+
+    with patch(
+        "viralscan.validation.tool_path", side_effect=lambda n: None if n == "k2" else f"/x/{n}"
+    ):
+        report = doctor_report("discovery")
+    assert set(report["tools"]) == {"kraken2", "k2", "bustools"}
+    assert "snakemake" not in report["python"]
+    assert report["ok"] is False
+    assert "kraken2" not in FULL_TOOLS
+    with patch("viralscan.validation.tool_path", side_effect=lambda n: f"/x/{n}"):
+        assert doctor_report("discovery")["ok"] is True
+    with pytest.raises(ValueError):
+        doctor_report("bogus")

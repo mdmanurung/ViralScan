@@ -508,7 +508,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
 
-    output_dir = Path(args.output).resolve()
+    output_dir = Path(args.run_dir).resolve()
     config_yaml = output_dir / "config.yaml"
     if not config_yaml.exists():
         _die(f"config.yaml not found in {output_dir}. Is this a viralscan output directory?")
@@ -558,7 +558,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
     )
 
-    out_dir = str(output_dir / "hostresponse")
+    out_dir = str(Path(args.output).resolve() if args.output else output_dir / "hostresponse")
     run_hostresponse(
         virus_h5ad=virus_h5ad,
         host_h5ad=args.host_h5ad,
@@ -634,9 +634,30 @@ def _run_check_chemistry_subcommand(args: argparse.Namespace) -> None:
             ok = False
     if report["library_kind"]["call"] == "single-cell" and not report["chemistry"]["chemistry"]:
         ok = False
+    from viralscan import tchem
+
+    try:
+        op = tchem.second_opinion(
+            args.technology or report["chemistry"]["chemistry"],
+            args.sample1,
+            args.sample2,
+            mode=args.tchem,
+            binary=args.tchem_bin,
+            whitelists=args.tchem_whitelists,
+        )
+    except tchem.TchemError as exc:
+        _die(str(exc))
+    report["tchem"] = op.as_block()
+    if op.status in ("disagree", "no_call"):
+        report["advice"].append(op.reason)
+        # tchem could not back the call; the exit code follows the same rule as the run
+        ok = False
+    elif op.status == "info":
+        report["advice"].append(op.reason)
     print(f"library:   {report['library_kind']['call']} ({report['library_kind']['reason']})")
     print(f"chemistry: {report['chemistry']['chemistry']} ({report['chemistry']['reason']})")
     print(f"end:       {report['end']['call']} ({report['end']['basis']})")
+    print(f"tchem:     {op.status} ({op.reason})")
     for line in report["advice"]:
         print(f"advice:    {line}")
     if args.json:
@@ -847,8 +868,48 @@ def _resolve_chemistry(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
     for s1, d in zip(samples, detections):
         level = logging.INFO if d.chemistry == args.technology else logging.WARNING
         log.log(level, "Chemistry of %s: %s (%s)", _sample_id(s1), d.chemistry, d.reason)
+    blocks = {_sample_id(s1): d.as_block() for s1, d in zip(samples, detections)}
+    _tchem_second_opinion(args, samples, blocks)
     log.info("Running with -x %s", args.technology)
-    return {_sample_id(s1): d.as_block() for s1, d in zip(samples, detections)}
+    return blocks
+
+
+def _tchem_second_opinion(
+    args: argparse.Namespace, samples: list[str], blocks: dict[str, dict[str, Any]]
+) -> None:
+    """Compare each sample with TusslChemistry's call (CHEM-02); record it in ``blocks``.
+
+    A disagreement or a ``no_match``/``ambiguous`` verdict stops the run unless
+    ``--force-technology``; a missing or unusable tchem never does (``--tchem auto``).
+    """
+    from viralscan import chemistry, tchem
+
+    mode = getattr(args, "tchem", "auto")
+    if mode == "off":
+        return
+    mates = split_comma_paths(args.sample2) if getattr(args, "sample2", None) else []
+    r2s = mates if len(mates) == len(samples) else [None] * len(samples)
+    opinions = []
+    try:
+        for s1, r2 in zip(samples, r2s):
+            op = tchem.second_opinion(
+                args.technology,
+                s1,
+                r2,
+                mode=mode,
+                binary=getattr(args, "tchem_bin", None),
+                whitelists=getattr(args, "tchem_whitelists", None),
+            )
+            opinions.append(op)
+            if (
+                _sample_id(s1) in blocks
+            ):  # no block when the built-in detector could not run (forced -x)
+                blocks[_sample_id(s1)]["tchem"] = op.as_block()
+            level = logging.WARNING if op.status in ("disagree", "no_call") else logging.INFO
+            log.log(level, "tchem on %s: %s - %s", _sample_id(s1), op.status, op.reason)
+        tchem.enforce(opinions, args.force_technology)
+    except (tchem.TchemError, chemistry.ChemistryError) as exc:
+        _die(str(exc))
 
 
 def _check_required_tools() -> None:
@@ -1259,6 +1320,31 @@ def main() -> None:
 
     if getattr(args, "_subcommand", None) == "rerun-multimap":
         _run_rerun_multimap(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "discover":
+        from viralscan.discovery import DiscoveryError, run_discover
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        try:
+            run_discover(args)
+        except DiscoveryError as exc:
+            _die(str(exc))
+        return
+
+    if getattr(args, "_subcommand", None) == "discover-collapse":
+        from viralscan.discovery import DiscoveryError, collapse_rank
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        try:
+            collapsed = collapse_rank(
+                Path(args.discovery_dir),
+                args.rank,
+                Path(args.output_file) if args.output_file else None,
+            )
+        except DiscoveryError as exc:
+            _die(str(exc))
+        print(collapsed)
         return
 
     if getattr(args, "_subcommand", None) in ("doctor", "validate-run"):

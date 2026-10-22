@@ -450,8 +450,7 @@ class TestViralFreeTestGraph:
 
         from viralscan.scripts import umap as umap_mod
 
-        rng = np.random.default_rng(0)
-        x = sp.csr_matrix(rng.poisson(2, size=(200, 100)).astype(np.float32))
+        x = sp.csr_matrix(np.full((200, 100), 2.0, dtype=np.float64))
         a = ad.AnnData(x)
         a.var_names = [f"g{i}" for i in range(100)]
         a.obs_names = [f"c{i}" for i in range(200)]
@@ -470,8 +469,7 @@ class TestViralFreeTestGraph:
 
         from viralscan.scripts import umap as umap_mod
 
-        rng = np.random.default_rng(0)
-        host = rng.poisson(2, size=(200, 100)).astype(np.float32)
+        host = np.full((200, 100), 2.0, dtype=np.float64)
         v = np.zeros((200, 3), dtype=np.float32)
         v[:20] = 30
         a = ad.AnnData(sp.csr_matrix(np.hstack([host, v])))

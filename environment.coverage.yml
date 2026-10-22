@@ -1,0 +1,16 @@
+# Optional add-on for the evidence step's scPathoQuant-style coverage maps (COVMAP-01).
+# deeptools/pygenometracks pull pytables/hdf5/mpi builds that cannot co-solve with the main
+# env's bustools=0.45.1 (hdf5 1.14.3) and r-base=4.5.3, so they live in their own env:
+#   conda env create -n viralscan-coverage -f environment.coverage.yml
+# and put its bin/ on PATH (or install into a separate env). Check: viralscan doctor --profile coverage.
+# Without these tools the evidence step logs a warning and skips the maps.
+name: viralscan-coverage
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - samtools=1.23.1
+  - pygenometracks=3.9
+  - deeptools=3.5.6
+  - bedops=2.4.42  # gtf2bed

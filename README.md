@@ -286,7 +286,7 @@ Optional pathway enrichment via gget requires the `[enrichment]` extra:
 
 ```bash
 pip install "viralscan[enrichment]"
-viralscan hostresponse -o output/sample/ --host-h5ad host_genes.h5ad --enrichment
+viralscan hostresponse --run-dir output/sample/ --host-h5ad host_genes.h5ad --enrichment
 ```
 
 **Chemistry preflight.** If a run yields near-zero viral (or host) counts,

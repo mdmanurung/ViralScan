@@ -59,6 +59,7 @@ assess_evidence
 cli_reference
 output_reference
 reference_help
+discovery
 api
 api_reference
 ```

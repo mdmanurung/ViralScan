@@ -33,6 +33,10 @@ FULL_TOOLS = (
     "Rscript",
     "snakemake",
 )
+#: Extra tools for ``viralscan discover`` (DISC-01); not part of ``FULL_TOOLS``.
+DISCOVERY_TOOLS = ("kraken2", "k2", "bustools")
+#: Optional coverage-map tools (COVMAP-01, ``environment.coverage.yml``); they do not co-solve with the main env.
+COVERAGE_TOOLS = ("bamCoverage", "pyGenomeTracks", "gtf2bed")
 #: ``kb info`` lines naming the binaries kb itself runs: ``kallisto: 0.52.0 (/path)``.
 _KB_TOOL_RE = re.compile(r"^(kallisto|bustools):\s+(\S+)\s+\((.+)\)\s*$", re.MULTILINE)
 
@@ -238,11 +242,14 @@ def _plain(value: Any) -> Any:
 
 
 def doctor_report(profile: str = "full") -> dict[str, Any]:
-    if profile not in {"pip", "full"}:
-        raise ValueError("doctor profile must be 'pip' or 'full'.")
+    if profile not in {"pip", "full", "discovery", "coverage"}:
+        raise ValueError("doctor profile must be 'pip', 'full', 'discovery' or 'coverage'.")
     needed = PYTHON_REQUIREMENTS + (FULL_PYTHON_REQUIREMENTS if profile == "full" else ())
     python = {name: importlib.util.find_spec(name) is not None for name in needed}
-    tools = {name: tool_path(name) for name in FULL_TOOLS} if profile == "full" else {}
+    tool_names = {"full": FULL_TOOLS, "discovery": DISCOVERY_TOOLS, "coverage": COVERAGE_TOOLS}.get(
+        profile, ()
+    )
+    tools = {name: tool_path(name) for name in tool_names}
     schemas: dict[str, bool] = {}
     schema_errors: dict[str, str] = {}
     for name in REQUIRED_V3_SCHEMAS:

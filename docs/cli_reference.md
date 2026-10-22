@@ -430,11 +430,12 @@ processes in the above-threshold gene set.
 
 The viralscan output directory must already contain `config.yaml` and a
 completed multimap step (`log/multimap.done`). Results are written to
-`<output>/hostresponse/`.
+`<run-dir>/hostresponse/` unless `--output` is given.
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--output PATH` | `-o` | *(required)* | Existing viralscan sample output directory (contains `config.yaml`) |
+| `--run-dir PATH` | | *(required)* | Existing viralscan sample output directory (input; contains `config.yaml`) |
+| `--output DIR` | | `<run-dir>/hostresponse` | Directory hostresponse writes to (`-o` was removed; it meant the run directory) |
 | `--host-h5ad PATH` | | *(required)* | Host gene-expression h5ad (cells × genes, matched barcodes) |
 | `--n-seeds N` | | from config or `6` | Random seeds for multi-seed L2 regression |
 | `--n-stab-iter N` | | from config or `100` | Stability-selection iterations |
@@ -493,7 +494,7 @@ Examples:
 
 ```bash
 # Minimal — run with defaults from config (raw label; still reports the depth baseline)
-viralscan hostresponse -o output/sample/ --host-h5ad host_genes.h5ad
+viralscan hostresponse --run-dir output/sample/ --host-h5ad host_genes.h5ad
 
 # Depth-normalized label + %mito control + gene symbols
 viralscan hostresponse \
@@ -574,7 +575,7 @@ table below.
 ## `viralscan doctor` — dependency/profile check
 
 ```
-viralscan doctor [--profile {pip,full}] [--json PATH] [--verbose | --quiet]
+viralscan doctor [--profile {pip,full,discovery,coverage}] [--json PATH] [--verbose | --quiet]
 ```
 
 Check whether the current installation provides the dependencies required by a
@@ -583,7 +584,7 @@ does not imply that native full-workflow tools are installed.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--profile {pip,full}` | `full` | Check the Python/reporting/validation tier or the complete external-tool workflow tier |
+| `--profile {pip,full,discovery,coverage}` | `full` | Check the Python/reporting/validation tier, the complete external-tool workflow tier, the Kraken2 discovery add-on, or the optional coverage-map tools (`environment.coverage.yml`: `bamCoverage`, `pyGenomeTracks`, `gtf2bed`; the evidence step skips the maps with a warning when absent) |
 | `--json PATH` | *(none)* | Also write the report as JSON (it is always printed) |
 
 Example:
@@ -661,6 +662,9 @@ the sections above add context. Do not edit between the markers.
 | `--visual, --no-visual` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
 | `--technology, -x TECHNOLOGY` | *(none)* | Single-cell technology (`kb --list` to view). Default: detected from the first 100k R1 reads of each sample (on-list match, TSO/poly-T position). An explicit -x that the reads contradict, or reads that fit no single chemistry, stop the run. GEM-X 5' needs its on-list via -w. |
 | `--force-technology` | `False` | Run with the explicit -x even when the chemistry check disagrees or cannot decide. The detection is still logged. |
+| `--tchem TCHEM` | `auto` | TusslChemistry (tchem) second opinion on the chemistry. auto (default): use it when a tchem binary is found, otherwise skip silently; require: stop when it is missing or unusable; off: skip. A disagreement with -x, or a tchem verdict of ambiguous/no_match, stops the run unless --force-technology. |
+| `--tchem-bin PATH` | *(none)* | tchem executable (default: $VIRALSCAN_TCHEM, then PATH). |
+| `--tchem-whitelists DIR` | *(none)* | Directory of tchem barcode lists (default: $VIRALSCAN_TCHEM_WHITELISTS). |
 | `--require-chemistry-sanity` | `False` | Stop after kb count if library sanity reports an error or cannot be checked. Diagnostics are retained; warnings alone do not stop the run. |
 | `--whitelist, -w WHITELIST` | *(none)* | Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used. |
 | `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default (no flag): with the pinned kallisto 0.52.0 the effective behaviour is `unstranded` for every chemistry — kallisto 0.52.0 marks the 10x technologies strand-specific yet leaves the strand unset, so the legacy per-technology forward default no longer engages (upstream regression; kallisto <=0.51.1 defaulted 10x to forward). Set the flag explicitly for stranded quantification. 10x 5' libraries need `reverse` or `unstranded`: forward pseudoaligns only 6.5-8.9% of reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first 1M read pairs of each sample and picks one; the choice is recorded in run_manifest.json. |
@@ -850,6 +854,52 @@ the sections above add context. Do not edit between the markers.
 
 <!-- END GENERATED -->
 
+### viralscan discover
+
+Kraken2 taxonomic discovery on a completed run's STAR
+host-unmapped reads. It never modifies the source run; its results are candidate taxonomic observations, not
+infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
+
+<!-- BEGIN GENERATED: discover -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). It is never modified. |
+| `--sample SAMPLE` | *(none)* | Sample subdirectory to classify; required when the run has more than one. |
+| `--output, -o OUTPUT` | *required* | Discovery output directory, outside --run-dir; must be empty, absent or a previous publication. |
+| `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
+| `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
+| `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |
+| `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | `pinned` | STAR filter parameter set for --host-subtract (as in the main run). Default: pinned. |
+| `--confidence CONFIDENCE` | `0.05` | Kraken2 --confidence (a k-mer fraction threshold, not a probability). Default: 0.05, the Cellsnake documented default; not calibrated here (Kraken2's own default is 0.0). |
+| `--minimum-hit-groups MINIMUM_HIT_GROUPS` | `4` | Kraken2 --minimum-hit-groups. Default: 4, the Cellsnake documented default; not calibrated here (Kraken2's own default is 2). |
+| `--memory-mapping` | `False` | Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage). |
+| `--polya-trim, --no-polya-trim` | `True` | Cut a 3' polyA tail (first run of >= 15 A) and a 5' polyT head (leading run of >= 15 T) from R2 before Kraken2 (reads.tsv.gz records r2_trim). Default: on. |
+| `--force` | `False` | Replace a previously published --output whose fingerprint differs. Without it a matching output is a no-op and a differing one is refused. |
+| `--threads THREADS` | `4` | Kraken2 and STAR threads. Default: 4. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan discover-collapse
+
+Sums a published discovery's `cell_taxon.h5ad` columns into their
+species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay as themselves
+(`above_rank = True`); no group is reclassified and each cell's total is conserved.
+
+<!-- BEGIN GENERATED: discover-collapse -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `discovery_dir` | *required* | A published discovery output directory. |
+| `--rank RANK` | *required* |  |
+| `-o, --output FILE` | *(none)* | Output .h5ad. Default: OUT/cell_taxon_<rank>.h5ad. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
 ### viralscan rerun-programs
 
 <!-- BEGIN GENERATED: rerun-programs -->
@@ -871,7 +921,8 @@ the sections above add context. Do not edit between the markers.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--output, -o OUTPUT` | *required* | Existing viralscan sample output directory (contains config.yaml). |
+| `--run-dir RUN_DIR` | *required* | Existing viralscan sample output directory (input; contains config.yaml). |
+| `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/hostresponse). |
 | `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
 | `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
 | `--n-stab-iter N` | *(none)* | Selection-frequency (randomized-Lasso) iterations (default: from config or 100). |
@@ -932,6 +983,9 @@ the sections above add context. Do not edit between the markers.
 | `--technology, -x TECHNOLOGY` | *(none)* | Technology you plan to use; checked. |
 | `--cores, -c CORES` | `4` | Threads for the pilot. |
 | `--json PATH` | *(none)* | Also write the report as JSON. |
+| `--tchem TCHEM` | `auto` | TusslChemistry (tchem) second opinion on the chemistry. auto (default): use it when a tchem binary is found, otherwise skip silently; require: stop when it is missing or unusable; off: skip. A disagreement with -x, or a tchem verdict of ambiguous/no_match, stops the run unless --force-technology. |
+| `--tchem-bin PATH` | *(none)* | tchem executable (default: $VIRALSCAN_TCHEM, then PATH). |
+| `--tchem-whitelists DIR` | *(none)* | Directory of tchem barcode lists (default: $VIRALSCAN_TCHEM_WHITELISTS). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

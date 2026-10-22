@@ -1,0 +1,711 @@
+taxid	name	rank	species_taxid	species	genus_taxid	genus	subfamily_taxid	subfamily	family_taxid	family	retrieved_utc
+10243	Cowpox virus	no rank	3431481	Orthopoxvirus cowpox	10242	Orthopoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+10244	Monkeypox virus	no rank	3431483	Orthopoxvirus monkeypox	10242	Orthopoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+10245	Orthopoxvirus vaccinia	species	10245	Orthopoxvirus vaccinia	10242	Orthopoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+10255	Variola virus	no rank	3431487	Orthopoxvirus variola	10242	Orthopoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+10258	Orf virus	no rank	3431389	Parapoxvirus orf	10257	Parapoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+10280	Molluscum contagiosum virus subtype 1	no rank	3430922	Molluscipoxvirus molluscum	10278	Molluscipoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+10298	Human alphaherpesvirus 1	no rank	3050292	Simplexvirus humanalpha1	10294	Simplexvirus	10293	Alphaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+10310	Human alphaherpesvirus 2	no rank	3050293	Simplexvirus humanalpha2	10294	Simplexvirus	10293	Alphaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+10317	Cercopithecine alphaherpesvirus 2	no rank	3050256	Simplexvirus cercopithecinealpha2	10294	Simplexvirus	10293	Alphaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+10325	Macacine alphaherpesvirus 1	no rank	3050305	Simplexvirus macacinealpha1	10294	Simplexvirus	10293	Alphaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+10335	Human alphaherpesvirus 3	no rank	3050294	Varicellovirus humanalpha3	10319	Varicellovirus	10293	Alphaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+10359	Human betaherpesvirus 5	no rank	3050295	Cytomegalovirus humanbeta5	10358	Cytomegalovirus	10357	Betaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+10372	Human betaherpesvirus 7	no rank	3050298	Roseolovirus humanbeta7	40272	Roseolovirus	10357	Betaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+10376	human gammaherpesvirus 4	no rank	3050299	Lymphocryptovirus humangamma4	10375	Lymphocryptovirus	10374	Gammaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+10407	Hepatitis B virus	no rank	3431302	Orthohepadnavirus hominoidei	10405	Orthohepadnavirus			10404	Hepadnaviridae	2026-10-16T06:52:03Z
+10566	Human papillomavirus	species	10566	Human papillomavirus					151340	Papillomaviridae	2026-10-16T06:52:03Z
+10573	human papillomavirus 13	serotype	333754	Alphapapillomavirus 10	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10579	human papillomavirus 8	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10580	human papillomavirus 11	serotype	333754	Alphapapillomavirus 10	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10585	human papillomavirus 31	serotype	337041	Alphapapillomavirus 9	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10586	human papillomavirus 33	serotype	337041	Alphapapillomavirus 9	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10587	human papillomavirus 35	serotype	337041	Alphapapillomavirus 9	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10588	human papillomavirus 39	serotype	337042	Alphapapillomavirus 7	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10589	Human papillomavirus type 41	serotype	334205	Nupapillomavirus 1	475861	Nupapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10590	human papillomavirus 42	serotype	337048	Alphapapillomavirus 1	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10591	human papillomavirus 43	serotype	333757	Alphapapillomavirus 8	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10592	human papillomavirus 44	serotype	333754	Alphapapillomavirus 10	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10593	human papillomavirus 45	serotype	337042	Alphapapillomavirus 7	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10594	human papillomavirus 47	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10595	human papillomavirus 51	serotype	337044	Alphapapillomavirus 5	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10596	human papillomavirus 56	serotype	337050	Alphapapillomavirus 6	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10598	human papillomavirus 58	serotype	337041	Alphapapillomavirus 9	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10600	Human papillomavirus type 6b	serotype	333754	Alphapapillomavirus 10	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10604	human papillomavirus 12	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10606	Human papillomavirus 15	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10607	Human papillomavirus 17	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10608	Human papillomavirus 19	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10609	human papillomavirus 25	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10611	human papillomavirus 30	serotype	337050	Alphapapillomavirus 6	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10614	Human papillomavirus 3	serotype	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10615	human papillomavirus 40	serotype	333757	Alphapapillomavirus 8	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10616	human papillomavirus 49	serotype	334207	Betapapillomavirus 3	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10617	Human papillomavirus 4	serotype	333926	Gammapapillomavirus 1	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10618	human papillomavirus 52	serotype	337041	Alphapapillomavirus 9	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10620	Human papillomavirus type 7	serotype	333757	Alphapapillomavirus 8	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10621	Human papillomavirus 9	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+10632	JC polyomavirus	no rank	1891763	Betapolyomavirus secuhominis	1891714	Betapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+10798	Human parvovirus B19	no rank	3052189	Erythroparvovirus primate1	40121	Erythroparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+10799	H-1 parvovirus	no rank	3052717	Protoparvovirus rodent1	1506574	Protoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+10804	adeno-associated virus 2	no rank	1511891	Dependoparvovirus primate1	10803	Dependoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+10886	Mammalian orthoreovirus 3 Dearing	no rank	3422298	Orthoreovirus mammalis	10882	Orthoreovirus			2946187	Spinareoviridae	2026-10-16T06:52:03Z
+10942	Human rotavirus B	no rank	3432195	Rotavirus betagastroenteritidis	10912	Rotavirus			2946186	Sedoreoviridae	2026-10-16T06:52:03Z
+11020	Barmah Forest virus	no rank	3426294	Alphavirus barmah	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+11021	Eastern equine encephalitis virus	no rank	3426299	Alphavirus eastern	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+11029	Ross River virus	no rank	3426314	Alphavirus rossriver	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+11033	Semliki Forest virus	no rank	3426317	Alphavirus semliki	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+11034	Sindbis virus	no rank	3426318	Alphavirus sindbis	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+11036	Venezuelan equine encephalitis virus	no rank	3426322	Alphavirus venezuelan	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+11039	Western equine encephalitis virus	no rank	3426323	Alphavirus western	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+11041	Rubella virus	no rank	2846071	Rubivirus rubellae	11040	Rubivirus			2560066	Matonaviridae	2026-10-16T06:52:03Z
+11047	Equine arteritis virus	no rank	2499620	Alphaarterivirus equid	2499610	Alphaarterivirus	2499604	Equarterivirinae	76803	Arteriviridae	2026-10-16T06:52:03Z
+11053	dengue virus type 1	no rank	3052464	Orthoflavivirus denguei	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11060	dengue virus type 2	no rank	3052464	Orthoflavivirus denguei	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11069	dengue virus type 3	no rank	3052464	Orthoflavivirus denguei	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11070	dengue virus type 4	no rank	3052464	Orthoflavivirus denguei	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11072	Japanese encephalitis virus	no rank	3048158	Orthoflavivirus japonicum	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11079	Murray Valley encephalitis virus	no rank	3048215	Orthoflavivirus murrayense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11080	St. Louis encephalitis virus	no rank	3052468	Orthoflavivirus louisense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11082	West Nile virus	no rank	3048448	Orthoflavivirus nilense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11083	Powassan virus	no rank	3048287	Orthoflavivirus powassanense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11084	Tick-borne encephalitis virus	no rank	3052465	Orthoflavivirus encephalitidis	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11085	Langat virus	no rank	3048175	Orthoflavivirus langatense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11086	Louping ill virus	no rank	3048184	Orthoflavivirus loupingi	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11089	Yellow fever virus	no rank	3046277	Orthoflavivirus flavi	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+11137	Human coronavirus 229E	no rank	3433756	Alphacoronavirus chicagoense	693996	Alphacoronavirus	2501931	Orthocoronavirinae	11118	Coronaviridae	2026-10-16T06:52:03Z
+11216	Human respirovirus 3	no rank	3049953	Respirovirus pneumoniae	186938	Respirovirus	3152209	Feraresvirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+11224	Human parainfluenza virus 4a	no rank	3052556	Orthorubulavirus hominis	2560195	Orthorubulavirus	2560080	Rubulavirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+11226	Human parainfluenza virus 4b	no rank	3052556	Orthorubulavirus hominis	2560195	Orthorubulavirus	2560080	Rubulavirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+11234	Measles morbillivirus	no rank	3052345	Morbillivirus hominis	11229	Morbillivirus	2560076	Orthoparamyxovirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+11250	human respiratory syncytial virus	no rank	3049954	Orthopneumovirus hominis	1868215	Orthopneumovirus			11244	Pneumoviridae	2026-10-16T06:52:03Z
+11272	Chandipura virus	no rank	1972576	Vesiculovirus chandipura	11271	Vesiculovirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+11277	Vesicular stomatitis Indiana virus	no rank	1972577	Vesiculovirus indiana	11271	Vesiculovirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+11292	Lyssavirus rabies	species	11292	Lyssavirus rabies	11286	Lyssavirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+11318	Thogotovirus dhoriense	species	11318	Thogotovirus dhoriense	35323	Thogotovirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+11320	Influenza A virus	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+11520	Influenza B virus	no rank	2955465	Betainfluenzavirus influenzae	197912	Betainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+11553	Influenza C virus (C/Ann Arbor/1/50)	no rank	2955935	Gammainfluenzavirus influenzae	197913	Gammainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+11577	La Crosse virus	no rank	3052409	Orthobunyavirus lacrosseense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+11580	Snowshoe hare virus	no rank	3052407	Orthobunyavirus khatangaense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+11587	Punta Toro virus	no rank	3052684	Phlebovirus toroense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+11588	Rift Valley fever virus	no rank	3052676	Phlebovirus riftense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+11590	Toscana virus	no rank	3052686	Phlebovirus toscanaense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+11591	Uukuniemi virus	no rank	3052811	Uukuvirus uukuniemiense	2734594	Uukuvirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+11676	Human immunodeficiency virus 1	no rank	3418650	Lentivirus humimdef1	11646	Lentivirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+11709	Human immunodeficiency virus 2	no rank	3418651	Lentivirus humimdef2	11646	Lentivirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+11786	Murine leukemia virus	no rank	3428959	Gammaretrovirus murleu	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+11788	Abelson murine leukemia virus	species	11788	Abelson murine leukemia virus	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+11795	Friend murine leukemia virus	no rank	3428959	Gammaretrovirus murleu	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+11801	Moloney murine leukemia virus	no rank	3428959	Gammaretrovirus murleu	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+11908	Human T-cell leukemia virus type I	no rank	3428212	Deltaretrovirus priTlym1	153136	Deltaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+11909	Human T-lymphotropic virus 2	no rank	3428213	Deltaretrovirus priTlym2	153136	Deltaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+11938	Rauscher murine leukemia virus	no rank	3428959	Gammaretrovirus murleu	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+11963	Human spumaretrovirus	no rank	11642	Simian foamy virus			327046	Spumaretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+12089	Coxsackievirus A24	no rank	3428505	Enterovirus coxsackiepol	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+12092	Hepatovirus A	no rank	3407641	Hepatovirus ahepa	12091	Hepatovirus	2946633	Heptrevirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+12104	Encephalomyocarditis virus	no rank	3427730	Cardiovirus rueckerti	12103	Cardiovirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+12131	rhinovirus B14	no rank	3428503	Enterovirus betarhino	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+12475	Hepatitis delta virus	no rank	2844074	Deltavirus italiense	39759	Deltavirus			2842321	Kolmioviridae	2026-10-16T06:52:03Z
+12509	Human herpesvirus 4 type 2	no rank	3050299	Lymphocryptovirus humangamma4	10375	Lymphocryptovirus	10374	Gammaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+12538	Lyssavirus mokola	species	12538	Lyssavirus mokola	11286	Lyssavirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+12542	Omsk hemorrhagic fever virus	no rank	3048233	Orthoflavivirus omskense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+12618	Chicken anemia virus	no rank	3047743	Gyrovirus chickenanemia	227307	Gyrovirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+12721	Human immunodeficiency virus	species	12721	Human immunodeficiency virus	11646	Lentivirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+12730	Human respirovirus 1	no rank	3049952	Respirovirus laryngotracheitidis	186938	Respirovirus	3152209	Feraresvirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+28311	Human papillomavirus type 63	serotype	334204	Mupapillomavirus 2	334202	Mupapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+28312	Human papillomavirus 65	serotype	333926	Gammapapillomavirus 1	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+28332	Human T-lymphotropic virus 3	no rank	3428214	Deltaretrovirus priTlym3	153136	Deltaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+28875	Rotavirus A	no rank	3432193	Rotavirus alphagastroenteritidis	10912	Rotavirus			2946186	Sedoreoviridae	2026-10-16T06:52:03Z
+31546	Human papillomavirus type 14D	no rank	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+31547	human papillomavirus 20	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+31548	human papillomavirus 21	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+31551	Human papillomavirus type 35H	no rank	337041	Alphapapillomavirus 9	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+31631	Human coronavirus OC43	no rank	3433757	Betacoronavirus gravedinis	694002	Betacoronavirus	2501931	Orthocoronavirinae	11118	Coronaviridae	2026-10-16T06:52:03Z
+31708	rhinovirus A16	no rank	3428501	Enterovirus alpharhino	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+32603	Human betaherpesvirus 6A	no rank	3050296	Roseolovirus humanbeta6a	40272	Roseolovirus	10357	Betaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+32604	Human betaherpesvirus 6B	no rank	3050297	Roseolovirus humanbeta6b	40272	Roseolovirus	10357	Betaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+33743	Kyasanur Forest disease virus	no rank	3048170	Orthoflavivirus kyasanurense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+33745	Hepatitis C virus genotype 4	genotype	3052230	Orthohepacivirus hominis	11102	Orthohepacivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+33746	Hepatitis C virus genotype 5	genotype	3052230	Orthohepacivirus hominis	11102	Orthohepacivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+35279	Meaban virus	no rank	3048198	Orthoflavivirus meabanense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+35304	Bunyamwera virus	no rank	3052381	Orthobunyavirus bunyamweraense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+36427	Rotavirus C	no rank	3432203	Rotavirus tritogastroenteritidis	10912	Rotavirus			2946186	Sedoreoviridae	2026-10-16T06:52:03Z
+37111	Human papillomavirus 28	serotype	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37112	Human papillomavirus 29	serotype	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37115	human papillomavirus 59	serotype	337042	Alphapapillomavirus 7	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37119	human papillomavirus 66	serotype	337050	Alphapapillomavirus 6	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37120	human papillomavirus 67	serotype	337041	Alphapapillomavirus 9	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37121	human papillomavirus 69	serotype	337044	Alphapapillomavirus 5	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37124	Chikungunya virus	no rank	3426298	Alphavirus chikungunya	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+37296	Human gammaherpesvirus 8	no rank	3050300	Rhadinovirus humangamma8	10379	Rhadinovirus	10374	Gammaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+37954	Human papillomavirus 22	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37955	Human papillomavirus 23	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37956	human papillomavirus 24	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37957	human papillomavirus 36	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37958	Human papillomavirus 37	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+37959	Human papillomavirus 38	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+38767	Lyssavirus duvenhage	species	38767	Lyssavirus duvenhage	11286	Lyssavirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+38804	Yaba monkey tumor virus	no rank	3433539	Yatapoxvirus yabapox	10282	Yatapoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+39054	Enterovirus A71	no rank	3428500	Enterovirus alphacoxsackie	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+39457	Human papillomavirus type 70	serotype	337042	Alphapapillomavirus 7	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+40012	Saumarez Reef virus	no rank	3048314	Orthoflavivirus saumarezense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+40057	Lebombo virus	no rank	3431248	Orbivirus lebomboense	10892	Orbivirus			2946186	Sedoreoviridae	2026-10-16T06:52:03Z
+40058	Orungo virus	no rank	3431250	Orbivirus orungoense	10892	Orbivirus			2946186	Sedoreoviridae	2026-10-16T06:52:03Z
+40271	Hepatitis C virus genotype 2	genotype	3052230	Orthohepacivirus hominis	11102	Orthohepacivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+40538	Human papillomavirus type 48	serotype	333928	Gammapapillomavirus 2	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+40539	Human papillomavirus type 50	serotype	333929	Gammapapillomavirus 3	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+40540	Human papillomavirus type 60	serotype	333930	Gammapapillomavirus 4	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+41856	Hepatitis C virus genotype 1	genotype	3052230	Orthohepacivirus hominis	11102	Orthohepacivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+42182	Hepatitis C virus genotype 6	genotype	3052230	Orthohepacivirus hominis	11102	Orthohepacivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+42789	enterovirus D68	no rank	3428506	Enterovirus deconjuncti	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+43358	Human astrovirus 8	no rank	3430629	Mamastrovirus hominis	249588	Mamastrovirus			39733	Astroviridae	2026-10-16T06:52:03Z
+44024	Kokobera virus	no rank	3048168	Orthoflavivirus kokoberaorum	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+44028	human papillomavirus 74	serotype	333754	Alphapapillomavirus 10	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+44561	Murine type C retrovirus	no rank	3428959	Gammaretrovirus murleu	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+46350	Adeno-associated virus - 3	no rank	1511891	Dependoparvovirus primate1	10803	Dependoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+46839	Colorado tick fever virus	no rank	3428066	Coltivirus dermacentoris	10911	Coltivirus			2946187	Spinareoviridae	2026-10-16T06:52:03Z
+51033	human papillomavirus 73	serotype	337049	Alphapapillomavirus 11	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+54290	GB virus C	no rank	3052608	Pegivirus hominis	1307799	Pegivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+57482	European bat lyssavirus 1	no rank	2951618	Lyssavirus hamburg	11286	Lyssavirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+57483	European bat lyssavirus 2	no rank	2951619	Lyssavirus helsinki	11286	Lyssavirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+57579	Adeno-associated virus - 4	no rank	1511891	Dependoparvovirus primate1	10803	Dependoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+59301	Mayaro virus	no rank	3426306	Alphavirus mayaro	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+59303	Sagiyama virus	no rank	3426303	Alphavirus getah	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+59304	Una virus	no rank	3426321	Alphavirus una	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+59563	Ilheus virus	no rank	3052466	Orthoflavivirus ilheusense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+60877	Tonate virus	no rank	3426319	Alphavirus tonate	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+61673	Porcine endogenous retrovirus	no rank	3428960	Gammaretrovirus porConc	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+64285	Rio Bravo virus	no rank	3048300	Orthoflavivirus bravoense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+64286	Usutu virus	no rank	3048443	Orthoflavivirus usutuense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+64288	Royal Farm virus	no rank	3048305	Orthoflavivirus royalense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+64292	Ntaya virus	no rank	3048225	Orthoflavivirus ntayaense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+64293	Tembusu virus	no rank	3048360	Orthoflavivirus tembusu	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+64300	Modoc virus	no rank	3048205	Orthoflavivirus modocense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+64307	Gadgets Gully virus	no rank	3047837	Orthoflavivirus gadgetsense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+64310	Kadam virus	no rank	3048165	Orthoflavivirus kadamense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+64315	Rocio virus	no rank	3052466	Orthoflavivirus ilheusense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+64320	Zika virus	no rank	3048459	Orthoflavivirus zikaense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+68558	Adeno-associated virus - 6	no rank	1511891	Dependoparvovirus primate1	10803	Dependoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+68887	Torque teno virus	species	68887	Torque teno virus					687329	Anelloviridae	2026-10-16T06:52:03Z
+69984	human papillomavirus 75	serotype	334207	Betapapillomavirus 3	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+69985	human papillomavirus 76	serotype	334207	Betapapillomavirus 3	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+69986	Human papillomavirus 77	serotype	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+69987	Human papillomavirus 80	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+72197	Human erythrovirus V9	species	72197	Human erythrovirus V9	40121	Erythroparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+80941	Guaroa virus	no rank	3052397	Orthobunyavirus guaroaense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+82300	adeno-associated virus 5	no rank	1511892	Dependoparvovirus mammalian1	10803	Dependoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+85106	Adeno-associated virus - 1	no rank	1511891	Dependoparvovirus primate1	10803	Dependoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+90961	Lyssavirus australis	species	90961	Lyssavirus australis	11286	Lyssavirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+93678	TTV-like mini virus	no rank	3052022	Betatorquevirus homini36	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+93830	Hantavirus Z10	species	93830	Hantavirus Z10	1980442	Orthohantavirus	2560074	Mammantavirinae	1980413	Hantaviridae	2026-10-16T06:52:03Z
+93838	Influenza A virus (A/goose/Guangdong/1/1996(H5N1))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+108098	Human mastadenovirus B	no rank	3241406	Mastadenovirus blackbeardi	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+114654	DG-75 Murine leukemia virus	no rank	3428959	Gammaretrovirus murleu	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+118655	Oropouche virus	no rank	3052429	Orthobunyavirus oropoucheense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+120381	human papillomavirus 87	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+120686	human papillomavirus 71	serotype	931244	Alphapapillomavirus 14	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+122928	Norovirus GI	clade	3431196	Norovirus norwalkense	142786	Norovirus			11974	Caliciviridae	2026-10-16T06:52:03Z
+129724	human papillomavirus 82	serotype	337044	Alphapapillomavirus 5	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+129875	Human mastadenovirus A	no rank	3241402	Mastadenovirus adami	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+129951	Human mastadenovirus C	no rank	3241411	Mastadenovirus caesari	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+130308	Human mastadenovirus E	no rank	3241425	Mastadenovirus exoticum	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+130309	Human mastadenovirus F	no rank	3241426	Mastadenovirus faecale	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+130310	Human mastadenovirus D	no rank	3241420	Mastadenovirus dominans	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+130760	Influenza A virus (A/Hong Kong/1073/99(H9N2))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+132475	Yaba-like disease virus	no rank	3433538	Yatapoxvirus tanapox	10282	Yatapoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+136966	SEN virus	species	136966	SEN virus					687329	Anelloviridae	2026-10-16T06:52:03Z
+138948	Enterovirus A	no rank	3428500	Enterovirus alphacoxsackie	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+138949	Enterovirus B	no rank	3428502	Enterovirus betacoxsackie	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+138950	Enterovirus C	no rank	3428505	Enterovirus coxsackiepol	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+138951	Enterovirus D	no rank	3428506	Enterovirus deconjuncti	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+145856	Human picobirnavirus	no rank	2956252	Orthopicobirnavirus hominis	2948851	Orthopicobirnavirus			585893	Picobirnaviridae	2026-10-16T06:52:03Z
+147711	Rhinovirus A	no rank	3428501	Enterovirus alpharhino	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+150546	human papillomavirus 84	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+162145	human metapneumovirus	no rank	3048148	Metapneumovirus hominis	162387	Metapneumovirus			11244	Pneumoviridae	2026-10-16T06:52:03Z
+164416	Wesselsbron virus	no rank	3048447	Orthoflavivirus wesselsbronense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+166122	Human endogenous retrovirus K113	no rank	45617	Human endogenous retrovirus K					11632	Retroviridae	2026-10-16T06:52:03Z
+171370	human papillomavirus 86	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+172148	Alkhumra hemorrhagic fever virus	no rank	3048170	Orthoflavivirus kyasanurense	3044782	Orthoflavivirus			11050	Flaviviridae	2026-10-16T06:52:03Z
+185580	Hepatitis E virus type 4	no rank	1678143	Paslahepevirus balayani	2948857	Paslahepevirus	2946639	Orthohepevirinae	3079366	Hepeviridae	2026-10-16T06:52:03Z
+186538	Zaire ebolavirus	no rank	3052462	Orthoebolavirus zairense	3044781	Orthoebolavirus			11266	Filoviridae	2026-10-16T06:52:03Z
+186539	Reston ebolavirus	no rank	3052459	Orthoebolavirus restonense	3044781	Orthoebolavirus			11266	Filoviridae	2026-10-16T06:52:03Z
+186540	Sudan ebolavirus	no rank	3052460	Orthoebolavirus sudanense	3044781	Orthoebolavirus			11266	Filoviridae	2026-10-16T06:52:03Z
+186541	Tai Forest ebolavirus	no rank	3052461	Orthoebolavirus taiense	3044781	Orthoebolavirus			11266	Filoviridae	2026-10-16T06:52:03Z
+194965	Kobuvirus bejaponia	species	194965	Kobuvirus bejaponia	194960	Kobuvirus	2946635	Kodimesavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+202250	human papillomavirus 89	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+202252	human papillomavirus 91	serotype	333757	Alphapapillomavirus 8	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+202812	adeno-associated virus 7	no rank	1511891	Dependoparvovirus primate1	10803	Dependoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+202813	adeno-associated virus 8	no rank	1511891	Dependoparvovirus primate1	10803	Dependoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+204269	Great Island virus	no rank	3431249	Orbivirus magninsulae	10892	Orbivirus			2946186	Sedoreoviridae	2026-10-16T06:52:03Z
+206160	Sandfly fever Naples virus	no rank	3052666	Phlebovirus napoliense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+208893	Human respiratory syncytial virus A	no rank	3049954	Orthopneumovirus hominis	1868215	Orthopneumovirus			11244	Pneumoviridae	2026-10-16T06:52:03Z
+211044	Influenza A virus (A/Puerto Rico/8/1934(H1N1))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+211787	Human papillomavirus 92	serotype	334208	Betapapillomavirus 4	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+227984	SARS coronavirus Tor2	no rank	3418604	Betacoronavirus pandemicum	694002	Betacoronavirus	2501931	Orthocoronavirinae	11118	Coronaviridae	2026-10-16T06:52:03Z
+234601	Sapovirus Mc10	no rank	3432266	Sapovirus sapporoense	95341	Sapovirus			11974	Caliciviridae	2026-10-16T06:52:03Z
+247268	Human papillomavirus 93	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+247269	human papillomavirus 96	serotype	334209	Betapapillomavirus 5	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+260716	Human papillomavirus 95	serotype	333926	Gammapapillomavirus 1	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+260717	Human papillomavirus 94	serotype	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+273341	Ilesha virus	no rank	3052399	Orthobunyavirus ileshaense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+273345	Fort Sherman virus	no rank	3052439	Orthobunyavirus shermanense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+273352	Macaua virus	no rank	3052412	Orthobunyavirus macauaense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+277944	Human coronavirus NL63	no rank	3433809	Alphacoronavirus amsterdamense	693996	Alphacoronavirus	2501931	Orthocoronavirinae	11118	Coronaviridae	2026-10-16T06:52:03Z
+289365	Human parvovirus 4	no rank	3052770	Tetraparvovirus primate1	1511911	Tetraparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+289366	Small anellovirus 1	no rank	393049	Small anellovirus					687329	Anelloviridae	2026-10-16T06:52:03Z
+289367	Small anellovirus 2	no rank	393049	Small anellovirus					687329	Anelloviridae	2026-10-16T06:52:03Z
+290008	Isfahan virus	no rank	1972573	Vesiculovirus isfahan	11271	Vesiculovirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+290028	Human coronavirus HKU1	no rank	3433758	Betacoronavirus hongkongense	694002	Betacoronavirus	2501931	Orthocoronavirinae	11118	Coronaviridae	2026-10-16T06:52:03Z
+290314	Sapovirus C12	no rank	3432266	Sapovirus sapporoense	95341	Sapovirus			11974	Caliciviridae	2026-10-16T06:52:03Z
+291175	Sapovirus Hu/Dresden/pJG-Sap01/DE	no rank	3432266	Sapovirus sapporoense	95341	Sapovirus			11974	Caliciviridae	2026-10-16T06:52:03Z
+291484	Hepatitis E virus	species	291484	Hepatitis E virus					3079366	Hepeviridae	2026-10-16T06:52:03Z
+310540	simian adenovirus 1	no rank	3241445	Mastadenovirus russelli	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+310907	Enterovirus H	no rank	3428510	Enterovirus hesimi	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+318279	Human T-lymphotropic virus 4	species	318279	Human T-lymphotropic virus 4	153136	Deltaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+318848	Le Dantec virus	no rank	1978540	Ledantevirus ledantec	1978532	Ledantevirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+332179	human adenovirus 52	no rank	3241445	Mastadenovirus russelli	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+333752	human papillomavirus 27	serotype	337043	Alphapapillomavirus 4	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333753	human papillomavirus 57	serotype	337043	Alphapapillomavirus 4	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333759	human papillomavirus 10	serotype	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333760	Human papillomavirus 16	serotype	337041	Alphapapillomavirus 9	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333761	human papillomavirus 18	serotype	337042	Alphapapillomavirus 7	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333762	Human papillomavirus type 26	serotype	337044	Alphapapillomavirus 5	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333763	human papillomavirus 32	serotype	337048	Alphapapillomavirus 1	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333764	Human papillomavirus type 34	serotype	337049	Alphapapillomavirus 11	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333765	Human papillomavirus type 53	serotype	337050	Alphapapillomavirus 6	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333767	Alphapapillomavirus 3	species	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333769	Human papillomavirus type 90	serotype	931244	Alphapapillomavirus 14	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333770	human papillomavirus 72	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333771	human papillomavirus 81	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333772	human papillomavirus 83	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+333923	Human papillomavirus 5	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+334203	Mupapillomavirus 1	species	334203	Mupapillomavirus 1	334202	Mupapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+334210	human papillomavirus 62	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+335103	Adult diarrheal rotavirus strain J19	no rank	3432194	Rotavirus aspergastroenteritidis	10912	Rotavirus			2946186	Sedoreoviridae	2026-10-16T06:52:03Z
+335341	Influenza A virus (A/New York/392/2004(H3N2))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+337043	Alphapapillomavirus 4	species	337043	Alphapapillomavirus 4	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+337054	Human papillomavirus 88	serotype	333931	Gammapapillomavirus 5	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+338079	African green monkey simian foamy virus	no rank	3432452	Simiispumavirus chlaet	2169668	Simiispumavirus	327046	Spumaretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+338322	Human papillomavirus type 68a	no rank	337042	Alphapapillomavirus 7	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+338323	human papillomavirus 103	serotype	1175848	Gammapapillomavirus 6	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+338324	human papillomavirus 97	serotype	337042	Alphapapillomavirus 7	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+338326	human papillomavirus 106	serotype	931244	Alphapapillomavirus 14	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+338327	human papillomavirus 102	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+338478	Macaque simian foamy virus	no rank	3432454	Simiispumavirus maccyc	2169668	Simiispumavirus	327046	Spumaretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+341053	Beilong virus	no rank	3052263	Jeilongvirus beilongi	2560155	Jeilongvirus	2560076	Orthoparamyxovirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+348013	Madrid virus	no rank	3052413	Orthobunyavirus madridense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+356114	Hepatitis C virus genotype 3	genotype	3052230	Orthohepacivirus hominis	11102	Orthohepacivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+373193	Xenotropic MuLV-related virus VP62	no rank	99182	Murine leukemia-related retroviruses	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+394504	Human bocavirus WLL-1	no rank	329641	Human bocavirus	1507401	Bocaparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+419697	Melaka orthoreovirus	no rank	1459003	Pteropine orthoreovirus	10882	Orthoreovirus			2946187	Spinareoviridae	2026-10-16T06:52:03Z
+427343	Human papillomavirus 107	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+432261	Torque teno midi virus	species	432261	Torque teno midi virus					687329	Anelloviridae	2026-10-16T06:52:03Z
+434309	Saffold virus	no rank	3427732	Cardiovirus theileri	12103	Cardiovirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+440266	WU Polyomavirus	no rank	1891765	Betapolyomavirus quartihominis	1891714	Betapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+443975	TT virus sle1957	no rank	443974	TT virus sle					687329	Anelloviridae	2026-10-16T06:52:03Z
+488241	Influenza A virus (A/Korea/426/1968(H2N2))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+489450	HBV genotype A1	no rank	3431302	Orthohepadnavirus hominoidei	10405	Orthohepadnavirus			10404	Hepadnaviridae	2026-10-16T06:52:03Z
+489460	Hepatitis B virus genotype B	no rank	3431302	Orthohepadnavirus hominoidei	10405	Orthohepadnavirus			10404	Hepadnaviridae	2026-10-16T06:52:03Z
+493803	Merkel cell polyomavirus	no rank	1891726	Alphapolyomavirus quintihominis	1891713	Alphapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+509628	Hepatitis E virus type 3	no rank	1678143	Paslahepevirus balayani	2948857	Paslahepevirus	2946639	Orthohepevirinae	3079366	Hepeviridae	2026-10-16T06:52:03Z
+512169	Tulane virus	no rank	3432145	Recovirus tulani	873551	Recovirus			11974	Caliciviridae	2026-10-16T06:52:03Z
+518628	Human papillomavirus 104	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+518629	Human papillomavirus 110	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+518630	Human papillomavirus 111	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+518987	Influenza B virus (B/Lee/1940)	no rank	2955465	Betainfluenzavirus influenzae	197912	Betainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+565537	human papillomavirus 108	serotype	1175848	Gammapapillomavirus 6	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+565995	Bundibugyo virus	no rank	3052458	Orthoebolavirus bundibugyoense	3044781	Orthoebolavirus			11266	Filoviridae	2026-10-16T06:52:03Z
+573824	rhinovirus A1	no rank	3428501	Enterovirus alpharhino	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+586420	Human cosavirus B	no rank	3428095	Cosavirus bepakis	586418	Cosavirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+587347	Human papillomavirus 98	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+587348	Human papillomavirus 99	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+587349	Human papillomavirus 100	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+587350	Human papillomavirus 105	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+587351	Human papillomavirus 113	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+627439	Human enteric coronavirus strain 4408	no rank	3433757	Betacoronavirus gravedinis	694002	Betacoronavirus	2501931	Orthocoronavirinae	11118	Coronaviridae	2026-10-16T06:52:03Z
+629725	Chandiru virus	no rank	3052640	Phlebovirus candiruense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+629726	Alenquer virus	no rank	2734436	Phlebovirus alenquerense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+629727	Chagres virus	no rank	3052641	Phlebovirus chagresense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+638313	Human bocavirus 3	no rank	3052040	Bocaparvovirus primate1	1507401	Bocaparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+641809	Influenza A virus (A/California/07/2009(H1N1))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+642022	Lyssavirus Ozernoe	species	642022	Lyssavirus Ozernoe	11286	Lyssavirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+649604	Banna virus strain JKT-6423	no rank	3240447	Seadornavirus bannaense	208294	Seadornavirus			2946186	Sedoreoviridae	2026-10-16T06:52:03Z
+651580	Human adenovirus 54	no rank	3241420	Mastadenovirus dominans	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+651733	Salivirus NG-J1	no rank	3432241	Salivirus aklasse	688449	Salivirus	2946635	Kodimesavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+652810	Human papillomavirus type 85	species	652810	Human papillomavirus type 85					151340	Papillomaviridae	2026-10-16T06:52:03Z
+654811	Influenza A virus (A/Perth/16/2009(H3N2))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+673323	Human papillomavirus 125	serotype	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+682382	HMO Astrovirus A	species	682382	HMO Astrovirus A	249588	Mamastrovirus			39733	Astroviridae	2026-10-16T06:52:03Z
+683172	Astrovirus MLB2	species	683172	Astrovirus MLB2					39733	Astroviridae	2026-10-16T06:52:03Z
+683174	Astrovirus VA3	species	683174	Astrovirus VA3					39733	Astroviridae	2026-10-16T06:52:03Z
+687340	Torque teno virus 1	no rank	3048413	Alphatorquevirus homin1	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687341	Torque teno virus 2	no rank	3048421	Alphatorquevirus homin2	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687342	Torque teno virus 3	no rank	3048428	Alphatorquevirus homin3	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687344	Torque teno virus 5	no rank	3048430	Alphatorquevirus homin5	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687345	Torque teno virus 6	no rank	3048431	Alphatorquevirus homin6	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687346	Torque teno virus 7	no rank	3048432	Alphatorquevirus homin7	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687347	Torque teno virus 8	species	687347	Torque teno virus 8					687329	Anelloviridae	2026-10-16T06:52:03Z
+687348	Torque teno virus 9	no rank	3048433	Alphatorquevirus homin9	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687349	Torque teno virus 10	no rank	3048414	Alphatorquevirus homin10	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687350	Torque teno virus 11	no rank	3048433	Alphatorquevirus homin9	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687351	Torque teno virus 12	no rank	3048433	Alphatorquevirus homin9	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687352	Torque teno virus 13	no rank	3048415	Alphatorquevirus homin13	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687354	Torque teno virus 15	no rank	3048417	Alphatorquevirus homin15	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687355	Torque teno virus 16	no rank	3048417	Alphatorquevirus homin15	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687356	Torque teno virus 17	no rank	3048418	Alphatorquevirus homin17	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687357	Torque teno virus 18	no rank	3048419	Alphatorquevirus homin18	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687358	Torque teno virus 19	no rank	3048420	Alphatorquevirus homin19	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687359	Torque teno virus 20	no rank	3048422	Alphatorquevirus homin20	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687360	Torque teno virus 21	no rank	3048423	Alphatorquevirus homin21	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687363	Torque teno virus 24	no rank	3048424	Alphatorquevirus homin24	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687364	Torque teno virus 25	no rank	3048425	Alphatorquevirus cerco7	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687366	Torque teno virus 27	no rank	3048427	Alphatorquevirus homin29	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687367	Torque teno virus 28	no rank	3048427	Alphatorquevirus homin29	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687368	Torque teno virus 29	no rank	3048427	Alphatorquevirus homin29	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687369	Torque teno mini virus 1	no rank	3048395	Betatorquevirus homini1	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687370	Torque teno mini virus 2	no rank	3048400	Betatorquevirus homini2	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687371	Torque teno mini virus 3	no rank	3048401	Betatorquevirus homini3	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687373	Torque teno mini virus 5	no rank	3048403	Betatorquevirus homini5	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687374	Torque teno mini virus 6	no rank	3048404	Betatorquevirus homini6	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687375	Torque teno mini virus 7	no rank	3048405	Betatorquevirus homini7	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687376	Torque teno mini virus 8	no rank	3048406	Betatorquevirus homini8	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687377	Torque teno mini virus 9	no rank	3048407	Betatorquevirus homini9	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687379	Torque teno midi virus 1	no rank	3048380	Gammatorquevirus homidi1	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+687380	Torque teno midi virus 2	no rank	3048387	Gammatorquevirus homidi2	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+688699	sandfly fever Turkey virus	no rank	3052681	Phlebovirus siciliaense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+696746	human papillomavirus 115	serotype	334207	Betapapillomavirus 3	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+720708	Human papillomavirus 117	serotype	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+735496	human papillomavirus 114	serotype	333767	Alphapapillomavirus 3	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+742919	Cyclovirus PK6197	species	742919	Cyclovirus PK6197	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+743300	Human stool-associated circular virus NG13	no rank	3052121	Circovirus eniyan	39725	Circovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+743811	human papillomavirus 150	serotype	334209	Betapapillomavirus 5	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+743812	Human papillomavirus 151	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+746830	Human polyomavirus 6	no rank	2955746	Deltapolyomavirus sextihominis	1891715	Deltapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+746831	Human polyomavirus 7	no rank	2955745	Deltapolyomavirus septihominis	1891715	Deltapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+746832	Human papillomavirus 127	serotype	1513257	Gammapapillomavirus 12	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+765051	human papillomavirus 119	serotype	1175850	Gammapapillomavirus 8	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+765052	Human papillomavirus 120	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+765054	Human papillomavirus 122	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+765055	Human papillomavirus 123	serotype	1175849	Gammapapillomavirus 7	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+765056	human papillomavirus 124	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+767521	Astrovirus SG	no rank	3430641	Mamastrovirus virginiaense	249588	Mamastrovirus			39733	Astroviridae	2026-10-16T06:52:03Z
+858367	Astrovirus MLB1 HK05	no rank	3430631	Mamastrovirus melbournense	249588	Mamastrovirus			39733	Astroviridae	2026-10-16T06:52:03Z
+862909	Trichodysplasia spinulosa-associated polyomavirus	no rank	1891727	Alphapolyomavirus octihominis	1891713	Alphapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+879096	Hepatitis E virus rat/R63/DEU/2009	no rank	1678145	Rocahepevirus ratti	2948883	Rocahepevirus	2946639	Orthohepevirinae	3079366	Hepeviridae	2026-10-16T06:52:03Z
+909328	Human papillomavirus 149	serotype	1175849	Gammapapillomavirus 7	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+909329	Human papillomavirus 130	serotype	1175852	Gammapapillomavirus 10	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+909330	human papillomavirus 131	serotype	1513259	Gammapapillomavirus 14	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+909331	Human papillomavirus 132	serotype	1513257	Gammapapillomavirus 12	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+909332	Human papillomavirus 133	serotype	1175852	Gammapapillomavirus 10	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+909333	Human papillomavirus 134	serotype	1175849	Gammapapillomavirus 7	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+915425	human papillomavirus 101	serotype	1175848	Gammapapillomavirus 6	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+915426	Human papillomavirus 109	serotype	1175849	Gammapapillomavirus 7	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+915427	human papillomavirus 112	serotype	1175850	Gammapapillomavirus 8	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+915428	Human papillomavirus 116	serotype	1175851	Gammapapillomavirus 9	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+915429	Human papillomavirus 121	serotype	1175852	Gammapapillomavirus 10	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+927771	human papillomavirus 118	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+931209	human papillomavirus 128	serotype	1513258	Gammapapillomavirus 13	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+931210	human papillomavirus 129	serotype	1175851	Gammapapillomavirus 9	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+933438	Murine leukemia virus N417	no rank	3428959	Gammaretrovirus murleu	153135	Gammaretrovirus	327045	Orthoretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+942038	Human papillomavirus 148	serotype	1513257	Gammapapillomavirus 12	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+943084	Micro Torque teno virus	species	943084	Micro Torque teno virus					687329	Anelloviridae	2026-10-16T06:52:03Z
+943908	Human polyomavirus 9	no rank	2955297	Alphapolyomavirus nonihominis	1891713	Alphapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+944645	Senegalvirus marseillevirus	no rank	3430671	Marseillevirus senegalense	1513458	Marseillevirus			944644	Marseilleviridae	2026-10-16T06:52:03Z
+988774	Human polyomavirus IPPyV	no rank	2955297	Alphapolyomavirus nonihominis	1891713	Alphapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+990302	Human papillomavirus 152	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+992212	SFTS virus HB29	no rank	2748958	Bandavirus dabieense	2733256	Bandavirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+994672	Titi monkey adenovirus ECC-2011	no rank	3241449	Mastadenovirus simuli	10509	Mastadenovirus			10508	Adenoviridae	2026-10-16T06:52:03Z
+1000646	Echarate virus	no rank	3052647	Phlebovirus echarateense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+1001061	parechovirus B1	no rank	3431396	Parechovirus beljungani	138954	Parechovirus	2946640	Paavivirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1002273	Avian gyrovirus 2	no rank	2844800	Gyrovirus galga1	227307	Gyrovirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+1004889	Maldonado virus	no rank	3052660	Phlebovirus maldonadoense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+1046251	Maraba virus	no rank	1972574	Vesiculovirus maraba	11271	Vesiculovirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+1048854	Munguba virus	no rank	3052665	Phlebovirus mungubaense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+1055684	Human papillomavirus 126	serotype	1513256	Gammapapillomavirus 11	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070408	Human papillomavirus 135	serotype	1513260	Gammapapillomavirus 15	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070409	Human papillomavirus 136	serotype	1513256	Gammapapillomavirus 11	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070410	human papillomavirus 137	serotype	1513261	Gammapapillomavirus 16	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070411	Human papillomavirus 138	serotype	1175849	Gammapapillomavirus 7	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070412	Human papillomavirus 139	serotype	1175849	Gammapapillomavirus 7	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070413	Human papillomavirus 140	serotype	1513256	Gammapapillomavirus 11	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070414	Human papillomavirus 141	serotype	1513256	Gammapapillomavirus 11	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070415	Human papillomavirus 142	serotype	1175852	Gammapapillomavirus 10	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070416	Human papillomavirus 143	serotype	337051	Betapapillomavirus 1	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070417	Human papillomavirus 144	serotype	1513262	Gammapapillomavirus 17	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070418	Human papillomavirus 145	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070419	Human papillomavirus 146	serotype	1513260	Gammapapillomavirus 15	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1070420	human papillomavirus 147	serotype	1175850	Gammapapillomavirus 8	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1110710	human papillomavirus 153	serotype	1513258	Gammapapillomavirus 13	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1163715	Gyrovirus GyV3	no rank	2844802	Gyrovirus homsa1	227307	Gyrovirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+1165934	Human papillomavirus 155	serotype	1175849	Gammapapillomavirus 7	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1173138	Influenza D virus (D/swine/Oklahoma/1334/2011)	no rank	2955744	Deltainfluenzavirus influenzae	1511083	Deltainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+1195796	Human papillomavirus 154	serotype	1513256	Gammapapillomavirus 11	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1203539	MW polyomavirus	no rank	1208309	Deltapolyomavirus decihominis	1891715	Deltapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+1208309	Deltapolyomavirus decihominis	species	1208309	Deltapolyomavirus decihominis	1891715	Deltapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+1209820	Human papillomavirus 159	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1214955	Gyrovirus 4	no rank	2844804	Gyrovirus homsa3	227307	Gyrovirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+1216928	Heartland virus	no rank	3051992	Bandavirus heartlandense	2733256	Bandavirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+1219350	HBV genotype F2	no rank	3431302	Orthohepadnavirus hominoidei	10405	Orthohepadnavirus			10404	Hepadnaviridae	2026-10-16T06:52:03Z
+1231709	MX polyomavirus	species	1231709	MX polyomavirus					151341	Polyomaviridae	2026-10-16T06:52:03Z
+1233383	Human cosavirus	species	1233383	Human cosavirus	586418	Cosavirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1247113	Astrovirus VA4	species	1247113	Astrovirus VA4					39733	Astroviridae	2026-10-16T06:52:03Z
+1247114	Astrovirus MLB3	species	1247114	Astrovirus MLB3					39733	Astroviridae	2026-10-16T06:52:03Z
+1248396	Human papillomavirus 156	serotype	1513263	Gammapapillomavirus 18	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1263720	Betacoronavirus England 1	no rank	3433633	Betacoronavirus cameli	694002	Betacoronavirus	2501931	Orthocoronavirinae	11118	Coronaviridae	2026-10-16T06:52:03Z
+1277649	STL polyomavirus	no rank	1891745	Deltapolyomavirus undecihominis	1891715	Deltapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+1288116	Human papillomavirus type XS2	no rank	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1303334	Human polyomavirus 12	no rank	2955301	Alphapolyomavirus saraneus	1891713	Alphapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+1313215	aichivirus A1	no rank	72149	Kobuvirus aichi	194960	Kobuvirus	2946635	Kodimesavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1315259	human papillomavirus 166	serotype	1513264	Gammapapillomavirus 19	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1315260	Human papillomavirus 169	serotype	1513256	Gammapapillomavirus 11	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1315261	human papillomavirus 164	serotype	1175850	Gammapapillomavirus 8	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1315262	human papillomavirus 163	serotype	1513265	Gammapapillomavirus 20	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1315263	human papillomavirus 162	serotype	1513264	Gammapapillomavirus 19	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1315264	Human papillomavirus type 161	serotype	1513264	Gammapapillomavirus 19	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1315265	Human papillomavirus 170	serotype	1175849	Gammapapillomavirus 7	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1315266	Human papillomavirus 165	serotype	1513257	Gammapapillomavirus 12	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1330491	Cosavirus A	no rank	3428094	Cosavirus asiani	586418	Cosavirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1335626	Middle East respiratory syndrome-related coronavirus	no rank	3433633	Betacoronavirus cameli	694002	Betacoronavirus	2501931	Orthocoronavirinae	11118	Coronaviridae	2026-10-16T06:52:03Z
+1345637	Human cyclovirus VS5700009	no rank	3047967	Cyclovirus munthu	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+1346816	Circo-like virus-Brazil hs2	no rank	1407638	Circo-like virus-Brazil							2026-10-16T06:52:03Z
+1347832	Human papillomavirus 174	serotype	333924	Betapapillomavirus 2	333922	Betapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1348500	Cyclovirus VN	no rank	3047966	Cyclovirus nhanloai	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+1352534	Parvo-like hybrid virus UC1	no rank	3431103	Nicoomyvirus moldensis	3425078	Nicoomyvirus			3424666	Oomyviridae	2026-10-16T06:52:03Z
+1391667	Bufavirus-3	species	1391667	Bufavirus-3			40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+1415627	Gyrovirus Tu243	no rank	2844805	Gyrovirus homsa4	227307	Gyrovirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+1415628	Gyrovirus Tu789	no rank	2844803	Gyrovirus homsa2	227307	Gyrovirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+1418031	rhinovirus C5	no rank	3428504	Enterovirus cerhino	12059	Enterovirus	2946630	Ensavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1420544	human papillomavirus 168	serotype	1175850	Gammapapillomavirus 8	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1420545	Human papillomavirus 167	serotype	1961678	Gammapapillomavirus 21	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1428581	Upolu virus	no rank	2956528	Thogotovirus upoluense	35323	Thogotovirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+1434782	Human papillomavirus 175	serotype	1961680	Gammapapillomavirus 23	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1434986	Human papillomavirus 171	serotype	1513256	Gammapapillomavirus 11	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1434987	Human papillomavirus 172	serotype	1961679	Gammapapillomavirus 22	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1434988	Human papillomavirus 173	serotype	333926	Gammapapillomavirus 1	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1449827	Human papillomavirus 180	serotype	1175852	Gammapapillomavirus 10	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1452514	Sosuga virus	no rank	3052600	Pararubulavirus sosugaense	2560200	Pararubulavirus	2560080	Rubulavirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+1452750	Ectromelia virus ERPV	no rank	3431482	Orthopoxvirus ectromelia	10242	Orthopoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+1472342	Human papillomavirus 179	serotype	1513260	Gammapapillomavirus 15	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1472343	Human papillomavirus 184	serotype	1961682	Gammapapillomavirus 25	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1478160	Human papillomavirus 178	serotype	1961681	Gammapapillomavirus 24	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1488574	Human genital-associated circular DNA virus-1	no rank	2844554	Gemygorvirus sewopo1	1985366	Gemygorvirus			1910928	Genomoviridae	2026-10-16T06:52:03Z
+1497391	New Jersey polyomavirus-2013	no rank	1891728	Alphapolyomavirus terdecihominis	1891713	Alphapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+1511785	pasivirus A2	no rank	3431402	Pasivirus agallia	1511782	Pasivirus	2946640	Paavivirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1511807	rosavirus A2	no rank	3432189	Rosavirus acaliforni	1511804	Rosavirus	2946635	Kodimesavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1511882	Human bocavirus 2c PK	no rank	3052041	Bocaparvovirus primate2	1507401	Bocaparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+1511883	Human bocavirus 4 NI	no rank	3052041	Bocaparvovirus primate2	1507401	Bocaparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+1516081	MSSI2.225 virus	no rank	2844581	Gemykibivirus humas1	1941236	Gemykibivirus			1910928	Genomoviridae	2026-10-16T06:52:03Z
+1518575	Human astrovirus BF34	no rank	1518574	Burkina Faso astrovirus	249588	Mamastrovirus			39733	Astroviridae	2026-10-16T06:52:03Z
+1520935	Cyclovirus SL-108277	no rank	3047958	Cyclovirus manitan	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+1525173	Human circovirus VS6600022	no rank	3426330	Amaruvirus aka	3153056	Amaruvirus			3152143	Pecoviridae	2026-10-16T06:52:03Z
+1535290	Torque teno mini virus ALA22	no rank	3052014	Betatorquevirus homini27	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+1535291	Torque teno mini virus ALH8	no rank	3052004	Betatorquevirus homini16	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+1542134	Human papillomavirus 197	serotype	1961681	Gammapapillomavirus 24	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1544901	Hepatitis C virus genotype 7	genotype	3052230	Orthohepacivirus hominis	11102	Orthohepacivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+1545700	Human papillomavirus 199	serotype	1513257	Gammapapillomavirus 12	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1547495	Salivirus FHB	species	1547495	Salivirus FHB	688449	Salivirus	2946635	Kodimesavirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1560340	Tusavirus 1	no rank	3052713	Protoparvovirus incertum1	1506574	Protoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+1569922	Mukawa virus	no rank	3052664	Phlebovirus mukawaense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+1582094	Cosavirus JMY-2014	species	1582094	Cosavirus JMY-2014	586418	Cosavirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1595998	Human smacovirus 1	species	1595998	Human smacovirus 1	2169662	Huchismacovirus			2169574	Smacoviridae	2026-10-16T06:52:03Z
+1623310	Tataguine virus	no rank	3052446	Orthobunyavirus tataguineense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+1647924	Human papillomavirus KC5	species	1647924	Human papillomavirus KC5	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1649829	Cocle virus	no rank	3052643	Phlebovirus cocleense	11584	Phlebovirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+1650736	Human papillomavirus 204	serotype	1961783	Mupapillomavirus 3	334202	Mupapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1671798	Human papillomavirus type 54	serotype	333766	Alphapapillomavirus 13	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1673681	Gemycircularvirus C1c	no rank	2844583	Gemykibivirus humas3	1941236	Gemykibivirus			1910928	Genomoviridae	2026-10-16T06:52:03Z
+1678225	Catu virus	no rank	3052389	Orthobunyavirus catuense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+1682339	human papillomavirus 200	serotype	333928	Gammapapillomavirus 2	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1682340	Human papillomavirus 201	serotype	2169902	Gammapapillomavirus 27	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1682341	Human papillomavirus 202	serotype	1513256	Gammapapillomavirus 11	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1729141	Human pegivirus 2	no rank	3052606	Pegivirus columbiaense	1307799	Pegivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+1734223	Influenza B virus (B/Alaska/12/2015)	no rank	2955465	Betainfluenzavirus influenzae	197912	Betainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+1755290	Indian encephalitis associated cyclovirus	no rank	3047959	Cyclovirus manusyan	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+1792832	Human gemycircularvirus GeTz1	no rank	2844584	Gemykibivirus humas4	1941236	Gemykibivirus			1910928	Genomoviridae	2026-10-16T06:52:03Z
+1803956	Parechovirus A	no rank	3431395	Parechovirus ahumpari	138954	Parechovirus	2946640	Paavivirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+1820158	Human feces smacovirus 2	no rank	2845897	Porprismacovirus humas1	2169663	Porprismacovirus			2169574	Smacoviridae	2026-10-16T06:52:03Z
+1820159	Human feces smacovirus 3	no rank	2845899	Porprismacovirus humas3	2169663	Porprismacovirus			2169574	Smacoviridae	2026-10-16T06:52:03Z
+1820160	Human feces pecovirus	species	1820160	Human feces pecovirus							2026-10-16T06:52:03Z
+1820588	Influenza A virus (A/swine/Mexico/AVX61/2013(H1N2))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+1823906	Influenza A virus (A/Indiana/09/2016(H1N1))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+1850255	Human CSF-associated densovirus	no rank	3060057	Iteradensovirus incertum2	40122	Iteradensovirus	40120	Densovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+1851130	Human papillomavirus 187	serotype	1961683	Gammapapillomavirus 26	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+1859149	Torque teno mini virus 18	no rank	3050361	Betatorquevirus homini18	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+1862824	Gemycircularvirus HV-GcV1	species	1862824	Gemycircularvirus HV-GcV1	1542744	Gemycircularvirus			1910928	Genomoviridae	2026-10-16T06:52:03Z
+1862825	Gemycircularvirus HV-GcV2	no rank	2844585	Gemykibivirus humas5	1941236	Gemykibivirus			1910928	Genomoviridae	2026-10-16T06:52:03Z
+1867125	Cutavirus	no rank	3052716	Protoparvovirus primate3	1506574	Protoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+1868658	Human astrovirus	species	1868658	Human astrovirus					39733	Astroviridae	2026-10-16T06:52:03Z
+1891762	Betapolyomavirus hominis	species	1891762	Betapolyomavirus hominis	1891714	Betapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+1891764	Betapolyomavirus tertihominis	species	1891764	Betapolyomavirus tertihominis	1891714	Betapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+1891767	Betapolyomavirus macacae	species	1891767	Betapolyomavirus macacae	1891714	Betapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+1897519	Influenza A virus (A/Guangdong/GZ179/2016(H9N2))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+1903249	Influenza A virus (A/swine/Jiangsu/C1/2008(H9N2))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+1904876	Human DNA virus	species	1904876	Human DNA virus							2026-10-16T06:52:03Z
+1930509	Husavirus sp.	species	1930509	Husavirus sp.	2219049	Husavirus					2026-10-16T06:52:03Z
+1960046	Hom-1 vesivirus	species	1960046	Hom-1 vesivirus	95337	Vesivirus			11974	Caliciviridae	2026-10-16T06:52:03Z
+1965018	Human PoSCV5-like circular virus	species	1965018	Human PoSCV5-like circular virus					39724	Circoviridae	2026-10-16T06:52:03Z
+1965344	LI polyomavirus	no rank	2734294	Alphapolyomavirus quardecihominis	1891713	Alphapolyomavirus			151341	Polyomaviridae	2026-10-16T06:52:03Z
+1980456	Orthohantavirus andesense	species	1980456	Orthohantavirus andesense	1980442	Orthohantavirus	2560074	Mammantavirinae	1980413	Hantaviridae	2026-10-16T06:52:03Z
+1983771	Gemycircularvirus sp.	species	1983771	Gemycircularvirus sp.	1542744	Gemycircularvirus			1910928	Genomoviridae	2026-10-16T06:52:03Z
+1985415	Human associated gemyvongvirus 1	no rank	2844646	Gemyvongvirus humas1	1985370	Gemyvongvirus			1910928	Genomoviridae	2026-10-16T06:52:03Z
+1987017	Tibrovirus congo	species	1987017	Tibrovirus congo	1299306	Tibrovirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+1987020	Ekpoma virus 1	no rank	1987018	Tibrovirus alphaekpoma	1299306	Tibrovirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+1987021	Ekpoma virus 2	no rank	1987019	Tibrovirus betaekpoma	1299306	Tibrovirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+2003650	Cosavirus D	no rank	3428096	Cosavirus depakis	586418	Cosavirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+2003651	Cosavirus E	no rank	3428097	Cosavirus eaustrali	586418	Cosavirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+2003652	Cosavirus F	no rank	3428098	Cosavirus fepakis	586418	Cosavirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+2014666	Influenza A virus (A/Changsha/58/2017(H7N9))	no rank	2955291	Alphainfluenzavirus influenzae	197911	Alphainfluenzavirus			11308	Orthomyxoviridae	2026-10-16T06:52:03Z
+2017081	Human fecal virus Jorvi2	species	2017081	Human fecal virus Jorvi2					39724	Circoviridae	2026-10-16T06:52:03Z
+2017082	Human fecal virus Jorvi3	species	2017082	Human fecal virus Jorvi3					39724	Circoviridae	2026-10-16T06:52:03Z
+2017083	Human fecal virus Jorvi4	species	2017083	Human fecal virus Jorvi4					39724	Circoviridae	2026-10-16T06:52:03Z
+2021738	Hudisavirus sp.	species	2021738	Hudisavirus sp.	3152695	Hudisavirus			3152118	Endolinaviridae	2026-10-16T06:52:03Z
+2025360	NY_014 poxvirus	species	2025360	NY_014 poxvirus	2005509	Centapoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+2038719	Human associated cyclovirus 1	no rank	3047956	Cyclovirus maanav	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+2038720	Human associated cyclovirus 2	no rank	3047960	Cyclovirus insaan	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+2038721	Human associated cyclovirus 3	no rank	3047961	Cyclovirus manukha	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+2038722	Human associated cyclovirus 4	no rank	3047962	Cyclovirus bashri	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+2038723	Human associated cyclovirus 5	no rank	3047963	Cyclovirus homa	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+2038724	Human associated cyclovirus 6	no rank	3047964	Cyclovirus mmadu	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+2038725	Human associated cyclovirus 7	no rank	3047965	Cyclovirus mutum	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+2038728	Human associated cyclovirus 10	no rank	3047957	Cyclovirus humana	742914	Cyclovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+2049444	Gammapapillomavirus sp.	species	2049444	Gammapapillomavirus sp.	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+2055263	Anelloviridae sp.	species	2055263	Anelloviridae sp.					687329	Anelloviridae	2026-10-16T06:52:03Z
+2057931	Torque teno mini virus SHA	no rank	3052013	Betatorquevirus homini26	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2057932	Torque teno mini virus SHB	species	2057932	Torque teno mini virus SHB	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2057933	Torque teno mini virus SHC	species	2057933	Torque teno mini virus SHC	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065036	Torque teno mini virus 10	no rank	3048396	Betatorquevirus homini10	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065037	Torque teno mini virus 11	no rank	3048397	Betatorquevirus homini11	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065038	Torque teno mini virus 12	no rank	3048398	Betatorquevirus homini12	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065044	Torque teno midi virus 3	no rank	3048388	Gammatorquevirus homidi3	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065045	Torque teno midi virus 4	no rank	3048389	Gammatorquevirus homidi4	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065046	Torque teno midi virus 5	no rank	3048390	Gammatorquevirus homidi5	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065047	Torque teno midi virus 6	no rank	3048391	Gammatorquevirus homidi6	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065048	Torque teno midi virus 7	no rank	3048392	Gammatorquevirus homidi7	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065049	Torque teno midi virus 8	no rank	3048393	Gammatorquevirus homidi8	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065050	Torque teno midi virus 9	no rank	3048394	Gammatorquevirus homidi9	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065051	Torque teno midi virus 10	no rank	3048381	Gammatorquevirus homidi10	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065052	Torque teno midi virus 11	no rank	3048382	Gammatorquevirus homidi11	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065053	Torque teno midi virus 12	no rank	3048383	Gammatorquevirus homidi12	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065054	Torque teno midi virus 13	no rank	3048384	Gammatorquevirus homidi13	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2065055	Torque teno midi virus 14	no rank	3048385	Gammatorquevirus homidi14	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2083199	Mosso das Pedras virus	no rank	3426308	Alphavirus mossopedras	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+2093789	Human papillomavirus type 203	species	2093789	Human papillomavirus type 203					151340	Papillomaviridae	2026-10-16T06:52:03Z
+2169701	Onyong-nyong virus	no rank	3426312	Alphavirus onyong	11019	Alphavirus			11018	Togaviridae	2026-10-16T06:52:03Z
+2169863	Papiine betaherpesvirus 3	no rank	3050337	Cytomegalovirus papiinebeta3	10358	Cytomegalovirus	10357	Betaherpesvirinae	3044472	Orthoherpesviridae	2026-10-16T06:52:03Z
+2169934	Human associated huchismacovirus 1	no rank	2844967	Huchismacovirus humas1	2169662	Huchismacovirus			2169574	Smacoviridae	2026-10-16T06:52:03Z
+2169935	Human associated huchismacovirus 2	no rank	2844968	Huchismacovirus humas2	2169662	Huchismacovirus			2169574	Smacoviridae	2026-10-16T06:52:03Z
+2169936	Human associated huchismacovirus 3	no rank	2844969	Huchismacovirus humas3	2169662	Huchismacovirus			2169574	Smacoviridae	2026-10-16T06:52:03Z
+2169991	Mammarenavirus juninense	species	2169991	Mammarenavirus juninense	1653394	Mammarenavirus			11617	Arenaviridae	2026-10-16T06:52:03Z
+2170194	Central chimpanzee simian foamy virus	no rank	3432459	Simiispumavirus pantrotro	2169668	Simiispumavirus	327046	Spumaretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+2170195	Eastern chimpanzee simian foamy virus	no rank	3432458	Simiispumavirus pantrosch	2169668	Simiispumavirus	327046	Spumaretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+2170197	Guenon simian foamy virus	no rank	3432451	Simiispumavirus cernic	2169668	Simiispumavirus	327046	Spumaretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+2170198	Japanese macaque simian foamy virus	no rank	3432456	Simiispumavirus macfus	2169668	Simiispumavirus	327046	Spumaretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+2170203	Western chimpanzee simian foamy virus	no rank	3432460	Simiispumavirus pantrover	2169668	Simiispumavirus	327046	Spumaretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+2200830	Orthopoxvirus akhmetapox	species	2200830	Orthopoxvirus akhmetapox	10242	Orthopoxvirus	10241	Chordopoxvirinae	10240	Poxviridae	2026-10-16T06:52:03Z
+2259331	Human papillomavirus 157	no rank	1513257	Gammapapillomavirus 12	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+2259332	Human papillomavirus 160	serotype	337039	Alphapapillomavirus 2	333750	Alphapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+2259334	Human papillomavirus 205	serotype	333926	Gammapapillomavirus 1	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+2259343	Human papillomavirus 158	serotype	1513257	Gammapapillomavirus 12	325455	Gammapapillomavirus	2169595	Firstpapillomavirinae	151340	Papillomaviridae	2026-10-16T06:52:03Z
+2304647	Beiji nairovirus	no rank	3060422	Norwavirus beijiense	2842910	Norwavirus			1980415	Nairoviridae	2026-10-16T06:52:03Z
+2496633	Human associated porprismacovirus 3	no rank	2845900	Porprismacovirus humas4	2169663	Porprismacovirus			2169574	Smacoviridae	2026-10-16T06:52:03Z
+2530494	Human associated porprismacovirus	no rank	2845010	Inpeasmacovirus humas1	2842760	Inpeasmacovirus			2169574	Smacoviridae	2026-10-16T06:52:03Z
+2560525	Human orthorubulavirus 2	no rank	3052557	Orthorubulavirus laryngotracheitidis	2560195	Orthorubulavirus	2560080	Rubulavirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+2560602	Mumps orthorubulavirus	no rank	3052560	Orthorubulavirus parotitidis	2560195	Orthorubulavirus	2560080	Rubulavirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+2571082	Human lung-associated vientovirus FB	no rank	3432911	Torbevirus viento	2732653	Torbevirus			2732652	Redondoviridae	2026-10-16T06:52:03Z
+2576944	Dar es Salaam virus TZ-189	no rank	3052759	Tanzavirus daressalaamense	2843070	Tanzavirus			1980418	Phenuiviridae	2026-10-16T06:52:03Z
+2697049	Severe acute respiratory syndrome coronavirus 2	no rank	3418604	Betacoronavirus pandemicum	694002	Betacoronavirus	2501931	Orthocoronavirinae	11118	Coronaviridae	2026-10-16T06:52:03Z
+2749445	Anellovirus cya/2019	species	2749445	Anellovirus cya/2019					687329	Anelloviridae	2026-10-16T06:52:03Z
+2749447	Anellovirus cyc/2019	species	2749447	Anellovirus cyc/2019					687329	Anelloviridae	2026-10-16T06:52:03Z
+2749452	TT virus cya/2019	species	2749452	TT virus cya/2019					687329	Anelloviridae	2026-10-16T06:52:03Z
+2749453	TT virus cyb/2019	species	2749453	TT virus cyb/2019					687329	Anelloviridae	2026-10-16T06:52:03Z
+2749454	TT virus cyc/2019	species	2749454	TT virus cyc/2019					687329	Anelloviridae	2026-10-16T06:52:03Z
+2759769	camel hepatitis E virus genotype 7a	no rank	1678143	Paslahepevirus balayani	2948857	Paslahepevirus	2946639	Orthohepevirinae	3079366	Hepeviridae	2026-10-16T06:52:03Z
+2764122	hepatitis B virus genotype C	no rank	3431302	Orthohepadnavirus hominoidei	10405	Orthohepadnavirus			10404	Hepadnaviridae	2026-10-16T06:52:03Z
+2778524	Human anellovirus zj-ad 1	species	2778524	Human anellovirus zj-ad 1					687329	Anelloviridae	2026-10-16T06:52:03Z
+2779847	cardiovirus D1	no rank	3427731	Cardiovirus saffoldi	12103	Cardiovirus	2946627	Caphthovirinae	12058	Picornaviridae	2026-10-16T06:52:03Z
+2795181	Songling virus	no rank	3060504	Orthonairovirus songlingense	1980517	Orthonairovirus			1980415	Nairoviridae	2026-10-16T06:52:03Z
+2805939	Circular ssDNA virus sp.	species	2805939	Circular ssDNA virus sp.							2026-10-16T06:52:03Z
+2809145	Alphatorquevirus sp.	species	2809145	Alphatorquevirus sp.	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2809199	Betatorquevirus sp.	species	2809199	Betatorquevirus sp.	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2809423	Gammatorquevirus sp.	species	2809423	Gammatorquevirus sp.	687333	Gammatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+2825847	Yezo virus	no rank	3060506	Orthonairovirus yezoense	1980517	Orthonairovirus			1980415	Nairoviridae	2026-10-16T06:52:03Z
+2847138	hepatitis B virus genotype E	no rank	3431302	Orthohepadnavirus hominoidei	10405	Orthohepadnavirus			10404	Hepadnaviridae	2026-10-16T06:52:03Z
+2847140	hepatitis B virus genotype G	no rank	3431302	Orthohepadnavirus hominoidei	10405	Orthohepadnavirus			10404	Hepadnaviridae	2026-10-16T06:52:03Z
+2847141	hepatitis B virus genotype H	no rank	3431302	Orthohepadnavirus hominoidei	10405	Orthohepadnavirus			10404	Hepadnaviridae	2026-10-16T06:52:03Z
+2847174	hepatitis D virus 2	no rank	2844075	Deltavirus japanense	39759	Deltavirus			2842321	Kolmioviridae	2026-10-16T06:52:03Z
+2847176	hepatitis D virus 4	no rank	2844078	Deltavirus taiwanense	39759	Deltavirus			2842321	Kolmioviridae	2026-10-16T06:52:03Z
+2849477	equine foamy virus Equus caballus	no rank	3428564	Equispumavirus equcab	2169665	Equispumavirus	327046	Spumaretrovirinae	11632	Retroviridae	2026-10-16T06:52:03Z
+2853118	Torque teno virus AZ1_2	species	2853118	Torque teno virus AZ1_2					687329	Anelloviridae	2026-10-16T06:52:03Z
+2853119	Torque teno virus AZ6_5	species	2853119	Torque teno virus AZ6_5					687329	Anelloviridae	2026-10-16T06:52:03Z
+2853120	Torque teno virus AZ7_4	species	2853120	Torque teno virus AZ7_4					687329	Anelloviridae	2026-10-16T06:52:03Z
+2905673	parainfluenza virus 5	no rank	3052558	Orthorubulavirus mammalis	2560195	Orthorubulavirus	2560080	Rubulavirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+2905917	Pichinde virus	no rank	3052300	Mammarenavirus caliense	1653394	Mammarenavirus			11617	Arenaviridae	2026-10-16T06:52:03Z
+2907957	Sabia virus	no rank	3052299	Mammarenavirus brazilense	1653394	Mammarenavirus			11617	Arenaviridae	2026-10-16T06:52:03Z
+2913478	Mundri virus	no rank	3060740	Tibrovirus mundri	1299306	Tibrovirus	2842407	Alpharhabdovirinae	11270	Rhabdoviridae	2026-10-16T06:52:03Z
+3025750	Human circovirus 1	no rank	3427953	Circovirus human	39725	Circovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+3041468	Anellovirus sp.	species	3041468	Anellovirus sp.					687329	Anelloviridae	2026-10-16T06:52:03Z
+3048395	Betatorquevirus homini1	species	3048395	Betatorquevirus homini1	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3048415	Alphatorquevirus homin13	species	3048415	Alphatorquevirus homin13	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3048422	Alphatorquevirus homin20	species	3048422	Alphatorquevirus homin20	687331	Alphatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3050361	Betatorquevirus homini18	species	3050361	Betatorquevirus homini18	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052001	Betatorquevirus homini13	species	3052001	Betatorquevirus homini13	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052003	Betatorquevirus homini15	species	3052003	Betatorquevirus homini15	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052005	Betatorquevirus homini17	species	3052005	Betatorquevirus homini17	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052006	Betatorquevirus homini19	species	3052006	Betatorquevirus homini19	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052007	Betatorquevirus homini20	species	3052007	Betatorquevirus homini20	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052008	Betatorquevirus homini21	species	3052008	Betatorquevirus homini21	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052009	Betatorquevirus homini22	species	3052009	Betatorquevirus homini22	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052011	Betatorquevirus homini24	species	3052011	Betatorquevirus homini24	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052012	Betatorquevirus homini25	species	3052012	Betatorquevirus homini25	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052015	Betatorquevirus homini28	species	3052015	Betatorquevirus homini28	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052016	Betatorquevirus homini29	species	3052016	Betatorquevirus homini29	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052017	Betatorquevirus homini30	species	3052017	Betatorquevirus homini30	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052018	Betatorquevirus homini31	species	3052018	Betatorquevirus homini31	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052019	Betatorquevirus homini33	species	3052019	Betatorquevirus homini33	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052020	Betatorquevirus homini34	species	3052020	Betatorquevirus homini34	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052021	Betatorquevirus homini35	species	3052021	Betatorquevirus homini35	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052022	Betatorquevirus homini36	species	3052022	Betatorquevirus homini36	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052023	Betatorquevirus homini37	species	3052023	Betatorquevirus homini37	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052024	Betatorquevirus homini38	species	3052024	Betatorquevirus homini38	687332	Betatorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052040	Bocaparvovirus primate1	species	3052040	Bocaparvovirus primate1	1507401	Bocaparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+3052223	Henipavirus hendraense	species	3052223	Henipavirus hendraense	260964	Henipavirus	2560076	Orthoparamyxovirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+3052225	Henipavirus nipahense	species	3052225	Henipavirus nipahense	260964	Henipavirus	2560076	Orthoparamyxovirinae	11158	Paramyxoviridae	2026-10-16T06:52:03Z
+3052236	Orthohepacivirus platyrrhini	species	3052236	Orthohepacivirus platyrrhini	11102	Orthohepacivirus			3700683	Hepaciviridae	2026-10-16T06:52:03Z
+3052244	Hetorquevirus hominid2	species	3052244	Hetorquevirus hominid2	2842729	Hetorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3052302	Mammarenavirus chapareense	species	3052302	Mammarenavirus chapareense	1653394	Mammarenavirus			11617	Arenaviridae	2026-10-16T06:52:03Z
+3052303	Mammarenavirus choriomeningitidis	species	3052303	Mammarenavirus choriomeningitidis	1653394	Mammarenavirus			11617	Arenaviridae	2026-10-16T06:52:03Z
+3052307	Mammarenavirus guanaritoense	species	3052307	Mammarenavirus guanaritoense	1653394	Mammarenavirus			11617	Arenaviridae	2026-10-16T06:52:03Z
+3052310	Mammarenavirus lassaense	species	3052310	Mammarenavirus lassaense	1653394	Mammarenavirus			11617	Arenaviridae	2026-10-16T06:52:03Z
+3052314	Mammarenavirus lujoense	species	3052314	Mammarenavirus lujoense	1653394	Mammarenavirus			11617	Arenaviridae	2026-10-16T06:52:03Z
+3052317	Mammarenavirus machupoense	species	3052317	Mammarenavirus machupoense	1653394	Mammarenavirus			11617	Arenaviridae	2026-10-16T06:52:03Z
+3052384	Orthobunyavirus bwambaense	species	3052384	Orthobunyavirus bwambaense	11572	Orthobunyavirus			1980416	Peribunyaviridae	2026-10-16T06:52:03Z
+3052470	Orthohantavirus bayoui	species	3052470	Orthohantavirus bayoui	1980442	Orthohantavirus	2560074	Mammantavirinae	1980413	Hantaviridae	2026-10-16T06:52:03Z
+3052480	Orthohantavirus hantanense	species	3052480	Orthohantavirus hantanense	1980442	Orthohantavirus	2560074	Mammantavirinae	1980413	Hantaviridae	2026-10-16T06:52:03Z
+3052493	Orthohantavirus puumalaense	species	3052493	Orthohantavirus puumalaense	1980442	Orthohantavirus	2560074	Mammantavirinae	1980413	Hantaviridae	2026-10-16T06:52:03Z
+3052498	Orthohantavirus seoulense	species	3052498	Orthohantavirus seoulense	1980442	Orthohantavirus	2560074	Mammantavirinae	1980413	Hantaviridae	2026-10-16T06:52:03Z
+3052499	Orthohantavirus sinnombreense	species	3052499	Orthohantavirus sinnombreense	1980442	Orthohantavirus	2560074	Mammantavirinae	1980413	Hantaviridae	2026-10-16T06:52:03Z
+3052503	Orthohantavirus tulaense	species	3052503	Orthohantavirus tulaense	1980442	Orthohantavirus	2560074	Mammantavirinae	1980413	Hantaviridae	2026-10-16T06:52:03Z
+3052505	Orthomarburgvirus marburgense	species	3052505	Orthomarburgvirus marburgense	3044783	Orthomarburgvirus			11266	Filoviridae	2026-10-16T06:52:03Z
+3052514	Orthonairovirus dugbeense	species	3052514	Orthonairovirus dugbeense	1980517	Orthonairovirus			1980415	Nairoviridae	2026-10-16T06:52:03Z
+3052518	Orthonairovirus haemorrhagiae	species	3052518	Orthonairovirus haemorrhagiae	1980517	Orthonairovirus			1980415	Nairoviridae	2026-10-16T06:52:03Z
+3052714	Protoparvovirus primate1	species	3052714	Protoparvovirus primate1	1506574	Protoparvovirus	40119	Parvovirinae	10780	Parvoviridae	2026-10-16T06:52:03Z
+3071191	Anellovirus D_HF6_322	species	3071191	Anellovirus D_HF6_322					687329	Anelloviridae	2026-10-16T06:52:03Z
+3071192	Anellovirus D_HF6_591	species	3071192	Anellovirus D_HF6_591					687329	Anelloviridae	2026-10-16T06:52:03Z
+3071193	Anellovirus D_HF7_66	species	3071193	Anellovirus D_HF7_66					687329	Anelloviridae	2026-10-16T06:52:03Z
+3160821	Samektorquevirus hominid15	species	3160821	Samektorquevirus hominid15	3152496	Samektorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3160822	Samektorquevirus hominid16	species	3160822	Samektorquevirus hominid16	3152496	Samektorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3160823	Samektorquevirus hominid17	species	3160823	Samektorquevirus hominid17	3152496	Samektorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3160824	Samektorquevirus hominid18	species	3160824	Samektorquevirus hominid18	3152496	Samektorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3160827	Memtorquevirus hominid13	species	3160827	Memtorquevirus hominid13	3152495	Memtorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3160828	Memtorquevirus hominid14	species	3160828	Memtorquevirus hominid14	3152495	Memtorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3160829	Lamedtorquevirus hominid11	species	3160829	Lamedtorquevirus hominid11	3152494	Lamedtorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3163396	Hetorquevirus hominid6	species	3163396	Hetorquevirus hominid6	2842729	Hetorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3298505	Human circovirus	species	3298505	Human circovirus	39725	Circovirus			39724	Circoviridae	2026-10-16T06:52:03Z
+3402314	Hetorquevirus hominid4	species	3402314	Hetorquevirus hominid4	2842729	Hetorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3429226	Hetorquevirus hominid3	species	3429226	Hetorquevirus hominid3	2842729	Hetorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3429227	Hetorquevirus hominid5	species	3429227	Hetorquevirus hominid5	2842729	Hetorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3429808	Hudisavirus jaqis	species	3429808	Hudisavirus jaqis	3152695	Hudisavirus			3152118	Endolinaviridae	2026-10-16T06:52:03Z
+3432221	Sadetorquevirus hominid7	species	3432221	Sadetorquevirus hominid7	3424980	Sadetorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3432222	Sadetorquevirus hominid8	species	3432222	Sadetorquevirus hominid8	3424980	Sadetorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z
+3433571	Yodtorquevirus hominid10	species	3433571	Yodtorquevirus hominid10	3152497	Yodtorquevirus			687329	Anelloviridae	2026-10-16T06:52:03Z

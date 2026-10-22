@@ -104,6 +104,8 @@ output/
         ├── virus_identity.tsv
         ├── scautoqc_gene_annotations.tsv         # only with --scautoqc
         ├── viral_summary.tsv
+        ├── viral_summary_by_species.tsv
+        ├── viral_summary_by_genus.tsv
         ├── sensitivity.tsv
         ├── positive_control.json
         ├── gene_program_summary.tsv
@@ -235,10 +237,11 @@ and warn once when viral table genes are absent from the matrix (they cannot car
 | `viral` | `true` / `false` | observation |
 | `virus_key` | One virus: `taxid:<n>`; `taxid:<n>\|<strain>` for one isolate of a segmented virus whose taxid several isolates share; `genus:<genus>` for anelloviruses; `accession:<acc>` for uncatalogued genomes; `name:<name>` for the legacy fallback | observation |
 | `virus_name` | Display name of the virus: the curated name, else the NCBI organism | observation |
-| `organism`, `taxid`, `species`, `genus`, `family` | NCBI organism and taxonomy of the genome | observation |
+| `organism`, `taxid`, `species`, `genus`, `family` | NCBI organism and taxid of the genome; `species`/`genus`/`family` are the catalogue's GenBank labels, frozen at submission and not comparable across viruses (EBV: "Human gammaherpesvirus 4", Herpesviridae; EBV type 2: "Human herpesvirus 4 type 2", Orthoherpesviridae) | observation |
+| `species_taxid`, `species_ncbi`, `genus_ncbi`, `subfamily_ncbi`, `family_ncbi` | NCBI Taxonomy lineage of `taxid` from the packaged `data/virus_taxonomy.tsv` (PLAN `TAXO-01`; regenerate with `extras/build_virus_taxonomy.py`): EBV types 1 and 2 share species taxid 3050299 *Lymphocryptovirus humangamma4*. Empty for uncatalogued genomes and for NCBI "… sp." bins (unclassified isolates are not one species). Tables written before this change lack these columns and still read | observation |
 | `segment`, `strain` | Segment and strain/isolate of the genome, when recorded | observation |
 | `sibling_group` | Near-identical viruses that allocation can move molecules between (e.g. `HHV-4` for EBV types 1 and 2) | observation |
-| `risk_class` | `eve` for families with endogenous or ubiquitous-commensal risk | diagnostic flag |
+| `risk_class` | `eve` for families with endogenous or ubiquitous-commensal risk, `low_complexity` for a known low-complexity read-artefact risk. **Blank means unknown (not assessed), not "no risk"**; a blank row is not evidence that the virus is free of endogenous or artefact risk | diagnostic flag |
 | `role` | `decoy` for lab-contaminant decoy genomes | diagnostic flag |
 
 A run with no viral gene in its index stops at this step.
@@ -274,6 +277,10 @@ alignment branch below.
 | `n_comparable_cells` | Barcodes clearing an absolute host-UMI floor (200 molecules), intersected with the called set | observation |
 | `pct_infected_comparable` | `infected_comparable / n_comparable_cells × 100`. Use this to compare runs that used different host-filtering strategies. **Blank (unavailable), not 0, when `n_comparable_cells` is 0 or blank**: no cell cleared the floor, or host depth is unavailable, so the rate is undefined | model estimate |
 | `sibling_crossmap_note` | Text note when the virus has near-identical siblings that allocation can move molecules between; empty otherwise | diagnostic flag |
+| `molecules_unique_to_virus` | All-barcode molecules compatible only with genes of this virus (two genes of one virus still count). Larger than the gene-level `viral_molecules_unique` of `multimap_evidence.tsv`. Blank without multimapping or an identity table | observation |
+| `molecules_compatible` | All-barcode molecules compatible with any gene of this virus, each counted whole (also those shared with another virus or the host). `molecules_unique_to_virus` ≤ `viral_molecules_total_est` ≤ `molecules_compatible` under every method | observation |
+| `unique_fraction` | `molecules_unique_to_virus / molecules_compatible`: how much of the signal reads can place on this virus alone | observation |
+| `aggregate_note` | When `unique_fraction` < 0.05 (`ASSIGNMENT_UNIQUE_FRACTION_MIN`), the total is mostly an allocation: the note names the species and, if needed, genus row of `viral_summary_by_species.tsv` / `viral_summary_by_genus.tsv` and their unique fractions. A label only; it changes no count or `detected` call | diagnostic flag |
 | `accession_breadth` | Fraction of the virus's **index** genes with ≥1 molecule in any barcode (endogenous-element artefact check: an EVE concentrates on 1–2 loci, a genuine infection spreads across its genes). Before 2026-10-04 it was computed over the detected genes only and was always 1.0 (`ANDET-01`). Gene-level breadth, not genome-coverage breadth | diagnostic flag |
 | `n_features_supported`, `n_index_genes` | Tier measure F and its ceiling (`calibration.freeze_scope`, Q135): the number of the virus's index genes whose summed `adata.X` over the **called cells** is ≥1 molecule (fractions kept; ≥1, not >0, so 0.5 + 0.5 over two cells counts and a 0.5/0.5 split over two genes does not), and the number of index genes. A virus with fewer index genes than the cutoff `f` cannot reach `probable` | observation |
 | `host_viral_ambig_fraction` | Fraction of the virus's signal that is host-virus ambiguous | diagnostic flag |
@@ -821,6 +828,29 @@ One row per sample (also stored as `adata.uns["molecule_audit"]`), validated aga
 
 The new fields are optional in the schema, so audits written before this change still validate.
 
+## `viral_summary_by_species.tsv` and `viral_summary_by_genus.tsv`
+
+PLAN `TAXO-01`. Reads often cannot tell related viruses apart (EBV types 1 and 2, HSV-1 and HSV-2), but they
+can tell the species or genus. One row per species or genus with at least one compatible molecule; groups come
+from the NCBI lineage columns of `virus_identity.tsv` (a virus with no lineage is its own group; anelloviruses
+keep their `ANDET-05` genus). Molecules are counted in the multimap pass and stored per cell in
+`adata_multimap.h5ad` (`obsm["viral_groups_unique" | "viral_groups_compatible" | "viral_groups_host_shared"]`,
+columns named by `uns["viral_groups"]`); they do not depend on the multimap method, so `rerun-multimap` keeps
+them valid. Written header-only when multimapping is off or the run has no identity table.
+
+| Column | Description | Kind |
+|--------|-------------|------|
+| `level` | `species` or `genus` | observation |
+| `group_key`, `group_name` | `species:taxid:<n>` / `genus:<name>`, or the virus key when there is no lineage; display name | observation |
+| `members`, `n_members` | Indexed viruses in the group (`\|`-joined `virus_name`), with or without molecules | observation |
+| `molecules_unique` | All-barcode molecules whose compatible genes are all viral genes of this group | observation |
+| `molecules_package_total` | Sum of the selected-method matrix (`X`) over the group's genes: the members' `viral_molecules_total_est` added up | model estimate |
+| `molecules_compatible` | All-barcode molecules compatible with any gene of the group, counted whole | observation |
+| `molecules_host_shared` | Of those, molecules also compatible with a host gene | observation |
+| `unique_fraction` | `molecules_unique / molecules_compatible`; report the lowest level where it is high | observation |
+| `*_called`, `n_called_cells_unique`, `n_called_cells_compatible` | The same over called cells, and called cells holding at least one such molecule | observation |
+| `multimap_method` | Method of `molecules_package_total` | observation |
+
 ## `multimap_evidence.tsv`
 
 Tab-separated, one row per viral gene in the reference. This table is additive:
@@ -834,7 +864,7 @@ it does not replace `viral_summary.tsv` or change its default schema.
 | `viral_molecules_ambiguous_allocated` | Fractional ambiguous molecule mass assigned here | model estimate |
 | `host_virus_ambiguous_molecules` | Molecules compatible with host and viral genes | observation |
 | `viral_molecules_total_est` | Unique molecules plus allocated ambiguous mass | model estimate |
-| `viral_molecules_upper_bound` | Unique signal plus all viral-compatible ambiguous mass | model estimate |
+| `viral_molecules_upper_bound` | Unique signal plus the viral-compatible ambiguous mass split equally among each molecule's viral genes, host-shared molecules included. It bounds host-virus allocation, not virus-virus sharing; every molecule compatible with a virus is `molecules_compatible` in `viral_summary.tsv` | model estimate |
 | `n_unique_viral_cells` | Cells with unique viral signal | observation |
 | `n_ambiguous_viral_cells` | Cells with viral-compatible ambiguous signal | observation |
 | `multimap_method` | `equal`, `host-conservative`, `unique-weighted`, `em-global`, or `em-cell` | observation |
@@ -997,7 +1027,7 @@ remains provenance-incomplete.
 | `competitive_reads.<mode>_dedup.bam` | Separate UMI, coordinate-marked, or non-deduplicated evidence BAM | observation |
 | `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping | observation |
 | `coverage.raw.tsv`, `coverage.deduplicated.tsv` | Raw and deduplicated coverage summaries | observation |
-| `coverage.raw_vs_deduplicated.png` | Direct depth-track comparison | observation |
+| `<reference>_coveragemap.raw.{png,pdf}`, `<reference>_coveragemap.deduplicated.{png,pdf}` | scPathoQuant-style coverage map per viral reference and BAM layer (`bamCoverage` track in green, gene track from the GTF with labels, drawn by `pyGenomeTracks`). Written when `bamCoverage` and `pyGenomeTracks` are installed; absent otherwise | observation |
 | `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots (`read_start_entropy`, `read_start_gini`, `max_50bp_window_fraction`, the maximum fraction of starts in any 50 consecutive reference bases; `read_start_gini` is the Gini coefficient of read-start counts over **all** reference positions, positions without a start counting as zero, so a single-position pile-up scores near 1 rather than 0), strands, mapping quality, identity, host competition, cells, molecules, duplicate fraction, and the read-side artefact labels `complex_body_fraction` (primary reads with a complex non-poly-A body) and `reagent_fraction` (primary reads carrying TSO or TruSeq adapter sequence); both are measured in sequencing orientation and are labels, never filters | observation |
 | `per_cell_alignment_qc.tsv` | Per-cell host/virus competitive reads, molecules, strands, mapping quality, and identity | observation |
 | `blast_identity.tsv` | Best host and viral hit with identity, query coverage, E-value, bit score, score difference, and sequence-complexity flag. A blank `viral_minus_host_bitscore` means the read was not assessed (no hit), and `interpretation_flags.tsv` does not count it as host-preferred | observation |
@@ -1081,6 +1111,28 @@ Contamination, expected 3-prime bias, and subgenomic-RNA-like patterns remain
 available. No diagnostic flag is an automatic biological conclusion.
 
 ---
+
+## Expression normalization
+
+UMAP preprocessing and detected raw host-response inputs use shifted-log
+normalization: Scanpy `normalize_total(target_sum=None)` uses its default
+median-library scaling, then `log1p` applies the natural logarithm
+with pseudocount one. There is no fixed TP10K target. The host-only PCA graph
+computes its library totals after excluding viral genes; host-response normalization
+is within each analyzed cohort. Existing QC/HVG thresholds are unchanged.
+
+Input count files and count layers are preserved. Host-response raw-depth covariates
+are captured before normalization; inputs already marked as log-normalized are
+preserved. The existing raw-input detection heuristic still applies. Its manifest's
+`raw_input_normalization` field describes this conditional preprocessing policy;
+source identity and logs distinguish it from older TP10K runs. Feature selection,
+embeddings and fitted results can change; rerun downstream analyses in new output
+roots when adopting this method. Previous outputs are not rewritten. Scanpy version
+is recorded in the host-response
+normalization policy; its treatment of zero-count rows can depend on representation
+and version. Empty rows remain empty, with raw counts and depths preserved.
+
+Reference: [Single-cell best practices: shifted logarithm](https://www.sc-best-practices.org/preprocessing-visualization/normalization/#shifted-logarithm).
 
 ## `hostresponse/` — host-response outputs
 
@@ -1181,6 +1233,27 @@ Key layers:
 `adata.X` = `counts_unique + counts_ambiguous_allocated` (complete selected-method matrix).
 
 ---
+
+## `viralscan discover` output (PLAN `DISC`)
+
+A separate directory written by `viralscan discover -o DIR`, never inside the run. It holds
+Kraken2 classifications of host-unmapped reads grouped by (corrected barcode, UMI). They
+are taxonomic observations, not infection calls, and nothing here changes `detected`, the
+tiers or the primary H5AD layers. Full description, `qc.json` reading guide and limits:
+[discovery](discovery.md).
+
+| File | Content |
+|------|---------|
+| `cell_taxon.h5ad` | Called cells x resolved taxa (`X` = resolved UMI groups, int32); a separate object, never merged with the primary layers |
+| `umi_groups.tsv.gz` | Per (`corrected_cb`, `umi`): `resolved_taxid`, `group_class` (`resolved`, `ambiguous`, `unclassified`), audit columns |
+| `offcell_taxon.tsv.gz` | Resolved groups on barcodes outside the called cells |
+| `candidates.tsv` | One row per resolved taxon; `state = observation`, uncalibrated 0/1 flags |
+| `taxonomy.tsv` | Taxonomy derived from the Kraken2 database, with `host_relation` |
+| `reads.tsv.gz`, `barcodes.tsv.gz`, `classifications.tsv.gz`, `kraken.out.gz`, `kraken_report.txt`, `kraken_input.fa.gz` | Per-fragment audit trail |
+| `qc.json`, `provenance.json`, `discovery_complete.json` | Invariant counts; hashes, versions and settings; output sha256s and the discovery fingerprint (written last) |
+
+`viralscan discover-collapse OUT --rank {species,genus,family}` writes
+`cell_taxon_<rank>.h5ad` beside these (not listed in `discovery_complete.json`).
 
 ## Multiple samples
 
