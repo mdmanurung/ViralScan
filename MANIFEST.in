@@ -14,14 +14,18 @@ include analysis/v3_artifact_inventory.tsv
 include conda-recipe/README.md
 include conda-recipe/meta.yaml
 include docs/api.md
+include docs/assess_evidence.md
 include docs/changelog.md
 include docs/cli_reference.md
 include docs/conf.py
 include docs/faq.md
 include docs/index.md
+include docs/inspect_results.md
 include docs/installation.md
 include docs/output_reference.md
+include docs/project_info.md
 include docs/quickstart.md
+include docs/reference_help.md
 include docs/reference_panel.md
 include docs/requirements.txt
 include docs/v3_counting_contract.md
@@ -46,6 +50,7 @@ include scripts/validate_v3_protocol.py
 prune tests
 prune docs/handoffs
 prune docs/plans
+prune docs/reviews
 prune docs/superpowers
 prune docs/vignettes
 exclude docs/manuscript_draft.md

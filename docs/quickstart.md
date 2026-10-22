@@ -1,228 +1,189 @@
-# Quickstart
+# Run ViralScan
 
-This page shows the shortest path from paired FASTQ files to ViralScan results.
-The examples assume an activated `viralscan` conda environment and input files in
-the current directory.
-
----
+This is the recommended path for one routine host-aware run: build one combined
+host + virus reference, quantify, validate the output, and open the results.
+Every command below assumes the full installation
+([Installation](installation.md)) and paired-end FASTQ files in the current
+directory.
 
 ## Before you run
 
-Check that the command-line tools are available:
+Check the toolchain before starting a long job:
 
 ```bash
 viralscan --help
-kb --version
+viralscan doctor --profile full
+kb info
 snakemake --version
 ```
 
-ViralScan supports three reference modes. Choose one:
+`viralscan doctor --profile full` prints a JSON dependency report and exits
+nonzero when a required full-workflow tool is missing. A green `pip` profile does
+not imply that `kb`, `snakemake` or STAR are installed.
 
-| Use this mode | When you have |
-|---------------|---------------|
-| Pre-built index | `index.idx` and `t2g.txt` from `kb ref` |
-| FASTA + GTF | Viral or host+virus FASTA/GTF files and want ViralScan to run `kb ref` |
-| NCBI accession | RefSeq/GenBank accessions and want ViralScan to download the viral reference |
+| Requirement | What to check |
+|---|---|
+| Reads | Paired-end FASTQ, optionally gzipped; both `--r1` (R1) and `--r2` (R2) are required. R1 carries the cell barcode and UMI. |
+| Chemistry | 10x 3′ and 5′ are supported, and Drop-seq is supported. ViralScan detects the chemistry from the first 100k R1 reads; an explicit `-x` that the reads contradict stops the run. A GEM-X 5′ library needs its on-list supplied with `-w`. |
+| Reference | A kallisto `index.idx` and `t2g.txt`. Step 1 builds a combined host + virus reference; an existing compatible index can be reused instead. |
+| Cell calling | The default `--cell-calling auto` runs EmptyDrops, which needs `Rscript` with `DropletUtils`. Supply an external list with `--called-cells-file` when you already have one. |
+| Resources | `-c/--cores` defaults to 6. Building a combined reference downloads the Ensembl host cDNA and NCBI viral records, then runs `kb ref`; allow disk for `combined.fa`, `combined.gtf` and the index. |
 
-ViralScan writes one output folder per sample under `--output`. The sample folder
-name is the part of the R1 filename before the first underscore. For example,
-`sample_R1.fastq.gz` writes results under `output/sample/`.
+ViralScan refuses a non-empty output directory. Reuse is explicit: `--resume`
+requires an exact fingerprint match, and `--overwrite` replaces the resolved
+output target after confirmation.
 
-## Mode 1 — Pre-built index
+## Step 1 — Build a combined host + virus reference
 
-Use this mode with a kallisto index (`index.idx`) and a transcript-to-gene map
-(`t2g.txt`) created by `kb ref`.
-
-```bash
-viralscan run \
-  -t t2g.txt \
-  -i index.idx \
-  -o output/ \
-  --r1 sample_R1.fastq.gz \
-  --r2 sample_R2.fastq.gz
-```
-
-The key results are:
-
-```text
-output/sample/results/viral_summary.tsv
-output/sample/results/per_cell_viral.tsv
-output/sample/report.html
-output/sample/kb-python/counts_unfiltered/adata_multimap.h5ad
-```
-
-Check that the run is complete and its artifacts match their schemas:
-
-```bash
-viralscan validate-run --run-dir output/
-```
-
-A good run prints a JSON report with `"ok": true` and an empty `"issues"` list.
-The run-level `output/run_manifest.json` and `output/run_complete.json` sit beside
-the per-sample folders.
-
-The default `--cell-calling auto` runs emptyDrops on the host transcriptome only,
-which needs a realistic number of barcodes. On a toy input with only a couple of
-barcodes it stops with a `CellCallingError`. Add `--cell-calling none` to report over
-all barcodes deliberately (every ViralScan count then includes empty droplets).
-
----
-
-## Mode 2 — Build index from FASTA + GTF
-
-Given FASTA and GTF files, ViralScan runs `kb ref`.
-
-```bash
-viralscan run \
-  --reference \
-  --fasta viral_genome.fasta \
-  --gtf   viral_annotation.gtf \
-  -o     output/ \
-  --r1    sample_R1.fastq.gz \
-  --r2    sample_R2.fastq.gz
-```
-
-Multiple FASTA or GTF files are comma-separated paths (no spaces):
-
-```bash
---fasta host.fasta,virus.fasta --gtf host.gtf,virus.gtf
-```
-
-The index is built under `output/index/` (`index.idx`, `t2g.txt`,
-`index.idx.build_manifest.json`, `reference_manifest.json`). Pass those two files
-to Mode 1 to reuse the reference without rebuilding it.
-
----
-
-## Mode 3 — Download from NCBI by accession
-
-ViralScan fetches the FASTA and GTF from NCBI, builds the index, and then runs
-quantification. NCBI requires a contact email whenever a sequence has to be
-downloaded. Pass `--ncbi-email` or set `NCBI_EMAIL`. A run whose accessions are all in
-the local cache (`~/.cache/viralscan/ncbi/`) needs no email.
-
-```bash
-viralscan run \
-  --ncbi-accession   NC_002021.3 \
-  -o     output/ \
-  --r1    sample_R1.fastq.gz \
-  --r2    sample_R2.fastq.gz \
-  --ncbi-email you@example.org
-```
-
-Accessions are comma-separated:
-
-```bash
---ncbi-accession NC_002021.3,NC_001512.1
-```
-
-Downloaded references are cached in `~/.cache/viralscan/ncbi/` and reused on later runs.
-
----
-
-## Building a combined host + virus reference
-
-`viralscan build-ref` creates a combined kallisto index from an Ensembl host
-transcriptome and NCBI viral genomes. This is the recommended host-aware workflow for
-routine runs:
+This is the recommended reference for routine host-aware analysis. Host and
+viral features share one index, so host–virus ambiguity stays visible instead of
+being deleted before viral quantification.
 
 ```bash
 viralscan build-ref \
   --host human \
   --virus-accessions NC_045512.2 NC_002021.3 \
-  --output ref_human_sars/ \
+  --output ref_human_virus/ \
   --ncbi-email you@example.org
 ```
 
-Use the resulting files with Mode 1:
+Replace the accessions with the viruses you expect. Run
+`viralscan build-ref --list-species` for the supported host names. The build
+writes:
+
+- `ref_human_virus/index.idx` — pass to `-i`
+- `ref_human_virus/t2g.txt` — pass to `-t`
+- `ref_human_virus/index.idx.build_manifest.json` — the index's gene-set receipt, read by every run
+- `ref_human_virus/reference_manifest.json` — sources, digests and build receipt
+- `ref_human_virus/combined.fa` and `combined.gtf` — the concatenated inputs
+
+Expanded anellovirus sequences are never included implicitly. Add `--anellovirus`
+only for an explicit screening reference. Builds fail closed on missing
+accessions, duplicate identifiers or sequences, and unavailable tools.
+
+**Already have a compatible index?** Skip this step and pass its `index.idx` and
+`t2g.txt` to Step 2. An index from `viralscan build-ref` carries
+`<index>.build_manifest.json` (beside `index.idx`) and needs nothing else. For an
+index without that manifest, run `viralscan data fetch` once so the viral gene
+list comes from the bundled panel; custom `--gtf` runs and `--ncbi-accession` runs do not
+need it.
+
+## Step 2 — Quantify
 
 ```bash
 viralscan run \
-  -t ref_human_sars/t2g.txt \
-  -i ref_human_sars/index.idx \
+  -t ref_human_virus/t2g.txt \
+  -i ref_human_virus/index.idx \
   -o output/ \
   --r1 sample_R1.fastq.gz \
   --r2 sample_R2.fastq.gz
 ```
 
-The default `--multimap-method conservative` (recorded as `host-conservative`) keeps host-virus ambiguous
-equivalence-class mass out of primary viral estimates — the conservative choice for
-combined host+virus references, where host-virus cross-homology can inflate
-candidate viral evidence. Use `--multimap-method equal` for an explicit
-equal-allocation comparison.
+The sample directory is inferred from the R1 filename before the first
+underscore, so this run writes to `output/sample/`.
 
-Add `--multimap-molecule-assignments` to also write
-`results/molecule_assignments.tsv.gz`: one row per corrected cell-barcode/UMI molecule with
-its gene set, status and per-gene weights under the selected method. It is off by default,
-changes no count, and the file is large on deep samples; see the
-{ref}`output reference <molecule-assignments>`.
+Defaults worth knowing:
 
-Run `viralscan build-ref --list-species` to see supported host names.
-Expanded anellovirus sequences are never included implicitly; add
-`--anellovirus` only for an explicit screening reference. Reference builds
-fail closed on missing accessions, duplicate identifiers/sequences, or a
-requested tool that is unavailable, and record provenance in
-`reference_manifest.json`.
+- `--multimap-method conservative` (recorded as `host-conservative`) keeps host–virus ambiguous molecule mass
+  out of primary viral estimates. This is the conservative choice for a combined
+  reference. `--multimap-method equal` is an explicit equal-allocation
+  comparison, not a better default; `em` is iterated cell-local allocation.
+- `--cell-calling auto` uses an external list when `--called-cells-file` is
+  supplied and otherwise runs EmptyDrops on the host transcriptome only (never on viral reads). The called-cell set is the denominator
+  behind every `*_called` field.
+- Multiple samples in one run: pass comma-separated, positionally matched paths
+  to `--r1` and `--r2`, for example
+  `--r1 A_R1.fastq.gz,B_R1.fastq.gz --r2 A_R2.fastq.gz,B_R2.fastq.gz`.
 
-For libraries at risk of intronic/intergenic host homology, build with the full
-host genome as a D-list:
+### The called-cell requirement
+
+Cell calling decides which barcodes the per-cell rates are over. EmptyDrops needs
+a realistic number of barcodes; it is the default because an all-barcode
+denominator is diluted by empty droplets.
+
+- If you already have called cells, pass `--called-cells-file cells.tsv` with
+  `--cell-calling auto` (or `external`). The full external list sets the
+  denominator, including cells with no viral molecules.
+- `--cell-calling knee` is a sensitivity-only check, not a source of reported
+  numbers.
+- `--cell-calling none` is for deliberate toy data only. It reports over all
+  barcodes, so every count includes empty droplets. It is **not** a routine
+  workaround for failed cell calling; fix the chemistry, whitelist or external
+  list instead.
+
+## Step 3 — Validate the run
 
 ```bash
-viralscan build-ref --host human --virus-accessions NC_002021.3 \
-  --genome-dlist GRCh38.primary_assembly.genome.fa -o ref_human_ebv/
+viralscan validate-run --run-dir output/
 ```
 
-This both masks shared host-genomic k-mers in the kallisto index and writes the
-raw per-virus homology measurements. It is compute- and memory-intensive.
+Validation prints a JSON report. A successful run has `"ok": true` and no
+`error`-level entries:
 
-Without `--genome-dlist`, the build warns that host homology was not measured (not the same as zero). It also
-warns about reference records that are near-copies of each other on either strand; add `--strict-reference` to
-fail the build on such a pair instead (declared sibling strains are exempt). See `docs/panel_integrity.md`.
+```json
+{
+  "ok": true,
+  "run_dir": "/path/to/output",
+  "issues": []
+}
+```
 
----
+Every issue has a `level` (`error` or `warning`), a `code`, a message and a
+path. The command exits nonzero when `ok` is false. It checks technical
+consistency:
 
-## Optional cell-type enrichment
+- the run manifest is present and matches the v3 schema;
+- the run fingerprint and recorded input hashes still match the files on disk;
+- `run_complete.json` is present when the manifest requires it, belongs to this
+  run, and its recorded artifact hashes match;
+- the count H5AD is readable and satisfies the v3 count contract, including the
+  molecule-conservation invariants.
 
-Cell annotations from Seurat, scanpy, or another workflow go in a CSV with two columns:
+A warning is reported when an older manifest declares no completion marker. Use
+`--no-verify-inputs` only when the inputs are intentionally unavailable (for
+example after moving a run); it skips input re-hashing.
+
+Validation does **not** establish biological validity. It cannot tell you whether
+the reference covers your virus, whether a call is infection, or whether a
+negative is informative; see [Assess the evidence](assess_evidence.md).
+
+## Step 4 — Open the results
+
+For `sample_R1.fastq.gz`, the main artifacts are:
 
 ```text
-barcode,cell_type
-AAACCCAAGAGT-1,T cell
-AAACCCAGTGCA-1,Monocyte
+output/sample/report.html
+output/sample/results/viral_summary.tsv
+output/sample/results/per_cell_viral.tsv
+output/sample/results/called_cells.tsv
+output/run_complete.json
+output/run_manifest.json
 ```
 
-Add the file to any quantification command:
+Start with the [Inspect results](inspect_results.md) guide: it explains which file
+answers which question, what the molecule estimates and denominators mean, and
+how to read one row of `viral_summary.tsv`.
 
-```bash
-viralscan run \
-  -t t2g.txt \
-  -i index.idx \
-  -o output/ \
-  --r1 sample_R1.fastq.gz \
-  --r2 sample_R2.fastq.gz \
-  --cell-type-labels cell_types.csv
-```
+## Other reference modes
 
-The enrichment table is written to
-`output/sample/results/cell_type_enrichment.tsv`.
+The workflow above is the recommended one. Other supported routes are documented
+in the [Reference panel](reference_panel.md) and the
+[CLI reference](cli_reference.md):
 
----
+- **Reuse a pre-built index** with `-i` and `-t` (Step 2 above).
+- **Build from FASTA + GTF** with `--reference --fasta ... --gtf ...`.
+- **Fetch NCBI accessions** with `--ncbi-accession ... --ncbi-email ...`.
+- **Screen an extended Anelloviridae panel** with
+  `viralscan build-ref --anellovirus` or `--reference-panel anellovirus`.
 
-## Useful flags
+For host-control choices beyond the combined reference — STARsolo pre-subtraction
+and genome D-list masking — read
+{ref}`Reference panel → Host control and reference strategies <host-control>`
+before choosing. That section carries the one measured three-arm comparison and
+the limits on what it ranks.
 
-| Flag | Description |
-|------|-------------|
-| `-c N` | Use N cores (default: 6) |
-| `--umap` | Generate UMAP plot (increases runtime) |
-| `--no-multimapping` | Skip multimapping correction |
-| `--multimap-method METHOD` | Host/viral ambiguity handling; default is `conservative` (`equal` is an explicit equal-allocation comparison, `em` iterated cell-local allocation) |
-| `--multimap-molecule-assignments` | Also write `results/molecule_assignments.tsv.gz`, one row per corrected molecule (off by default; changes no count; large on deep samples) |
-| `--detection-threshold N` | Min estimated viral molecules in called cells for a virus to pass the detection gate (default: 1) |
-| `--detection-min-cells N` | Distinct called cells that must be infected to pass the gate (default: 1); other viruses stay listed as candidates |
-| `--infected-min-molecules X` | Summed allocated molecules for a cell to count as infected (default: 1.0); weaker cells are counted as sub-threshold |
-| `--cell-type-labels CSV` | Add per-virus cell-type enrichment to the report |
-| `--host-filter starsolo --host-index PATH` | Optional genome-level host pre-subtraction before quantification |
-| `--star-confirm --star-hostvirus-index DIR` | Optional STARsolo support columns (`star_*`) beside the kallisto calls; index built once with `viralscan star-index`. Labels only, needs `--host-filter starsolo` (see the [output reference](output_reference.md)) |
-| `--verbose` | Enable debug logging |
-
-See the [CLI reference](cli_reference.md) for all options.
+Without `--genome-dlist`, `build-ref` warns that host homology was not measured
+(which is not the same as zero). It also warns about reference records that are
+near-copies of each other on either strand; add `--strict-reference` to fail the
+build on such a pair instead (declared sibling strains are exempt). See
+[Panel integrity](panel_integrity.md).
