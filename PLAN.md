@@ -256,6 +256,8 @@ completion.
   - Note (2026-10-22, PR #100 review): globin markers matched human symbols only, so every mouse `--scautoqc` run
     aborted on the mandatory hb check; `GLOBIN_PATTERN` now also covers mouse (Hba-a1/a2, Hba-x, Hbb-bs/bt/b1/b2,
     Hbb-bh1, Hbb-y, Hbq1a/b), with a regex test that needs no SCTK.
+  - Note (2026-10-22, grilling Q8): CI now installs `scanpy[leiden]`, `sctk==0.2.0` and `pybiomart` in the py3.12 Ubuntu
+    pytest job only, so `tests/test_scautoqc.py` runs in CI instead of skipping.
 
 - [x] `PERF-PLAN-02`: draft and review actionable cards for all 27 remaining
   performance candidates; preserve completed B05/B07/B20. Plan:
