@@ -22,6 +22,8 @@ completion.
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
+- [x] `F027-01` finding F-027 (`.living/findings/hhv6b-flank-reads-missed-by-cds-only-index.md`): HHV-6B reads in the positional 3' flank class (8.9% of viral reads, GSM6416022, 5' v2) are outside a CDS-only kallisto index.
+  - Note (2026-10-22): Lareau comparison done against the public reference at caleblareau/hhv6-reactivation@dd2eb77: 103 CDS-only entries, same NCBI CDS coordinates, no flank/UTR, no masking.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -34,6 +36,7 @@ completion.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 
+- [x] `RESTREE-01` (2026-10-21, `codex/research-tree-gitignore`): research-tree hygiene before any analysis/ trees are committed. `.gitignore` gains bulk rules (`analysis/computational_bottlenecks_*/{execution,followups}/`, `trackA_report_*/outputs/`, `*.rds *.mtx *.pkl *.stdout *.stderr *.sam *.bam *.bus` under analysis/, `/tmp/`, `.living/archive/`, `/biomni_bundle/`, root `HANDOFF*.md`/`SESSION_RESUME.md`); root-anchored where the name also exists tracked (`.living/HANDOFF_*.md`). New `scripts/check_tracked_file_sizes.py` + `tests/test_tracked_file_sizes.py` fail on any tracked/staged `analysis/` or `results/` blob over 1 MB unless listed in `config/large_file_allowlist.txt` (empty; passes on main as-is). Not hooked into pre-commit: the existing `check-added-large-files --maxkb=500` is already stricter repo-wide; CI runs the pytest. `sources/viral_panel`, `migration_plan/`, `viralscan_lshwcp_spec/` deliberately not covered.
 - [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
   `--soloCBwhitelist None` (chemistries without an on-list, SW-21) when no read mapped: STAR 2.7.11b segfaults (exit
   139) in the Solo step. Found on 30 hsv1 Drop-seq libraries in Track A; reproduced on a 500k-read subset (no-Solo and
@@ -54,6 +57,10 @@ completion.
   Lesson: a row pinned to a PR commit goes stale on rebase-merge; re-pin to the merged commit in a follow-up.
   Check: every `git_sha` in the inventory is an ancestor of `origin/main`.
 
+- [x] `DOCS-CAVEATS-01` (2026-10-22, `codex/reference-caveats`, Q17): docs-only reference caveats. `docs/reference_panel.md` gains a
+  'Known limitations' section (HSV-1 LAT two-exon model and poly(A) caveat; `kmer_twin_of` is a heuristic; blank `risk_class` = unknown);
+  `docs/output_reference.md` `risk_class` row now says blank = unknown. No code change: code leaves `eve_risk`/`artifact_risk` unflagged
+  for blank rows and falls back to a genus-name rule only for uncatalogued viruses, consistent with 'unknown'.
 - [x] `DOCS-PERTPY-01` (2026-10-20, `codex/docs-pertpy`, stacked on `codex/orig-api-docs`): docs site follows
   pertpy's (https://pertpy.scverse.org/en/stable/) theme and landing structure, on user request. Theme
   `scanpydoc` (needs `sphinx-book-theme`, which scanpydoc does not declare), `sphinx-design` cards,

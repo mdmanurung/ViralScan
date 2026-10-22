@@ -139,3 +139,26 @@ migration_plan/manifests/*
 migration_plan/runlogs/*
 !migration_plan/manifests/README.md
 !migration_plan/runlogs/README.md
+
+# --- research trees: text under 1 MB is committed, bulk stays on disk ---
+# Per-file size cap cannot be expressed here; scripts/check_tracked_file_sizes.py
+# (tests/test_tracked_file_sizes.py) fails on tracked analysis/ or results/ files over 1 MB.
+analysis/computational_bottlenecks_*/execution/
+analysis/computational_bottlenecks_*/followups/
+analysis/trackA_report_*/outputs/
+analysis/trackA_report_*/**/*.rds
+analysis/trackA_report_*/**/*.mtx
+analysis/**/*.pkl
+analysis/**/*.stdout
+analysis/**/*.stderr
+analysis/**/*.sam
+analysis/**/*.bam
+analysis/**/*.bus
+# Scratch dir, session state, stale handoffs, tool droppings (kept on disk only)
+/tmp/
+.living/archive/
+/biomni_bundle/
+/HANDOFF*.md
+/SESSION_RESUME.md
+/Rplots.pdf
+/viralscan-analysis

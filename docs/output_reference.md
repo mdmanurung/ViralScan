@@ -228,7 +228,7 @@ and warn once when viral table genes are absent from the matrix (they cannot car
 | `organism`, `taxid`, `species`, `genus`, `family` | NCBI organism and taxonomy of the genome | observation |
 | `segment`, `strain` | Segment and strain/isolate of the genome, when recorded | observation |
 | `sibling_group` | Near-identical viruses that allocation can move molecules between (e.g. `HHV-4` for EBV types 1 and 2) | observation |
-| `risk_class` | `eve` for families with endogenous or ubiquitous-commensal risk | diagnostic flag |
+| `risk_class` | `eve` for families with endogenous or ubiquitous-commensal risk, `low_complexity` for a known low-complexity read-artefact risk. **Blank means unknown (not assessed), not "no risk"**; a blank row is not evidence that the virus is free of endogenous or artefact risk | diagnostic flag |
 | `role` | `decoy` for lab-contaminant decoy genomes | diagnostic flag |
 
 A run with no viral gene in its index stops at this step.
