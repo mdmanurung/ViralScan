@@ -72,6 +72,7 @@ from viralscan.virus_grouping import (
     reconcile_identity_to_matrix,
     virus_facts,
 )
+from viralscan.virus_rollup import assignment_columns, group_summaries, write_group_summaries
 
 log = setup_script_logging()
 
@@ -697,6 +698,14 @@ def detect_cells(adata, found_genes, summary, viral_count_matrix=None):
 #: and gates nothing (M-03, docs/plans/ambient-and-barcode-swapping-controls.md section 6).
 AMBIENT_UB_LEVEL = 0.95
 AMBIENT_TAIL_ALPHA = 0.05
+
+#: TAXO-01 molecule-sharing columns of ``viral_summary.tsv`` (:func:`viralscan.virus_rollup.assignment_columns`).
+ASSIGNMENT_COLUMNS = (
+    "molecules_unique_to_virus",
+    "molecules_compatible",
+    "unique_fraction",
+    "aggregate_note",
+)
 
 #: The per-virus columns of the ambient screen, in ``viral_summary.tsv`` order.
 AMBIENT_COLUMNS = (
@@ -1709,8 +1718,9 @@ def check_sibling_crossmapping(virus_stats, sibling_groups=None):
             notes[weaker] = (
                 f"possible_em_bleed: {ratio:.0f}:1 ratio vs {dominant} "
                 f"({dom_umi} vs {wk_umi} UMI); closely related siblings share "
-                f"high k-mer identity — the global EM allocates a small fraction "
-                f"of shared-region multimappers to the weaker sibling"
+                f"high k-mer identity, so the multimap method allocates part of the "
+                f"dominant sibling's shared-region molecules to the weaker one; see "
+                f"unique_fraction and viral_summary_by_species.tsv"
             )
             log.warning(
                 "Sibling cross-mapping: %s (%s UMI) vs %s (%s UMI), ratio %.0f:1 "
@@ -1846,8 +1856,12 @@ def write_tsv_outputs(
     anello=None,
     homology=None,
     homology_loci=None,
+    assignment=None,
 ):
     """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder.
+
+    *assignment* is :func:`viralscan.virus_rollup.assignment_columns` (TAXO-01); a virus it omits
+    gets blank molecule-sharing columns.
 
     *anello* is ``(evidence_by_virus, anellovirus_names, status)`` from
     :func:`anello_evidence`; it adds the ANDET-09 alignment columns and rows.
@@ -1858,6 +1872,7 @@ def write_tsv_outputs(
     crossmap_notes = crossmap_notes or {}
     facts = facts or {}
     homology = homology or {}
+    assignment = assignment or {}
 
     # Per-virus summary
     summary_rows = []
@@ -1894,6 +1909,8 @@ def write_tsv_outputs(
                 # AUD3-03: why the two all-barcode figures are blank (two-step runs).
                 "denominator_note": s.get("denominator_note", ""),
                 "sibling_crossmap_note": crossmap_notes.get(virus, ""),
+                # TAXO-01: how much of the virus is its own; low = sum up (viral_summary_by_species.tsv).
+                **{c: assignment.get(virus, {}).get(c, "") for c in ASSIGNMENT_COLUMNS},
                 # EVE artifact flags
                 "accession_breadth": s.get("accession_breadth", 0.0),
                 "n_features_supported": s.get("n_features_supported", 0),
@@ -1936,6 +1953,7 @@ def write_tsv_outputs(
         "viral_molecules_per_10k_est",
         "denominator_note",
         "sibling_crossmap_note",
+        *ASSIGNMENT_COLUMNS,
         "accession_breadth",
         "n_features_supported",
         "n_index_genes",
@@ -2250,6 +2268,8 @@ def main():
         )
     else:
         multimap_evidence_df = summarize_multimap_evidence(None, {}, config)
+    # TAXO-01: virus / species / genus sums of the multimap step's per-cell group molecules.
+    rollup = group_summaries(adata, identity, called_mask) if config.multimapping else {}
 
     # Flag sibling pairs with high UMI asymmetry (HHV-6A/6B, HSV-1/2)
     facts = virus_facts(identity) if identity is not None else {}
@@ -2329,7 +2349,9 @@ def main():
         anello=anello_evidence(config, outputpath, identity),
         homology=host_homology_by_virus(identity, config.index) if identity is not None else {},
         homology_loci=host_homology_loci(identity, config.index) if identity is not None else [],
+        assignment=assignment_columns(rollup, identity),
     )
+    write_group_summaries(rollup, outputpath)
     write_sensitivity_table(sensitivity_df, outputpath)
     write_cell_type_enrichment(cell_type_df, outputpath)
     write_reference_provenance(config, viral_accessions, list(virus_stats.keys()), outputpath)
