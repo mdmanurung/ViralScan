@@ -172,6 +172,39 @@ def _build_data_parser(subparsers: Any) -> None:
     fetch.set_defaults(_subcommand="data-fetch")
 
 
+def _build_star_index_parser(subparsers: Any) -> None:
+    """Register the 'star-index' subcommand."""
+    p = subparsers.add_parser(
+        "star-index",
+        help="Build the STAR host + viral-panel index used by STARsolo host-virus alignment.",
+        description=(
+            "Prefix the host and viral FASTA/GTF with HOST| / VIRUS|, run STAR genomeGenerate "
+            "and write star_hostvirus_index.json (input sha256, STAR version, exact arguments, "
+            "contig counts) next to the index. Output: <out-dir>/reference/ and <out-dir>/index/."
+        ),
+    )
+    for name in ("host-fasta", "host-gtf", "viral-fasta", "viral-gtf", "out-dir"):
+        p.add_argument(f"--{name}", required=True, metavar="PATH")
+    p.add_argument("--threads", "-c", type=int, default=8, help="STAR threads. Default: 8.")
+    p.add_argument(
+        "--ram-bytes",
+        type=int,
+        default=85_000_000_000,  # = star_hostvirus.DEFAULT_RAM_BYTES (kept literal: light import)
+        help=(
+            "STAR --limitGenomeGenerateRAM in bytes. GRCh38 + 2,343 viral genomes needed about "
+            "77 GB RAM and ~50 min. Default: 85000000000."
+        ),
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Rebuild over an existing <out-dir>/index (only if it holds a star-index manifest).",
+    )
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="star-index")
+
+
 def _build_ref_parser(subparsers: Any) -> None:
     """Register the 'build-ref' subcommand."""
     p = subparsers.add_parser(
@@ -340,17 +373,23 @@ def _build_evidence_parser(subparsers: Any) -> None:
             "confirm infection.\n\n"
             "Example:\n"
             "  viralscan evidence --run-dir output/sample/ --viral-fasta viruses.fa \\\n"
-            "      --virus EBV --blast -o output/sample/evidence/"
+            "      --virus EBV --blast\n\n"
+            "Writes to <run-dir>/posthoc/evidence/<virus>/ unless --output is given."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument(
         "--review-candidates",
         action="store_true",
-        help="Review all Anelloviridae candidates, including below-gate and STAR-only rows; write results/evidence_review.tsv.",
+        help="Review all Anelloviridae candidates, including below-gate and STAR-only rows; write evidence_review.tsv under the output directory.",
     )
     p.add_argument("--run-dir", required=True, help="A completed ViralScan run output directory.")
-    p.add_argument("--output", "-o", required=True, help="Directory for evidence outputs.")
+    p.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Directory for evidence outputs (default: <run-dir>/posthoc/evidence/<virus>).",
+    )
     p.add_argument(
         "--viral-fasta",
         default=None,
@@ -510,23 +549,24 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
             "Methods: conservative (default; keeps host-virus ambiguous mass off viral\n"
             "genes), em (iterated, cell-local allocation), equal (equal split).\n\n"
             "Examples:\n"
-            "  viralscan rerun-multimap --run-dir out/ -o out_hc/ "
-            "--multimap-method conservative\n"
+            "  viralscan rerun-multimap --run-dir out/ --multimap-method conservative\n"
             "  viralscan rerun-multimap --run-dir out/ -o out_em/ "
-            "--multimap-method em --cores 8"
+            "--multimap-method em --cores 8\n\n"
+            "The new result directory is <run-dir>/posthoc/multimap_<method>/ unless --output is given."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument(
         "--run-dir",
         required=True,
-        help="Completed source run. It is never modified.",
+        help="Completed source run. The run's own outputs are never modified; results go to posthoc/.",
     )
     p.add_argument(
         "--output",
         "-o",
-        required=True,
-        help="New result directory; must not already be non-empty.",
+        default=None,
+        help="New result directory; must not already be non-empty "
+        "(default: <run-dir>/posthoc/multimap_<method>).",
     )
     p.add_argument(
         "--multimap-method",
@@ -707,14 +747,14 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
     """Register the 'rerun-programs' subcommand."""
     p = subparsers.add_parser(
         "rerun-programs",
-        help="Infer viral gene programmes on a completed run, in place.",
+        help="Infer viral gene programmes on a completed run (writes under posthoc/).",
         description=(
             "Run layer 2 (latent vs productive gene programme) over an existing run,\n"
-            "writing results/gene_program_summary.tsv and results/gene_program_cells.tsv.\n\n"
-            "Unlike rerun-multimap this operates IN PLACE: layer 2 only reads the count\n"
-            "matrices and layer 1's viral_summary.tsv, and adds two files. It changes no\n"
-            "counts, so there is no reason to copy the run and no risk of the two\n"
-            "directories disagreeing.\n\n"
+            "writing results/gene_program_summary.tsv and results/gene_program_cells.tsv\n"
+            "under <run-dir>/posthoc/programs/ unless --output is given.\n\n"
+            "Layer 2 only reads the count matrices and layer 1's viral_summary.tsv. It\n"
+            "changes no counts and modifies nothing of the run's own outputs, so there is\n"
+            "no need to copy the run.\n\n"
             "Scope is the viruses layer 1 detected. A virus layer 1 did not call gets\n"
             "no programme row -- that is layer 1's detection-limit problem, not one this\n"
             "command can repair."
@@ -725,6 +765,13 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
         required=True,
         metavar="DIR",
         help="A completed viralscan run directory (the one holding kb-python/ and results/).",
+    )
+    p.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        metavar="DIR",
+        help="Directory to write results/gene_program_*.tsv under (default: <run-dir>/posthoc/programs).",
     )
     p.add_argument(
         "--programme-min-breadth",
@@ -851,7 +898,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
             "(Luebbert et al. 2025 approach) on a completed viralscan run.\n\n"
             "The viralscan output directory must already contain a config.yaml and a\n"
             "completed multimap step (log/multimap.done).  Results are written to\n"
-            "<run-dir>/hostresponse/ unless --output is given.\n\n"
+            "<run-dir>/posthoc/hostresponse/ unless --output is given.\n\n"
             "Examples:\n"
             "  viralscan hostresponse --run-dir out/sample/ --host-h5ad host.h5ad\n"
             "  viralscan hostresponse --run-dir out/sample/ --host-h5ad host.h5ad \\\n"
@@ -868,7 +915,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         "--output",
         default=None,
         metavar="DIR",
-        help="Directory hostresponse writes to (default: <run-dir>/hostresponse).",
+        help="Directory hostresponse writes to (default: <run-dir>/posthoc/hostresponse).",
     )
     p.add_argument(
         "--host-h5ad",
@@ -1067,6 +1114,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  run             Quantify viral load from FASTQ samples.\n"
             "  data fetch      Download the viral annotation panel from Zenodo.\n"
             "  build-ref       Build a combined host + virus kallisto reference.\n"
+            "  star-index      Build the STAR host + viral-panel index.\n"
             "  evidence        Trace/extract the reads behind viral calls.\n"
             "  evidence-plot   Plot molecule-level host versus virus alignments.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
@@ -1102,6 +1150,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_run_parser(subparsers)
     _build_data_parser(subparsers)
     _build_ref_parser(subparsers)
+    _build_star_index_parser(subparsers)
     _build_evidence_parser(subparsers)
     _build_evidence_plot_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
@@ -1245,6 +1294,15 @@ def _build_run_parser(subparsers: Any) -> None:
         "--umap",
         action="store_true",
         help="Generate a UMAP plot. Significantly increases runtime. Default: off.",
+    )
+    parser.add_argument(
+        "--scautoqc",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Add optional SCTK scAutoQC cell/cluster flags and QC-space UMAP coordinates "
+            "to H5AD outputs in place. Cells are retained. Requires viralscan[scautoqc]. Default: off."
+        ),
     )
 
     parser.add_argument(
@@ -1429,6 +1487,28 @@ def _build_run_parser(subparsers: Any) -> None:
             "scripts/build_bundled_panel_ref.py); otherwise alignment_status records "
             "why it was skipped. The columns are labels, never filters. "
             f"Default: {DEFAULTS['anello_align']}."
+        ),
+    )
+    parser.add_argument(
+        "--star-confirm",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["star_confirm"],
+        help=(
+            "STARsolo confirmation arm (PLAN STAR-04): align the host-filtered reads to the "
+            "host+virus index given by --star-hostvirus-index (built by `viralscan "
+            "star-index`) and add star_* per-virus support columns to viral_summary.tsv, "
+            "plus results/star_support_by_virus.tsv. Labels only: no call, tier or "
+            "threshold changes. Requires --host-filter starsolo and STAR/samtools on PATH. "
+            f"Default: {DEFAULTS['star_confirm']}."
+        ),
+    )
+    parser.add_argument(
+        "--star-hostvirus-index",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Directory of a finished `viralscan star-index` index (must hold "
+            "star_hostvirus_index.json). Required by --star-confirm."
         ),
     )
     parser.add_argument(

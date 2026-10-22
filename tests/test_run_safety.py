@@ -290,6 +290,27 @@ def test_d1_options_keep_the_plain_fingerprint_unless_set(
     )
 
 
+def test_scautoqc_is_fingerprinted_only_when_enabled(tmp_path, monkeypatch):
+    import viralscan.run_safety as rs
+
+    monkeypatch.setattr(rs, "__version__", "0.0.test")
+    monkeypatch.chdir(tmp_path)
+    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
+        Path(name).write_text(text)
+    Path("t2g.txt").write_text("a\tb\n")
+    baseline = _plain_args_d1()
+    disabled = _plain_args_d1(scautoqc=False)
+    enabled = _plain_args_d1(scautoqc=True)
+    assert (
+        rs.build_run_manifest(disabled)["run_fingerprint"]
+        == rs.build_run_manifest(baseline)["run_fingerprint"]
+    )
+    assert (
+        rs.build_run_manifest(enabled)["run_fingerprint"]
+        != rs.build_run_manifest(baseline)["run_fingerprint"]
+    )
+
+
 def test_input_paths_are_resolved_and_outside_the_fingerprint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -37,13 +37,13 @@ from viralscan.cli.parsers import (  # noqa: F401  (private builders re-exported
 from viralscan.defaults import (
     DEFAULTS,
 )
+from viralscan.outputs import POSTHOC_DIRNAME, is_posthoc, posthoc_dir
 from viralscan.resources import KB_WORKERS, bounded_workers
 from viralscan.run_safety import (
     RUN_MANIFEST,
     clear_run_complete,
     record_strand_inference,
     recorded_strand_inference,
-    restamp_run_complete,
     write_run_complete,
 )
 from viralscan.runconfig import RunConfig, check_numeric_ranges
@@ -171,13 +171,14 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
 
     gp_script.config = config
     gp_script.output = str(run_dir)
+    gp_script_out = Path(args.output).resolve() if args.output else posthoc_dir(run_dir, "programs")
     gp_script.main(
         str(adata_path),
         str(run_dir / "results" / "viral_summary.tsv"),
-        str(run_dir / "log" / "gene_programs.done"),
+        "",  # the run's own log/gene_programs.done and run_complete.json stay untouched
+        results_root=str(gp_script_out),
     )
-    restamp_run_complete(run_dir.parent)
-    log.info("rerun-programs complete in %s", run_dir)
+    log.info("rerun-programs complete; results under %s", gp_script_out)
 
 
 def _write_run_config(run_config: RunConfig, *, keep_mtime: bool = False) -> Path:
@@ -256,13 +257,21 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     _check_required_tools()
 
     source_dir = Path(args.run_dir).resolve()
-    output_dir = Path(args.output).resolve()
+    new_method = args.multimap_method
+    output_dir = Path(
+        args.output or posthoc_dir(source_dir, f"multimap_{new_method.replace('-', '_')}")
+    ).resolve()
     if not source_dir.is_dir():
         _die(f"Source run directory does not exist: {source_dir}")
     if output_dir.exists() and any(output_dir.iterdir()):
         _die(f"New rerun output must be empty or absent: {output_dir}")
-    if output_dir == source_dir or source_dir in output_dir.parents:
-        _die("Rerun output must be separate from and outside the source run directory.")
+    if output_dir == source_dir or (
+        source_dir in output_dir.parents and not is_posthoc(output_dir, source_dir)
+    ):
+        _die(
+            "Rerun output must be separate from the source run directory "
+            "(only <run-dir>/posthoc/... may be inside it)."
+        )
 
     source_config_rels = sorted(
         path.relative_to(source_dir)
@@ -277,11 +286,15 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
 
     if output_dir.exists():
         output_dir.rmdir()
-    shutil.copytree(source_dir, output_dir)
+    # posthoc/ is never copied: a rerun must not nest other post-hoc results (or itself).
+    shutil.copytree(
+        source_dir,
+        output_dir,
+        ignore=lambda d, names: [POSTHOC_DIRNAME] if Path(d) == source_dir else [],
+    )
     # The copy is a new, unfinished run; the source's marker must not vouch for it.
     clear_run_complete(output_dir)
 
-    new_method = args.multimap_method
     snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
 
     # Find all sample subdirs with a completed multimap checkpoint.
@@ -558,7 +571,9 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
     )
 
-    out_dir = str(Path(args.output).resolve() if args.output else output_dir / "hostresponse")
+    out_dir = str(
+        Path(args.output).resolve() if args.output else posthoc_dir(output_dir, "hostresponse")
+    )
     run_hostresponse(
         virus_h5ad=virus_h5ad,
         host_h5ad=args.host_h5ad,
@@ -579,7 +594,6 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         differential=args.differential,
         **_hostresponse_evaluation_kwargs(args, cfg),
     )
-    restamp_run_complete(output_dir.parent)
     log.info("hostresponse complete. Results in %s", out_dir)
 
 
@@ -795,6 +809,23 @@ def errorhandler(args: argparse.Namespace) -> None:
         if not os.path.exists(host_index_path):
             _die(f"Host index path does not exist: {host_index_path}.")
 
+    star_index_path = getattr(args, "star_hostvirus_index", None)
+    if getattr(args, "star_confirm", False):
+        if not star_index_path:
+            _die("--star-confirm requires --star-hostvirus-index.")
+        if not host_filter:
+            _die("--star-confirm requires --host-filter (it aligns the host-filtered reads).")
+        from viralscan import star_hostvirus
+
+        problems = star_hostvirus.validate_index_manifest(star_index_path)
+        if problems:
+            _die(
+                f"--star-hostvirus-index {star_index_path} is not a finished viralscan "
+                f"star-index: {'; '.join(problems)}."
+            )
+    elif star_index_path:
+        _die("--star-hostvirus-index requires --star-confirm.")
+
     technology = getattr(args, "technology", None)
     if (
         technology
@@ -923,6 +954,14 @@ def _check_required_tools() -> None:
         )
 
 
+def _check_scautoqc_deps() -> None:
+    """Fail before a long run, not after multimap, when --scautoqc lacks SCTK."""
+    import importlib.util
+
+    if importlib.util.find_spec("sctk") is None:
+        _die("--scautoqc requires the optional dependency sctk: pip install 'viralscan[scautoqc]'.")
+
+
 def _resolve_cell_calling(method: str, called_cells_file: Optional[str]) -> str:
     """Resolve ``auto`` the same way :func:`viralscan.scripts.cellcalling.call_cells` does."""
     if method == "auto":
@@ -957,6 +996,24 @@ def _check_host_filter_tools(aligner: str) -> None:
             )
     else:
         _die("ViralScan v3 supports only --host-filter starsolo.")
+
+
+def _run_star_index(args: argparse.Namespace) -> None:
+    from viralscan import star_hostvirus
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    if shutil.which("STAR") is None:
+        _die(
+            "'viralscan star-index' requires 'STAR' on PATH. See https://github.com/alexdobin/STAR"
+        )
+    try:
+        index = star_hostvirus.star_index(
+            args.host_fasta, args.host_gtf, args.viral_fasta, args.viral_gtf, args.out_dir,
+            args.threads, args.ram_bytes, args.force,
+        )  # fmt: skip
+    except (FileExistsError, FileNotFoundError, ValueError) as exc:
+        _die(str(exc))
+    log.info("STAR host+virus index written to %s", index)
 
 
 def _count_lines(path: str) -> int:
@@ -1066,6 +1123,7 @@ def _build_run_config(
             "f1": f1,
             "reference": args.reference,
             "umap": args.umap,
+            "scautoqc": getattr(args, "scautoqc", False),
             "technology": args.technology,
             "require_chemistry_sanity": getattr(args, "require_chemistry_sanity", False),
             "whitelist": args.whitelist,
@@ -1089,6 +1147,8 @@ def _build_run_config(
             ),
             "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
             "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
+            "star_confirm": getattr(args, "star_confirm", DEFAULTS["star_confirm"]),
+            "star_hostvirus_index": getattr(args, "star_hostvirus_index", None),
             "auto_evidence": getattr(args, "auto_evidence", None),
             "host_capture": getattr(args, "host_capture", None),
             "host_fasta": getattr(args, "host_fasta", None),
@@ -1180,6 +1240,26 @@ def _sample_id(s1_path: str) -> str:
     Example: ``/data/SRR123_R1.fastq.gz`` → ``SRR123``.
     """
     return Path(s1_path).name.split("_")[0]
+
+
+def _check_sample_ids(samples1: list[str]) -> None:
+    """Fail fast on a duplicate or reserved derived sample ID, before anything runs."""
+    seen_ids: set[str] = set()
+    for s1 in samples1:
+        sid = _sample_id(s1)
+        if sid == POSTHOC_DIRNAME:
+            _die(
+                f"Derived sample ID '{sid}' is reserved for post-hoc outputs "
+                f"(<run-dir>/{POSTHOC_DIRNAME}/). Rename {Path(s1).name} so its prefix "
+                f"before the first '_' is not '{POSTHOC_DIRNAME}'."
+            )
+        if sid in seen_ids:
+            _die(
+                f"Duplicate derived sample ID '{sid}'. Two --r1 paths share the same "
+                f"filename prefix before the first '_'. Rename your input files or supply "
+                f"unique prefixes so each sample gets its own output directory."
+            )
+        seen_ids.add(sid)
 
 
 def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> None:
@@ -1302,6 +1382,10 @@ def main() -> None:
         build_ref_main(args)
         return
 
+    if getattr(args, "_subcommand", None) == "star-index":
+        _run_star_index(args)
+        return
+
     if getattr(args, "_subcommand", None) == "evidence":
         from viralscan.scripts.evidence_run import run_evidence
 
@@ -1387,6 +1471,12 @@ def main() -> None:
 
     if args.host_filter:
         _check_host_filter_tools(args.host_filter)
+    if getattr(args, "scautoqc", False):
+        _check_scautoqc_deps()
+    if getattr(args, "star_confirm", False):
+        missing = [t for t in ("STAR", "samtools") if shutil.which(t) is None]
+        if missing:
+            _die(f"--star-confirm requires {', '.join(missing)} on PATH.")
 
     _check_cell_caller_tools(
         _resolve_cell_calling(
@@ -1458,17 +1548,7 @@ def main() -> None:
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
 
-    # Fail fast if two inputs share the same derived sample ID before running anything.
-    seen_ids: set[str] = set()
-    for s1 in samples1:
-        sid = _sample_id(s1)
-        if sid in seen_ids:
-            _die(
-                f"Duplicate derived sample ID '{sid}'. Two --r1 paths share the same "
-                f"filename prefix before the first '_'. Rename your input files or supply "
-                f"unique prefixes so each sample gets its own output directory."
-            )
-        seen_ids.add(sid)
+    _check_sample_ids(samples1)
 
     # Hoist loop-invariant transcript counts (they depend only on the reference).
     n_transcripts = _count_lines(transcripts)

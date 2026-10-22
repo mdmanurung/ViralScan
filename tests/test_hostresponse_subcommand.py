@@ -230,6 +230,29 @@ class TestRunHostresponseSubcommand:
 
         mock_run.assert_called_once()
 
+    def test_default_out_dir_is_posthoc_and_output_overrides(self, tmp_path: Path) -> None:
+        sample_dir = _make_sample_dir(tmp_path)
+        fake_h5ad = sample_dir / "virus.h5ad"
+        fake_h5ad.touch()
+        mock_kb = MagicMock()
+        mock_kb.current_adata.return_value = fake_h5ad
+        from viralscan.menu import _run_hostresponse_subcommand
+
+        for output, expected in (
+            (None, (sample_dir / "posthoc" / "hostresponse").resolve()),
+            (str(tmp_path / "elsewhere"), (tmp_path / "elsewhere").resolve()),
+        ):
+            args = _make_args(sample_dir)
+            args.output = output
+            with (
+                patch(
+                    "viralscan.kb_outputs.KbCountOutputs.from_config_output", return_value=mock_kb
+                ),
+                patch("viralscan.scripts.hostresponse.run_hostresponse") as mock_run,
+            ):
+                _run_hostresponse_subcommand(args)
+            assert Path(mock_run.call_args.kwargs["out_dir"]) == expected
+
     def test_passes_host_h5ad_to_run_hostresponse(self, tmp_path: Path) -> None:
         sample_dir = _make_sample_dir(tmp_path)
         fake_h5ad = sample_dir / "virus.h5ad"
