@@ -100,6 +100,33 @@ def _add_verbosity_args(parser: Any) -> None:
     )
 
 
+def _add_tchem_args(parser: Any) -> None:
+    """Add the TusslChemistry second-opinion options (CHEM-02), shared by the run and check-chemistry."""
+    parser.add_argument(
+        "--tchem",
+        choices=["auto", "require", "off"],
+        default="auto",
+        help=(
+            "TusslChemistry (tchem) second opinion on the chemistry. auto (default): use it "
+            "when a tchem binary is found, otherwise skip silently; require: stop when it is "
+            "missing or unusable; off: skip. A disagreement with -x, or a tchem verdict of "
+            "ambiguous/no_match, stops the run unless --force-technology."
+        ),
+    )
+    parser.add_argument(
+        "--tchem-bin",
+        default=None,
+        metavar="PATH",
+        help="tchem executable (default: $VIRALSCAN_TCHEM, then PATH).",
+    )
+    parser.add_argument(
+        "--tchem-whitelists",
+        default=None,
+        metavar="DIR",
+        help="Directory of tchem barcode lists (default: $VIRALSCAN_TCHEM_WHITELISTS).",
+    )
+
+
 def _build_data_parser(subparsers: Any) -> None:
     """Register the 'data' subcommand group."""
     data = subparsers.add_parser(
@@ -1021,6 +1048,7 @@ def _build_check_chemistry_parser(subparsers: Any) -> None:
     p.add_argument("--technology", "-x", default=None, help="Technology you plan to use; checked.")
     p.add_argument("--cores", "-c", type=int, default=4, help="Threads for the pilot.")
     p.add_argument("--json", default=None, metavar="PATH", help="Also write the report as JSON.")
+    _add_tchem_args(p)
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="check-chemistry")
 
@@ -1176,6 +1204,7 @@ def _build_run_parser(subparsers: Any) -> None:
         help="Run with the explicit -x even when the chemistry check disagrees or "
         "cannot decide. The detection is still logged.",
     )
+    _add_tchem_args(parser)
     parser.add_argument(
         "--require-chemistry-sanity",
         action="store_true",

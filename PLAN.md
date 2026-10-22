@@ -22,6 +22,8 @@ completion.
 
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
+- [x] `F027-01` finding F-027 (`.living/findings/hhv6b-flank-reads-missed-by-cds-only-index.md`): HHV-6B reads in the positional 3' flank class (8.9% of viral reads, GSM6416022, 5' v2) are outside a CDS-only kallisto index.
+  - Note (2026-10-22): Lareau comparison done against the public reference at caleblareau/hhv6-reactivation@dd2eb77: 103 CDS-only entries, same NCBI CDS coordinates, no flank/UTR, no masking.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -34,6 +36,7 @@ completion.
 - WP-6/WP-8 deferred; WP-7 read-only. No scientific execution authorized.
 
 
+- [x] `RESTREE-01` (2026-10-21, `codex/research-tree-gitignore`): research-tree hygiene before any analysis/ trees are committed. `.gitignore` gains bulk rules (`analysis/computational_bottlenecks_*/{execution,followups}/`, `trackA_report_*/outputs/`, `*.rds *.mtx *.pkl *.stdout *.stderr *.sam *.bam *.bus` under analysis/, `/tmp/`, `.living/archive/`, `/biomni_bundle/`, root `HANDOFF*.md`/`SESSION_RESUME.md`); root-anchored where the name also exists tracked (`.living/HANDOFF_*.md`). New `scripts/check_tracked_file_sizes.py` + `tests/test_tracked_file_sizes.py` fail on any tracked/staged `analysis/` or `results/` blob over 1 MB unless listed in `config/large_file_allowlist.txt` (empty; passes on main as-is). Not hooked into pre-commit: the existing `check-added-large-files --maxkb=500` is already stricter repo-wide; CI runs the pytest. `sources/viral_panel`, `migration_plan/`, `viralscan_lshwcp_spec/` deliberately not covered.
 - [x] `ANDET-09-STAR139` (2026-10-20, `codex/anello-star139`): the `anello_align` rule crashed on any run with
   `--soloCBwhitelist None` (chemistries without an on-list, SW-21) when no read mapped: STAR 2.7.11b segfaults (exit
   139) in the Solo step. Found on 30 hsv1 Drop-seq libraries in Track A; reproduced on a 500k-read subset (no-Solo and
@@ -54,6 +57,10 @@ completion.
   Lesson: a row pinned to a PR commit goes stale on rebase-merge; re-pin to the merged commit in a follow-up.
   Check: every `git_sha` in the inventory is an ancestor of `origin/main`.
 
+- [x] `DOCS-CAVEATS-01` (2026-10-22, `codex/reference-caveats`, Q17): docs-only reference caveats. `docs/reference_panel.md` gains a
+  'Known limitations' section (HSV-1 LAT two-exon model and poly(A) caveat; `kmer_twin_of` is a heuristic; blank `risk_class` = unknown);
+  `docs/output_reference.md` `risk_class` row now says blank = unknown. No code change: code leaves `eve_risk`/`artifact_risk` unflagged
+  for blank rows and falls back to a genus-name rule only for uncatalogued viruses, consistent with 'unknown'.
 - [x] `DOCS-PERTPY-01` (2026-10-20, `codex/docs-pertpy`, stacked on `codex/orig-api-docs`): docs site follows
   pertpy's (https://pertpy.scverse.org/en/stable/) theme and landing structure, on user request. Theme
   `scanpydoc` (needs `sphinx-book-theme`, which scanpydoc does not declare), `sphinx-design` cards,
@@ -405,13 +412,33 @@ port the kallisto translated-search tutorial with explicit attribution.
   governance/worker27passed. PR76 final CI remains the merge gate.
   Full B11/B30 total-admission policy remains open.
 
-- [ ] `NORM-SHIFT-01` (user note, 2026-10-19) — use shifted-log normalization
+- [x] `NORM-SHIFT-01` (user note, 2026-10-19) — use shifted-log normalization
   from [Single-cell best practices](https://www.sc-best-practices.org/preprocessing-visualization/normalization/#shifted-logarithm):
   `normalize_total(target_sum=None)` (median library depth), followed by `log1p`;
   do not use a fixed TP10K target. Four current sites: `umap.py:host_only_pca`,
   both main UMAP preprocessing paths, and `hostresponse.py:_detect_and_normalize`.
   Keep raw counts and normalization provenance. This changes scientific features
   and requires explicit downstream validation; no normalization edits are in PR76.
+  Implementation started after user "next": isolated branch from6bd1652, four
+  fixed targets replaced with Scanpy median-depth scaling and log1p. Preserve
+  raw input files/layers, raw-depth covariates, preprocessed-input handling,
+  detection/counting and thresholds. Validate dense/sparse/zero-count behavior,
+  both UMAP branches, host-only PCA and fitted host-response outputs; this is
+  an intentional scientific preprocessing change, not a byte-identical speedup.
+  Local234regressions pass (including13new normalization cases); historical
+  weight golden retained on explicitly preprocessed legacy input, and no-HVG
+  fixtures made constant-expression without changing thresholds/assertions.
+  Paired original A/A and candidate A/A fit artifacts are raw deterministic;
+  expected A/B differences include synthetic AUC0.5→0.375 and stable genes8→5.
+  This is not evidence of predictive improvement. Scanpy1.11.5 has different
+  dense/CSR default medians with empty rows; exact target_sum=None semantics
+  are retained and version/procedure provenance recorded. Native CLI and final
+  full PR CI remain merge gates. No production inputs or previous outputs altered.
+  Documented native CLI21passed/no skips, including reference build, visual
+  run, evidence artifacts and validate-run. Governance21passed.
+  Public output documentation is re-pinned to implementation commitdc7855f;
+  preserve non-release tag provenance/shifted-log-2026-10-19 through rebase.
+  No claim status, historical golden values or model/QC thresholds changed.
 
 - [~] `PERF-EXEC-04` (2026-10-19) — authorized performance code delivery:
   B21/B13/B28/B16 accepted and combined on frozen baseline d056986 (tree6e70eda).
@@ -5867,6 +5894,29 @@ worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
   list uses space-separated accessions (`NC 000883.2`) while its FASTA uses
   underscores, which silently drops 96 of 762 records under a naive regex.
 
+- [x] `TAXO-01` — **NCBI lineage per virus and an aggregate-up count (user, 2026-10-16; branch `codex/virus-taxonomy-rollup`).** The
+  catalogue `species` label is not a lineage: EBV (taxid 10376) reads "Human gammaherpesvirus 4",
+  type 2 (12509) reads "Human herpesvirus 4 type 2", and families mix Herpesviridae and
+  Orthoherpesviridae, so related viruses cannot be summed. Ship `data/virus_taxonomy.tsv` (NCBI
+  Taxonomy efetch per catalogue taxid: species taxid and name, genus, subfamily, family), carry it into
+  `virus_identity.tsv` as additive `*_ncbi` columns, and write `viral_summary_by_species.tsv` and
+  `viral_summary_by_genus.tsv` from the multimap molecule pass: molecules unique to the group,
+  every molecule compatible with it, the package total, and their ratio. Flag a virus whose own unique
+  fraction is < 0.05 in `viral_summary.tsv` and point to its species row. No count changes.
+  Done: 710 catalogue taxids resolved (0 missing; `extras/build_virus_taxonomy.py --check` reports drift).
+  Decisions: the lineage is a frozen packaged table, not a build-time lookup, so every run is offline and
+  reproducible (uncatalogued genomes have no taxid and stay their own group); NCBI "… sp." bins
+  (e.g. Gammapapillomavirus sp.) carry no species; anelloviruses keep their ANDET-05 genus key at the species
+  level. Group molecules are method-independent and stored in `adata_multimap.h5ad` obsm, so
+  `rerun-multimap` stays valid; existing run directories get the new tables only after a multimap rerun.
+  Checked on EBV GSE158275 GSM4796273 (kept combined_off files, replay): EBV 15,011 unique / 18,417
+  compatible (0.815), EBV type 2 177 / 3,583 (0.049, flagged), species *L. humangamma4* 18,594 / 18,594
+  (1.0); package totals equal the run's (17,193.816667 and 1,400.183333). `viral_molecules_upper_bound`
+  doc corrected: it splits virus-virus molecules equally, so it is not a sibling bound.
+  Tests: `tests/test_virus_rollup.py`. Governance pin to re-pin (not edited here): inventory row 17
+  `output-reference-doc` (docs/output_reference.md); `tests/test_artifact_inventory.py` fails on the stale
+  sha256 until the re-pin.
+
 
 ## WP4L — Audit 2026-10 findings (new 2026-10-11)
 
@@ -6279,6 +6329,29 @@ behind the package-completion plan unless the user releases a row.
     (reads are already host-free).
   - Done: the diagnosis is in `run_manifest.json` (`analysis.py:140-159`); the gate is fail-closed behind
     `--require-chemistry-sanity`. Decision: the bulk path only advises (`kb count -x BULK` is not wired).
+- [x] `CHEM-02` — TusslChemistry (`tchem`, Apache-2.0 Rust binary, v0.1.0) as a second opinion on the chemistry
+  (user request and decisions 2026-10-17/18: second opinion, prebuilt release binary, include in viralscan, use it to
+  resolve the Track A chemistry). Branch `codex/tchem-second-opinion` (worktree `vs_work/tchem`, off `codex/drop-py39` 5e551c9).
+  - **Code:** `src/viralscan/tchem.py` (binary via `--tchem-bin`, `$VIRALSCAN_TCHEM`, `PATH`; lists via `--tchem-whitelists`,
+    `$VIRALSCAN_TCHEM_WHITELISTS`, then tchem's own `$TUSSL_CHEMISTRY_WHITELISTS`; two calls per sample: `--format json` for
+    the verdict, `--emit kb` for `-x/-w/--strand`; compared on barcode+UMI geometry), flags `--tchem {auto,require,off}`,
+    `--tchem-bin`, `--tchem-whitelists` on the run and on `check-chemistry`, a `tchem` block per sample in the manifest,
+    generated CLI reference, changelog and `config/public_ship_scope.json` (tchem.py in both lists) updated. Policy (user): agreement passes; a disagreement with `-x`, or a tchem
+    `ambiguous`/`no_match`, stops the run unless `--force-technology`; a missing tchem never stops it in `auto`.
+  - **Verified against the real binary (2026-10-18):** release `tchem-v0.1.0-x86_64-unknown-linux-musl.tar.gz` sha256
+    `9112e5018c26868317fa6547490094b59915927ef1482bb361f0b60ce5fe488e` matches the published `.sha256`; installed at
+    `mdmanurung/tools/tchem_0.1.0`, 23 barcode lists fetched and packed in `tools/tchem_whitelists` (10x Flex skipped: Cell
+    Ranger only). The real `--emit kb` text and JSON (schema 1.1) parse as the code expects (the former open item); the
+    captured outputs are fixtures in `tests/test_tchem.py`, plus an env-gated real-binary test. One regression found and fixed:
+    `menu._tchem_second_opinion` indexed an empty `blocks` when a forced `-x` skipped detection (KeyError).
+  - **Track A re-check (read-only, 80 libraries with reads on disk, `-x` = recorded chemistry):** HNSCC 34/34 and hpv16 2/2
+    agree (10x 3' v2 / 3' v3), 8 tonsil libraries agree (3' v3 and Multiome GEX). New calls: `188573`, `182656`, `269550`
+    are 10x Multiome GEX, HIGH, forward, `-x 0,0,16:0,16,28:1,0,0` (their earlier "unresolved" was the missing multiome on-list in
+    the manifest, not the library). `187505`, `167868`, `187508` stay AMBIGUOUS between 10x 3' v2 and 5' v1/v2 even at 1M reads
+    (same 16+10 geometry, 2 trailing bases, cDNA strand unclear); `182636` is 5' v1/v2 and `187507` 3' v2, both MEDIUM. HHV-6B and
+    EBV FASTQs are deleted, so they could not be re-checked; HSV-1 Drop-seq libraries read `no_call` (tchem names Drop-seq but
+    gives no kb technology).
+  - **Left:** decide the five non-HIGH libraries (tchem narrows them to the 10x v2 geometry but cannot call 3' vs 5').
 - [ ] `DSR-10` — standard arm set on every dataset (user, 2026-10-06; see
   `.living/decisions.md` "Same standard arm set on every dataset"). Each
   dataset × arm cell is run or marked n/a with a reason in the run plan's arm
@@ -7939,5 +8012,18 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   - Note: PR #89 CI lint failed on `mypy src/viralscan` (not run locally before): 7 annotations in `discovery.py`
     and an `out` name reused as Path/str in `menu.main`; fixed, `mypy src/viralscan` clean locally.
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
-- [ ] `DISC-13` candidate states + evidence adapter.
+- [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
+  `read_evidence_table` in `discovery.py` write `candidate_states.tsv` (`observation`, `corroborated` route i,
+  `read_supported_observation` route ii; `corroboration` / `read_support` = `not_assessed|negative|positive`; viral-only DB
+  and host lineage capped at `observation`). Pure functions, 4 new tests; `docs/discovery.md` "Candidate states".
+  - Note: the package has no per-taxon alignment summary, so route (ii) and (i) run over a documented evidence table
+    (`EVIDENCE_COLUMNS`); cut-offs 3 units / 80% / 1 shared cell are uncalibrated constants.
+  - Done 2026-10-22: `build_kb_evidence` (route i, `source=kb`) from `molecule_assignments.tsv.gz` + `virus_identity.tsv`;
+    API only (no `discover-evidence` CLI: needs parser, menu dispatch and help wiring). Tests `tests/test_discovery_kb_evidence.py`.
+    Review fixes: empty/no-called-cell molecule file raises; counts are distinct (CB, UMI); above-species ancestor genes compete
+    (`n_adjudicated`) but never make a molecule taxon-best.
+  - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch); route (ii) producer (competitive alignment of the
+    hit genome vs host + panel).
+  - Left: no CLI (plan §7 specifies none); `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
+    need `DISC-12`.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).

@@ -17,9 +17,10 @@ if "snakemake" in globals():
 
 import anndata as ad
 import pandas as pd
+from scipy import sparse
 
 from viralscan.kb_outputs import KbCountOutputs
-from viralscan.multimapping import build_multimap_layers
+from viralscan.multimapping import build_multimap_layers, viral_group_matrices
 from viralscan.outputs import V3Outputs
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
@@ -414,6 +415,43 @@ def stamp_gene_identity(adata, gene_ids, table: Optional[VirusIdentityTable]) ->
     adata.uns["molecule_denominator"] = "all_indexed_genes"
 
 
+#: Levels a viral molecule is summed at (PLAN ``TAXO-01``); see ``GeneIdentity.group_key``.
+VIRAL_GROUP_LEVELS = ("virus", "species", "genus")
+
+
+def stamp_viral_groups(adata, gene_ids, table: Optional[VirusIdentityTable], layers) -> None:
+    """Store per-cell unique / compatible / host-shared molecules of each virus, species and genus.
+
+    ``obsm["viral_groups_{unique,compatible,host_shared}"]`` are cells x groups; ``uns["viral_groups"]``
+    names the columns (level, key, name). Detection turns them into ``viral_summary_by_species.tsv``,
+    ``viral_summary_by_genus.tsv`` and the per-virus ``unique_fraction``. They are method-independent,
+    so ``rerun-multimap`` (a layer swap) keeps them valid. No table, no grouping: nothing is stamped.
+    """
+    if table is None:
+        return
+    by_gene = table.by_gene()
+    viral = [(i, by_gene[g]) for i, g in enumerate(gene_ids) if g in by_gene and by_gene[g].viral]
+    meta: dict[str, list[str]] = {"level": [], "key": [], "name": []}
+    blocks = []
+    for level in VIRAL_GROUP_LEVELS:
+        index: dict[str, int] = {}
+        gene_group = {}
+        for i, row in viral:
+            key = row.group_key(level)
+            if key not in index:
+                index[key] = len(index)
+                meta["level"].append(level)
+                meta["key"].append(key)
+                meta["name"].append(row.group_name(level))
+            gene_group[i] = index[key]
+        blocks.append(
+            viral_group_matrices(layers.viral_molecule_keys, gene_group, adata.n_obs, len(index))
+        )
+    for j, kind in enumerate(("unique", "compatible", "host_shared")):
+        adata.obsm[f"viral_groups_{kind}"] = sparse.hstack([b[j] for b in blocks], format="csr")
+    adata.uns["viral_groups"] = meta
+
+
 def final_results(
     viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers, drop_audit=None
 ):
@@ -613,6 +651,7 @@ def run(ctx, done_file):
             n_genes,
         )
         stamp_gene_identity(adata, gene_ids, identity)
+        stamp_viral_groups(adata, gene_ids, identity, layers)
         final_results(
             viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers, drop_audit
         )
