@@ -133,3 +133,14 @@ def test_rerun_programs_writes_under_posthoc_and_leaves_run_untouched(tmp_path: 
         Path(main.call_args.kwargs["results_root"]) == (sample / "posthoc" / "programs").resolve()
     )
     assert _tree_hashes(sample) == before
+
+
+@pytest.mark.parametrize(
+    "samples",
+    [["/d/posthoc_R1.fastq.gz"], ["/d/S1_R1.fastq.gz", "/d/S1_L002_R1.fastq.gz"]],
+    ids=["reserved", "duplicate"],
+)
+def test_run_rejects_reserved_or_duplicate_sample_id(samples: list[str]) -> None:
+    with pytest.raises(SystemExit):
+        menu._check_sample_ids(samples)
+    menu._check_sample_ids(["/d/S1_R1.fastq.gz", "/d/S2_R1.fastq.gz"])

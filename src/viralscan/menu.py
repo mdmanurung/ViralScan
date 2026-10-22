@@ -1196,6 +1196,26 @@ def _sample_id(s1_path: str) -> str:
     return Path(s1_path).name.split("_")[0]
 
 
+def _check_sample_ids(samples1: list[str]) -> None:
+    """Fail fast on a duplicate or reserved derived sample ID, before anything runs."""
+    seen_ids: set[str] = set()
+    for s1 in samples1:
+        sid = _sample_id(s1)
+        if sid == POSTHOC_DIRNAME:
+            _die(
+                f"Derived sample ID '{sid}' is reserved for post-hoc outputs "
+                f"(<run-dir>/{POSTHOC_DIRNAME}/). Rename {Path(s1).name} so its prefix "
+                f"before the first '_' is not '{POSTHOC_DIRNAME}'."
+            )
+        if sid in seen_ids:
+            _die(
+                f"Duplicate derived sample ID '{sid}'. Two --r1 paths share the same "
+                f"filename prefix before the first '_'. Rename your input files or supply "
+                f"unique prefixes so each sample gets its own output directory."
+            )
+        seen_ids.add(sid)
+
+
 def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> None:
     """Record the index's host/viral gene sets next to it (PLAN ``DEF-03``)."""
     from viralscan.run_safety import sha256_file, software_identity
@@ -1472,17 +1492,7 @@ def main() -> None:
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
 
-    # Fail fast if two inputs share the same derived sample ID before running anything.
-    seen_ids: set[str] = set()
-    for s1 in samples1:
-        sid = _sample_id(s1)
-        if sid in seen_ids:
-            _die(
-                f"Duplicate derived sample ID '{sid}'. Two --r1 paths share the same "
-                f"filename prefix before the first '_'. Rename your input files or supply "
-                f"unique prefixes so each sample gets its own output directory."
-            )
-        seen_ids.add(sid)
+    _check_sample_ids(samples1)
 
     # Hoist loop-invariant transcript counts (they depend only on the reference).
     n_transcripts = _count_lines(transcripts)

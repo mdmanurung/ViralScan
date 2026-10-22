@@ -313,7 +313,7 @@ confirm infection.
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--run-dir PATH` | | *(required)* | A completed ViralScan run output directory |
-| `--output PATH` | `-o` | *(required)* | Directory for evidence outputs |
+| `--output PATH` | `-o` | `<run-dir>/posthoc/evidence/<virus>` | Directory for evidence outputs |
 | `--viral-fasta PATH` | | *(none)* | Exact target-virus FASTA; enables competitive BAM/coverage/QC and requires `--host-fasta` |
 | `--host-fasta PATH` | | *(none)* | Full host-genome FASTA required with `--viral-fasta` |
 | `--virus STRING` | | *(required)* | Exact accession/gene, registered alias, or canonical detected call; substring matching is forbidden |
@@ -334,8 +334,8 @@ viralscan evidence \
   --viral-fasta EBV.fa \
   --host-fasta GRCh38.fa \
   --virus EBV \
-  --blast --read-start-profile --cell-tags \
-  -o output/sample/evidence/
+  --blast --read-start-profile --cell-tags
+# writes output/sample/posthoc/evidence/EBV/; pass -o DIR to write elsewhere
 ```
 
 ---
@@ -377,7 +377,8 @@ viralscan rerun-multimap [OPTIONS]
 
 Re-run the multimapping step with a different algorithm for an existing run,
 skipping the expensive pseudoalignment (`kb count`). The source tree is copied
-to the required new output directory and is never modified. For `equal`,
+to a new output directory (default `<run-dir>/posthoc/multimap_<method>`); the
+run's own outputs are never modified. For `equal`,
 `host-conservative`, and `unique-weighted`, a schema-valid v3 H5AD can use its
 pre-stored allocation layers without BUS reprocessing. `em-global`, `em-cell`,
 and older/incomplete H5AD files reprocess the retained BUS input.
@@ -391,8 +392,8 @@ used without an explicit rerun and audit. This remains tracked as `SW-04` and
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--run-dir PATH` | | *(required)* | Completed source run; it is never modified. |
-| `--output PATH` | `-o` | *(required)* | New result directory; it must not already be non-empty. |
+| `--run-dir PATH` | | *(required)* | Completed source run; its own outputs are never modified. |
+| `--output PATH` | `-o` | `<run-dir>/posthoc/multimap_<method>` | New result directory; it must not already be non-empty. |
 | `--multimap-method METHOD` | | *(required)* | Multimapping resolution method: `conservative`, `em`, or `equal` |
 | `--cores N` | `-c` | `6` | Total CPU budget; native workers (kb, bustools, STAR, ...) are bounded to it |
 | `--multimap-em-max-iter N` | | *(preserve)* | (EM methods) Maximum iterations; omit to keep the existing config value |
@@ -403,7 +404,7 @@ used without an explicit rerun and audit. This remains tracked as `SW-04` and
 Examples:
 
 ```bash
-viralscan rerun-multimap --run-dir out/ -o out_hc/ --multimap-method conservative
+viralscan rerun-multimap --run-dir out/ --multimap-method conservative   # -> out/posthoc/multimap_conservative/
 viralscan rerun-multimap --run-dir out/ -o out_em/ --multimap-method em --cores 8
 ```
 
@@ -430,12 +431,12 @@ processes in the above-threshold gene set.
 
 The viralscan output directory must already contain `config.yaml` and a
 completed multimap step (`log/multimap.done`). Results are written to
-`<run-dir>/hostresponse/` unless `--output` is given.
+`<run-dir>/posthoc/hostresponse/` unless `--output` is given.
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--run-dir PATH` | | *(required)* | Existing viralscan sample output directory (input; contains `config.yaml`) |
-| `--output DIR` | | `<run-dir>/hostresponse` | Directory hostresponse writes to (`-o` was removed; it meant the run directory) |
+| `--output DIR` | | `<run-dir>/posthoc/hostresponse` | Directory hostresponse writes to (`-o` was removed; it meant the run directory) |
 | `--host-h5ad PATH` | | *(required)* | Host gene-expression h5ad (cells × genes, matched barcodes) |
 | `--n-seeds N` | | from config or `6` | Random seeds for multi-seed L2 regression |
 | `--n-stab-iter N` | | from config or `100` | Stability-selection iterations |
@@ -622,16 +623,16 @@ or broken count invariants make validation fail rather than silently downgrade.
 
 ## `viralscan rerun-programs` — re-score gene programmes
 
-Run layer 2 over a completed run, **in place**:
+Run layer 2 over a completed run; results go to `<run-dir>/posthoc/programs/` by default:
 
 ```bash
 viralscan rerun-programs --run-dir output/sample/ --programme-min-breadth 2
 ```
 
-Unlike `rerun-multimap` this does not copy the run and does not need a separate
-`--output`. Layer 2 only reads the count matrices and layer 1's
-`viral_summary.tsv` and adds two files, so there is no reason for the two
-directories to be able to disagree. It requires `log/detection.done` in the run
+Unlike `rerun-multimap` this does not copy the run. Layer 2 only reads the count
+matrices and layer 1's `viral_summary.tsv` and writes two `gene_program_*.tsv`
+files under `results/` of the output directory (`-o DIR` overrides the default);
+the run's own outputs are not modified. It requires `log/detection.done` in the run
 directory; without it the command refuses rather than emitting empty tables.
 
 ---
