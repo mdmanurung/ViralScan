@@ -153,7 +153,6 @@ def test_kallisto_read_number_replay_extracts_only_target(tmp_path: Path) -> Non
         "coverage.deduplicated.tsv",
         "alignment_qc.tsv",
         "per_cell_alignment_qc.tsv",
-        "coverage.raw_vs_deduplicated.png",
         "interpretation_flags.tsv",
         "blast_identity.tsv",
         "blast_sampling.json",

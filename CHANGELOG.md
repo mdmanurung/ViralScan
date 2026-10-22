@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Reviewed diagnostic corrections (unreleased)
 
 - Added `viralscan discover` and `viralscan discover-collapse` (PLAN `DISC`): Kraken2 classification of a completed run's host-unmapped reads, grouped by cell barcode and UMI into `cell_taxon.h5ad`, `candidates.tsv` (observation state only), `qc.json` and `provenance.json`, published atomically with a fingerprint and a no-op rerun. Classifications are not infection calls; the primary counts, `detected` and tiers do not change, and no discovery performance claim is made. Optional `environment.discovery.yml` and `viralscan doctor --profile discovery`. See `docs/discovery.md`.
+- The evidence step writes scPathoQuant-style coverage maps (`<ref>_coveragemap.<layer>.{png,pdf}`, via `bamCoverage`, `gtf2bed` and `pyGenomeTracks`) plus a read-competition track figure and a stacked histogram, replacing `coverage.raw_vs_deduplicated.png`. New tools in `environment.coverage.yml` (optional; `viralscan doctor --profile coverage`): `pygenometracks`, `deeptools`, `bedops`. The read-competition classification also works on STAR/STARsolo BAMs (no `SA` tag): partners come from the other records of `NH`>1 reads (`samtools view -N`).
 - **Breaking:** `viralscan hostresponse -o RUN_DIR` is now `--run-dir RUN_DIR` (it was an input run
   directory, unlike `-o/--output` elsewhere). `-o` errors with the replacement; `--output DIR` is optional and
   names where hostresponse writes (default `<run-dir>/hostresponse`, so the layout is unchanged).
