@@ -25,7 +25,7 @@ Nothing here has been run for real. Every command below is for a human to submit
 
 ## Run order
 
-All from `analysis/spikein_detection_limit/` with `PATH=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/bin:$PATH`.
+All from `analysis/spikein_detection_limit/` with `PATH=$SITE_ROOT/conda/envs/viralscan_test_full/bin:$PATH`.
 
 1. Tests (foreground, no cluster): `PYTHONPATH=../../src python -m pytest ../../tests/test_spikein_*.py -q`
 2. Smoke: `sbatch smoke.sbatch` (D03, first 5 M pairs, levels 10/100, seed 1; done 2026-10-21, 20 min, see PLAN SPIKE-01).

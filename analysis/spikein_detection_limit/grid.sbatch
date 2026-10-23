@@ -11,8 +11,8 @@
 #SBATCH --mem=80G
 #SBATCH -t 12:00:00
 #SBATCH -p highmem
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/spikein_grid_2026-10/slurm/%x_%A_%a.log
+#SBATCH -o %x_%A_%a.log  # relative to the submit directory
 set -euo pipefail
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
 A=${SPIKE_GRID_CODE:-$M/vs_work/spikein/analysis/spikein_detection_limit}
 exec "$M/conda/envs/viralscan_test_full/bin/python" "$A/run_condition.py" --row "${SLURM_ARRAY_TASK_ID:?run as a Slurm array}"

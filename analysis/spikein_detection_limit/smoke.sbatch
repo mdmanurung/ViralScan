@@ -10,9 +10,9 @@
 #SBATCH --mem=80G
 #SBATCH -t 08:00:00
 #SBATCH -p highmem
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/spikein_smoke_2026-10/slurm_%x_%j.log
+#SBATCH -o slurm_%x_%j.log  # relative to the submit directory
 set -euo pipefail
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
 W=$M/viralscan_work; X=$W/trackB_explore_2026-10; S=$W/star_hostvirus
 SRC=$M/vs_work/spikein; A=$SRC/analysis/spikein_detection_limit
 O=$W/spikein_smoke_2026-10; LIB=SRR29320037; HOST=$M/ViralScan/ebv_latest_ref_2026-09-27/star_host_2.7.11b

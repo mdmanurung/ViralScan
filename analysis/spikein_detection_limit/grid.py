@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 # ----------------------------------------------------------------------------------------------- CONFIG
-M = Path("/exports/archive/hg-funcgenom-research/mdmanurung")
+M = Path(os.environ.get("VIRALSCAN_SITE_ROOT", "$VIRALSCAN_SITE_ROOT"))  # site work root; unset gives a visibly bad path
 W = M / "viralscan_work"
 X = W / "trackB_explore_2026-10"
 S = W / "star_hostvirus"
