@@ -15,5 +15,9 @@ scorer (SPIKE-03, `scores_v2.tsv`). Receipts: `analysis/spikein_detection_limit/
   R01 0). Input for STAR-GATE-01 (user decision).
 
 ## Limits (also in `report.md`)
+**STAR fate limit (PR #109 review):** STAR fates were read from the pruned `VIRUS|`-only BAM, so host-primary spikes
+are labelled `absent`; `fate_host` / `fate_absent` in `star_gate.tsv` do not separate host competition from loss.
+The STAR detection threshold (any record on a truth contig) is unaffected. STAR-GATE-01 must not rely on `fate_host`.
+
 One source library per virus (seeds resample reads, not libraries); NH policy for EBV (`--max-nh 2`) unvalidated;
 thresholds are grid levels; STAR "absent" lumps too-short with host-filter loss.

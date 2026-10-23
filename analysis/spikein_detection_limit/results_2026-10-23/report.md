@@ -149,3 +149,9 @@ Fates are the PRIMARY alignment (host = host competition; other virus = primary 
 - Thresholds are on a 5-level grid (3, 10, 30, 100, 300): a threshold is a grid level, not an interpolated value; "<=3" is left-censored and ">300 (not established)" is NOT a negative result (it means the grid did not establish a threshold). The null floor
   is 3 libraries per background; maxima of 3 values bound nothing beyond those libraries.
 - Host and virus used the pinned indexes of this repository; depth-matching to real libraries (~45 M pairs) is by subsample.
+
+## Post-review note (2026-10-23)
+
+**STAR fate limit (PR #109 review):** STAR fates were read from the pruned `VIRUS|`-only BAM, so host-primary spikes
+are labelled `absent`; `fate_host` / `fate_absent` in `star_gate.tsv` do not separate host competition from loss.
+The STAR detection threshold (any record on a truth contig) is unaffected. STAR-GATE-01 must not rely on `fate_host`.

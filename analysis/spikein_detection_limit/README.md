@@ -5,7 +5,14 @@ spiked in at known levels: the old kb index, the flank index v2, and STARsolo ho
 Output: a threshold per background x arm x layout, a null (false-positive) floor, the flank keep/retire verdict, and the
 STAR gate evidence (STAR-GATE-01 is decided only after this).
 
-Nothing here has been run for real. Every command below is for a human to submit.
+**Status (2026-10-23): the grid has been run** (Slurm array 25864985, 66/66 conditions) and rescored with the viral-only
+scorer; results and verdict (flank index retired, F-028) are in `results_2026-10-23/` with `SHA256SUMS`. Do not rerun the
+grid to reproduce them; the commands below document how they were produced.
+
+**Known limit of the STAR fates:** `star_fates` reads `star_hostvirus/viral.bam`, which `star_confirm` prunes to `VIRUS|`
+records, so a spike whose primary placement is on the host appears as `absent`, not `host`. `fate_host` in `star_gate.tsv`
+therefore does not measure host competition; STAR detection (`on_truth`, any record on a truth contig) is unaffected.
+Measuring host competition needs the fates extracted before pruning (a rerun).
 
 ## Design (user decisions 2026-10-21/22)
 

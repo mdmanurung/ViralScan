@@ -131,7 +131,7 @@ class Ctx:
 
 
 def count_pairs(ctx: Ctx, r1: Path) -> int:
-    """Pair count of R1, cached per background (zcat | wc -l, list form, no shell)."""
+    """Pair count of R1, cached per background (gzip -dc | wc -l, list form, no shell; macOS zcat wants .Z)."""
     cache = ctx.root / "bg" / f"{ctx.c['background']}.total_pairs"
     cache.parent.mkdir(parents=True, exist_ok=True)
     # one lock per BACKGROUND (stage_bg locks per replicate, so replicates race here); atomic cache write
@@ -139,10 +139,10 @@ def count_pairs(ctx: Ctx, r1: Path) -> int:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if cache.exists():
             return int(cache.read_text())
-        z = subprocess.Popen(["zcat", str(r1)], stdout=subprocess.PIPE)
+        z = subprocess.Popen(["gzip", "-dc", str(r1)], stdout=subprocess.PIPE)
         w = subprocess.run(["wc", "-l"], stdin=z.stdout, capture_output=True, text=True, check=True)
         if z.wait() != 0:
-            sys.exit(f"zcat {r1} failed")
+            sys.exit(f"gzip -dc {r1} failed")
         n = int(w.stdout.split()[0]) // 4
         tmp = cache.with_name(cache.name + ".part")
         tmp.write_text(str(n))

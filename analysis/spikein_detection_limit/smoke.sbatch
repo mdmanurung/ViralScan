@@ -50,7 +50,7 @@ PYEOF
       "input=$(awk -F'\t' '/Number of input reads/{print $2}' $LF)" \
       "uniquely_mapped=$(awk -F'\t' '/Uniquely mapped reads number/{print $2}' $LF)" \
       "multi_mapped=$(awk -F'\t' '/Number of reads mapped to multiple loci/{print $2}' $LF)" \
-      "survivors=$(( $(zcat $D/hf/R2.fastq.gz | wc -l) / 4 ))"
+      "survivors=$(( $(gzip -dc $D/hf/R2.fastq.gz | wc -l) / 4 ))"
   else
     echo "hostfilter $TAG accounting: Log.final.out not found under $D/hf (STAR log location unverified)"
   fi

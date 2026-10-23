@@ -75,7 +75,7 @@ completion.
   12-nt dummy whitelist, logged the fallback, left `star139_fallback.txt` and the pruned BAM, and wrote the header-only
   per-virus table (`analysis/star_confirm_acceptance/fallback139.py`).
 - [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
-  - 2026-10-23: SPIKE-01 is done (F-028): STAR arm threshold <=3 spiked UMIs in both backgrounds, 0-8 non-spike STAR reads in nulls. The decision is now the user's.
+  - 2026-10-23: SPIKE-01 is done (F-028): STAR arm threshold <=3 spiked UMIs in both backgrounds, 0-8 non-spike STAR reads in nulls. The decision is now the user's. `fate_host` is not a measure of host competition (pruned BAM); see F-028.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
   `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
   writes `star_hostvirus_index.json` (`write_index_manifest` / `read_index_manifest` / `validate_index_manifest`).
@@ -118,6 +118,9 @@ completion.
   rule (Q3/Q15): same threshold as old (D03 10, R01 <=3) but up to 12.57 / 9 unsupported UMIs per null library (limit 5);
   0 false calls in either arm; flank recovers 1.12-1.38x more net kb molecules (no ratio < 0.80, so no ask-back).
   STAR arm threshold <=3 in both backgrounds. Finding F-028; receipts `analysis/spikein_detection_limit/results_2026-10-23/`.
+  - PR #109 review: STAR fates came from the pruned VIRUS|-only BAM, so `fate_host` cannot show host competition (host-primary
+    spikes read as `absent`); STAR detection is unaffected. `count_pairs` now uses `gzip -dc` (macOS `zcat` wants `.Z`);
+    `SHA256SUMS` no longer lists itself.
 - [x] SPIKE-01 (2026-10-21, exploratory under the Q21/LOCK-01 A2 override; branch `codex/spikein-detection-limit`,
   stacked on the unpushed `codex/star-hostvirus-align`): empirical detection limit of the old kb index, the flank
   index v2 and STARsolo host+virus, by spiking real HHV-6B reads (GSM6416022 BAM, stratified by flank-audit class)
