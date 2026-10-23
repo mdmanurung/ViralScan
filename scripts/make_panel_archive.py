@@ -29,7 +29,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 AUX_TSV = "anellovirus_accessions.tsv"
-MANIFEST_NAME = "PANEL_MANIFEST.json"  # not "manifest.json": that name is the fetch cache's own file
+MANIFEST_NAME = (
+    "PANEL_MANIFEST.json"  # not "manifest.json": that name is the fetch cache's own file
+)
 FIXED_DATE = (2020, 1, 1, 0, 0, 0)  # zip epoch floor is 1980; any constant works
 TODO = "TODO: "
 
@@ -123,7 +125,13 @@ def zenodo_draft(version: str, n_gtf: int, has_fasta: bool, source_commit: str) 
             "version": version,
             "access_right": "open",
             "license": TODO + "licence id (REL-15)",
-            "creators": [{"name": TODO + "Family, Given", "orcid": TODO + "ORCID", "affiliation": TODO + "affiliation"}],
+            "creators": [
+                {
+                    "name": TODO + "Family, Given",
+                    "orcid": TODO + "ORCID",
+                    "affiliation": TODO + "affiliation",
+                }
+            ],
             "keywords": ["viral reference", "GTF", "single-cell RNA-seq", "kallisto", "ViralScan"],
             "related_identifiers": [
                 {
@@ -139,14 +147,31 @@ def zenodo_draft(version: str, n_gtf: int, has_fasta: bool, source_commit: str) 
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--panel-dir", type=Path, required=True, help="directory holding the *.gtf corpus")
-    ap.add_argument("--out-dir", type=Path, required=True, help="created if missing; must not hold earlier outputs")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--panel-dir", type=Path, required=True, help="directory holding the *.gtf corpus"
+    )
+    ap.add_argument(
+        "--out-dir",
+        type=Path,
+        required=True,
+        help="created if missing; must not hold earlier outputs",
+    )
     ap.add_argument("--version", required=True, help="panel version, e.g. 3.0.0rc1")
-    ap.add_argument("--source-commit", default=TODO + "pinned main sha", help="ViralScan commit the panel is built from")
+    ap.add_argument(
+        "--source-commit",
+        default=TODO + "pinned main sha",
+        help="ViralScan commit the panel is built from",
+    )
     ap.add_argument("--fasta", type=Path, help="optional bundled anellovirus FASTA (.fa/.fasta)")
     ap.add_argument("--aux-tsv", type=Path, default=REPO / "src" / "viralscan" / "data" / AUX_TSV)
-    ap.add_argument("--corpus-manifest", type=Path, default=REPO / "analysis" / "panel_expansion" / "gtf_corpus_manifest.tsv")
+    ap.add_argument(
+        "--corpus-manifest",
+        type=Path,
+        default=REPO / "analysis" / "panel_expansion" / "gtf_corpus_manifest.tsv",
+    )
     ap.add_argument("--no-corpus-check", action="store_true")
     a = ap.parse_args(argv)
 
@@ -155,12 +180,20 @@ def main(argv: list[str] | None = None) -> int:
         bad = check_corpus(members, a.corpus_manifest)
         if bad:
             print("\n".join(bad), file=sys.stderr)
-            print(f"{len(bad)} corpus mismatch(es); fix the panel dir or pass --no-corpus-check", file=sys.stderr)
+            print(
+                f"{len(bad)} corpus mismatch(es); fix the panel dir or pass --no-corpus-check",
+                file=sys.stderr,
+            )
             return 1
 
     a.out_dir.mkdir(parents=True, exist_ok=True)
     archive = a.out_dir / f"viralscan-viral-panel-{a.version}.zip"
-    outputs = [archive, a.out_dir / MANIFEST_NAME, a.out_dir / "SHA256SUMS", a.out_dir / "zenodo_metadata.draft.json"]
+    outputs = [
+        archive,
+        a.out_dir / MANIFEST_NAME,
+        a.out_dir / "SHA256SUMS",
+        a.out_dir / "zenodo_metadata.draft.json",
+    ]
     if any(p.exists() for p in outputs):
         print(f"refusing to overwrite earlier outputs in {a.out_dir}", file=sys.stderr)
         return 1
