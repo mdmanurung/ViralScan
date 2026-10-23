@@ -187,3 +187,11 @@ def test_run_writes_loss_table_with_stubbed_star(tmp_path, monkeypatch):
     assert by["star-default"][h.index("d15_loss_fraction")] == "0.25"
     assert by["pinned"][h.index("pool_size")] == "40"
     assert not (root / "cond" / cond["cond_id"] / "work_pinned").exists()
+
+
+def test_outside_truth_ebv_uses_raw_bam_hhv6b_keeps_filtered():
+    assert hosthomolog.source_bam("EBV", "outside_truth") == hosthomolog.RAW_BAMS["EBV"]
+    assert hosthomolog.source_bam("EBV", "default") == hosthomolog.grid.SOURCES["EBV"]["bam"]
+    assert (
+        hosthomolog.source_bam("HHV6B", "outside_truth") == hosthomolog.grid.SOURCES["HHV6B"]["bam"]
+    )

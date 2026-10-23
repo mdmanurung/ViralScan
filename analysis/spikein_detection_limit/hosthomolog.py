@@ -39,6 +39,9 @@ PARAM_SETS = (
 )  # protocol §3: pinned primary, star-default second arm for Q1
 MAX_NH = 20  # outside_truth pool: STAR hostvirus keeps up to 100 loci; 20 = the product host filter's multimap limit
 TAGS = {"outside_truth": "HH", "default": "DP"}
+# Q25: the grid BAMs align host_filtered reads, so their host-competing reads are gone; outside_truth draws from a
+# realignment of the RAW library (star_hostvirus/align_raw.sbatch). HHV-6B raw is deleted: it keeps the filtered BAM (lower bound).
+RAW_BAMS = {"EBV": grid.S / "GSM4796271_raw/Aligned.sortedByCoord.out.bam"}
 CELLS, LAYOUT = 100, "c100"
 COLUMNS = ["cond_id", "background", "source", "pool", "level", "seed", "layout", "cells", "bg_rep"]
 OUT_COLUMNS = [
@@ -97,6 +100,14 @@ def run_star_filter(ctx, param: str, out_dir: Path):
     )  # fmt: skip
 
 
+def source_bam(source: str, pool: str):
+    return (
+        RAW_BAMS.get(source, grid.SOURCES[source]["bam"])
+        if pool == "outside_truth"
+        else grid.SOURCES[source]["bam"]
+    )
+
+
 def stage_spike(ctx, pool: str):
     spikes = ctx.d / "spikes"
     s, b = ctx.src, ctx.bg
@@ -106,7 +117,8 @@ def stage_spike(ctx, pool: str):
         run_condition.rmtree_inside(spikes, ctx.root / "cond")
         (ctx.d / "logs").mkdir(parents=True, exist_ok=True)
     max_nh = MAX_NH if pool == "outside_truth" else s["max_nh"]
-    ctx.sh([run_condition.PY, "-I", run_condition.SPIKEIN, "spike", "--bam", s["bam"], "--gtf", s["gtf"],
+    bam = source_bam(ctx.c["source"], pool)
+    ctx.sh([run_condition.PY, "-I", run_condition.SPIKEIN, "spike", "--bam", bam, "--gtf", s["gtf"],
             "--bg-r1", ctx.bgd / "bg_R1.fastq.gz", "--out-dir", spikes, "--contig", s["contigs"],
             "--max-nh", max_nh, "--pool", pool, "--levels", ctx.level, "--seeds", ctx.seed,
             "--cells", ctx.cells, "--whitelist", ctx.onlist(), "--cb-len", b["cb_len"],
@@ -148,9 +160,8 @@ def run(cond: dict, dry=False, root=None, params=PARAM_SETS):
         run_condition.rmtree_inside(work, root / "cond")
         run_star_filter(ctx, p, work)
         lc = host_loss(truth, work / "fragment_lineage.tsv.gz", work)
-        audit = {
-            r[0]: r[1] for r in csv.reader(open(work / "host_filter_audit.tsv"), delimiter="\t")
-        }
+        with open(work / "host_filter_audit.tsv", newline="") as fh:
+            audit = {r[0]: r[1] for r in csv.reader(fh, delimiter="\t")}
         if lc["not_in_lineage"]:
             sys.exit(
                 f"{ctx.id} [{p}]: {lc['not_in_lineage']} spiked reads absent from the lineage: not estimable"

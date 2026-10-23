@@ -31,7 +31,9 @@ completion.
   tooling done, **not run**: `spikein.py spike --pool outside_truth`, `analysis/spikein_detection_limit/hosthomolog.py` (30 conditions
   per pool, STAR host filter only, `pinned` + `star-default`, `lost_truth_counts` D15/D16), `hosthomolog.sbatch`, tests
   `tests/test_spikein_hosthomolog.py`. Note: source BAMs hold host-unmapped reads only, so the loss is a lower bound; the EBV BAM has
-  no read with fewer in-set records than NH (pool expected empty, run fails loudly). Next: user decides submission and the default-pool run.
+  no read with fewer in-set records than NH (pool empty). 2026-10-24 (user Q25): EBV `outside_truth` now draws from a raw-library
+  realignment (`RAW_BAMS`, `star_hostvirus/GSM4796271_raw`, Slurm 25872923); HHV-6B raw is deleted, so it stays a lower bound. Next: after
+  the realignment, count the EBV pool, then submit both pools.
 - **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
   rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
