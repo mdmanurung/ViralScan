@@ -56,6 +56,7 @@ exclude_patterns = [
     "notices/CAT-30_retraction_DRAFT.md",  # draft notice, not published (DEF-07)
     "plans/**",
     "handoffs/**",
+    "reviews/**",
     "superpowers/**",
     "PUBLICATION_READINESS*.md",
     "IMPLEMENTATION_PLAN.md",

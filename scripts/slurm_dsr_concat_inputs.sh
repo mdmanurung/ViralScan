@@ -13,10 +13,12 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4G
 #SBATCH --time=06:00:00
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round1/logs/%x_%A_%a.log
+#SBATCH -o slurm_%x_%j.log
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+
 set -euo pipefail
-D=/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/benchmark_inputs/dsr_2026-10-05
-O=/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round1/inputs
+D=$SITE_ROOT/ViralScan/benchmark_inputs/dsr_2026-10-05
+O=$SITE_ROOT/viralscan_work/dsr_round1/inputs
 # name | study | mate-suffix for R1 | mate-suffix for R2 | SRRs (lane order)
 ROWS=(
 "GSM5725698|GSE190558|2|3|SRR17180386 SRR17180387 SRR17180388 SRR17180389"

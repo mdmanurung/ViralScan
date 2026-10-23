@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
-M = "/exports/archive/hg-funcgenom-research/mdmanurung"
+M = "/site/root"
 ROUND1 = {
     "R": f"{M}/viralscan_work/dsr_round1",
     "CODE": f"{M}/vs_pinned/bbf1821",
@@ -37,7 +37,7 @@ def _eval(script: str, env: dict[str, str]) -> dict[str, str]:
 
 @pytest.mark.parametrize("script", sorted(NAMES))
 def test_defaults_reproduce_round1(script):
-    got = _eval(script, {"PATH": "/usr/bin:/bin"})
+    got = _eval(script, {"PATH": "/usr/bin:/bin", "VIRALSCAN_SITE_ROOT": M})
     for name, value in got.items():
         if name in ROUND1:
             assert value == ROUND1[name], (script, name)
@@ -49,6 +49,7 @@ def test_defaults_reproduce_round1(script):
 def test_overrides_take_effect(script):
     env = {
         "PATH": "/usr/bin:/bin",
+        "VIRALSCAN_SITE_ROOT": M,
         "ROUND_DIR": "/r2",
         "CODE_DIR": "/code/abc",
         "REF_BUILD": "/refs/viral_ref_new/build",

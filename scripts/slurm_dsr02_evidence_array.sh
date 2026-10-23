@@ -9,13 +9,16 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=24G
 #SBATCH --time=12:00:00
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr02/logs/%x_%A_%a.log
+#SBATCH -o slurm_%x_%j.log
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
 : "${CALLS:?calls.tsv}"
 OFFSET=${OFFSET:-0}   # MaxArraySize is 125: rows >=125 go in a second array with OFFSET=125
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=$SITE_ROOT
 CODE=${CODE:-$M/vs_pinned/ef0c0c8}
-HOST=${HOST_FA:-/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa}
+HOST=${HOST_FA:-$COLLAB_ROOT/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa}
 PANEL_FA=${PANEL_FA:-$M/viral_ref_cat42d/build/viral.fa}
 export PATH="$M/conda/envs/viralscan_test_full/bin:$PATH" PYTHONPATH="$CODE/src" MPLBACKEND=Agg
 PANEL_ARGS=()

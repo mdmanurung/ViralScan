@@ -1,0 +1,4 @@
+background	verdict	add_max	flank_abs_max	notes
+D03	retire	12.5714	12.5714	c005: flank 10 <= old 10; c100: flank 10 <= old 10; flank adds up to 12.5714 unsupported UMIs per null library > 5
+R01	retire	9	9	c005: flank <=3 <= old <=3; c100: flank <=3 <= old <=3; flank adds up to 9 unsupported UMIs per null library > 5
+overall	retire			

@@ -930,17 +930,26 @@ def build_umi_groups(
 # ── Cell universe and matrix (plan §6.5, §8, §10) ───────────────────────────
 
 
-def load_called_cells(sample_dir: Path) -> tuple[list[str], dict[str, Any]]:
-    """The primary's called barcodes (suffix-stripped, sorted) and its cell-calling receipt."""
+def load_called_cells(
+    sample_dir: Path, path: Path | None = None
+) -> tuple[list[str], dict[str, Any]]:
+    """The primary's called barcodes (suffix-stripped, sorted) and its cell-calling receipt.
+
+    *path* replaces the sample's own ``called_cells.tsv`` (``discover --called-cells``), e.g. the
+    EmptyDrops cells of a full-matrix run of the same library when a two-step run only calls
+    barcodes that carry viral reads. Its barcode space comes from the ``cell_calling_input.json``
+    beside it, never from the sample.
+    """
     from viralscan.scripts.cellcalling import CALLED_CELLS_TSV, _strip_suffix
 
-    path = sample_dir / CALLED_CELLS_TSV
+    override = path is not None
+    path = path if path is not None else sample_dir / CALLED_CELLS_TSV
     if not path.is_file():
         raise DiscoveryError(f"{path} is missing; discovery needs the primary's called cells.")
     with path.open(encoding="utf-8") as handle:
         handle.readline()
         called = sorted({_strip_suffix(line.strip()) for line in handle if line.strip()})
-    receipt_path = sample_dir / "results" / "cell_calling_input.json"
+    receipt_path = path.parent / "cell_calling_input.json"
     receipt = json.loads(receipt_path.read_text()) if receipt_path.is_file() else {}
     # Two-step EmptyDrops on the host filter's STARsolo matrix calls cells in STAR's barcode
     # space, which is uncorrected without -w (plan §6.3); the overlap below shows the effect.
@@ -954,6 +963,10 @@ def load_called_cells(sample_dir: Path) -> tuple[list[str], dict[str, Any]]:
         "cell_calling_method": receipt.get("method"),
         "called_cells_barcode_space": space,
     }
+    if override:
+        if not called:
+            raise DiscoveryError(f"{path} lists no called cells.")
+        info["called_cells_path"] = str(path.resolve())
     return called, info
 
 
@@ -1288,6 +1301,298 @@ def build_kb_evidence(discovery_dir: Path, sample_dir: Path, output: Path | None
     return out
 
 
+STAR_EVIDENCE_TSV = "evidence_star.tsv"
+STAR_VIRAL_BAM = Path("star_hostvirus") / "viral.bam"
+
+
+def _star_records(bam: Path) -> Iterator[tuple[str, str, int, str | None, str | None]]:
+    """``(qname, contig, NH, CB, UB)`` per mapped record of a STAR BAM via ``samtools view``."""
+    samtools = shutil.which("samtools")
+    if samtools is None:
+        raise DiscoveryError("samtools not found on PATH; cannot read the STAR BAM.")
+    from viralscan.star_hostvirus import _sam_lines, _tag
+
+    for f in _sam_lines(samtools, str(bam)):
+        if int(f[1]) & 0x4 or f[2] == "*":
+            continue
+        yield f[0], f[2], int(_tag(f, "NH:i:") or 1), _tag(f, "CB:Z:"), _tag(f, "UB:Z:")
+
+
+def build_star_evidence(
+    discovery_dir: Path,
+    sample_dir: Path,
+    output: Path | None = None,
+    *,
+    record_reader: Any = None,
+) -> Path:
+    """Write the route (i) ``source=star`` evidence table (DISC-13); returns its path.
+
+    Reads the run's pruned ``star_hostvirus/viral.bam`` (``VIRUS|`` records only; *record_reader*
+    ``(bam) -> (qname, contig, NH, CB, UB)`` records, default ``samtools view``), maps ``VIRUS|<accession>``
+    to taxids through ``results/virus_identity.tsv`` and matches candidates with the same lineage rule
+    as ``build_kb_evidence``. Unit = molecule, distinct (CB, UB) with the CB gem-group suffix (``-1``)
+    stripped (the only normalisation; same as the called cells); reads with CB or UB missing or ``-`` are
+    not molecules. STARsolo gives no UB to multimappers (Unique mode), so counts are a lower bound.
+    The BAM is pruned, so host placements are invisible: a read is taxon-best for T only when its
+    visible records on contigs matching T (above-species ancestors never win) number exactly its ``NH``;
+    NH above that (host, other virus, unseen locus) is adjudicated only. A molecule is adjudicated when
+    any read has a T-matching record, taxon-best when all its reads are taxon-best. Shared cells /
+    molecules: taxon-best molecules in resolved called-cell groups with ``resolved_taxid == T``.
+    A candidate without panel accession gets no row; with accessions but no molecule an all-zero row.
+    Raises when a file is missing, no molecule exists, or no molecule CB is a called cell.
+    """
+    from viralscan.scripts.cellcalling import _strip_suffix
+    from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
+
+    called, _ = load_called_cells(sample_dir)
+    bam, ident = sample_dir / STAR_VIRAL_BAM, sample_dir / "results" / TABLE_FILENAME
+    for path in (bam, ident, discovery_dir / TAXONOMY_TSV, discovery_dir / CANDIDATES_TSV):
+        if not path.is_file():
+            raise DiscoveryError(f"{path} is missing.")
+    tree = _load_tree_tsv(discovery_dir / TAXONOMY_TSV)
+    candidates = sorted({int(r["taxid"]) for r in _tsv_rows(discovery_dir / CANDIDATES_TSV)})
+    contig_taxa: dict[str, set[int]] = {}
+    best_ok: set[tuple[str, int]] = set()
+    for g in VirusIdentityTable.read_tsv(ident).genes:
+        if not (g.viral and g.taxid.isdigit() and g.genome_accession):
+            continue
+        gt, contig = int(g.taxid), f"VIRUS|{g.genome_accession}"
+        for taxid in candidates:
+            lin = (
+                gt in tree
+                and taxid in tree
+                and (taxid in _path(tree, gt) or gt in _path(tree, taxid))
+            )
+            if gt == taxid or lin:
+                contig_taxa.setdefault(contig, set()).add(taxid)
+                if gt == taxid or taxid in _path(tree, gt) or tree[gt][1].startswith("S"):
+                    best_ok.add((contig, taxid))
+    panel = {t for taxa in contig_taxa.values() for t in taxa}
+    called_set = set(called)
+    groups: dict[int, set[tuple[str, str]]] = {}
+    for row in _tsv_rows(discovery_dir / UMI_GROUPS_TSV):
+        if row["group_class"] == "resolved" and row["corrected_cb"] in called_set:
+            groups.setdefault(int(row["resolved_taxid"]), set()).add(
+                (row["corrected_cb"], row["umi"])
+            )
+    reads: dict[str, list[Any]] = {}  # qname -> [molecule key | None, NH, contigs]
+    for qname, contig, nh, cb, ub in (record_reader or _star_records)(bam):
+        key = None if cb in (None, "-") or ub in (None, "-") else (_strip_suffix(cb), ub)
+        reads.setdefault(qname, [key, nh, []])[2].append(contig)
+    mol_reads: dict[tuple[str, str], int] = {}
+    adj_reads: dict[tuple[tuple[str, str], int], int] = {}
+    best_reads: dict[tuple[tuple[str, str], int], int] = {}
+    for key, nh, contigs in reads.values():
+        if key is None:
+            continue
+        mol_reads[key] = mol_reads.get(key, 0) + 1
+        for taxid in {t for c in contigs for t in contig_taxa.get(c, ())}:
+            adj_reads[key, taxid] = adj_reads.get((key, taxid), 0) + 1
+            if sum((c, taxid) in best_ok for c in contigs) == nh:
+                best_reads[key, taxid] = best_reads.get((key, taxid), 0) + 1
+    if not mol_reads:
+        raise DiscoveryError(f"{bam} has no CB/UB molecule; missing data is not absence.")
+    if called and not any(cb in called_set for cb, _ in mol_reads):
+        raise DiscoveryError("no STAR molecule barcode is a called cell: barcode spaces differ.")
+    out = output or discovery_dir / STAR_EVIDENCE_TSV
+    with out.open("w", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(EVIDENCE_COLUMNS)
+        for taxid in sorted(panel):
+            adj = {k for k, t in adj_reads if t == taxid}
+            best = {k for k in adj if best_reads.get((k, taxid), 0) == mol_reads[k]}
+            shared = best & groups.get(taxid, set())
+            writer.writerow(
+                [taxid, "corroboration", "star", len(adj), len(best)]
+                + [len({cb for cb, _ in shared}), len(shared)]
+            )
+    return out
+
+
+READ_SUPPORT_EVIDENCE_TSV = "evidence_read_support.tsv"
+READ_SUPPORT_SOURCE = "minimap2"
+
+
+def _best_scores_from_bam(bam: str) -> dict[str, dict[str, int]]:
+    """``read name -> {reference: best AS}`` from ``samtools view`` (secondaries included)."""
+    from viralscan.evidence import _sam_lines
+
+    hits: dict[str, dict[str, int]] = {}
+    for line in _sam_lines(bam):
+        f = line.split("\t")
+        if int(f[1]) & 4:
+            continue
+        score = next((int(t[5:]) for t in f[11:] if t.startswith("AS:i:")), None)
+        if score is None:
+            raise DiscoveryError(f"{bam}: alignment of {f[0]} has no AS tag.")
+        refs = hits.setdefault(f[0], {})
+        refs[f[2]] = max(score, refs.get(f[2], score))
+    return hits
+
+
+def _prefixed_fasta(sources: list[tuple[str, Path]], output: Path) -> Path:
+    """Concatenate FASTAs, prefixing each record name with its source label (keeps roles apart)."""
+    from viralscan.evidence import _open_maybe_gzip
+
+    with output.open("w") as out:
+        for label, src in sources:
+            with _open_maybe_gzip(str(src)) as handle:
+                for line in handle:
+                    out.write(f">{label}_{line[1:]}" if line.startswith(">") else line)
+    return output
+
+
+def build_read_support_evidence(
+    discovery_dir: Path,
+    sample_dir: Path,
+    r1: Path,
+    r2: Path,
+    host_fasta: Path,
+    candidate_fastas: dict[int, Path],
+    *,
+    panel_fasta: Path | None = None,
+    max_candidates: int = 3,
+    output: Path | None = None,
+    aligner: Any = None,
+    hit_reader: Any = None,
+) -> Path:
+    """Write the route (ii) ``source=minimap2`` evidence table (DISC-13, plan §9.3); returns its path.
+
+    *r1*/*r2* must be the resolved pair discovery classified (read ordinals are checked against
+    ``reads.tsv.gz`` read IDs). Per candidate taxid T in *candidate_fastas* (at most *max_candidates*,
+    each a ``candidates.tsv`` taxid, else ``DiscoveryError``): the reads of every resolved called-cell
+    group with ``resolved_taxid == T`` (ordinals via ``barcodes.tsv.gz``) are extracted as
+    ``<CB>_<UMI>_<n>|<read_id>`` (R2), aligned to ``HOST|`` + ``VIRUS|CAND_*`` (T's FASTA) and optionally
+    ``VIRUS|PANEL_*`` (*panel_fasta*) via ``write_competitive_fasta`` (*aligner*, default
+    ``align_reads_to_viral``; *hit_reader*, default a ``samtools view`` AS parse, returns
+    ``{read: {reference: best AS}}``). Per read, ``n_adjudicated`` counts every extracted read,
+    **including unmapped ones** (tested and found no support; they stay in the denominator, never
+    absence-by-omission). ``n_taxon_best`` counts a read only when its best AS on candidate contigs
+    strictly exceeds its best AS on any host or panel contig; ties, host wins and panel wins are
+    adjudicated, not taxon-best. Shared cells / (CB, UMI) are those of the taxon-best reads (all
+    inside resolved called-cell groups of T by construction). A candidate with no resolved called-cell
+    read gets no row (``not_assessed``); one whose reads all fail gets a ``negative`` row. Refuses
+    unless the called cells are in kb barcode space. No automatic genome download.
+    """
+    import tempfile
+
+    from viralscan.evidence import (
+        align_reads_to_viral,
+        extract_exact_reads_by_number,
+        write_competitive_fasta,
+    )
+
+    aligner = aligner or align_reads_to_viral
+    hit_reader = hit_reader or _best_scores_from_bam
+    if not candidate_fastas:
+        raise DiscoveryError("no candidate FASTA given.")
+    if len(candidate_fastas) > max_candidates:
+        raise DiscoveryError(
+            f"{len(candidate_fastas)} candidates exceed max_candidates={max_candidates}."
+        )
+    called, info = load_called_cells(sample_dir)
+    if info["called_cells_barcode_space"] != "kb":
+        raise DiscoveryError(
+            f"called cells are in {info['called_cells_barcode_space']!r} barcode space, not kb."
+        )
+    needed = [discovery_dir / n for n in (READS_TSV, BARCODES_TSV, UMI_GROUPS_TSV, CANDIDATES_TSV)]
+    for path in [
+        *needed,
+        r1,
+        r2,
+        host_fasta,
+        *candidate_fastas.values(),
+        *([panel_fasta] if panel_fasta else []),
+    ]:
+        if not Path(path).is_file():
+            raise DiscoveryError(f"{path} is missing.")
+    known = {int(r["taxid"]) for r in _tsv_rows(discovery_dir / CANDIDATES_TSV)}
+    if set(candidate_fastas) - known:
+        raise DiscoveryError(
+            f"candidate taxids not in {CANDIDATES_TSV}: {sorted(set(candidate_fastas) - known)}"
+        )
+    called_set = set(called)
+    resolved: dict[tuple[str, str], int] = {}
+    for row in _tsv_rows(discovery_dir / UMI_GROUPS_TSV):
+        if (
+            row["group_class"] == "resolved"
+            and row["corrected_cb"] in called_set
+            and int(row["resolved_taxid"]) in candidate_fastas
+        ):
+            resolved[row["corrected_cb"], row["umi"]] = int(row["resolved_taxid"])
+    by_taxon: dict[int, dict[int, dict[str, object]]] = {t: {} for t in candidate_fastas}
+    for row in _tsv_rows(discovery_dir / BARCODES_TSV):
+        taxid = resolved.get((row["corrected_cb"], row["umi"]))
+        if taxid is not None:
+            by_taxon[taxid][int(row["ordinal"])] = {
+                "cb": row["corrected_cb"],
+                "ub": row["umi"],
+            }
+    wanted = {o for reads in by_taxon.values() for o in reads}
+    read_ids = {
+        int(r["ordinal"]): r["read_id"]
+        for r in _tsv_rows(discovery_dir / READS_TSV)
+        if int(r["ordinal"]) in wanted
+    }
+    out = output or discovery_dir / READ_SUPPORT_EVIDENCE_TSV
+    rows: list[list[Any]] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        for taxid, lineage in sorted(by_taxon.items()):
+            if not lineage:
+                continue  # nothing tested: not_assessed, never negative
+            reads_fa, lin = work / f"{taxid}.fa", work / f"{taxid}.lineage.tsv.gz"
+            extract_exact_reads_by_number(str(r1), str(r2), lineage, str(reads_fa), str(lin))
+            for name in (r for r in _tsv_rows(lin)):
+                if name["read_id"] != read_ids[int(name["read_number"])]:
+                    raise DiscoveryError(
+                        f"read {name['read_number']}: FASTQ id {name['read_id']!r} differs from "
+                        f"{READS_TSV}; not the resolved pair discovery classified."
+                    )
+            virus = _prefixed_fasta(
+                [
+                    ("CAND", candidate_fastas[taxid]),
+                    *([("PANEL", panel_fasta)] if panel_fasta else []),
+                ],
+                work / f"{taxid}.virus.fa",
+            )
+            ref = write_competitive_fasta(
+                str(host_fasta), str(virus), str(work / f"{taxid}.ref.fa")
+            )
+            hits = hit_reader(aligner(str(reads_fa), ref, str(work / f"{taxid}.bam")))
+            best: set[int] = set()
+            for number in lineage:
+                scores = hits.get(
+                    f"{lineage[number]['cb']}_{lineage[number]['ub']}_{number}|{read_ids[number]}",
+                    {},
+                )
+                cand = max(
+                    (s for r, s in scores.items() if r.startswith("VIRUS|CAND_")), default=None
+                )
+                other = max(
+                    (s for r, s in scores.items() if not r.startswith("VIRUS|CAND_")), default=None
+                )
+                if cand is not None and (other is None or cand > other):
+                    best.add(number)
+            keys = {(str(lineage[n]["cb"]), str(lineage[n]["ub"])) for n in best}
+            rows.append(
+                [
+                    taxid,
+                    "read_support",
+                    READ_SUPPORT_SOURCE,
+                    len(lineage),
+                    len(best),
+                    len({c for c, _ in keys}),
+                    len(keys),
+                ]
+            )
+    with out.open("w", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(EVIDENCE_COLUMNS)
+        writer.writerows(rows)
+    return out
+
+
 def judge_evidence(row: dict[str, Any] | None, route: str) -> tuple[str, str]:
     """``(assessment, why)``: ``not_assessed`` (no row), ``negative`` or ``positive``. Never conflated."""
     if row is None:
@@ -1575,7 +1880,10 @@ def run_discover(args: argparse.Namespace) -> None:
     from viralscan.run_safety import software_identity
     from viralscan.validation import tool_provenance
 
-    called, cells_info = load_called_cells(sample_dir)
+    called, cells_info = load_called_cells(
+        sample_dir,
+        Path(args.called_cells).resolve() if getattr(args, "called_cells", None) else None,
+    )
     onlist = resolve_onlist(config.technology, config.whitelist)
     bustools = tool_provenance(("bustools",))["bustools"]
     manifest = json.loads((run_root / RUN_MANIFEST).read_text(encoding="utf-8"))
@@ -1605,6 +1913,7 @@ def run_discover(args: argparse.Namespace) -> None:
         "input_source": _input_identity(sample_dir, run_root, args),
         "host_subtract": args.host_subtract,
         **{k: cells_info[k] for k in ("called_cells_sha256", "called_cells_barcode_space")},
+        "called_cells_path": cells_info.get("called_cells_path"),
     }
     # memory_mapping, threads, paths and the software build change speed or location, not output.
     provenance["fingerprint_inputs"] = {

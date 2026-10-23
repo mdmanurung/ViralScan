@@ -4,8 +4,8 @@
 #SBATCH --time=2:00:00
 #SBATCH --mem=16G
 #SBATCH --cpus-per-task=8
-#SBATCH --output=/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/covid_viralscan/logs/evidence_rerun_%j.log
-#SBATCH --error=/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/covid_viralscan/logs/evidence_rerun_%j.err
+#SBATCH --output=slurm_%x_%j.log
+#SBATCH --error=slurm_%x_%j.err
 
 # Reproducibility fix for T5: regenerate viral_reads.bam + coverage.tsv from
 # the committed pipeline, closing the gap left by the undocumented hf_align
@@ -21,6 +21,9 @@
 #
 # Usage: sbatch scripts/slurm_evidence_rerun.sh
 
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+
 set -euo pipefail
 
 # ── Conda ─────────────────────────────────────────────────────────────────────
@@ -29,8 +32,8 @@ eval "$__conda_setup"
 conda activate evtools
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-REPODIR=/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan
-VIRAL_FA=/exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/viralscan_ref/viral_genome.dedup.fa
+REPODIR=$SITE_ROOT/ViralScan
+VIRAL_FA=$SITE_SCRATCH/ViralScan/covid_viralscan/viralscan_ref/viral_genome.dedup.fa
 THREADS=8
 
 echo "=== Evidence rerun $(date) ==="

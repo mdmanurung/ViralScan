@@ -1,5 +1,7 @@
 # G02 representative whole-run proposal — pending approval
 
+> Path placeholders: `$SITE_SCRATCH` = site scratch root (institutional filesystem paths, replaced by placeholders).
+
 No scheduler job is submitted by this document. The authorized code delivery can
 finish independently; production stage attribution remains unmeasured until this
 separate run is approved and succeeds. No production speedup follows from the local
@@ -16,8 +18,8 @@ default-emptyDrops run or as coverage of optional filtering/evidence/model stage
 
 Read-only inputs, verified present on 2026-10-19:
 
-- R1/R2: `/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/reference_strategy/SRR12682296/SRR12682296_{1,2}.fastq.gz` (2.27GB/8.67GB).
-- Index/t2g/GTF: `/exports/para-lipg-hpc/mdmanurung/ViralScan/ebv_latest_ref_2026-09-27/full_panel/{index.idx,t2g.txt,viral_final.gtf}`.
+- R1/R2: `$SITE_SCRATCH/ViralScan/benchmark_inputs/reference_strategy/SRR12682296/SRR12682296_{1,2}.fastq.gz` (2.27GB/8.67GB).
+- Index/t2g/GTF: `$SITE_SCRATCH/ViralScan/ebv_latest_ref_2026-09-27/full_panel/{index.idx,t2g.txt,viral_final.gtf}`.
 
 Use pre-performance main `6910c2d` as baseline and the final merged main revision as
 candidate. Before execution freeze full commit/runtime/input/binary/config hashes,

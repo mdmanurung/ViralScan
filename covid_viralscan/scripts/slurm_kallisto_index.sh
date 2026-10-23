@@ -21,10 +21,13 @@
 #SBATCH -o covid_viralscan/logs/kallisto_index_%j.log
 #SBATCH -e covid_viralscan/logs/kallisto_index_%j.err
 
+SITE_SCRATCH=${VIRALSCAN_SITE_SCRATCH:?set VIRALSCAN_SITE_SCRATCH to the site scratch root}
+COLLAB_ROOT=${VIRALSCAN_COLLAB_ROOT:?set VIRALSCAN_COLLAB_ROOT to the collaborator root}
+
 set -euo pipefail
 
-REPO=/exports/para-lipg-hpc/mdmanurung/ViralScan
-VS_CONDA_ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+REPO=$SITE_SCRATCH/ViralScan
+VS_CONDA_ENV=$COLLAB_ROOT/conda/envs/test_viralscan
 KALLISTO=$VS_CONDA_ENV/lib/python3.12/site-packages/kb_python/bins/linux/kallisto/kallisto
 export PATH="$VS_CONDA_ENV/bin:$PATH"
 

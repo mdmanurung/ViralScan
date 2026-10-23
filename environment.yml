@@ -51,4 +51,5 @@ dependencies:
   - pre-commit
 
   # pip is used for local source installs: python -m pip install -e .
+  # Optional --scautoqc (SCTK) deps: python -m pip install -e '.[scautoqc]'
   - pip

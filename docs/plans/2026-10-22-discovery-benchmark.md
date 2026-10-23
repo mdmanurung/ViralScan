@@ -1,6 +1,6 @@
 # DISC-12 — discovery benchmark protocol (DRAFT, not frozen)
 
-**Status:** decisions recorded 2026-10-22 (grilling Q1–Q6, Q12); nothing has been run. The protocol is frozen when the
+**Status: FROZEN 2026-10-23** (user approval, §8); nothing has been run yet. The protocol is frozen when the
 user approves this PR after the viral-only DB is downloaded and the spike-in truth check (§2) is done, so §8 pins every
 hash at once. Until then no discovery performance number may be quoted (gate G13 of
 `docs/plans/2026-10-21-kraken2-discovery-plan.md`).
@@ -108,10 +108,10 @@ Per library × DB × configuration:
 
 | Field | Value |
 |---|---|
-| Approved by | — (user approval of this PR is the freeze) |
-| Approval date | — |
+| Approved by | user ("merge 112, 103") |
+| Approval date | 2026-10-23 |
 | Protocol commit | the merge commit of this PR |
-| Code commit for runs | `main` after PR #112 (`discover --called-cells`) merges; recorded in each run's `provenance.json` |
+| Code commit for runs | `main` at or after `6e4035e` (PR #112, `discover --called-cells`); recorded in each run's `provenance.json` |
 | Input manifest | `docs/plans/disc12/input_manifest.tsv` (21 files: 14 read files + 7 called-cell files), sha256 `a765d9cb…c9d6` (`$SITE_ROOT` = site work root; full-path original in the run work dir) |
 | Databases | §3 (both `hash.k2d` / `opts.k2d` / `taxo.k2d` sha256) |
 | Spike-in truth | grid 25864985 truth tables (ordinary reads); host-homologous set built as the first run step (Q16), its truth hashed into the run receipts |

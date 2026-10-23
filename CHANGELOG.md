@@ -5,14 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Reviewed diagnostic corrections (unreleased)
+## Unreleased (after 3.0.0rc1)
+
+- `viralscan discover --called-cells FILE` replaces the run's own `called_cells.tsv` (e.g. the EmptyDrops cells of a full-matrix run when a two-step run called only virus-carrying barcodes). The file's barcode space comes from its own `cell_calling_input.json`; its path and sha256 are recorded in `provenance.json` and the sha256 enters the fingerprint.
+
+## 3.0.0rc1 (release candidate; date set when tagged)
 
 - Added `viralscan discover` and `viralscan discover-collapse` (PLAN `DISC`): Kraken2 classification of a completed run's host-unmapped reads, grouped by cell barcode and UMI into `cell_taxon.h5ad`, `candidates.tsv` (observation state only), `qc.json` and `provenance.json`, published atomically with a fingerprint and a no-op rerun. Classifications are not infection calls; the primary counts, `detected` and tiers do not change, and no discovery performance claim is made. Optional `environment.discovery.yml` and `viralscan doctor --profile discovery`. See `docs/discovery.md`.
+
+- **Breaking (CLI-UNIFY-02, layout version 2):** post-hoc verbs write under `<run-dir>/posthoc/` by default
+  and never modify the run's own outputs. `evidence`: `--output` optional (`posthoc/evidence/<virus>`);
+  `rerun-multimap`: `-o` optional (`posthoc/multimap_<method>`, still must be empty); `rerun-programs`: writes
+  `posthoc/programs/` (no longer in place, no marker re-stamp); `hostresponse`: `posthoc/hostresponse`;
+  `evidence --review-candidates`: `evidence_review.tsv` moves from `results/` to the evidence output
+  directory. `run_manifest.json` records `layout_version: 2`; `validate-run` accepts 1 and 2 and ignores
+  `posthoc/`. See `docs/migration.md`.
+
 - The evidence step writes scPathoQuant-style coverage maps (`<ref>_coveragemap.<layer>.{png,pdf}`, via `bamCoverage`, `gtf2bed` and `pyGenomeTracks`) plus a read-competition track figure and a stacked histogram, replacing `coverage.raw_vs_deduplicated.png`. New tools in `environment.coverage.yml` (optional; `viralscan doctor --profile coverage`): `pygenometracks`, `deeptools`, `bedops`. The read-competition classification also works on STAR/STARsolo BAMs (no `SA` tag): partners come from the other records of `NH`>1 reads (`samtools view -N`).
 - **Breaking:** `viralscan hostresponse -o RUN_DIR` is now `--run-dir RUN_DIR` (it was an input run
   directory, unlike `-o/--output` elsewhere). `-o` errors with the replacement; `--output DIR` is optional and
-  names where hostresponse writes (default `<run-dir>/hostresponse`, so the layout is unchanged).
+  names where hostresponse writes (see the layout-version-2 entry above for the default).
 
+- Added `viralscan.star_hostvirus` (PLAN STAR-HOSTVIRUS-01): builds one STAR index of the host genome
+  (`HOST|` contigs) plus the viral panel (`VIRUS|`), and aligns host-unmapped read pairs with STARsolo
+  (multimappers kept, CB/UB tags) to a coordinate-sorted, indexed BAM for coverage maps. Run from the
+  workflow with `viralscan run --star-confirm` (PLAN STAR-04, below).
+- New `viralscan star-index` verb (PLAN STAR-03) builds the host + viral-panel STAR index and writes
+  `star_hostvirus_index.json` (input sha256, STAR version, arguments). `viralscan run --star-confirm
+  --star-hostvirus-index DIR` (PLAN STAR-04; needs `--host-filter starsolo`) aligns the host-filtered reads
+  to it and adds `star_reads_primary`, `star_reads_any`, `star_molecules`, `star_host_competing`,
+  `star_other_virus` to `viral_summary.tsv` plus `results/star_support_by_virus.tsv`. Labels only: no call
+  changes. STAR can miss short fragments, drops reads over 100 loci (HHV-6A/6B/7 telomeric repeats, so `star_host_competing` is a lower bound) and does not wrap circular genomes; the
+  spike-in detection-limit experiment (SPIKE-01) has not been run.
+- `star_hostvirus` hardening (PLAN STAR-02): barcodes are corrected against the chemistry's on-list by
+  default (raw barcodes only for list-less chemistries); `--strand forward|reverse|unstranded` maps to
+  `--soloStrand` (it was fixed to Unstranded); STAR 2.7.11b's exit-139 zero-mapped crash is recovered through a
+  shared `viralscan.star_run` (also used by `anello_align`); new per-virus summary
+  (`star_reads_primary/any`, `star_molecules`, `star_host_competing`, `star_other_virus`) and an optional
+  prune to a VIRUS|-only BAM.
 - `evidence-plot --coverage-map` now accepts a bare GTF seqid `ACC` for a viral BAM
   reference `CLASS|ACC` (host contigs are never prefix-stripped) and records the matched
   seqid and whether it was normalised in `coverage_map.<target>.json`.

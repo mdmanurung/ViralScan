@@ -38,6 +38,7 @@ from typing import Optional
 
 from viralscan.evidence import _open_maybe_gzip, cb_umi_geometry
 from viralscan.runconfig import RunConfig
+from viralscan.star_run import plain_whitelist
 from viralscan.utils import setup_script_logging
 
 log = setup_script_logging()
@@ -377,14 +378,7 @@ def starsolo_barcode_args(technology: str, whitelist: Optional[str]) -> list[str
     ]
 
 
-def _plain_whitelist(whitelist: Optional[str], work_dir: Path) -> Optional[str]:
-    """Return a plain-text copy of a gzipped *whitelist*; STAR cannot read .gz."""
-    if not whitelist or not whitelist.endswith(".gz"):
-        return whitelist
-    plain = work_dir / "whitelist.txt"
-    with gzip.open(whitelist, "rb") as source, open(plain, "wb") as target:
-        shutil.copyfileobj(source, target)
-    return str(plain)
+_plain_whitelist = plain_whitelist  # lifted to star_run (shared with star_hostvirus)
 
 
 # ── STARsolo mode ─────────────────────────────────────────────────────────────

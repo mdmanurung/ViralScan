@@ -26,6 +26,11 @@ does not say the organism is present, replicating, or in that cell.
 - A completed ViralScan run with host filtering (`host_filtered/` present) and
   `results/called_cells.tsv`. A run without `host_filtered/` needs
   `--host-subtract starsolo --host-index <STAR genomeDir>`; those reads go under `-o`.
+- `--called-cells FILE` replaces the run's own `called_cells.tsv`. A two-step run calls cells on barcodes
+  that carry viral reads, so an uninfected library can have only a handful; pass the EmptyDrops
+  `called_cells.tsv` of a full-matrix run of the same library instead. Its barcode space comes from the
+  `cell_calling_input.json` beside that file (`unknown` without one); its path and sha256 are recorded in
+  `provenance.json` and the sha256 enters the discovery fingerprint.
 - Kraken2 2.17.2 and `bustools` on `PATH`. Install the optional environment and check it:
 
   ```bash
@@ -204,8 +209,25 @@ and `n_taxon_best` cover all barcodes; the shared counts cover called cells only
 (CB, UMI) are those of the taxon-best molecules that are resolved called-cell groups of exactly that taxid. A candidate with no panel
 gene gets no row (`not_assessed`); one with panel genes but no molecule gets a zero row
 (`negative`). An empty molecule file, or one with no molecule in a called cell, aborts. It refuses unless the called cells are in kb barcode space (a STARsolo or unknown
-space, or kb molecules sharing no barcode with the called cells, aborts). STAR route (i) and
-route (ii) tables are still caller-built.
+space, or kb molecules sharing no barcode with the called cells, aborts). 
+`build_star_evidence(discovery_dir, sample_dir)` (Python API; no command) is the `source=star`
+counterpart (`evidence_star.tsv`). It reads the run's pruned `star_hostvirus/viral.bam`
+(`VIRUS|` records only), maps `VIRUS|<accession>` to taxids through `results/virus_identity.tsv`
+(same lineage rule as above) and counts molecules as distinct (CB, UB) with the `-N` suffix of the
+CB stripped; records with CB or UB missing or `-` are not molecules, and since STARsolo Unique mode
+gives multimappers no UB, counts are a lower bound. Host placements are invisible in the pruned BAM,
+so a read is taxon-best for a taxon only when its visible records on matching contigs equal its `NH`
+(above-species ancestors never win); a molecule is taxon-best when all its reads are. No called-cell
+overlap, a missing BAM or no molecule aborts.
+
+`build_read_support_evidence(discovery_dir, sample_dir, r1, r2, host_fasta, {taxid: candidate_fasta})`
+(Python API; no command, no genome download) writes the route (ii) `source=minimap2` table
+`evidence_read_support.tsv` for at most `max_candidates` (default 3) taxa. `r1`/`r2` must be the
+resolved pair discovery classified (read IDs are checked). The R2 reads of the taxon's resolved
+called-cell groups are aligned competitively to host, the candidate FASTA and optionally a panel
+FASTA. `n_adjudicated` counts every extracted read, unmapped ones included; `n_taxon_best` only reads
+whose best alignment score on the candidate is strictly above any host or panel score (ties and host
+or panel wins are not). A taxon with no resolved called-cell read gets no row (`not_assessed`).
 
 To count at species, genus or family level, run
 `viralscan discover-collapse OUT --rank {species,genus,family}`. It sums columns into the

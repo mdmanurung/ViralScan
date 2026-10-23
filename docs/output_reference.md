@@ -1,5 +1,10 @@
 # Output Reference
 
+For the guided path through the main files, see
+[Inspect results](inspect_results.md); for how to weigh a candidate, see
+[Assess the evidence](assess_evidence.md). This page is the exact file, column and
+AnnData-layer dictionary.
+
 Runs record `software_identity` in the root `run_manifest.json` and in
 `results/reference_provenance.json`: the executing package's content digest, plus Git
 commit and dirty-source status when run from its own checkout.
@@ -76,6 +81,7 @@ output/
     │   ├── kb.done
     │   ├── kb_count.log
     │   ├── multimap.done
+    │   ├── scautoqc.done                         # only with --scautoqc
     │   └── umap.done
     ├── kb-python/
     │   ├── counts_unfiltered/
@@ -96,6 +102,7 @@ output/
     └── results/
         ├── count_audit.tsv
         ├── virus_identity.tsv
+        ├── scautoqc_gene_annotations.tsv         # only with --scautoqc
         ├── viral_summary.tsv
         ├── viral_summary_by_species.tsv
         ├── viral_summary_by_genus.tsv
@@ -109,6 +116,7 @@ output/
         ├── molecule_assignments.tsv.gz
         ├── anello_alignment_by_accession.tsv
         ├── anello_alignment_by_virus.tsv
+        ├── star_support_by_virus.tsv
         ├── cell_type_enrichment.tsv
         └── reference_provenance.json
 ```
@@ -116,7 +124,7 @@ output/
 The sample directory keeps the files the original ViralScan 2.2.0 wrote (`config.yaml`,
 `summary.txt`, `log/`, `kb-python/`, `plots/`, same names); everything v3 added lives under
 `results/` (and `read_filtered/`, `report.html`). `layout_version` in `run_manifest.json` (outside
-`run_fingerprint`) is bumped whenever a published path moves; this layout is version 1.
+`run_fingerprint`) is bumped whenever a published path moves; this layout is version 2 (version 1 runs, which lack the `posthoc/` folder below, still validate).
 `combined_summary.tsv` at the run root stacks every sample's `results/viral_summary.tsv` under a
 leading `sample` column; it is rewritten with `run_complete.json` and holds no recomputed value.
 `summary.txt` opens with the original's block (`Found viral Gene IDs including the count:`,
@@ -150,7 +158,11 @@ This provenance is outside the resume fingerprint; drift remains a warning.
 `--auto-evidence`; see `results/evidence/<genus>/` below.
 `anello_alignment_by_accession.tsv` and `anello_alignment_by_virus.tsv` are
 present only when the anellovirus alignment branch ran (see below).
-UMAP files are present only when `--umap` is supplied. `host_filtered/` is
+`star_support_by_virus.tsv` and `star_hostvirus/` are present only with `--star-confirm` (see below).
+UMAP files are present only when `--umap` is supplied. scAutoQC annotations are
+added in place to existing count H5ADs only with `--scautoqc`; its QC-space UMAP
+HTML files are written when both `--scautoqc` and `--umap` are enabled. QC flags
+do not remove cells. `host_filtered/` is
 present only when `--host-filter` is supplied.
 `log/kb_count.log` retains the count command's output. Counting writes into a
 unique temporary directory and checks for a non-empty `counts_unfiltered/adata.h5ad` before replacing
@@ -200,9 +212,9 @@ kinds, so an observed count is never read as a model output or a conclusion:
 
 ## `run_complete.json`
 
-Written at the run root (beside `run_manifest.json`) only after every sample has finished, and again after `rerun-multimap`. It is the completion marker: a run without it was interrupted or is still in progress. Fields: `schema_version`, `run_fingerprint` (must equal the manifest's), `viralscan_version`, `samples`, `completed_at`, and `artifacts`, a map of `<sample>/<path>` to sha256 for the narrow set `results/viral_summary.tsv`, `results/virus_identity.tsv`, `results/multimap_evidence.tsv` and `kb-python/counts_unfiltered/adata_multimap.h5ad` (each only if present).
+Written at the run root (beside `run_manifest.json`) only after every sample has finished, and again in the new result directory of `rerun-multimap`. It is the completion marker: a run without it was interrupted or is still in progress. Fields: `schema_version`, `run_fingerprint` (must equal the manifest's), `viralscan_version`, `samples`, `completed_at`, and `artifacts`, a map of `<sample>/<path>` to sha256 for the narrow set `results/viral_summary.tsv`, `results/virus_identity.tsv`, `results/multimap_evidence.tsv` and `kb-python/counts_unfiltered/adata_multimap.h5ad` (each only if present).
 
-The marker is deleted whenever a run starts, resumes or overwrites, and re-computed by in-place commands (`rerun-programs`, `hostresponse`) when one existed. New runs set `completion_marker: true` in `run_manifest.json`; `viralscan validate-run` then treats a missing marker, a fingerprint mismatch or an artifact hash mismatch as an error. Runs whose manifest lacks the field only get a warning for a missing marker. Schema: `schemas/v3/run_complete.schema.json`.
+The marker is deleted whenever a run starts, resumes or overwrites, and never touched by post-hoc commands. New runs set `completion_marker: true` in `run_manifest.json`; `viralscan validate-run` then treats a missing marker, a fingerprint mismatch or an artifact hash mismatch as an error. Runs whose manifest lacks the field only get a warning for a missing marker. Schema: `schemas/v3/run_complete.schema.json`.
 
 `run_manifest.json` also carries `defaults_status`. It is `provisional` on every `3.0.0.devN` build: the detection defaults are not yet validated against the truth panel (gate G5), so any number from such a run is provisional. It becomes `final` from the release candidate. Like `completion_marker`, the field is outside `run_fingerprint`, so `--resume` still matches older manifests.
 
@@ -309,6 +321,11 @@ alignment branch below.
 | `alignment_breadth_unique` | The same, counting only single-placement (NH = 1) records, so secondary placements cannot make related genomes look covered. Same caveats; not a gate | diagnostic flag |
 | `alignment_breadth_max` | Breadth of the single best-covered genome of this virus (maximum of the per-accession `breadth`, circular-safe: positions are taken modulo the genome length). The read-weighted mean in `alignment_breadth` dilutes a well-covered genome among many sparsely covered relatives; this does not. Reporting only: not a gate, no call changes. Anellovirus alignment branch only; empty otherwise | diagnostic flag |
 | `alignment_breadth_unique_max` | The same, counting only single-placement (NH = 1) records (maximum of `breadth_unique`). Reporting only | diagnostic flag |
+| `star_reads_primary` | `--star-confirm` only. Host-filtered reads whose primary STAR record (host+virus index) lies on one of this virus's contigs (counted once per read, however many accessions of the virus it hits). Empty when the flag is off | observation |
+| `star_reads_any` | `--star-confirm` only. Reads with any record (primary or secondary) on this virus's contigs. A read on several accessions of one virus counts once. 0 when STAR placed nothing; empty when the flag is off | observation |
+| `star_molecules` | `--star-confirm` only. Distinct (CB, UB) pairs STARsolo itself assigned to a GeneFull feature on this virus's contigs (Unique mode, strand respected). This is not read support: STAR leaves multimapping, intergenic and wrong-strand reads out of it, so use `star_reads_any` for read counts. It is a Unique-mode, repeat-depleted lower bound: a read with NH > 1 gets no UB even when every placement is on the same viral contig, so reads in terminal or internal repeats (herpesvirus direct repeats, repetitive anellovirus regions) drop out and `star_molecules` can be 0 or tiny next to a large `star_reads_any`. Not comparable to the kallisto molecule counts and not usable as a per-cell infection count | observation |
+| `star_host_competing` | `--star-confirm` only. Reads with a viral record that also have a `HOST\|` record: the host-competition count the kallisto call cannot see | diagnostic flag |
+| `star_other_virus` | `--star-confirm` only. Reads with a record on this virus that also have a record on a different virus (another accession of the same virus does not count) | diagnostic flag |
 
 **Reading the artefact columns (F-019, update 2026-10-04).** The pileup
 position, the homopolymer fraction and the identity are each equally consistent
@@ -762,6 +779,16 @@ Rows with `detected = false` are excluded. A legacy summary without `detected`
 warns and retains all rows. Malformed flags in a newer summary stop processing.
 Blank flags are retained only for `detection_source = alignment_only` rows.
 
+With `--scautoqc`, the H5AD objects also store `scautoqc_*` per-cell QC metrics,
+cellwise/clusterwise flags, QC cluster labels, and
+`obsm['scautoqc_X_umap_qc']`. The generated `umap_scautoqc_*.html` plots use
+that QC-space embedding and include every cell in the H5AD (all barcodes, since the step
+runs before cell calling; the count is stored in `uns['scautoqc']['n_cells_scored']` and in
+the JSON `log/scautoqc.done`). The legacy UMAP count/gene filter is unchanged. Ensembl-indexed
+features are annotated through Scanpy's Ensembl BioMart queries; the resulting
+gene symbols and mitochondrial membership are cached in
+`results/scautoqc_gene_annotations.tsv`.
+
 Open in any modern browser — no internet connection required.
 
 ---
@@ -982,10 +1009,62 @@ call is expected. No row is a confirmed infection (`REF-10`).
 
 ---
 
+## STARsolo host+virus confirmation (`star_hostvirus/`, PLAN `STAR-04`)
+
+`viralscan run --star-confirm --star-hostvirus-index DIR` re-aligns the reads kallisto counted to one STAR
+index holding the host genome (`HOST|` contigs) and the viral panel (`VIRUS|`), built once by
+`viralscan star-index`. Multimappers are kept (up to 100 loci), so a viral read that also fits the host stays
+visible. Barcodes are corrected against the chemistry's on-list; `--strand` maps to `--soloStrand`
+(`unstranded` when unset).
+
+- `star_hostvirus/viral.bam` (+ `.bai`): the `VIRUS|`-only records, coordinate-sorted, with `CB`/`UB`
+  tags. The full BAM and STAR's temporary directory are deleted after summarising.
+- `results/star_support_by_virus.tsv`: one row per `virus_name` with `star_reads_primary`, `star_reads_any`,
+  `star_molecules`, `star_host_competing`, `star_other_virus` (same definitions as the `viral_summary.tsv`
+  columns above). Viruses STAR placed nothing on carry 0.
+- `log/star_confirm.done`: marker file.
+
+These are **labels, not a gate**: no call, tier, threshold or `detection_source` changes with
+`--star-confirm`. What it does **not** do:
+
+- It sees host-filtered reads only (it needs `--host-filter starsolo`), so host reads already removed
+  there are not re-tested.
+- STAR can miss short fragments and divergent reads kallisto places, so `star_reads_any = 0` is not evidence
+  against a call.
+- A read with more than 100 loci is dropped by STAR (`--outFilterMultimapNmax 100`). HHV-6A/6B/7 terminal and
+  telomeric repeat reads (TTAGGG, identical to human telomeres) exceed that cap, never reach the BAM and are
+  absent from every `star_*` column, including `star_host_competing`, which is therefore a lower bound that
+  excludes them. A telomere-driven call can show `star_reads_any` and `star_host_competing` near 0 without
+  the reads lacking host homology.
+- `star_molecules` is a Unique-mode, repeat-depleted lower bound (see its column row); reads in direct or
+  internal repeats of a viral genome are in `star_reads_any` only.
+- Circular genomes are not wrapped: reads across the origin split or soft-clip.
+- The spike-in detection-limit experiment (PLAN `SPIKE-01`) has **not been run**, so there is no measured
+  sensitivity or specificity for this arm. Gating calls on it (`STAR-GATE-01`) is undecided.
+
+---
+
 <!-- viralscan-claim:v3-evidence-workflow status=provenance_incomplete -->
+## `posthoc/` — post-hoc verb outputs (layout version 2)
+
+`<run-dir>/posthoc/` is reserved for the post-hoc verbs; each writes there by default and
+never modifies the run's own outputs (matrix, `results/`, `config.yaml`, `run_manifest.json`,
+`run_complete.json`). `--output` overrides the location. `validate-run` ignores `posthoc/`.
+
+| Verb | Default output |
+|---|---|
+| `evidence` | `posthoc/evidence/<virus>/` (`posthoc/evidence/review_candidates/` with `--review-candidates`) |
+| `evidence-plot` | inside each `--evidence-dir` (unchanged) |
+| `rerun-multimap` | `posthoc/multimap_<method>/` (a complete copy of the run; `posthoc/` itself is not copied) |
+| `rerun-programs` | `posthoc/programs/results/gene_program_{summary,cells}.tsv` |
+| `hostresponse` | `posthoc/hostresponse/` |
+
+`run --hostresponse` and `--auto-evidence` are part of the run itself and still write
+`<output>/hostresponse/` and `results/evidence/<genus>/`.
+
 ## `viralscan evidence` output
 
-Evidence is generated in the explicit `--output` directory for one exact
+Evidence is generated in the `--output` directory (default `<run-dir>/posthoc/evidence/<virus>`) for one exact
 accession, registered alias, or canonical call. With `--viral-fasta` it also
 requires a full `--host-fasta`; alignment and BLAST are competitive rather
 than virus-only.
@@ -1119,7 +1198,7 @@ Reference: [Single-cell best practices: shifted logarithm](https://www.sc-best-p
 ## `hostresponse/` — host-response outputs
 
 Written by `viralscan hostresponse` (or a main run with `--host-h5ad`) under
-`<output>/hostresponse/`. See the CLI reference for the flags; the key point is
+`<output>/hostresponse/` (the post-hoc command: `<run-dir>/posthoc/hostresponse/`). See the CLI reference for the flags; the key point is
 that the raw candidate-support label can be **depth-confounded**, so interpret
 the model AUC together with the depth baseline, cohort balance, and sensitivity
 metrics.
@@ -1315,10 +1394,10 @@ raw and deduplicated depth TSVs and samtools depth policy are unchanged.
 
 ```bash
 viralscan evidence --review-candidates --run-dir completed/sample \
-    --output completed/sample/results/evidence
+    --output completed/sample/posthoc/evidence/review
 ```
 
-This opt-in diagnostic writes `results/evidence_review.tsv`, one row per
+This opt-in diagnostic writes `evidence_review.tsv` in the output directory (default `posthoc/evidence/review_candidates/`), one row per
 Anelloviridae candidate, including below-gate and `alignment_only` candidates.
 Columns are `virus_name`, `detection_source`, `detected`, `evidence_source`,
 `n_reads`, `n_unique_cb_umi`, `complex_body_fraction`, `reagent_fraction`, `status`,

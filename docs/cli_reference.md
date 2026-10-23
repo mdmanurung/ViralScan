@@ -2,8 +2,8 @@
 
 Run `viralscan --help` or `viralscan <subcommand> --help` to see options for
 the installed version. This page documents the public CLI as of ViralScan
-**3.0.0.dev1**. Available subcommands: `build-ref`, `data fetch`, `evidence`, `evidence-plot`,
-`rerun-multimap`, `doctor`, `validate-run`, `hostresponse`, and
+**3.0.0rc1**. Available subcommands: `build-ref`, `data fetch`, `evidence`, `evidence-plot`,
+`rerun-multimap`, `star-index`, `doctor`, `validate-run`, `hostresponse`, and
 `check-whitelist`.
 
 ---
@@ -86,6 +86,8 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 | `--host-filter ALIGNER` | | *(none)* | Optional irreversible host subtraction before quantification. V3 supports `starsolo` only. |
 | `--host-index PATH` | | *(none)* | Required with `--host-filter`; a full-host-genome STAR index directory. |
 | `--host-filter-star-params SET` | | `pinned` | STAR filter parameters for `--host-filter starsolo`: `pinned` or `star-default` (STAR's own defaults). |
+| `--star-confirm` / `--no-star-confirm` | | off | STARsolo confirmation arm: align the host-filtered reads to a host+virus STAR index and add `star_*` support columns to `viral_summary.tsv` plus `results/star_support_by_virus.tsv`. Labels only; no call changes. Requires `--host-filter starsolo`, `--star-hostvirus-index`, and STAR and samtools on `PATH` |
+| `--star-hostvirus-index DIR` | | *(none)* | Index directory from `viralscan star-index` (must hold `star_hostvirus_index.json`); required by `--star-confirm` |
 | `--read-filter MODE` | | `off` | Read-artefact filter before `kb count` (DEF-01): `off` or `artefact`. Drops TSO/reagent chimeras and reads with no complex body; also drops low-complexity viral reads. |
 
 ### Detection thresholds
@@ -313,7 +315,7 @@ confirm infection.
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--run-dir PATH` | | *(required)* | A completed ViralScan run output directory |
-| `--output PATH` | `-o` | *(required)* | Directory for evidence outputs |
+| `--output PATH` | `-o` | `<run-dir>/posthoc/evidence/<virus>` | Directory for evidence outputs |
 | `--viral-fasta PATH` | | *(none)* | Exact target-virus FASTA; enables competitive BAM/coverage/QC and requires `--host-fasta` |
 | `--host-fasta PATH` | | *(none)* | Full host-genome FASTA required with `--viral-fasta` |
 | `--virus STRING` | | *(required)* | Exact accession/gene, registered alias, or canonical detected call; substring matching is forbidden |
@@ -334,8 +336,8 @@ viralscan evidence \
   --viral-fasta EBV.fa \
   --host-fasta GRCh38.fa \
   --virus EBV \
-  --blast --read-start-profile --cell-tags \
-  -o output/sample/evidence/
+  --blast --read-start-profile --cell-tags
+# writes output/sample/posthoc/evidence/EBV/; pass -o DIR to write elsewhere
 ```
 
 ---
@@ -377,7 +379,8 @@ viralscan rerun-multimap [OPTIONS]
 
 Re-run the multimapping step with a different algorithm for an existing run,
 skipping the expensive pseudoalignment (`kb count`). The source tree is copied
-to the required new output directory and is never modified. For `equal`,
+to a new output directory (default `<run-dir>/posthoc/multimap_<method>`); the
+run's own outputs are never modified. For `equal`,
 `host-conservative`, and `unique-weighted`, a schema-valid v3 H5AD can use its
 pre-stored allocation layers without BUS reprocessing. `em-global`, `em-cell`,
 and older/incomplete H5AD files reprocess the retained BUS input.
@@ -391,8 +394,8 @@ used without an explicit rerun and audit. This remains tracked as `SW-04` and
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--run-dir PATH` | | *(required)* | Completed source run; it is never modified. |
-| `--output PATH` | `-o` | *(required)* | New result directory; it must not already be non-empty. |
+| `--run-dir PATH` | | *(required)* | Completed source run; its own outputs are never modified. |
+| `--output PATH` | `-o` | `<run-dir>/posthoc/multimap_<method>` | New result directory; it must not already be non-empty. |
 | `--multimap-method METHOD` | | *(required)* | Multimapping resolution method: `conservative`, `em`, or `equal` |
 | `--cores N` | `-c` | `6` | Total CPU budget; native workers (kb, bustools, STAR, ...) are bounded to it |
 | `--multimap-em-max-iter N` | | *(preserve)* | (EM methods) Maximum iterations; omit to keep the existing config value |
@@ -403,7 +406,7 @@ used without an explicit rerun and audit. This remains tracked as `SW-04` and
 Examples:
 
 ```bash
-viralscan rerun-multimap --run-dir out/ -o out_hc/ --multimap-method conservative
+viralscan rerun-multimap --run-dir out/ --multimap-method conservative   # -> out/posthoc/multimap_conservative/
 viralscan rerun-multimap --run-dir out/ -o out_em/ --multimap-method em --cores 8
 ```
 
@@ -430,12 +433,12 @@ processes in the above-threshold gene set.
 
 The viralscan output directory must already contain `config.yaml` and a
 completed multimap step (`log/multimap.done`). Results are written to
-`<run-dir>/hostresponse/` unless `--output` is given.
+`<run-dir>/posthoc/hostresponse/` unless `--output` is given.
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--run-dir PATH` | | *(required)* | Existing viralscan sample output directory (input; contains `config.yaml`) |
-| `--output DIR` | | `<run-dir>/hostresponse` | Directory hostresponse writes to (`-o` was removed; it meant the run directory) |
+| `--output DIR` | | `<run-dir>/posthoc/hostresponse` | Directory hostresponse writes to (`-o` was removed; it meant the run directory) |
 | `--host-h5ad PATH` | | *(required)* | Host gene-expression h5ad (cells × genes, matched barcodes) |
 | `--n-seeds N` | | from config or `6` | Random seeds for multi-seed L2 regression |
 | `--n-stab-iter N` | | from config or `100` | Stability-selection iterations |
@@ -572,6 +575,32 @@ table below.
 
 ---
 
+## `viralscan star-index` — host + viral STAR index
+
+Builds the single STAR index used by `viralscan run --star-confirm`. It prefixes the host and viral FASTA/GTF
+with `HOST|` / `VIRUS|`, runs `STAR --runMode genomeGenerate`, and writes `star_hostvirus_index.json` (input
+sha256 values, STAR version, exact arguments, contig counts). `run` refuses an index without that manifest.
+Output: `<out-dir>/reference/` and `<out-dir>/index/`. A human genome plus the full panel took about 77 GB RAM
+and ~50 min; this is a one-off build, so do not run it on a login node.
+
+```bash
+viralscan star-index --host-fasta GRCh38.fa --host-gtf GRCh38.gtf \
+  --viral-fasta viral.fa --viral-gtf viral.gtf --out-dir star_hostvirus_ref --threads 16
+```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--host-fasta PATH`, `--host-gtf PATH` | | *required* | Host genome FASTA and annotation |
+| `--viral-fasta PATH`, `--viral-gtf PATH` | | *required* | Viral panel FASTA and annotation |
+| `--out-dir PATH` | | *required* | Output directory |
+| `--threads N` | `-c` | `8` | STAR threads |
+| `--ram-bytes N` | | `85000000000` | STAR `--limitGenomeGenerateRAM` |
+| `--force` | | off | Rebuild over an existing `<out-dir>/index` (only if it holds a star-index manifest) |
+
+See the Output reference for what `--star-confirm` adds and does not do. In particular, HHV-6A/6B/7 telomeric repeat reads exceed STAR's 100-locus cap and are absent from every `star_*` column (`star_host_competing` is a lower bound), and `star_molecules` is a Unique-mode, repeat-depleted lower bound.
+
+---
+
 ## `viralscan doctor` — dependency/profile check
 
 ```
@@ -622,16 +651,16 @@ or broken count invariants make validation fail rather than silently downgrade.
 
 ## `viralscan rerun-programs` — re-score gene programmes
 
-Run layer 2 over a completed run, **in place**:
+Run layer 2 over a completed run; results go to `<run-dir>/posthoc/programs/` by default:
 
 ```bash
 viralscan rerun-programs --run-dir output/sample/ --programme-min-breadth 2
 ```
 
-Unlike `rerun-multimap` this does not copy the run and does not need a separate
-`--output`. Layer 2 only reads the count matrices and layer 1's
-`viral_summary.tsv` and adds two files, so there is no reason for the two
-directories to be able to disagree. It requires `log/detection.done` in the run
+Unlike `rerun-multimap` this does not copy the run. Layer 2 only reads the count
+matrices and layer 1's `viral_summary.tsv` and writes two `gene_program_*.tsv`
+files under `results/` of the output directory (`-o DIR` overrides the default);
+the run's own outputs are not modified. It requires `log/detection.done` in the run
 directory; without it the command refuses rather than emitting empty tables.
 
 ---
@@ -670,6 +699,7 @@ the sections above add context. Do not edit between the markers.
 | `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default (no flag): with the pinned kallisto 0.52.0 the effective behaviour is `unstranded` for every chemistry — kallisto 0.52.0 marks the 10x technologies strand-specific yet leaves the strand unset, so the legacy per-technology forward default no longer engages (upstream regression; kallisto <=0.51.1 defaulted 10x to forward). Set the flag explicitly for stranded quantification. 10x 5' libraries need `reverse` or `unstranded`: forward pseudoaligns only 6.5-8.9% of reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first 1M read pairs of each sample and picks one; the choice is recorded in run_manifest.json. |
 | `--multimapping, --no-multimapping` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |
 | `--umap` | `False` | Generate a UMAP plot. Significantly increases runtime. Default: off. |
+| `--scautoqc, --no-scautoqc` | `False` | Add optional SCTK scAutoQC cell/cluster flags and QC-space UMAP coordinates to H5AD outputs in place. Cells are retained. Requires viralscan[scautoqc]. Default: off. |
 | `--ncbi-accession NCBI_ACCESSION` | *(none)* | One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. ViralScan will download FASTA + GTF for each and build the index. Mutually exclusive with --reference / --fasta / --gtf. |
 | `--ncbi-email NCBI_EMAIL` | *(none)* | Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL. |
 | `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher E-utilities request rates with --ncbi-accession. Falls back to $NCBI_API_KEY. |
@@ -687,6 +717,8 @@ the sections above add context. Do not edit between the markers.
 | `--anellovirus-gene-ids, --no-anellovirus-gene-ids` | `True` | Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. Required for any reference built with `viralscan build-ref --reference-panel anellovirus` (or the bundled-panel builder), because those GTFs are materialized into the index rather than the panel directory. Off means 2,021 of 2,041 anellovirus genomes are counted but never reported. Default: True. |
 | `--gene-programs, --no-gene-programs` | `False` | Second layer: for viruses the detection rule already called, infer the viral gene programme (latent vs productive) per cell from uniquely-placing molecules, and write results/gene_program_summary.tsv and results/gene_program_cells.tsv. Only nine viruses have a programme model; for the rest a 'not_applicable' row is emitted so silence is not read as 'programme not detected'. Off by default. Default: False. |
 | `--anello-align, --no-anello-align` | `False` | Anellovirus alignment branch (PLAN ANDET-09): align every host-unmapped read to the panel's anellovirus genomes with STARsolo, independent of kallisto, and add alignment_* evidence columns plus detection_source to viral_summary.tsv. Runs only with --host-filter starsolo and an anello_star/ index next to the kb index (built by scripts/build_bundled_panel_ref.py); otherwise alignment_status records why it was skipped. The columns are labels, never filters. Default: False. |
+| `--star-confirm, --no-star-confirm` | `False` | STARsolo confirmation arm (PLAN STAR-04): align the host-filtered reads to the host+virus index given by --star-hostvirus-index (built by `viralscan star-index`) and add star_* per-virus support columns to viral_summary.tsv, plus results/star_support_by_virus.tsv. Labels only: no call, tier or threshold changes. Requires --host-filter starsolo and STAR/samtools on PATH. Default: False. |
+| `--star-hostvirus-index PATH` | *(none)* | Directory of a finished `viralscan star-index` index (must hold star_hostvirus_index.json). Required by --star-confirm. |
 | `--auto-evidence, --no-auto-evidence` | *(none)* | After detection, run `viralscan evidence` with host confirmation (minimap2 against host + viral) for every detected Anelloviridae genus, writing results/evidence/<genus>/. Needs --host-fasta, a viral-only FASTA (--viral-fasta, or viral.fa next to the index, as written by scripts/build_bundled_panel_ref.py), minimap2 and samtools, and multimapping. Re-reads the FASTQs once per genus. Opt-in, and stays so until ANELLO-PRIOR.3 closes. Default: off. |
 | `--host-capture, --no-host-capture` | *(none)* | Split each virus's reads by host compatibility: replay the quantified FASTQs through `kallisto bus -n`, capture the reads that touch a viral transcript, then `bustools capture --complement` the host transcripts. Writes results/host_capture.tsv with reads_virus_only (no host transcript in the read's equivalence class), reads_also_host and reads_total per virus. Needs an index that holds host transcripts (a combined host + virus index); on a virus-only index every count is 'not_applicable', never 0. Counts reads, not molecules. Needs kallisto and bustools. Opt-in. Default: off. |
 | `--host-fasta FASTA` | *(none)* | Full host-genome FASTA for --auto-evidence's competitive alignment. |
@@ -797,9 +829,9 @@ the sections above add context. Do not edit between the markers.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--review-candidates` | `False` | Review all Anelloviridae candidates, including below-gate and STAR-only rows; write results/evidence_review.tsv. |
+| `--review-candidates` | `False` | Review all Anelloviridae candidates, including below-gate and STAR-only rows; write evidence_review.tsv under the output directory. |
 | `--run-dir RUN_DIR` | *required* | A completed ViralScan run output directory. |
-| `--output, -o OUTPUT` | *required* | Directory for evidence outputs. |
+| `--output, -o OUTPUT` | *(none)* | Directory for evidence outputs (default: <run-dir>/posthoc/evidence/<virus>). |
 | `--viral-fasta VIRAL_FASTA` | *(none)* | Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). Omit for read-extraction only. |
 | `--host-fasta HOST_FASTA` | *(none)* | Full host-genome FASTA required with --viral-fasta for competitive v3 alignment and BLAST. |
 | `--competitor-fasta COMPETITOR_FASTA` | *(none)* | Explicit alternate/related/decoy FASTA; requires --competitor-manifest. |
@@ -843,8 +875,8 @@ the sections above add context. Do not edit between the markers.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir RUN_DIR` | *required* | Completed source run. It is never modified. |
-| `--output, -o OUTPUT` | *required* | New result directory; must not already be non-empty. |
+| `--run-dir RUN_DIR` | *required* | Completed source run. The run's own outputs are never modified; results go to posthoc/. |
+| `--output, -o OUTPUT` | *(none)* | New result directory; must not already be non-empty (default: <run-dir>/posthoc/multimap_<method>). |
 | `--multimap-method {conservative,em,equal}` | *required* | Multimapping resolution method to apply: conservative, em or equal (see 'viralscan run --help' for what each does). |
 | `--cores, -c CORES` | `6` | Number of cores for snakemake workers. Default: 6. |
 | `--multimap-em-max-iter N` | *(none)* | (em only) Maximum EM iterations. Default: preserves existing config value. |
@@ -870,6 +902,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 | `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
 | `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
 | `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |
+| `--called-cells FILE` | *(none)* | Use this called_cells.tsv instead of the sample's own (e.g. the EmptyDrops cells of a full-matrix run of the same library). Its barcode space is read from the cell_calling_input.json beside it; its sha256 enters the provenance and fingerprint. |
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | `pinned` | STAR filter parameter set for --host-subtract (as in the main run). Default: pinned. |
 | `--confidence CONFIDENCE` | `0.05` | Kraken2 --confidence (a k-mer fraction threshold, not a probability). Default: 0.05, the Cellsnake documented default; not calibrated here (Kraken2's own default is 0.0). |
 | `--minimum-hit-groups MINIMUM_HIT_GROUPS` | `4` | Kraken2 --minimum-hit-groups. Default: 4, the Cellsnake documented default; not calibrated here (Kraken2's own default is 2). |
@@ -907,6 +940,7 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 | Flag | Default | Help |
 |------|---------|------|
 | `--run-dir DIR` | *required* | A completed viralscan run directory (the one holding kb-python/ and results/). |
+| `--output, -o DIR` | *(none)* | Directory to write results/gene_program_*.tsv under (default: <run-dir>/posthoc/programs). |
 | `--programme-min-breadth N` | *(none)* | Distinct non-overlapping overlap groups required before a programme is called. Must be >= 1. Default: the run's own config (2 if it set none). |
 | `--programme-latent-min-breadth N` | *(none)* | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: the run's own config (1 if it set none). |
 | `--programme-min-umi X` | *(none)* | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: the run's own config (0.0 if it set none). |
@@ -922,7 +956,7 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 | Flag | Default | Help |
 |------|---------|------|
 | `--run-dir RUN_DIR` | *required* | Existing viralscan sample output directory (input; contains config.yaml). |
-| `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/hostresponse). |
+| `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/posthoc/hostresponse). |
 | `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
 | `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
 | `--n-stab-iter N` | *(none)* | Selection-frequency (randomized-Lasso) iterations (default: from config or 100). |
@@ -986,6 +1020,25 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 | `--tchem TCHEM` | `auto` | TusslChemistry (tchem) second opinion on the chemistry. auto (default): use it when a tchem binary is found, otherwise skip silently; require: stop when it is missing or unusable; off: skip. A disagreement with -x, or a tchem verdict of ambiguous/no_match, stops the run unless --force-technology. |
 | `--tchem-bin PATH` | *(none)* | tchem executable (default: $VIRALSCAN_TCHEM, then PATH). |
 | `--tchem-whitelists DIR` | *(none)* | Directory of tchem barcode lists (default: $VIRALSCAN_TCHEM_WHITELISTS). |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan star-index
+
+<!-- BEGIN GENERATED: star-index -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--host-fasta PATH` | *required* |  |
+| `--host-gtf PATH` | *required* |  |
+| `--viral-fasta PATH` | *required* |  |
+| `--viral-gtf PATH` | *required* |  |
+| `--out-dir PATH` | *required* |  |
+| `--threads, -c THREADS` | `8` | STAR threads. Default: 8. |
+| `--ram-bytes RAM_BYTES` | `85000000000` | STAR --limitGenomeGenerateRAM in bytes. GRCh38 + 2,343 viral genomes needed about 77 GB RAM and ~50 min. Default: 85000000000. |
+| `--force` | `False` | Rebuild over an existing <out-dir>/index (only if it holds a star-index manifest). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

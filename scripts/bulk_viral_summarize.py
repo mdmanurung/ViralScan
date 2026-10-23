@@ -13,8 +13,8 @@ IMPORTANT — run the format probe first:
 
 Usage:
     PYTHONPATH=/path/to/ViralScan/src python scripts/bulk_viral_summarize.py \\
-        --out-dir /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078/out \\
-        --summary /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078/bulk_viral_summary.tsv
+        --out-dir $SITE_SCRATCH/viralscan_bulk_gse128078/out \\
+        --summary $SITE_SCRATCH/viralscan_bulk_gse128078/bulk_viral_summary.tsv
 
 Output:
   bulk_viral_summary.tsv  — per-sample per-virus RPM table (viral gene_ids only)

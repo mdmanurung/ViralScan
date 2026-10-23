@@ -16,11 +16,11 @@
 #   ARM=combined_off sbatch --array=<rows> --cpus-per-task=4 --mem=32G --time=12:00:00 \
 #       -J dsr_off_S scripts/slurm_dsr_rerun_array.sh
 #
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round1/logs/%x_%A_%a.log
+#SBATCH -o slurm_%x_%j.log
 set -euo pipefail
 : "${ARM:?combined_off|combined_artefact|twostep}"
 # >>> dsr-env (tests/test_dsr_round_env.py evaluates this block alone)
-M=/exports/archive/hg-funcgenom-research/mdmanurung
+M=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
 ROUND1=$M/viralscan_work/dsr_round1
 R=${ROUND_DIR:-$ROUND1}
 CODE=${CODE_DIR:-$M/vs_pinned/bbf1821}

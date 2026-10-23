@@ -11,12 +11,14 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
 #SBATCH --time=1-00:00:00
-#SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42d/logs/%x_%j.log
+#SBATCH -o slurm_%x_%j.log
+SITE_ROOT=${VIRALSCAN_SITE_ROOT:?set VIRALSCAN_SITE_ROOT to the site work root}
+
 set -euo pipefail
-C=/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42d
+C=$SITE_ROOT/viral_ref_cat42d
 B=$C/build
 O=$C/build_virus_only
-export PATH=/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_env_pinned/bin:$PATH
+export PATH=$SITE_ROOT/viralscan_env_pinned/bin:$PATH
 mkdir -p "$O"
 kb ref -i "$O/virus_panel.idx" -g "$O/virus_panel.t2g" -f1 "$O/virus_cdna.fa" --overwrite \
   -t 8 --d-list "$C/dlist.fa" "$B/viral.fa" "$B/viral_panel.gtf"

@@ -1096,6 +1096,28 @@ def test_load_called_cells(tmp_path):
     )
 
 
+def test_load_called_cells_override_uses_its_own_receipt(tmp_path):
+    # the sample (two-step, starsolo space) is ignored; the override's sibling receipt decides
+    sample = tmp_path / "twostep"
+    (sample / "results").mkdir(parents=True)
+    (sample / "results" / "called_cells.tsv").write_text("barcode\nAAA\n")
+    (sample / "results" / "cell_calling_input.json").write_text(
+        json.dumps({"count_layer": "GeneFull.raw"})
+    )
+    full = tmp_path / "combined" / "results"
+    full.mkdir(parents=True)
+    (full / "called_cells.tsv").write_text("barcode\nAAA\nBBB\nCCC\n")
+    (full / "cell_calling_input.json").write_text(json.dumps({"method": "emptydrops"}))
+    called, info = discovery.load_called_cells(sample, full / "called_cells.tsv")
+    assert called == ["AAA", "BBB", "CCC"]
+    assert info["called_cells_barcode_space"] == "kb"
+    assert info["called_cells_path"] == str((full / "called_cells.tsv").resolve())
+    assert "called_cells_path" not in discovery.load_called_cells(sample)[1]
+    (full / "called_cells.tsv").write_text("barcode\n")
+    with pytest.raises(DiscoveryError, match="no called cells"):
+        discovery.load_called_cells(sample, full / "called_cells.tsv")
+
+
 # ── DISC-11: rank views ─────────────────────────────────────────────────────
 
 

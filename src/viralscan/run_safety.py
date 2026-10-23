@@ -228,6 +228,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         key: value
         for key, value in sorted(vars(args).items())
         if key not in excluded
+        and not (key == "scautoqc" and value is False)
         and (
             isinstance(value, (str, int, float, bool, type(None)))
             or (

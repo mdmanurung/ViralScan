@@ -134,7 +134,7 @@ def test_actual_release_tag_step_preserves_latest_for_prereleases(tmp_path, tag,
 
 def test_versions_agree_and_recipe_drift_is_detected(tmp_path):
     assert version_errors(ROOT) == []
-    assert version_errors(ROOT, "v3.0.0.dev1") == []
+    assert version_errors(ROOT, "v3.0.0rc1") == []
     assert any("release tag" in e for e in version_errors(ROOT, "v0.0.0"))
     for rel in [
         "src/viralscan/__init__.py",

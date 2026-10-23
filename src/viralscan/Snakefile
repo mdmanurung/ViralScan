@@ -123,6 +123,32 @@ if _ANELLO_ALIGN:
             "scripts/anello_align.py"
 
 
+# ── STARsolo host+virus confirmation arm (PLAN STAR-04) ─────────────────────
+# Opt-in (--star-confirm); menu.py guarantees host_index and a validated index.
+_STAR_CONFIRM = bool(
+    config.get("host_index")
+    and str(config.get("star_confirm", "")).lower() == "true"
+    and config.get("star_hostvirus_index")
+)
+
+if _STAR_CONFIRM:
+    rule star_confirm:
+        input:
+            r1 = config["kb_r1"],
+            r2 = config["kb_r2"],
+            virus_identity = f"{config['output']}results/virus_identity.tsv",
+        output:
+            bam = f"{config['output']}star_hostvirus/viral.bam",
+            bai = f"{config['output']}star_hostvirus/viral.bam.bai",
+            by_virus = f"{config['output']}results/star_support_by_virus.tsv",
+            done = f"{config['output']}log/star_confirm.done",
+        threads: config.get("cores", 6)
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/star_confirm.py"
+
+
 def _detection_inputs(wildcards):
     inputs = {
         "file_viral_accessions": f"{config['output']}log/analysis.txt",
@@ -131,6 +157,10 @@ def _detection_inputs(wildcards):
     }
     if _ANELLO_ALIGN:
         inputs["anello_done"] = f"{config['output']}log/anello_align.done"
+    if str(config.get("scautoqc", False)).lower() == "true":
+        inputs["scautoqc_done"] = f"{config['output']}log/scautoqc.done"
+    if _STAR_CONFIRM:
+        inputs["star_done"] = f"{config['output']}log/star_confirm.done"
     return inputs
 
 
@@ -254,6 +284,19 @@ rule multimap:
         snakefile_dir = lambda wildcards: workflow.basedir
     script:
         "scripts/multimap.py"
+
+if str(config.get("scautoqc", False)).lower() == "true":
+    rule scautoqc:
+        input:
+            config = f"{config['output']}config.yaml",
+            identity = f"{config['output']}results/virus_identity.tsv",
+            multimap_done = f"{config['output']}log/multimap.done",
+        output:
+            f"{config['output']}log/scautoqc.done"
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/scautoqc.py"
 
 rule detection:
     input:

@@ -1,10 +1,12 @@
 # DSR round 2 - comparability guard (binding on every agent)
 
+> Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
+
 Template. Copy to `dsr_round2/GUARD.md` once `<SHA>` is filled in; never edit the copy afterwards.
 Adapted from round 1's `dsr_round1/GUARD.md` (grill session 3, 2026-10-12; PLAN `DSR-16`).
 Every run is exploratory: labelled `explore`, unscored, no scored-gate (G5b) claim.
 
-Pinned code: /exports/archive/hg-funcgenom-research/mdmanurung/vs_pinned/<SHA> (clean `main` commit; never edit it).
+Pinned code: $SITE_ROOT/vs_pinned/<SHA> (clean `main` commit; never edit it).
 Reference: `cat42d` (`viral_ref_cat42d/build`, virus-only index `build_virus_only`), unchanged from round 1.
 Manifest (frozen, read-only): dsr_round2/manifest.tsv = round 1's manifest minus the two rows below
 (data row i = array index i, 0-based):
@@ -23,8 +25,8 @@ Arms differ ONLY by flags (implemented in scripts/slurm_dsr_rerun_array.sh, env 
 The round-1 baseline for `twostep` is round 1's `twostep_v2`.
 
 Environment (set before every sbatch):
-  ROUND_DIR=/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2
-  CODE_DIR=/exports/archive/hg-funcgenom-research/mdmanurung/vs_pinned/<SHA>
+  ROUND_DIR=$SITE_ROOT/viralscan_work/dsr_round2
+  CODE_DIR=$SITE_ROOT/vs_pinned/<SHA>
   (REF_BUILD defaults to the cat42d build; do not override it.)
 Pass `-o $ROUND_DIR/logs/%x_%A_%a.log` on every sbatch line (the in-script #SBATCH -o is round 1's).
 
@@ -58,5 +60,5 @@ emptyDrops failure ("insufficient unique points" etc.) => report `n/a: emptydrop
 A chem JSON that is missing, exit!=0 with chemistry null, or says unresolved => the cell is n/a, report it.
 
 ## Write only under dsr_round2/ (runs/, status/, logs/). Never write under dsr_round1/ (read-only). Do not write inside the repo tree.
-## Submit from the repo dir: /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan
+## Submit from the repo dir: $SITE_ROOT/ViralScan
 ## Wait with Monitor or a Bash until-loop (run_in_background), checking sacct no more than once per 5 minutes.
