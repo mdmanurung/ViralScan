@@ -3052,6 +3052,13 @@ runner time.
     `environment-file` CI job still builds from `environment.yml` (proposed: switch it to
     `environment-file: environment.explicit.txt` once the user has replayed the lock). Status
     stays `[~]` until that replay and REL-06.
+  - 2026-10-23 (REL-03-PIPCHECK): the first replay was the v3.0.0rc1 release Docker build (run 40007587542), and its
+    `pip check` failed. The lock (and `viralscan_test_full`) held `snakemake-interface-common` 1.23.1, which needs
+    `packaging>=26.1`, while snakemake 9.23.1 needs `packaging<26`; `pyseq-align` 1.0.2 needs `cython`, which was absent.
+    Fix: pin `snakemake-interface-common-1.23.0-pyh84498cf_0` (`packaging>=24,<26`; satisfies every
+    snakemake-interface-* dependent) and add `cython-3.3.0-py311h781f220_0` (deps already locked). Lock is now 488 rows;
+    both md5s were checked against the downloaded files. No env replay was done here (installs are the user's job); the
+    release Docker job is the replay.
   - 2026-10-04 prep: `environment.tools.lock.txt` lists the verified binaries
     (version, build, sha256) and the user's lock commands (conda-lock or
     pixi, `uv lock`). Resolving the locks needs the network (user).
