@@ -136,6 +136,7 @@
       "docs/reference_panel.md",
       "docs/requirements.txt",
       "docs/v3_counting_contract.md",
+      "environment.coverage.yml",
       "environment.explicit.txt",
       "environment.yml",
       "pyproject.toml",

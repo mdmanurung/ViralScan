@@ -20,6 +20,13 @@ completion.
 
 ## Next action
 
+- [~] `REPO-SPLIT-01` (2026-10-23, user: separate the package from the experiments): split this repo into
+  `ViralScan` (package) and `ViralScan-reproducibility` (experiments). Live tracker, decisions D1-D45 and
+  agent instructions: `/exports/para-lipg-hpc/mdmanurung/viralscan-split/SPLIT_TRACKER.md` (it moves into the
+  reproducibility repo once that exists). Rules: regression baseline and a scratch-clone rehearsal before
+  anything leaves this repo; compatibility symlinks are local-only and never committed. First step (this
+  change): `environment.coverage.yml` is in `MANIFEST.in` but was missing from the sdist ship scope, so
+  `check_ship_scope.py` failed; added. No files move in this change.
 - **2026-10-23:** spike-in grid done, flank index retired (F-028, SPIKE-VERDICT). Next: STAR-GATE-01 (user), DISC-12 freeze (#103), rc1 release prep.
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
