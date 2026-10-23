@@ -8029,7 +8029,8 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
 - [~] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`. Draft (2026-10-22, `codex/disc12-protocol`):
   `docs/plans/2026-10-22-discovery-benchmark.md`, not frozen, nothing run. Decisions recorded 2026-10-22 (Q1–Q6, Q12):
   `k2_viral_20260626` vs PlusPF-16; HHV-6B library by max primary unique molecules; HSV-1 Drop-seq excluded (`not_assessed`);
-  spike-in truth from array 25864985 if per-read; §5 rules filled. Freeze = user approves after DB download + truth check.
+  spike-in truth from array 25864985 if per-read; §5 rules filled. 2026-10-23: all inputs decided (Q3', Q16-Q20); input
+  manifest pinned (`docs/plans/disc12/input_manifest.tsv`); runs need `discover --called-cells` (PR #112). Freeze = user approves this PR.
 - [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
   `read_evidence_table` in `discovery.py` write `candidate_states.tsv` (`observation`, `corroborated` route i,
   `read_supported_observation` route ii; `corroboration` / `read_support` = `not_assessed|negative|positive`; viral-only DB
