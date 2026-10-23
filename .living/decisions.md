@@ -2079,3 +2079,41 @@ sensitivity claim; STAR-GATE-01 stays open.
 Supersedes the earlier "summed per virus_name" decision: `align_host_unmapped(virus_of=acc_to_virus)` makes `summarise_by_virus`
 key rows by virus name, so a read counts once per virus and `star_other_virus` means a different virus (not a sibling
 accession). `scripts/star_confirm.read_summary` now only reads the TSV. Without `virus_of` (standalone CLI) rows stay per accession.
+### [2026-10-21] Detection-limit spike-in design approved (user: "approve all"; Q1-Q4, Q6-Q8)
+- Question: what could the Track B pilot have detected? Method: spike real HHV-6B reads (GSM6416022, stratified by flank-audit class at real proportions) into null libraries; score old kb, flank kb, STARsolo host+virus.
+- Rules: call = >= 3 kb molecules AND >= 1 STAR read on one contig; limit = lowest level recovered in >= 2 of 3 seeds; keep flank index only if limit <= old index's and <= 5 unsupported UMIs per null library.
+- Grid: HHV-6B source; backgrounds D03 SRR29320037 + R01_SOC4 at ~45 M pairs, >= 3 unspiked replicates; levels 3/10/30/100/300 x 3 seeds x (5 cells | 100 cells) = 60 runs, after a smoke test (1 background, levels 10/100, 1 seed).
+- Exploratory under the Q21/LOCK-01 A2 override; no held-out cohort used. EBV spike waits for its flank audit.
+- Tooling: `analysis/spikein_detection_limit/` on `codex/spikein-detection-limit` (stacked on `codex/star-hostvirus-align`, unpushed). Correction found while building: the pilot STAR arm ran on raw inputs (arm2_star.sbatch), Track A used host_filtered reads.
+- Tags: methods, detection-limit, exploratory
+
+## [2026-10-21] Spike-in tooling: n_source_contig_any is the headline; spikes avoid background UMIs; spike-only arms get a barcode whitelist
+
+**Context**: Phase 5 review of SPIKE-01 tooling (not yet run).
+**Decision**: score.py counts any alignment (incl. secondary) on the truth contig as the call, matching the pre-set ">= 1 STAR read on the same contig" rule; spike barcodes come from the on-list top background barcodes and spike UMIs skip background (cb, UMI) pairs; `bg --frac --seed` replaces first-N for the grid; spike-only STAR arms pass a plain whitelist of spike barcodes to avoid the STAR 2.7.11b exit 139 with `--soloCBwhitelist None` and zero mapped reads.
+**Alternatives considered**: keep primary-only counting (would undercount multimappers); dummy one-barcode whitelist (ANDET-09-STAR139 route) rejected since the real spike barcodes are known.
+**Consequences**: spike over-writes nothing in the background; one extra full pass over bg R1 per spike call. Tags: spikein, SPIKE-01
+
+**Context**: SPIKE-02 / I1, EBV source (two contigs, 72 percent of reads NH=2 on type 1 + type 2).
+**Decision**: truth is a contig set; NH>1 reads are kept only if all NH alignments fall inside the set (record count in the set == NH, so no host lookup is needed); class and position come from the first truth contig's alignment, not STAR's arbitrary primary; truth table keeps `contig` = primary and adds `contigs`, `nh_stratum`, `src_contig`.
+**Alternatives considered**: NH=1 only (keeps 27.6 percent, biased to type1/type2-divergent regions); classify on primary (label flips for 7 percent of reads by coordinate system).
+**Consequences**: `--max-nh` default 1 keeps HHV-6B behaviour. Tags: spikein, SPIKE-02
+
+## [2026-10-22] Spike-in grid runner (SPIKE-02 / I2): score with the product's multimap output, freeze called cells, bg replicate = spike seed
+
+**Context**: Grid tooling that runs the real `viralscan run` per condition.
+**Decision**: kb arm = `counts_unique_viral` + `counts_ambiguous_allocated` (multimap_evidence columns) over spike barcodes and truth accessions, taken from adata_multimap.h5ad into a sparse bundle table; call = kb >= 3 AND STAR any-alignment >= 1 on the truth set; called cells frozen per background replicate (top 100 on-list barcodes, external caller); background subsample replicate = spike seed so null replicate s is the baseline of seed s; STAR arm from the old-index run only, flank run repeats the host filter (product path, no hand-wired reuse).
+**Alternatives considered**: emptyDrops per run (Monte-Carlo noise, R dependency, needs star_tmp); matrix-only scoring (undercounts: smoke showed 75 percent of flank spikes in multi-gene classes); reusing host_filtered FASTQ for the flank run (saves ~45 percent of runtime, not the product path).
+**Consequences**: detected column unused; unsupported-molecule floor is accession-level (kb molecules on non-truth accessions with no non-spike STAR read). Tags: spikein, SPIKE-02
+
+## 2026-10-22 Spike-in grid aggregation rules (SPIKE-02 / I3)
+**Context**: Turning per-condition scores into a limit and a flank keep/retire verdict.
+**Decision**: limit = lowest level met in >= 2 of 3 seeds with every higher level also met (monotone), per background x arm x layout; missing seeds count as not met. "Adds <= 5 unsupported UMIs per null library" is read as the per-replicate difference flank minus old (paired by bg_rep), maximum over >= 3 replicates; the absolute flank maximum is reported next to it. Limit tie passes, including both-not-reached (flagged in the notes). Overall verdict: retire if any background retires, else undetermined if any is, else keep. `aggregate.py report` refuses outright if any of the 66 conditions is missing or has a blank/failed score; the expected set comes from `grid.build_conditions()`, not from conditions.tsv, so the grid cannot be shrunk by editing the table.
+**Alternatives considered**: absolute flank unsupported count as the floor criterion (stricter when old has a nonzero floor; the report shows both numbers); partial verdicts on incomplete grids (rejected by the user's instruction).
+**Consequences**: Per-class recovery exists for STAR only (kb scores are per barcode/gene). Tags: spikein, SPIKE-02
+
+## 2026-10-22 Spike-in kb call is net of the unspiked replicate (SPIKE-02 review fix)
+**Context**: Review found raw kb molecules in the spike barcodes include real background viral molecules (plausible for EBV in R01_SOC4), so the limit could collapse to the lowest level.
+**Decision**: aggregate subtracts the null replicate with the same bg_rep (same spike barcodes, truth accessions; floor 0) before the >= 3 call; raw count and baseline kept in kb_total_raw / kb_total_in_baseline; report flags baseline >= 3. Done in aggregate because null conditions run last in the array. Old arm not reached anywhere gives verdict undetermined, not keep.
+**Alternatives considered**: pass --baseline-bundle in finish() (null may not exist yet); per-barcode subtraction (total subtraction is enough since the null has the identical background reads).
+**Consequences**: check() requires null kb tables. Tags: spikein, SPIKE-02
