@@ -1,0 +1,116 @@
+# DISC-12 — discovery benchmark protocol (FROZEN 2026-10-23)
+
+**Status: FROZEN 2026-10-23** (user approval; §8 pins inputs, databases and code); nothing has been run yet. Changes now
+need a new protocol version. No discovery performance number may be quoted before the run's receipts exist (gate G13 of
+`docs/plans/2026-10-21-kraken2-discovery-plan.md`).
+
+**Parent plan:** `docs/plans/2026-10-21-kraken2-discovery-plan.md` §12.2 (scientific performance), §9.2 (states) and
+§9.3 (evidence adapter). PLAN rows: `DISC-12` (this), `DISC-13` (cut-offs that need this), `HOST-05`, `SW-07`.
+
+Items marked **DECIDED** record the 2026-10-22 grilling answers (`.living/decisions.md`). Rows still marked
+**PROPOSED** were accepted as written; they can change only before the freeze.
+
+---
+
+## 1. Questions the benchmark answers
+
+1. **Host-subtraction loss.** What fraction of truth viral fragments does the STAR host filter remove before discovery
+   sees them? This is `HOST-05` (open), measured with `SW-07`'s `lost_truth_counts()`
+   (`src/viralscan/scripts/host_filter.py:191`, D15/D16). Discovery reuses the number; it does not re-measure it.
+2. **Database choice.** Viral-only RefSeq versus a broad DB with human (PlusPF-class) on the same inputs.
+3. **Kraken2 thresholds.** Whether the shipped defaults (confidence 0.05, minimum hit groups 4; user decision R7b,
+   documented as not calibrated) should change.
+4. **Candidate-state cut-offs.** The `k` of the `prioritized` state (§9.2) and the `DISC-13` route constants
+   (3 units / 80 % / 1 shared cell, currently uncalibrated).
+5. **Resources.** Wall time, peak RSS and I/O at 1e6, 1e7 and 1e8 fragments.
+
+Out of scope: any change to the primary ViralScan counts, `detected` or tiers; absolute abundance; batch effects.
+
+## 2. Inputs (each pinned by sha256 in the freeze manifest)
+
+| Role | Library | Truth | Status |
+|---|---|---|---|
+| Positive, panel virus | EBV SRR12682296 (GSM4796271; used in DISC-R10) | EBV; cells with primary unique EBV molecules | DECIDED |
+| Positive, panel virus | HHV-6B **GSM6416022**: by the Q2 rule (summed `viral_molecules_unique` over HHV-6B genes in Track A `combined_artefact` `multimap_evidence.tsv`: 3,852,416; next GSM6416024 1,071,635), applied 2026-10-23 before any discovery run. Also the HHV-6B source of the spike-in grid | HHV-6B; primary unique molecules | DECIDED (Q2) |
+| Positive, panel virus | HSV-1 Drop-seq **GSM3511335**: by the Q3′ rule (37 °C infected scRNA library with most primary unique HSV-1 molecules: 1,163,622; next GSM3511334 949,939), applied 2026-10-23 | HSV-1; primary unique molecules | DECIDED (Q3′; Q3 reopened: two-step runs do have `called_cells.tsv`) |
+| Positive, panel virus | covid PBMC **LUM-SJ-x213-g** (in-house, not redistributable; reported in aggregate) | SARS-CoV-2 | DECIDED (Q19); primary calls SARS-CoV-2 = 0 here (SENS-03), so it tests capture, not recovery |
+| Negative | hsv1 37 °C uninfected **GSM3511328**, **GSM3511329** (Drop-seq) | none expected | DECIDED (Q18) |
+| Negative | HHV-6B clean control **GSM6416026** (10x 5′ v2; 0 HHV-6B UMI, learnings L-94) | none expected | DECIDED (Q18) |
+| Spike-in (ordinary viral reads) | grid 25864985 libraries (D03 + HHV-6B GSM6416022 reads; R01_SOC4 + EBV GSM4796271 reads) | per-read `spike_L*_s*.truth.tsv` (`name, cb, umi, class, contig, ...`) | DECIDED (Q4): reused; checked 2026-10-23 |
+| Spike-in (host-homologous / EVE-like) | the grid's source reads dropped as `alignment_outside_truth_set` (real HHV-6B / EBV reads that also align to host or another virus), spiked with the same `spikein.py` tooling: 5 levels x 3 seeds, 100-cell layout, both backgrounds | per-read truth label | DECIDED (Q16); built as the first benchmark step |
+
+**Truth for panel positives** is the primary run's per-cell unique molecules, which is independent of Kraken2 but not
+of the kallisto reference. Recovery is therefore "agreement with ViralScan", not accuracy against ground truth. Only the
+spike-in set has read-level truth.
+
+**Input (Q17, revised by Q20a):** reads = each library's primary two-step run `host_filtered/R{1,2}.fastq.gz` (raw
+FASTQs of GSM6416022/26 are deleted; this is what discovery classifies by design). Cells = the EmptyDrops
+`called_cells.tsv` of the same library's full-matrix `combined_off` run, passed with `discover --called-cells` (PR #112):
+two-step runs call only virus-carrying barcodes (GSM3511328: 5 cells vs 3,515). EBV and covid `combined_off` runs
+predate the cell-calling receipt, so their space is recorded `unknown` (kb runs by construction). All 21 files are
+pinned in `docs/plans/disc12/input_manifest.tsv` (§8).
+
+## 3. Fixed configuration
+
+- **Code:** one ViralScan commit for all arms (SHA in §8).
+- **Databases** (sha256 of `hash.k2d` / `opts.k2d` / `taxo.k2d`):
+  - PlusPF-16 2026-06-26 (as in DISC-R10, from its `provenance.json`): `abb740fb…6200` / `60f70f71…661f` / `416c6d5e…77f5`.
+  - RefSeq viral `k2_viral_20260626` (Q1; downloaded 2026-10-23, all 16 files md5-verified against `viral.md5`):
+    `1bd239b2…dfa7` / `b7ecfc6e…8c75` / `681162e4…4d24`.
+- **Host subtraction:** computed once per library (STAR `pinned`); `star-default` as the second arm for question 1
+  only.
+- **Grid:** confidence {0.0, 0.05, 0.1, 0.2} × minimum hit groups {2, 3, 4} = 12 configurations per library per DB.
+  Only Kraken2 is rerun. PolyA/T trim on (default), plus one `--no-polya-trim` arm at the shipped defaults.
+- **Compute:** Slurm partition `all`, 8 CPUs (as DISC-R10); memory-mapped DB. Estimated 12 × ~1 h CPU per library per
+  DB (UNRESOLVED; this run measures it).
+
+## 4. Metrics (computed by a script committed before any run)
+
+Per library × DB × configuration:
+
+- **Taxon sensitivity:** panel virus reached as `observation` at species or genus; fraction of truth cells (primary
+  unique molecules > 0) with ≥ 1 resolved discovery group; per-cell Spearman of discovery groups vs primary molecules.
+- **False-positive taxa:** taxa at `observation` and at `prioritized` in negatives; non-truth taxa in positives
+  outside the host lineage.
+- **Rank correctness:** resolved rank vs truth lineage (exact / ancestor / wrong branch).
+- **Host-lineage leakage:** fraction of resolved groups in the 9606 subtree (broad DB only).
+- **Off-cell enrichment:** called-cell vs off-cell group fraction per taxon.
+- **Host-subtraction loss (spike-in only):** D15/D16 from `lost_truth_counts()`.
+- **Resources:** wall time, peak RSS, bytes read.
+
+## 5. Decision rules (fixed before results)
+
+1. **Kraken2 defaults (Q5).** Keep 0.05 / 4 unless a configuration has no more `prioritized` false-positive taxa than
+   0.05 / 4 in **both** negatives **and** a higher median per-cell recovery of the panel virus in **every** positive. If
+   several qualify: fewest false-positive taxa, then higher confidence.
+2. **`k` for `prioritized` (Q6).** The smallest `k` at which neither negative has any taxon at `prioritized` while the
+   panel virus still reaches `prioritized` in **every** benchmark positive. If no `k` meets both, report it and leave
+   `prioritized` unbuilt.
+3. **DISC-13 route constants.** Re-derived from the spike-in set only; the panel positives can confirm but not set them.
+4. **DB.** Reported side by side; no automatic choice. The viral-only DB stays capped at `observation` (G15) whatever
+   it scores.
+5. A rule that cannot be evaluated (e.g. a library fails) is reported as `not_assessed`; it never defaults to "keep".
+
+## 6. Outputs and receipts
+
+- `results/discovery_benchmark/<date>/`: per-arm `qc.json`, `candidates.tsv`, `candidate_states.tsv`, metrics TSV,
+  `freeze_manifest.json` (input, DB and code hashes), Slurm job IDs and `sacct` snapshot.
+- A results note under `.living/findings/` citing the receipts; PLAN `DISC-12` flipped to `[x]` only then.
+
+## 7. Known limits
+
+- Panel-positive truth is ViralScan itself (§2), so agreement does not establish accuracy.
+- Two negative libraries cannot estimate a false-positive rate; they only show whether one occurs.
+- Kitome and reagent contamination have no built-in control (§9.1); the negatives are the only check.
+
+## 8. Freeze record
+
+| Field | Value |
+|---|---|
+| Approved by | user ("merge 112, 103") |
+| Approval date | 2026-10-23 |
+| Protocol commit | the merge commit of this PR |
+| Code commit for runs | `main` at or after `6e4035e` (PR #112, `discover --called-cells`); recorded in each run's `provenance.json` |
+| Input manifest | `docs/plans/disc12/input_manifest.tsv` (21 files: 14 read files + 7 called-cell files), sha256 `a765d9cb…c9d6` (`$SITE_ROOT` = site work root; full-path original in the run work dir) |
+| Databases | §3 (both `hash.k2d` / `opts.k2d` / `taxo.k2d` sha256) |
+| Spike-in truth | grid 25864985 truth tables (ordinary reads); host-homologous set built as the first run step (Q16), its truth hashed into the run receipts |

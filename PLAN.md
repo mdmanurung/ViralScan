@@ -8245,7 +8245,11 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   sample's `called_cells.tsv` (two-step runs call 5-455 cells in uninfected/low-viral libraries vs 3,515-30,163 by EmptyDrops on
   the full matrix). Space from the file's own `cell_calling_input.json`; path in provenance, sha256 in the fingerprint; an empty
   override raises. Evidence producers still read the run's own cells. Test `test_load_called_cells_override_uses_its_own_receipt`.
-- [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
+- [x] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`. Draft (2026-10-22, `codex/disc12-protocol`):
+  `docs/plans/2026-10-22-discovery-benchmark.md`, not frozen, nothing run. Decisions recorded 2026-10-22 (Q1–Q6, Q12):
+  `k2_viral_20260626` vs PlusPF-16; HHV-6B library by max primary unique molecules; HSV-1 Drop-seq excluded (`not_assessed`);
+  spike-in truth from array 25864985 if per-read; §5 rules filled. 2026-10-23: all inputs decided (Q3', Q16-Q20); input
+  manifest pinned (`docs/plans/disc12/input_manifest.tsv`); runs need `discover --called-cells` (PR #112). **Frozen 2026-10-23** (user approved PR #103; `discover --called-cells` merged as #112). Next: the benchmark run.
 - [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
   `read_evidence_table` in `discovery.py` write `candidate_states.tsv` (`observation`, `corroborated` route i,
   `read_supported_observation` route ii; `corroboration` / `read_support` = `not_assessed|negative|positive`; viral-only DB
