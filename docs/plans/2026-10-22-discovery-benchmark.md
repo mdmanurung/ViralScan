@@ -1,8 +1,7 @@
-# DISC-12 — discovery benchmark protocol (DRAFT, not frozen)
+# DISC-12 — discovery benchmark protocol (FROZEN 2026-10-23)
 
-**Status: FROZEN 2026-10-23** (user approval, §8); nothing has been run yet. The protocol is frozen when the
-user approves this PR after the viral-only DB is downloaded and the spike-in truth check (§2) is done, so §8 pins every
-hash at once. Until then no discovery performance number may be quoted (gate G13 of
+**Status: FROZEN 2026-10-23** (user approval; §8 pins inputs, databases and code); nothing has been run yet. Changes now
+need a new protocol version. No discovery performance number may be quoted before the run's receipts exist (gate G13 of
 `docs/plans/2026-10-21-kraken2-discovery-plan.md`).
 
 **Parent plan:** `docs/plans/2026-10-21-kraken2-discovery-plan.md` §12.2 (scientific performance), §9.2 (states) and
