@@ -1,0 +1,13 @@
+background	arm	metric	n_libraries	mean	max
+D03	old	kb_unsupported_molecules	3	0.333333	1
+D03	old	n_false_calls	3	0	0
+D03	flank	kb_unsupported_molecules	3	10.1905	12.5714
+D03	flank	n_false_calls	3	0	0
+D03	star	star_nonspike_reads_total	3	6.66667	8
+D03	star	star_contigs_with_reads	3	1.33333	2
+R01	old	kb_unsupported_molecules	3	0.333333	1
+R01	old	n_false_calls	3	0	0
+R01	flank	kb_unsupported_molecules	3	7	9
+R01	flank	n_false_calls	3	0	0
+R01	star	star_nonspike_reads_total	3	0	0
+R01	star	star_contigs_with_reads	3	0	0

@@ -20,6 +20,7 @@ completion.
 
 ## Next action
 
+- **2026-10-23:** spike-in grid done, flank index retired (F-028, SPIKE-VERDICT). Next: STAR-GATE-01 (user), DISC-12 freeze (#103), rc1 release prep.
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [x] `F027-01` finding F-027 (`.living/findings/hhv6b-flank-reads-missed-by-cds-only-index.md`): HHV-6B reads in the positional 3' flank class (8.9% of viral reads, GSM6416022, 5' v2) are outside a CDS-only kallisto index.
@@ -74,6 +75,7 @@ completion.
   12-nt dummy whitelist, logged the fallback, left `star139_fallback.txt` and the pruned BAM, and wrote the header-only
   per-virus table (`analysis/star_confirm_acceptance/fallback139.py`).
 - [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
+  - 2026-10-23: SPIKE-01 is done (F-028): STAR arm threshold <=3 spiked UMIs in both backgrounds, 0-8 non-spike STAR reads in nulls. The decision is now the user's.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
   `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
   writes `star_hostvirus_index.json` (`write_index_manifest` / `read_index_manifest` / `validate_index_manifest`).
@@ -112,7 +114,11 @@ completion.
   - Q16 wording ("computational detection threshold (source, background and layout-specific)") in README, report, TSV headers
     (`lod.tsv` keeps its file name; column `limit` is now `threshold`). Decision: an existing retire from a complete layout still
     wins over an undetermined one (overall = retire > undetermined > keep, unchanged).
-- [~] SPIKE-01 (2026-10-21, exploratory under the Q21/LOCK-01 A2 override; branch `codex/spikein-detection-limit`,
+- [x] SPIKE-VERDICT (2026-10-23, grid 25864985 66/66, rescored `scores_v2.tsv`): flank index v2 **retired** by the locked
+  rule (Q3/Q15): same threshold as old (D03 10, R01 <=3) but up to 12.57 / 9 unsupported UMIs per null library (limit 5);
+  0 false calls in either arm; flank recovers 1.12-1.38x more net kb molecules (no ratio < 0.80, so no ask-back).
+  STAR arm threshold <=3 in both backgrounds. Finding F-028; receipts `analysis/spikein_detection_limit/results_2026-10-23/`.
+- [x] SPIKE-01 (2026-10-21, exploratory under the Q21/LOCK-01 A2 override; branch `codex/spikein-detection-limit`,
   stacked on the unpushed `codex/star-hostvirus-align`): empirical detection limit of the old kb index, the flank
   index v2 and STARsolo host+virus, by spiking real HHV-6B reads (GSM6416022 BAM, stratified by flank-audit class)
   into null background libraries. Tooling written and unit-tested (`analysis/spikein_detection_limit/spikein.py`,
