@@ -32,7 +32,8 @@ completion.
   per pool, STAR host filter only, `pinned` + `star-default`, `lost_truth_counts` D15/D16), `hosthomolog.sbatch`, tests
   `tests/test_spikein_hosthomolog.py`. Note: source BAMs hold host-unmapped reads only, so the loss is a lower bound; the EBV BAM has
   no read with fewer in-set records than NH (pool expected empty, run fails loudly). Next: user decides submission and the default-pool run.
-- **2026-10-23:** spike-in grid done, flank index retired (F-028, SPIKE-VERDICT). Next: STAR-GATE-01 (user), DISC-12 freeze (#103), rc1 release prep.
+- **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
+  rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [x] `F027-01` finding F-027 (`.living/findings/hhv6b-flank-reads-missed-by-cds-only-index.md`): HHV-6B reads in the positional 3' flank class (8.9% of viral reads, GSM6416022, 5' v2) are outside a CDS-only kallisto index.
@@ -86,7 +87,12 @@ completion.
   chemistry (no on-list, `--soloCBwhitelist None`, zero reads mapped) crash STAR in Solo; `star_run.run_star` retried with a
   12-nt dummy whitelist, logged the fallback, left `star139_fallback.txt` and the pruned BAM, and wrote the header-only
   per-virus table (`analysis/star_confirm_acceptance/fallback139.py`).
-- [ ] STAR-GATE-01: let STAR evidence gate or tier calls. Decided only after SPIKE-01 (user decision pending); STAR-04 adds columns only.
+- [x] STAR-GATE-01 (decided 2026-10-23, user Q21a): **STAR stays labels only** — `star_*` columns never change `detected` or
+  tiers. Evidence: STAR detects at <=3 spiked UMIs in both backgrounds (F-028), but host competition was not measurable
+  (fates read from the pruned VIRUS|-only BAM). Revisit only after a rerun that extracts STAR fates before pruning
+  (follow-up `STAR-FATE-01`).
+- [ ] `STAR-FATE-01`: extract per-spike STAR fates before `prune_to_viral` (or keep the full BAM in the spike-in runner) so
+  `fate_host` measures host competition; prerequisite for any future STAR tiering/gating.
   - 2026-10-23: SPIKE-01 is done (F-028): STAR arm threshold <=3 spiked UMIs in both backgrounds, 0-8 non-spike STAR reads in nulls. The decision is now the user's. `fate_host` is not a measure of host competition (pruned BAM); see F-028.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
   `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
