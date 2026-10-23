@@ -52,7 +52,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install build tooling
-        run: python -m pip install build twine pyyaml
+        run: python -m pip install build twine pyyaml jsonschema  # jsonschema: check_ship_scope -> governance_utils
       - name: Verify release versions
         run: python scripts/check_versions.py --tag "${GITHUB_REF##*/}"
       - name: Select publication channel

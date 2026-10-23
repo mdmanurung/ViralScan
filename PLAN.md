@@ -212,6 +212,9 @@ completion.
   `scripts/check_versions.py` compares (`__init__`, Dockerfile, Singularity.def, conda recipe, CITATION.cff x2) plus the
   cli_reference and release_policy pins; CHANGELOG section renamed. Historical receipts (release_checks, PLAN history) unchanged.
   **Open (user):** merge after #109 + green main, then push tag `v3.0.0rc1` (TestPyPI per release.yml; not PyPI).
+  - 2026-10-23: tag `v3.0.0rc1` (on `87591c4`) pushed; release run 40000132978 built and `twine check`ed both
+    distributions, then failed at `check_ship_scope.py` (`jsonschema` missing in the release job; nothing published).
+    Fix: release.yml installs `jsonschema`. Re-tag needed (the release runs only on a tag push of a CI-green commit).
 - [x] `VIG-RUN-01` (2026-10-23, `codex/quickstart-real-run`, decision Q10): the quickstart vignette now runs `viralscan run` when
   `VS_INDEX`/`VS_T2G` (and, for an index without a build manifest, `VS_GTF`) are set; the whitelist preflight needs `VS_WHITELIST`.
   Real Slurm run 25867622 (1M-read SRR12682296 cache, cat42d index + GTF, 8 CPUs, 3 min): 975 EmptyDrops cells, EBV in 199
