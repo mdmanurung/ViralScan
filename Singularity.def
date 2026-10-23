@@ -7,7 +7,7 @@ From: OCI_DIGEST_REQUIRED
 
 %labels
     Author emma.vonk@hotmail.nl
-    Version 3.0.0.dev1
+    Version 3.0.0rc1
     Description ViralScan - viral load quantification from scRNA-seq
 
 %environment
