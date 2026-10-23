@@ -44,9 +44,12 @@ Out of scope: any change to the primary ViralScan counts, `detected` or tiers; a
 of the kallisto reference. Recovery is therefore "agreement with ViralScan", not accuracy against ground truth. Only the
 spike-in set has read-level truth.
 
-**Input (Q17):** every library enters as its primary two-step run's `host_filtered/R{1,2}.fastq.gz` with that run's
-`results/called_cells.tsv` (raw FASTQs of GSM6416022/26 are deleted; this is also what discovery classifies by design).
-Each file's sha256 and source run are pinned in the input manifest (§8).
+**Input (Q17, revised by Q20a):** reads = each library's primary two-step run `host_filtered/R{1,2}.fastq.gz` (raw
+FASTQs of GSM6416022/26 are deleted; this is what discovery classifies by design). Cells = the EmptyDrops
+`called_cells.tsv` of the same library's full-matrix `combined_off` run, passed with `discover --called-cells` (PR #112):
+two-step runs call only virus-carrying barcodes (GSM3511328: 5 cells vs 3,515). EBV and covid `combined_off` runs
+predate the cell-calling receipt, so their space is recorded `unknown` (kb runs by construction). All 21 files are
+pinned in `docs/plans/disc12/input_manifest.tsv` (§8).
 
 ## 3. Fixed configuration
 
@@ -105,8 +108,10 @@ Per library × DB × configuration:
 
 | Field | Value |
 |---|---|
-| Approved by | — |
+| Approved by | — (user approval of this PR is the freeze) |
 | Approval date | — |
-| Protocol commit | — |
-| Code commit for runs | — |
-| Input/DB manifest | — |
+| Protocol commit | the merge commit of this PR |
+| Code commit for runs | `main` after PR #112 (`discover --called-cells`) merges; recorded in each run's `provenance.json` |
+| Input manifest | `docs/plans/disc12/input_manifest.tsv` (21 files: 14 read files + 7 called-cell files), sha256 `a765d9cb…c9d6` (`$SITE_ROOT` = site work root; full-path original in the run work dir) |
+| Databases | §3 (both `hash.k2d` / `opts.k2d` / `taxo.k2d` sha256) |
+| Spike-in truth | grid 25864985 truth tables (ordinary reads); host-homologous set built as the first run step (Q16), its truth hashed into the run receipts |
