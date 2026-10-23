@@ -75,3 +75,21 @@ Single source virus per background; NH policy for EBV (`--max-nh 2`) unvalidated
 grid; spikes come from one real library per virus (seeds resample reads, not libraries); kb arms have no per-class
 recovery; STAR "absent" lumps unmapped-too-short with host-filter loss; thresholds are grid levels. The report's final section
 states this again.
+
+## Host-homologous arm and host-subtraction loss (PLAN DISC-12-HH; status: tooling only, NOT RUN)
+
+Protocol `docs/plans/2026-10-22-discovery-benchmark.md` §1 Q1 / §4 and decision Q16. `spikein.py spike --pool outside_truth`
+spikes ONLY the source reads the default mode drops as `alignment_outside_truth_set` (real HHV-6B / EBV reads that also align to
+`HOST|` or another virus; use `--max-nh 20`, NH=1 sources cannot have such reads). Truth tables gain a trailing `pool` column
+in that mode only; default output is byte-identical. An empty pool, or one smaller than the top level, exits loudly.
+`hosthomolog.py` runs ONLY the product STAR host filter (`host_filter._starsolo_filter`, `pinned` then `star-default`) on
+the grid's cached background plus the spikes and writes `cond/<id>/host_loss.tsv` from `lost_truth_counts()` (D15/D16).
+30 conditions per pool (5 levels x 3 seeds x c100 x D03/R01); the ordinary pool is a second, separate root:
+
+    PATH=<env>/bin:$PATH VIRALSCAN_SITE_ROOT=... python hosthomolog.py grid --pool outside_truth   # HOSTLOSS_ROOT default
+    cd $HOSTLOSS_ROOT/slurm && sbatch --array=1-30%6 .../hosthomolog.sbatch
+    HOSTLOSS_ROOT=<other> python hosthomolog.py grid --pool default   # baseline number, own 30 conditions
+
+Caveat: the source BAMs are STARsolo alignments of host-UNMAPPED reads, so reads the host filter already removes are absent
+from the pool by construction; the measured loss is a lower bound for the real library. Whether the EBV pool is non-empty is
+checked by the run itself (it fails loudly).
