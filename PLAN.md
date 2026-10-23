@@ -8241,6 +8241,10 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   labels dropped. Branch handed over for push / PR.
   - Note: PR #89 CI lint failed on `mypy src/viralscan` (not run locally before): 7 annotations in `discovery.py`
     and an `out` name reused as Path/str in `menu.main`; fixed, `mypy src/viralscan` clean locally.
+- [x] `DISC-CELLS-01` (2026-10-23, `codex/discover-called-cells`, decision Q20a): `discover --called-cells FILE` overrides the
+  sample's `called_cells.tsv` (two-step runs call 5-455 cells in uninfected/low-viral libraries vs 3,515-30,163 by EmptyDrops on
+  the full matrix). Space from the file's own `cell_calling_input.json`; path in provenance, sha256 in the fingerprint; an empty
+  override raises. Evidence producers still read the run's own cells. Test `test_load_called_cells_override_uses_its_own_receipt`.
 - [ ] `DISC-12` frozen benchmark protocol linked to `HOST-05` / `SW-07`.
 - [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
   `read_evidence_table` in `discovery.py` write `candidate_states.tsv` (`observation`, `corroborated` route i,

@@ -930,17 +930,26 @@ def build_umi_groups(
 # ── Cell universe and matrix (plan §6.5, §8, §10) ───────────────────────────
 
 
-def load_called_cells(sample_dir: Path) -> tuple[list[str], dict[str, Any]]:
-    """The primary's called barcodes (suffix-stripped, sorted) and its cell-calling receipt."""
+def load_called_cells(
+    sample_dir: Path, path: Path | None = None
+) -> tuple[list[str], dict[str, Any]]:
+    """The primary's called barcodes (suffix-stripped, sorted) and its cell-calling receipt.
+
+    *path* replaces the sample's own ``called_cells.tsv`` (``discover --called-cells``), e.g. the
+    EmptyDrops cells of a full-matrix run of the same library when a two-step run only calls
+    barcodes that carry viral reads. Its barcode space comes from the ``cell_calling_input.json``
+    beside it, never from the sample.
+    """
     from viralscan.scripts.cellcalling import CALLED_CELLS_TSV, _strip_suffix
 
-    path = sample_dir / CALLED_CELLS_TSV
+    override = path is not None
+    path = path if path is not None else sample_dir / CALLED_CELLS_TSV
     if not path.is_file():
         raise DiscoveryError(f"{path} is missing; discovery needs the primary's called cells.")
     with path.open(encoding="utf-8") as handle:
         handle.readline()
         called = sorted({_strip_suffix(line.strip()) for line in handle if line.strip()})
-    receipt_path = sample_dir / "results" / "cell_calling_input.json"
+    receipt_path = path.parent / "cell_calling_input.json"
     receipt = json.loads(receipt_path.read_text()) if receipt_path.is_file() else {}
     # Two-step EmptyDrops on the host filter's STARsolo matrix calls cells in STAR's barcode
     # space, which is uncorrected without -w (plan §6.3); the overlap below shows the effect.
@@ -954,6 +963,10 @@ def load_called_cells(sample_dir: Path) -> tuple[list[str], dict[str, Any]]:
         "cell_calling_method": receipt.get("method"),
         "called_cells_barcode_space": space,
     }
+    if override:
+        if not called:
+            raise DiscoveryError(f"{path} lists no called cells.")
+        info["called_cells_path"] = str(path.resolve())
     return called, info
 
 
@@ -1867,7 +1880,10 @@ def run_discover(args: argparse.Namespace) -> None:
     from viralscan.run_safety import software_identity
     from viralscan.validation import tool_provenance
 
-    called, cells_info = load_called_cells(sample_dir)
+    called, cells_info = load_called_cells(
+        sample_dir,
+        Path(args.called_cells).resolve() if getattr(args, "called_cells", None) else None,
+    )
     onlist = resolve_onlist(config.technology, config.whitelist)
     bustools = tool_provenance(("bustools",))["bustools"]
     manifest = json.loads((run_root / RUN_MANIFEST).read_text(encoding="utf-8"))
@@ -1897,6 +1913,7 @@ def run_discover(args: argparse.Namespace) -> None:
         "input_source": _input_identity(sample_dir, run_root, args),
         "host_subtract": args.host_subtract,
         **{k: cells_info[k] for k in ("called_cells_sha256", "called_cells_barcode_space")},
+        "called_cells_path": cells_info.get("called_cells_path"),
     }
     # memory_mapping, threads, paths and the software build change speed or location, not output.
     provenance["fingerprint_inputs"] = {

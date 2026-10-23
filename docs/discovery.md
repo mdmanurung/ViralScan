@@ -26,6 +26,11 @@ does not say the organism is present, replicating, or in that cell.
 - A completed ViralScan run with host filtering (`host_filtered/` present) and
   `results/called_cells.tsv`. A run without `host_filtered/` needs
   `--host-subtract starsolo --host-index <STAR genomeDir>`; those reads go under `-o`.
+- `--called-cells FILE` replaces the run's own `called_cells.tsv`. A two-step run calls cells on barcodes
+  that carry viral reads, so an uninfected library can have only a handful; pass the EmptyDrops
+  `called_cells.tsv` of a full-matrix run of the same library instead. Its barcode space comes from the
+  `cell_calling_input.json` beside that file (`unknown` without one); its path and sha256 are recorded in
+  `provenance.json` and the sha256 enters the discovery fingerprint.
 - Kraken2 2.17.2 and `bustools` on `PATH`. Install the optional environment and check it:
 
   ```bash

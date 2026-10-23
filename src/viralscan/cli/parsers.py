@@ -664,6 +664,16 @@ def _build_discover_parser(subparsers: Any) -> None:
     )
     p.add_argument("--host-index", default=None, help="STAR genomeDir for --host-subtract.")
     p.add_argument(
+        "--called-cells",
+        default=None,
+        metavar="FILE",
+        help=(
+            "Use this called_cells.tsv instead of the sample's own (e.g. the EmptyDrops cells of a "
+            "full-matrix run of the same library). Its barcode space is read from the "
+            "cell_calling_input.json beside it; its sha256 enters the provenance and fingerprint."
+        ),
+    )
+    p.add_argument(
         "--host-filter-star-params",
         choices=["pinned", "star-default"],
         default="pinned",
