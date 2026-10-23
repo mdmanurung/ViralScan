@@ -110,6 +110,10 @@ completion.
   applies (any `HOST|` partner, else another `VIRUS|` contig, else unique; same-contig hits stay unique). Streams records; memory is the
   multimapper QNAME set. Tested on a synthetic NH/HI BAM.
   **Open:** layout review by the user, a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1, a `environment.coverage.yml` solve in CI.
+- [~] `RC1-01` (2026-10-23, `codex/release-3.0.0rc1`, decision Q15): version `3.0.0.dev1` -> `3.0.0rc1` in every file
+  `scripts/check_versions.py` compares (`__init__`, Dockerfile, Singularity.def, conda recipe, CITATION.cff x2) plus the
+  cli_reference and release_policy pins; CHANGELOG section renamed. Historical receipts (release_checks, PLAN history) unchanged.
+  **Open (user):** merge after #109 + green main, then push tag `v3.0.0rc1` (TestPyPI per release.yml; not PyPI).
 - [x] `VIG-RUN-01` (2026-10-23, `codex/quickstart-real-run`, decision Q10): the quickstart vignette now runs `viralscan run` when
   `VS_INDEX`/`VS_T2G` (and, for an index without a build manifest, `VS_GTF`) are set; the whitelist preflight needs `VS_WHITELIST`.
   Real Slurm run 25867622 (1M-read SRR12682296 cache, cat42d index + GTF, 8 CPUs, 3 min): 975 EmptyDrops cells, EBV in 199

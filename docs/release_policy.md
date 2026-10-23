@@ -47,7 +47,7 @@ These are read from the files named, not chosen here. A support promise for any 
 
 | Item | Pinned value | Source |
 |---|---|---|
-| Package version | `3.0.0.dev1` | `src/viralscan/__init__.py` |
+| Package version | `3.0.0rc1` | `src/viralscan/__init__.py` |
 | Python (pip tier) | `>=3.10`; CI runs 3.10, 3.11 and 3.12 on ubuntu and macOS | `pyproject.toml`, `.github/workflows/ci.yml` |
 | Full workflow toolchain | Python 3.11 on `linux-64`; `kb-python` 0.30.2, kallisto 0.52.0, bustools 0.45.1, STAR 2.7.11b, snakemake 9.23.1 | `environment.yml` |
 | Release channel | tag `vMAJOR.MINOR.PATCH` publishes to PyPI and may advance the container `latest`; any other tag goes to TestPyPI | `.github/workflows/release.yml` |
