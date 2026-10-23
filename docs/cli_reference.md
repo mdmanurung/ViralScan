@@ -902,6 +902,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 | `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
 | `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
 | `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |
+| `--called-cells FILE` | *(none)* | Use this called_cells.tsv instead of the sample's own (e.g. the EmptyDrops cells of a full-matrix run of the same library). Its barcode space is read from the cell_calling_input.json beside it; its sha256 enters the provenance and fingerprint. |
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | `pinned` | STAR filter parameter set for --host-subtract (as in the main run). Default: pinned. |
 | `--confidence CONFIDENCE` | `0.05` | Kraken2 --confidence (a k-mer fraction threshold, not a probability). Default: 0.05, the Cellsnake documented default; not calibrated here (Kraken2's own default is 0.0). |
 | `--minimum-hit-groups MINIMUM_HIT_GROUPS` | `4` | Kraken2 --minimum-hit-groups. Default: 4, the Cellsnake documented default; not calibrated here (Kraken2's own default is 2). |
