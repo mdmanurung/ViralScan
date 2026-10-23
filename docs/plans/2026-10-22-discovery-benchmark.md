@@ -31,18 +31,22 @@ Out of scope: any change to the primary ViralScan counts, `detected` or tiers; a
 
 | Role | Library | Truth | Status |
 |---|---|---|---|
-| Positive, panel virus | EBV SRR12682296 (used in DISC-R10) | EBV; cells with primary unique EBV molecules | PROPOSED |
+| Positive, panel virus | EBV SRR12682296 (GSM4796271; used in DISC-R10) | EBV; cells with primary unique EBV molecules | DECIDED |
 | Positive, panel virus | HHV-6B **GSM6416022**: by the Q2 rule (summed `viral_molecules_unique` over HHV-6B genes in Track A `combined_artefact` `multimap_evidence.tsv`: 3,852,416; next GSM6416024 1,071,635), applied 2026-10-23 before any discovery run. Also the HHV-6B source of the spike-in grid | HHV-6B; primary unique molecules | DECIDED (Q2) |
-| Positive, panel virus | HSV-1 Drop-seq (no on-list) | HSV-1 | EXCLUDED from v1 (Q3): no Track A run has `called_cells.tsv`; reported `not_assessed` |
-| Positive, panel virus | covid PBMC | SARS-CoV-2 | PROPOSED; primary calls SARS-CoV-2 = 0 here (SENS-03), so it tests capture, not recovery |
-| Negative | hsv1 37 °C uninfected | none expected | PROPOSED |
-| Negative | L-94 | none expected | PROPOSED |
+| Positive, panel virus | HSV-1 Drop-seq **GSM3511335**: by the Q3′ rule (37 °C infected scRNA library with most primary unique HSV-1 molecules: 1,163,622; next GSM3511334 949,939), applied 2026-10-23 | HSV-1; primary unique molecules | DECIDED (Q3′; Q3 reopened: two-step runs do have `called_cells.tsv`) |
+| Positive, panel virus | covid PBMC **LUM-SJ-x213-g** (in-house, not redistributable; reported in aggregate) | SARS-CoV-2 | DECIDED (Q19); primary calls SARS-CoV-2 = 0 here (SENS-03), so it tests capture, not recovery |
+| Negative | hsv1 37 °C uninfected **GSM3511328**, **GSM3511329** (Drop-seq) | none expected | DECIDED (Q18) |
+| Negative | HHV-6B clean control **GSM6416026** (10x 5′ v2; 0 HHV-6B UMI, learnings L-94) | none expected | DECIDED (Q18) |
 | Spike-in (ordinary viral reads) | grid 25864985 libraries (D03 + HHV-6B GSM6416022 reads; R01_SOC4 + EBV GSM4796271 reads) | per-read `spike_L*_s*.truth.tsv` (`name, cb, umi, class, contig, ...`) | DECIDED (Q4): reused; checked 2026-10-23 |
-| Spike-in (host-homologous / EVE-like) | separate set to build | per-read truth label | REQUIRED by Q4: the grid source pool drops every read with any alignment on `HOST\|` or another virus (`alignment_outside_truth_set` in `spikein.py source_pool`), so it holds no host-homologous segment. Design of this set is part of the freeze |
+| Spike-in (host-homologous / EVE-like) | the grid's source reads dropped as `alignment_outside_truth_set` (real HHV-6B / EBV reads that also align to host or another virus), spiked with the same `spikein.py` tooling: 5 levels x 3 seeds, 100-cell layout, both backgrounds | per-read truth label | DECIDED (Q16); built as the first benchmark step |
 
 **Truth for panel positives** is the primary run's per-cell unique molecules, which is independent of Kraken2 but not
 of the kallisto reference. Recovery is therefore "agreement with ViralScan", not accuracy against ground truth. Only the
 spike-in set has read-level truth.
+
+**Input (Q17):** every library enters as its primary two-step run's `host_filtered/R{1,2}.fastq.gz` with that run's
+`results/called_cells.tsv` (raw FASTQs of GSM6416022/26 are deleted; this is also what discovery classifies by design).
+Each file's sha256 and source run are pinned in the input manifest (§8).
 
 ## 3. Fixed configuration
 
