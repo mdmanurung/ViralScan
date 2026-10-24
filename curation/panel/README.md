@@ -18,7 +18,7 @@ Review input for promoting human-relevant viruses into the shipped panel. Nothin
 Regenerate (the sequence-twin check needs the two FASTAs and the built panel FASTA; without them
 `twin_checked` is `no` and no row is excluded as a twin):
 
-    python scripts/panel_census.py            # offline from census_raw.json; --refresh queries NCBI
+    # from ViralScan-reproducibility: python scripts/panel_census.py            # offline from census_raw.json; --refresh queries NCBI
     python scripts/panel_candidates.py \
       --panel-fasta <build>/viral.fa \
       --candidate-fasta <colleague>/virtus2_reference/filtered_new_viruses.fasta \

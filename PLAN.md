@@ -25,11 +25,13 @@ completion.
   agent instructions: `/exports/para-lipg-hpc/mdmanurung/viralscan-split/SPLIT_TRACKER.md` (it moves into the
   reproducibility repo once that exists). Rules: regression baseline and a scratch-clone rehearsal before
   anything leaves this repo; compatibility symlinks are local-only and never committed. Done: ship-scope fix
-  (#113). Batch 4a (this change, do NOT merge before `ViralScan-reproducibility` has been built and pushed):
+  (#113). Batch 4a (done):
   governance, `analysis/` (except `panel_expansion`, now `curation/panel/`), `results/`, `covid_viralscan/`,
   `benchmark_inputs/`, `claims/`, `audits/`, `todo/`, `data/`, top-level `schemas/` (duplicate of
   `src/viralscan/schemas/v3`, except `protocol_lock.schema.json`, which leaves in 4b), the truth-panel/governance scripts and their tests leave the package; wheel and
-  CLI unchanged, sdist loses 20 entries. Next: 4b (experiment scripts + tests), 4c (docs, dev files), 4d.
+  CLI unchanged, sdist loses 20 entries. Merged as #118. Batch 4b (this change): experiment scripts,
+  their tests, `protocol_lock.schema.json`, three `config/*.tsv` inputs and the size-cap pre-commit hook leave
+  the package. Next: 4c (docs, dev files), 4d.
 - **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
   rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).

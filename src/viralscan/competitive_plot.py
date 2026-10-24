@@ -8,7 +8,7 @@ the virus-AS-versus-host-AS scatter and panel C the human loci (1 kb bins) the r
 locus or viral position that recurs across calls and libraries stands out.
 
 Inputs are read, never modified: ``competitive_reads.raw.bam`` (``samtools view``; supplementary records and
-``SA`` tags both count), ``read_verdicts.tsv.gz`` (written by ``scripts/dsr02_validate_call.py``; derived from the
+``SA`` tags both count), ``read_verdicts.tsv.gz`` (written by ``ViralScan-reproducibility/scripts/dsr02_validate_call.py``; derived from the
 BAM when absent) and ``viral_reads.fasta`` (read sequence, for poly-A/T and TSO and for reads that never aligned).
 """
 
@@ -31,7 +31,7 @@ from viralscan.molecule_verdict import VERDICTS, deduplicate_competitive_alignme
 
 log = logging.getLogger("viralscan")
 
-#: 10x 5' template-switch oligo, the same motif ``scripts/dsr02_verdicts.py`` labels ``repeat_class == "tso"``.
+#: 10x 5' template-switch oligo, the same motif ``ViralScan-reproducibility/scripts/dsr02_verdicts.py`` labels ``repeat_class == "tso"``.
 TSO = "AAGCAGTGGTATCAACGCAGAGTACATGGG"
 POLY_MIN = 10
 MAX_LANES = 60
