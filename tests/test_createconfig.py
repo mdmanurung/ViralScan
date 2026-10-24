@@ -368,7 +368,7 @@ class TestLoadConfig:
 class TestDetectionThresholdValidation:
     """Audit §3.3: detection_threshold=0 makes every virus appear detected.
 
-    Regression for: audits/2026-05-08-full-pipeline.md §3.3
+    Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §3.3
     """
 
     def test_threshold_zero_raises_value_error(self) -> None:

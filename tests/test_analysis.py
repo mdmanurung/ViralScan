@@ -253,7 +253,7 @@ class TestMenuHelpers:
 class TestGtfGeneIdAttributeOrder:
     """Audit §2.2: gene_id must be extracted by attribute name, not first-quote position.
 
-    Regression for: audits/2026-05-08-full-pipeline.md §2.2
+    Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §2.2
     """
 
     def test_gene_id_extracted_when_preceded_by_other_attribute(self) -> None:

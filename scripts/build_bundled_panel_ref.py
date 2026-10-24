@@ -314,7 +314,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--gtf-manifest",
         type=Path,
-        default=_find_repo_root() / "analysis" / "panel_expansion" / "gtf_corpus_manifest.tsv",
+        default=_find_repo_root() / "curation" / "panel" / "gtf_corpus_manifest.tsv",
         help="Local GTF corpus hash manifest, checked before downloads or indexing.",
     )
     p.add_argument(

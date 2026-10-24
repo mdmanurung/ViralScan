@@ -2,7 +2,7 @@
 """PANEL-01 (WP1 census): RefSeq viral records whose host is Homo sapiens, against the catalogue (gap check).
 
     python scripts/panel_census.py [--refresh] [--email you@example.org] [--api-key KEY]
-        [--cache analysis/panel_expansion/census_raw.json] [--out analysis/panel_expansion/census.tsv]
+        [--cache curation/panel/census_raw.json] [--out curation/panel/census.tsv]
 
 Asks NCBI nuccore for viral RefSeq records with a Homo sapiens /host, then marks which ones the catalogue
 already holds (and in which `panel`). Records the catalogue lacks are what the user reviews; none is added
@@ -90,7 +90,7 @@ def census_rows(raw: dict, catalogue: list[dict[str, str]]) -> list[dict[str, st
 
 
 def main(argv: list[str] | None = None) -> int:
-    root = Path(__file__).resolve().parents[1] / "analysis" / "panel_expansion"
+    root = Path(__file__).resolve().parents[1] / "curation" / "panel"
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--cache", type=Path, default=root / "census_raw.json")
     ap.add_argument("--out", type=Path, default=root / "census.tsv")

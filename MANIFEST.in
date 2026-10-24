@@ -9,8 +9,6 @@ include Dockerfile
 include .dockerignore
 include Singularity.def
 include config/public_ship_scope.json
-include claims/registry.json
-include analysis/v3_artifact_inventory.tsv
 include conda-recipe/README.md
 include conda-recipe/meta.yaml
 include docs/api.md
@@ -29,23 +27,9 @@ include docs/reference_help.md
 include docs/reference_panel.md
 include docs/requirements.txt
 include docs/v3_counting_contract.md
-include schemas/v3/artifact_inventory.schema.json
-include schemas/v3/claim_registry.schema.json
-include schemas/v3/count_audit.schema.json
-include schemas/v3/evidence_manifest.schema.json
-include schemas/v3/h5ad_contract.json
-include schemas/v3/positive_control_receipt.schema.json
-include schemas/v3/positive_control_report.schema.json
-include schemas/v3/reference_manifest.schema.json
-include schemas/v3/run_complete.schema.json
-include schemas/v3/run_manifest.schema.json
-include schemas/v3/validation_protocol.schema.json
 include scripts/check_data_governance.py
 include scripts/check_ship_scope.py
 include scripts/governance_utils.py
-include scripts/validate_artifact_inventory.py
-include scripts/validate_claim_registry.py
-include scripts/validate_v3_protocol.py
 
 prune tests
 prune docs/handoffs

@@ -84,7 +84,7 @@ def test_faq_and_panel_docs_have_no_stale_multimap_default():
 
 
 def test_covid_alphatorquevirus_counts_removed():
-    for path in GUARDED + [Path("BENCHMARK_COMPARISON.md")]:
+    for path in GUARDED:
         text = path.read_text()
         for stale in ("1,167,103", "1,002,218", "57,715", "~4× more sensitive"):
             assert stale not in text, f"{path} still contains {stale}"

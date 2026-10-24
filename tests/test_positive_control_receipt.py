@@ -260,11 +260,3 @@ def test_report_schema_refuses_an_unverified_report_that_certifies(forged):
     }
     with pytest.raises(SchemaContractError):
         require_schema_valid(payload, "positive_control_report.schema.json")
-
-
-def test_shipped_schema_copies_are_identical():
-    root = Path(__file__).resolve().parents[1]
-    for name in ("positive_control_receipt.schema.json", "positive_control_report.schema.json"):
-        assert (root / "schemas/v3" / name).read_bytes() == (
-            root / "src/viralscan/schemas/v3" / name
-        ).read_bytes()

@@ -10,7 +10,7 @@ Audit findings covered:
           regressions where the comparison is changed (e.g. to ``>`` which would
           silently break at threshold=1) or where threshold is read incorrectly.
 
-Regression for: audits/2026-05-08-full-pipeline.md §2.1
+Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §2.1
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ def simple_count_setup():
 class TestDetectionThreshold:
     """Audit §2.1: detection_threshold filters genes correctly using >=.
 
-    Regression for: audits/2026-05-08-full-pipeline.md §2.1
+    Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §2.1
     """
 
     def test_gene_with_zero_counts_never_detected(self, simple_count_setup) -> None:
@@ -83,7 +83,7 @@ class TestDetectionThreshold:
         WHEN:  threshold is 1 (default)
         THEN:  gene is NOT in found_genes
 
-        Regression for: audits/2026-05-08-full-pipeline.md §2.1
+        Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §2.1
         """
         var_names, counts, viral_accessions = simple_count_setup
         found = _detect_genes(var_names, counts, viral_accessions, threshold=1)
@@ -127,7 +127,7 @@ class TestDetectionThreshold:
         WHEN:  detection is run
         THEN:  it is never in found_genes regardless of count
 
-        Regression for: audits/2026-05-08-full-pipeline.md §2.1
+        Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §2.1
         """
         var_names, counts, viral_accessions = simple_count_setup
         # host_A has total_count=35 but is not in viral_accessions
