@@ -27,6 +27,14 @@ tests/                     # pytest suite (run with PYTHONPATH=src)
 PLAN.md                    # implementation tracker — keep this current!
 ```
 
+## Sibling repository
+
+Experiments, validation runs, results, claims/governance ledgers, manuscript drafts and handoffs live in
+[ViralScan-reproducibility](https://github.com/mdmanurung/ViralScan-reproducibility) (split from this repo, see PLAN `REPO-SPLIT-01`). This repo keeps the package,
+its tests, docs, packaging and the panel curation inputs (`curation/panel/`). Experiment `PLAN.md` sections (WP0,
+WP3, WP7, WP9, Evidence log, VR pilot) are tracked there. Locally the two checkouts may be linked by uncommitted
+symlinks; never commit them.
+
 ## The PLAN.md contract  (IMPORTANT — non-negotiable)
 
 `PLAN.md` is the authoritative checklist for the in-flight repo improvement
@@ -140,7 +148,7 @@ them rather than improvising:
 | Skill | Use it for |
 |-------|-----------|
 | `tooluniverse-sequence-retrieval` | Anything touching `scripts/ncbi_fetch.py` — accession → FASTA/GTF, RefSeq (`NM_`/`NP_`) > predicted (`XM_`/`XP_`) > GenBank preference |
-| `tooluniverse-fastq-qc` | `scripts/audit_fastq_pair.py`, fresh-control input QC, read counts, trimming decisions |
+| `tooluniverse-fastq-qc` | `audit_fastq_pair.py` (in ViralScan-reproducibility), fresh-control input QC, read counts, trimming decisions |
 | `tooluniverse-single-cell` | `scripts/detection.py` / `scripts/umap.py` — scanpy/anndata QC gating, UMAP, ambient-RNA caveats |
 | `verify-references`, `literature-sweep` | v3 publication gates — claim/citation checks in `docs/` |
 | `snakemake-pipeline-expert` (agent) | Changes to `src/viralscan/Snakefile` |
