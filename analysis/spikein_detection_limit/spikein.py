@@ -97,6 +97,7 @@ def source_pool(
     seed: int,
     target: int = 20000,
     max_nh: int = 1,
+    pool_mode: str = "default",
 ):
     """~target source reads aligned inside the truth contig set (``samtools view -s``), original R2 orientation restored.
 
@@ -105,7 +106,9 @@ def source_pool(
     ALL alignments (secondary included) are on the truth set: the number of records seen inside the set must equal
     NH, so reads that also hit HOST| or another virus are excluded. Each read is classified and positioned on its
     alignment to the FIRST truth contig when it has one (else its primary), so the class does not depend on which
-    contig STAR happened to call primary. Pool entries carry the primary ``contig``, the reference record's
+    contig STAR happened to call primary. ``pool_mode="outside_truth"`` (PLAN DISC-12-HH) keeps ONLY the reads the
+    default mode drops as ``alignment_outside_truth_set`` (1 <= NH <= max_nh, fewer records inside the set than NH:
+    real viral reads that also align to HOST| or another virus); everything else is unchanged. Pool entries carry the primary ``contig``, the reference record's
     ``src_contig``/``pos``/``flag``, and ``nh``. A summary is printed to stderr.
     """
     contigs = parse_contigs(contig)
@@ -137,8 +140,11 @@ def source_pool(
         nh = rr[0][1]
         if nh < 1 or nh > max_nh:
             drop["nh_above_max"] += 1
-        elif len(rr) != nh:
-            drop["alignment_outside_truth_set"] += 1  # also on HOST| / another virus
+        elif (len(rr) != nh) != (pool_mode == "outside_truth"):
+            # default: drop reads also on HOST| / another virus; outside_truth: drop everything else
+            drop[
+                "alignment_outside_truth_set" if pool_mode == "default" else "inside_truth_set"
+            ] += 1
         else:
             recs_f = [x[0] for x in rr]
             ref = next((f for f in recs_f if f[2] == contigs[0]), None)
@@ -274,7 +280,14 @@ def cmd_spike(a):
     bg_seen = background_umis(a.bg_r1, a.cb_len, a.umi_len, cbs)
     rc = a.source_orient != a.bg_orient
     for seed in a.seeds:
-        pool = source_pool(a.bam, contigs, genes, a.source_orient, a.r2_len, seed, max_nh=a.max_nh)
+        pool = source_pool(
+            a.bam, contigs, genes, a.source_orient, a.r2_len, seed, max_nh=a.max_nh,
+            pool_mode=a.pool,
+        )  # fmt: skip
+        if not pool or len(pool) < max(a.levels):
+            sys.exit(
+                f"spike: pool '{a.pool}' has {len(pool)} reads (seed {seed}), need >= {max(a.levels)}"
+            )
         by_cls = {c: [r for r in pool if r["cls"] == c] for c in CLASSES}
         mix = {c: len(v) for c, v in by_cls.items()}
         print(f"seed {seed}: pool {len(pool)} class mix {mix}", file=sys.stderr)
@@ -310,14 +323,26 @@ def write_level(a, out, cbs, bg_seen, by_cls, mix, level, seed, rc, mix_meta):
                     )
                 )  # fmt: skip
                 i += 1
+    pool = getattr(
+        a, "pool", "default"
+    )  # synth has no --pool; default keeps the truth table byte-identical
+    extra = "" if pool == "default" else "\tpool"
     with open(out / f"spike_L{level}_s{seed}.truth.tsv", "w") as t:
         t.write(
-            "name\tcb\tumi\tclass\tcontig\tsrc_pos\tsrc_flag\tcontigs\tnh_stratum\tsrc_contig\n"
+            "name\tcb\tumi\tclass\tcontig\tsrc_pos\tsrc_flag\tcontigs\tnh_stratum\tsrc_contig"
+            + extra
+            + "\n"
         )
-        t.writelines("\t".join(map(str, r)) + "\n" for r in rows)
+        t.writelines("\t".join(map(str, r)) + (f"\t{pool}" if extra else "") + "\n" for r in rows)
     (out / f"spike_L{level}_s{seed}.json").write_text(
         json.dumps(
-            {**vars(a), "seed": seed, "level": level, "rc": rc, "pool_class_mix": mix_meta},
+            {
+                **{k: v for k, v in vars(a).items() if k != "pool" or v != "default"},
+                "seed": seed,
+                "level": level,
+                "rc": rc,
+                "pool_class_mix": mix_meta,
+            },
             indent=1,
         )
     )
@@ -416,6 +441,12 @@ def main(argv=None):
         type=int,
         default=1,
         help="1 = NH=1 reads only; >1 also keeps reads with NH<=N all of whose alignments are on the truth set",
+    )
+    s.add_argument(
+        "--pool",
+        choices=("default", "outside_truth"),
+        default="default",
+        help="outside_truth = ONLY the reads default mode drops as alignment_outside_truth_set (host-homologous; DISC-12-HH)",
     )
     s.add_argument("--levels", type=lambda x: [int(v) for v in x.split(",")], required=True)
     s.add_argument("--seeds", type=lambda x: [int(v) for v in x.split(",")], default=[1])

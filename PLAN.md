@@ -27,6 +27,16 @@ completion.
   anything leaves this repo; compatibility symlinks are local-only and never committed. First step (this
   change): `environment.coverage.yml` is in `MANIFEST.in` but was missing from the sdist ship scope, so
   `check_ship_scope.py` failed; added. No files move in this change.
+- [~] `DISC-12-HH` (2026-10-23, user decision Q16; `codex/disc12-hosthomolog`): host-homologous spike-in arm + host-subtraction loss
+  tooling done, **not run**: `spikein.py spike --pool outside_truth`, `analysis/spikein_detection_limit/hosthomolog.py` (30 conditions
+  per pool, STAR host filter only, `pinned` + `star-default`, `lost_truth_counts` D15/D16), `hosthomolog.sbatch`, tests
+  `tests/test_spikein_hosthomolog.py`. Note: source BAMs hold host-unmapped reads only, so the loss is a lower bound; the EBV BAM has
+  no read with fewer in-set records than NH (pool empty). 2026-10-24 (user Q25): EBV `outside_truth` now draws from a raw-library
+  realignment (`RAW_BAMS`, `star_hostvirus/GSM4796271_raw`, Slurm 25872923); HHV-6B raw is deleted, so it stays a lower bound. Next: after
+  the realignment, count the EBV pool, then submit both pools. Result: the raw realignment (25872923, 33 min) holds the same
+  1,673,118 EBV-aligning reads as the filtered BAM, and none aligns off the EBV contigs (NH<=20 pool 0; 378 reads NH 21-69, all on EBV).
+  EBV host-homologous loss is not estimable with this index (no host-competing EBV reads). Submitted: HH rows 1-15 (HHV-6B only,
+  25874010) and the default pool rows 1-30 (25874011, root `disc12_hostloss_default_2026-10-24`).
 - **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
   rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
