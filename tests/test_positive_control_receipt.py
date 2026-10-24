@@ -260,4 +260,3 @@ def test_report_schema_refuses_an_unverified_report_that_certifies(forged):
     }
     with pytest.raises(SchemaContractError):
         require_schema_valid(payload, "positive_control_report.schema.json")
-

@@ -70,4 +70,3 @@ def test_no_correction_is_zero_drop_without_running_bustools(tmp_path: Path) -> 
 
 def test_old_audits_still_validate() -> None:
     require_schema_valid(OLD_AUDIT, "count_audit.schema.json")
-
