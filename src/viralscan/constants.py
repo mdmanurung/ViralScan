@@ -390,7 +390,7 @@ ENSEMBL_SPECIES: dict[str, tuple[str, str]] = {
 # EM bleed from shared-region multimappers rather than genuine co-infection.
 #
 # NOT the same list as `sibling_virus_pairs` in
-# analysis/v3_validation/protocol.yaml, despite the shared name. That one is an
+# ViralScan-reproducibility/analysis/v3_validation/protocol.yaml, despite the shared name. That one is an
 # evaluation population for endpoints D13/D24/E5 and deliberately spans a
 # relatedness gradient, including EBV/KSHV — two gammaherpesviruses in different
 # genera, chosen precisely because they are the most distant pair. Adding EBV/KSHV

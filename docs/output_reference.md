@@ -572,7 +572,7 @@ Two defences, and it is worth being precise about what each buys:
    the other, and a group is a greedy maximal clique of that link graph, never a
    transitive chain. The groups are maximal, not a minimum partition, so breadth
    can still over-count linked genes that land in different cliques (the sensitivity
-   table `analysis/audit_2026-10/aud01_sensitivity.tsv` counts such pairs). In EBV, `EBNA-1` is its own latent group,
+   table `ViralScan-reproducibility/analysis/audit_2026-10/aud01_sensitivity.tsv` counts such pairs). In EBV, `EBNA-1` is its own latent group,
    `EBNA-2` and `EBNA-LP` share one, and `BTRF1` and `BcLF1` are separate groups; a
    productive marker such as `BMRF1` is no longer pulled into a latent group by
    a chain of overlapping genes. Genes in one group cannot give independent
@@ -891,7 +891,7 @@ read-level evidence and are never assigned from molecule counts alone.
 
 The `evidence_tier` column above is never `probable` or `strong`. Those two tiers come from
 `viralscan.evidence_tiers`, a pure module (no file I/O, not yet wired into `detection` or the Snakefile)
-built to the frozen `calibration.threshold_search` contract in `analysis/v3_validation/protocol.yaml`:
+built to the frozen `calibration.threshold_search` contract in `ViralScan-reproducibility/analysis/v3_validation/protocol.yaml`:
 
 - the cutoff triple is (distinct supporting molecules per cell, distinct supporting features per sample,
   exact-fragment support fraction), searched over the protocol's 45-point grid, read by

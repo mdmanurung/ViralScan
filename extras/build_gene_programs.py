@@ -927,7 +927,7 @@ KMER_SIZE = 31
 
 #: Two genes are *linked* (a read from one can pseudoalign to the other) when the shared 31-mers
 #: are at least this fraction of the smaller gene's 31-mers. Chosen from
-#: ``analysis/audit_2026-10/aud01_sensitivity.tsv``; the generator refuses a catalogue in which
+#: ``ViralScan-reproducibility/analysis/audit_2026-10/aud01_sensitivity.tsv``; the generator refuses a catalogue in which
 #: two curated markers of different programmes share >= :data:`CROSS_PROGRAMME_FLOOR` of their
 #: 31-mers whatever this value is.
 DEFAULT_KMER_THRESHOLD = 0.5
@@ -941,7 +941,7 @@ def _canonical_kmers(seq: str, k: int = KMER_SIZE) -> set[str]:
     """Canonical (min of forward, reverse complement) k-mers of ``seq``, skipping any with N.
 
     Canonical because ``kb count`` runs unstranded by default (see
-    ``analysis/audit_2026-10/M01_strand_note.md``): a read from the antisense strand of gene X
+    ``ViralScan-reproducibility/analysis/audit_2026-10/M01_strand_note.md``): a read from the antisense strand of gene X
     that matches gene Y's sense sequence is ambiguous, so strand cannot be used to separate
     genes. This is the conservative choice; an explicit ``--strand forward/reverse`` run is a
     subset of it.

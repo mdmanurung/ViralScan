@@ -89,7 +89,7 @@ generator writes the requested set rather than merging it, so never run it again
 
 ## REF-13 normaliser QC
 
-`scripts/ref13_normaliser_qc.py` generates the `kb ref` cDNA with the installed
+`ViralScan-reproducibility/scripts/ref13_normaliser_qc.py` generates the `kb ref` cDNA with the installed
 `ngs_tools` before and after normalisation, on the cached genomes, and writes
 `curation/panel/ref13_normaliser_qc.tsv` (one row per gene: rule, transcript
 count and cDNA length before and after, `bp_removed`, `identical`). Over the 393 local GTFs
