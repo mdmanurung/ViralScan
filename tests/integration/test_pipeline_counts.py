@@ -13,7 +13,7 @@ genes proportionally.  A key invariant is that the *total* UMI mass is
 conserved: the sum of ``counts_corrected + counts_original`` must not exceed
 the sum of the original raw counts (within floating-point tolerance).
 
-Audit trace: audits/2026-05-08-full-pipeline.md §3.4 (UMI conservation)
+Audit trace: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §3.4 (UMI conservation)
 
 Fixture design
 --------------
@@ -143,7 +143,7 @@ def small_multimap_adata():
 class TestEndToEndCountConservation:
     """Integration guard: UMI totals in X must equal unique + multimapper input.
 
-    Audit §3.4: audits/2026-05-08-full-pipeline.md
+    Audit §3.4: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md
     """
 
     def test_x_equals_corrected_plus_original(self, small_multimap_adata) -> None:

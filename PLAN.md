@@ -24,9 +24,12 @@ completion.
   `ViralScan` (package) and `ViralScan-reproducibility` (experiments). Live tracker, decisions D1-D45 and
   agent instructions: `/exports/para-lipg-hpc/mdmanurung/viralscan-split/SPLIT_TRACKER.md` (it moves into the
   reproducibility repo once that exists). Rules: regression baseline and a scratch-clone rehearsal before
-  anything leaves this repo; compatibility symlinks are local-only and never committed. First step (this
-  change): `environment.coverage.yml` is in `MANIFEST.in` but was missing from the sdist ship scope, so
-  `check_ship_scope.py` failed; added. No files move in this change.
+  anything leaves this repo; compatibility symlinks are local-only and never committed. Done: ship-scope fix
+  (#113). Batch 4a (this change, do NOT merge before `ViralScan-reproducibility` has been built and pushed):
+  governance, `analysis/` (except `panel_expansion`, now `curation/panel/`), `results/`, `covid_viralscan/`,
+  `benchmark_inputs/`, `claims/`, `audits/`, `todo/`, `data/`, top-level `schemas/` (duplicate of
+  `src/viralscan/schemas/v3`), the truth-panel/governance scripts and their tests leave the package; wheel and
+  CLI unchanged, sdist loses 20 entries. Next: 4b (experiment scripts + tests), 4c (docs, dev files), 4d.
 - **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
   rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).

@@ -1,7 +1,0 @@
-dataset	taxon_ids	note
-ebv	10376	Human gammaherpesvirus 4
-hsv1	10298	Human alphaherpesvirus 1
-hpv16	333760	Human papillomavirus 16
-kshv	37296	Human gammaherpesvirus 8
-hhv6b	32604	Human betaherpesvirus 6B
-kshv_ebv_gse154900	37296;10376	KSHV and EBV co-infection model

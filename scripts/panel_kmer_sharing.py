@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """PANEL-01 (WP1b): k-mer sharing between each panel candidate and the built panel (offline, read-only).
 
-    python scripts/panel_kmer_sharing.py [--candidates analysis/panel_expansion/candidates.tsv]
+    python scripts/panel_kmer_sharing.py [--candidates curation/panel/candidates.tsv]
         [--panel-fasta <build>/viral.fa] [--candidate-fasta <cache>/candidates.fasta] [--fetch]
-        [--out analysis/panel_expansion/kmer_sharing.tsv] [-k 31]
+        [--out curation/panel/kmer_sharing.tsv] [-k 31]
 
 Run this before curating the candidates (Biomni review finding 18): it says which candidates the index could
 tell apart from what is already in the panel, so a candidate that is nearly all shared k-mers is judged before
@@ -197,7 +197,7 @@ def group_of(
 
 
 def main(argv: list[str] | None = None) -> int:
-    root = Path(__file__).resolve().parents[1] / "analysis" / "panel_expansion"
+    root = Path(__file__).resolve().parents[1] / "curation" / "panel"
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--candidates", type=Path, default=root / "candidates.tsv")
     ap.add_argument("--panel-fasta", type=Path)

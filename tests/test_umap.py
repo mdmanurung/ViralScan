@@ -8,7 +8,7 @@ Audit findings covered:
   §3.1 — ``viral_neighbor_enrichment`` and sc PCA/UMAP calls lack random seeds,
           making UMAP coordinates and permutation p-values non-reproducible.
 
-Regression for: audits/2026-05-08-full-pipeline.md §3.1
+Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §3.1
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ class TestViralNeighborEnrichmentReproducibility:
         WHEN:  _viral_neighbor_enrichment is called twice
         THEN:  both calls return exactly the same p-value
 
-        Regression for: audits/2026-05-08-full-pipeline.md §3.1
+        Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §3.1
         """
         coords, labels = clustered_viral_data
         _, _, p1 = _viral_neighbor_enrichment(
