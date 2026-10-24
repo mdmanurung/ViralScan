@@ -20,22 +20,15 @@ completion.
 
 ## Next action
 
-- [~] `REPO-SPLIT-01` (2026-10-23, user: separate the package from the experiments): split this repo into
-  `ViralScan` (package) and `ViralScan-reproducibility` (experiments). Live tracker, decisions D1-D45 and
-  agent instructions: `/exports/para-lipg-hpc/mdmanurung/viralscan-split/SPLIT_TRACKER.md` (it moves into the
-  reproducibility repo once that exists). Rules: regression baseline and a scratch-clone rehearsal before
-  anything leaves this repo; compatibility symlinks are local-only and never committed. Done: ship-scope fix
-  (#113). Batch 4a (done):
-  governance, `analysis/` (except `panel_expansion`, now `curation/panel/`), `results/`, `covid_viralscan/`,
-  `benchmark_inputs/`, `claims/`, `audits/`, `todo/`, `data/`, top-level `schemas/` (duplicate of
-  `src/viralscan/schemas/v3`, except `protocol_lock.schema.json`, which leaves in 4b), the truth-panel/governance scripts and their tests leave the package; wheel and
-  CLI unchanged, sdist loses 20 entries. Merged as #118. Batch 4b (this change): experiment scripts,
-  their tests, `protocol_lock.schema.json`, three `config/*.tsv` inputs and the size-cap pre-commit hook leave
-  the package. Batch 4c (this change): 24 docs (experiment plans, handoff drafts, figures, review prompts) and the six
-  experiment-only sections of this file (WP0, WP3, WP7, WP9, Evidence log, VR pilot) move to the
-  reproducibility repo. Batch 4d (this change): package text that cited moved repo paths now names
-  ViralScan-reproducibility or the in-package schema copy. `ENVIRONMENTS_INSTALLATIONS.md` stays until its
-  deletion is approved. Next: local compatibility symlinks, then the repo-split row closes.
+- [x] `REPO-SPLIT-01` (2026-10-23, done 2026-10-24; user: separate the package from the experiments): this repo is the
+  `viralscan` package only; experiments, results, claims/governance ledgers, manuscript drafts and handoffs live in
+  [ViralScan-reproducibility](https://github.com/mdmanurung/ViralScan-reproducibility) with their git history.
+  Merged: #113 (ship-scope fix), #118 (4a: governance, `analysis/`, `results/`, `claims/` and the truth-panel tooling;
+  `analysis/panel_expansion` is now `curation/panel`), #119 (4b: experiment scripts and tests), #120 (4c: docs and
+  experiment `PLAN.md` sections), #121 (4d: citation relinks). Each batch was rehearsed in a scratch clone: 0 tests
+  vanished unexplained or regressed, wheel/sdist/CLI help unchanged. Decisions D1-D46 and the change log:
+  `SPLIT_TRACKER.md` in the reproducibility repo. Open: `ENVIRONMENTS_INSTALLATIONS.md` stays until its deletion is
+  approved. The reproducibility tests run against the pinned package commit `4da4674` (see that repo's `CLAUDE.md`).
 - **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
   rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
