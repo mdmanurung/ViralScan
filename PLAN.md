@@ -33,7 +33,9 @@ completion.
   their tests, `protocol_lock.schema.json`, three `config/*.tsv` inputs and the size-cap pre-commit hook leave
   the package. Batch 4c (this change): 24 docs (experiment plans, handoff drafts, figures, review prompts) and the six
   experiment-only sections of this file (WP0, WP3, WP7, WP9, Evidence log, VR pilot) move to the
-  reproducibility repo. Next: 4d (root clutter, doc relinks).
+  reproducibility repo. Batch 4d (this change): package text that cited moved repo paths now names
+  ViralScan-reproducibility or the in-package schema copy. `ENVIRONMENTS_INSTALLATIONS.md` stays until its
+  deletion is approved. Next: local compatibility symlinks, then the repo-split row closes.
 - **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
   rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).

@@ -1,7 +1,7 @@
 """Probable/strong evidence tiers, built to the frozen calibration-grid contract (PLAN ``TIER-01``).
 
 Pure functions, no file I/O, no data and no calibration run. The contract is
-``calibration.threshold_search`` of ``analysis/v3_validation/protocol.yaml``:
+``calibration.threshold_search`` of ``ViralScan-reproducibility/analysis/v3_validation/protocol.yaml``:
 
 * the grid is the 45 cutoff triples ``(molecules per cell, features per sample, exact-fragment support
   fraction)``; :func:`grid_from_protocol` reads it from the already-loaded protocol, nothing here hard-codes a
