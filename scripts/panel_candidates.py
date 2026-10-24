@@ -18,7 +18,7 @@ user reviews row by row. Output is deterministic (sorted, no timestamps).
   H2_curated     a `status=accepted` curated row (--curated) names the accession or species
   H3_curated     as H2_curated, class H3: a vector/reagent virus that occurs in human samples
   proposed       a `status=proposed` curated row: suggested, not yet accepted by the user
-  census_host    only NCBI's host qualifier (scripts/panel_census.py) says Homo sapiens; submitter-provided and
+  census_host    only NCBI's host qualifier (ViralScan-reproducibility/scripts/panel_census.py) says Homo sapiens; submitter-provided and
                  known to include phage and bacterial records, so it is a reason to look, not to promote
   unreviewed     none of the above; never added automatically
 
