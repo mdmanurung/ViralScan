@@ -27,8 +27,7 @@ completion.
   `analysis/panel_expansion` is now `curation/panel`), #119 (4b: experiment scripts and tests), #120 (4c: docs and
   experiment `PLAN.md` sections), #121 (4d: citation relinks). Each batch was rehearsed in a scratch clone: 0 tests
   vanished unexplained or regressed, wheel/sdist/CLI help unchanged. Decisions D1-D46 and the change log:
-  `SPLIT_TRACKER.md` in the reproducibility repo. Open: `ENVIRONMENTS_INSTALLATIONS.md` stays until its deletion is
-  approved. The reproducibility tests run against the pinned package commit `4da4674` (see that repo's `CLAUDE.md`).
+  `SPLIT_TRACKER.md` in the reproducibility repo. `ENVIRONMENTS_INSTALLATIONS.md` (an empty template; software versions are pinned in `environment.yml`/`uv.lock`) was deleted with the owner's approval. The reproducibility tests run against the pinned package commit `4da4674` (see that repo's `CLAUDE.md`).
 - **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
   rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
