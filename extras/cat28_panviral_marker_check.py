@@ -43,7 +43,7 @@ DEFAULT_PANVIRAL = (
     / "pan_virus_annotation_plain.tsv"
 )
 DEFAULT_CATALOGUE = REPO_ROOT / "src" / "viralscan" / "data" / "gene_programs.tsv"
-DEFAULT_OUT = REPO_ROOT / "analysis" / "panel_expansion" / "cat28_panviral_marker_check.tsv"
+DEFAULT_OUT = REPO_ROOT / "curation" / "panel" / "cat28_panviral_marker_check.tsv"
 
 PANVIRAL_COLUMNS = ("EC", "Gene", "Nuccore", "Virus")
 

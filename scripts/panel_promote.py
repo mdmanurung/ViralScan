@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PANEL-01 (WP2): apply an accepted promotions table to the virus catalogue's overlay columns.
 
-    python scripts/panel_promote.py analysis/panel_expansion/promotions_round1.tsv
+    python scripts/panel_promote.py curation/panel/promotions_round1.tsv
         [--catalogue src/viralscan/data/virus_catalog.tsv] [--check]
 
 `promotions_round1.tsv` has one row per accession: `accession`, `curation_id` (the row of the curation sheet that

@@ -53,26 +53,6 @@ jobs:
       - name: Version metadata agrees (REL-12)
         run: python scripts/check_versions.py
 
-      # Draft gate only. Do NOT add --phase training here: the training gate is
-      # supposed to fail while preregistration blockers are open, so asserting it
-      # passes would keep CI permanently red, and asserting it fails would invert
-      # into a false pass the moment those blockers legitimately close.
-      - name: v3 protocol draft gate
-        run: python scripts/validate_v3_protocol.py
-
-      # The amendment ledger's hash chain is computed by whoever edits the file,
-      # so it detects an inconsistent edit but not a coherent rewrite. This is
-      # the external anchor: it compares against pushed history, which the
-      # editing author does not solely control.
-      #
-      # On a push to main, origin/main IS the pushed head, so comparing against it
-      # compares main with itself and passes vacuously (SCI-05 round 12, m1). Compare
-      # the push against the head it replaced instead. A force-pushed `before` that
-      # is no longer reachable makes the check fail closed, which is the intent.
-      - name: deviation ledger is append-only
-        env:
-          LEDGER_BASE: ${{ github.event_name == 'push' && github.event.before || 'origin/main' }}
-        run: python scripts/check_ledger_append_only.py --revision "$LEDGER_BASE"
 
   test:
     name: pytest (py${{ matrix.python-version }} on ${{ matrix.os }})

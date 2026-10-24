@@ -7,7 +7,7 @@ on the genomes cached by ``ncbi_fetch``. One row per gene: the rule applied, the
 count and cDNA length before/after, and whether the gene's transcript sequences are identical
 (transcript names are ignored). Read-only: the GTFs and the cache are never written.
 
-    python scripts/ref13_normaliser_qc.py -o analysis/panel_expansion/ref13_normaliser_qc.tsv
+    python scripts/ref13_normaliser_qc.py -o curation/panel/ref13_normaliser_qc.tsv
 """
 
 from __future__ import annotations

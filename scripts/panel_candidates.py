@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """PANEL-01 (WP1): candidate table for promoting human-relevant viruses into the shipped panel (read-only).
 
-    python scripts/panel_candidates.py [--evonk analysis/panel_expansion/evonk_candidates.tsv]
-        [--curated analysis/panel_expansion/human_relevant_curated.tsv]
-        [--census analysis/panel_expansion/census.tsv]
-        [--kmer-sharing analysis/panel_expansion/kmer_sharing.tsv] [--kmer-partners .../kmer_partners.tsv] [--panel-fasta <build>/viral.fa] [--candidate-fasta other.fasta ...]
-        [--out analysis/panel_expansion/candidates.tsv]
+    python scripts/panel_candidates.py [--evonk curation/panel/evonk_candidates.tsv]
+        [--curated curation/panel/human_relevant_curated.tsv]
+        [--census curation/panel/census.tsv]
+        [--kmer-sharing curation/panel/kmer_sharing.tsv] [--kmer-partners .../kmer_partners.tsv] [--panel-fasta <build>/viral.fa] [--candidate-fasta other.fasta ...]
+        [--out curation/panel/candidates.tsv]
 
 Candidates are the catalogue rows whose `panel` is `max`, `broad` or `legacy` (listed, never shipped) plus the
 accessions of `--evonk` that the catalogue does not hold. Nothing is added to the panel here: the table is what the
@@ -247,7 +247,7 @@ def build_candidates(
 
 
 def main(argv: list[str] | None = None) -> int:
-    root = Path(__file__).resolve().parents[1] / "analysis" / "panel_expansion"
+    root = Path(__file__).resolve().parents[1] / "curation" / "panel"
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--evonk", type=Path, default=root / "evonk_candidates.tsv")
     ap.add_argument("--curated", type=Path, default=root / "human_relevant_curated.tsv")

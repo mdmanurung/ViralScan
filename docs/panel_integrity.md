@@ -2,7 +2,7 @@
 
 The bundled reference builder checks the local GTF corpus hash manifest before
 downloads. The default is
-`analysis/panel_expansion/gtf_corpus_manifest.tsv`; use `--gtf-manifest` to select
+`curation/panel/gtf_corpus_manifest.tsv`; use `--gtf-manifest` to select
 another reviewed corpus. The manifest records hashes and sizes, with unknown
 source dates. It identifies local files and does not imply GTF bundling in the
 wheel or validate their biological annotations.
@@ -12,7 +12,7 @@ Run the offline structure and catalogue matrix check with:
 ```bash
 PYTHONPATH=src python scripts/panel_integrity.py --output /tmp/panel_integrity.tsv
 PYTHONPATH=src python scripts/write_gtf_manifest.py \
-  --check analysis/panel_expansion/gtf_corpus_manifest.tsv
+  --check curation/panel/gtf_corpus_manifest.tsv
 ```
 
 The matrix includes every shipped accession, deliberate index exclusions, and
@@ -47,7 +47,7 @@ Only an explicit `gene_biotype` or `transcript_biotype` of `whole_genome` labels
 feature as such; gene names and long spans do not classify it. As of 2026-10-10
 the local corpus tags no gene as `whole_genome`: HPV-8 `M12737.1` and HPV-71
 `NC_039089.1` were given modelled CDS (`scripts/model_hpv_cds_gtfs.py`, QC in
-`analysis/panel_expansion/hpv_modelled_cds_qc.tsv`), and the genome-spanning
+`curation/panel/hpv_modelled_cds_qc.tsv`), and the genome-spanning
 `misc_RNA` / `prim_transcript` of HAV `NC_001489.1` and HTLV-2 `NC_001488.1` were
 removed (`scripts/fix_thin_gtfs.py`), keeping their real CDS. `whole_genome`
 genes still arise for FASTA-only user references; excluding them from
@@ -81,8 +81,8 @@ filter remain separate unfinished decisions.
 
 SV40 (`NC_001669.1`) and AAV1/7/8 (`NC_002077.1`, `NC_006260.1`, `NC_006261.1`) were fetched from NCBI,
 catalogued as `shipped` + `contaminant` and given generated GTFs on 2026-10-10 (PLAN `PANEL-01` WP2). The GTFs
-stay local and are listed in `analysis/panel_expansion/gtf_corpus_manifest.tsv`.
-`analysis/panel_expansion/promotions_pending_records.tsv` is the overlay that recorded the decisions;
+stay local and are listed in `curation/panel/gtf_corpus_manifest.tsv`.
+`curation/panel/promotions_pending_records.tsv` is the overlay that recorded the decisions;
 `scripts/panel_promote.py ... --check` passes now that all four accessions are in the catalogue. The catalogue
 generator writes the requested set rather than merging it, so never run it against the live catalogue without
 `--out`.
@@ -91,7 +91,7 @@ generator writes the requested set rather than merging it, so never run it again
 
 `scripts/ref13_normaliser_qc.py` generates the `kb ref` cDNA with the installed
 `ngs_tools` before and after normalisation, on the cached genomes, and writes
-`analysis/panel_expansion/ref13_normaliser_qc.tsv` (one row per gene: rule, transcript
+`curation/panel/ref13_normaliser_qc.tsv` (one row per gene: rule, transcript
 count and cDNA length before and after, `bp_removed`, `identical`). Over the 393 local GTFs
 (2026-10-10): 4,147 genes, **4,040 identical** and 107 changed.
 

@@ -222,7 +222,7 @@ def main() -> None:
     parser.add_argument("--data-dir", type=Path, default=root / "src" / "viralscan" / "data")
     parser.add_argument("--cache", type=Path, default=Path.home() / ".cache" / "viralscan" / "ncbi")
     parser.add_argument(
-        "--qc", type=Path, default=root / "analysis" / "panel_expansion" / "hpv_modelled_cds_qc.tsv"
+        "--qc", type=Path, default=root / "curation" / "panel" / "hpv_modelled_cds_qc.tsv"
     )
     parser.add_argument("--dry-run", action="store_true", help="print QC only; write no GTF")
     args = parser.parse_args()

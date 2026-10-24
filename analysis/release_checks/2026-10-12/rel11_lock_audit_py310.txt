@@ -1,4 +1,0 @@
-uv.lock: 165 packages, sources {'registry': 164, 'editable': 1}, without full hashes []
-  164 registry packages queried, 0 with advisories
-environment.explicit.txt: 487 packages, channels {'bioconda': 58, 'conda-forge': 429}, malformed [], duplicate names []
-  0 name-matched packages with advisories
