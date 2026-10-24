@@ -43,10 +43,6 @@ exclude docs/PUBLICATION_READINESS_2026-07-17.md
 exclude docs/PUBLICATION_READINESS_EXECUTION.md
 exclude docs/ROADMAP.md
 exclude docs/IMPLEMENTATION_PLAN.md
-exclude docs/showcase_runbook.md
-exclude docs/write-docs-prompt.md
-exclude docs/review-clear-execute-plan.md
-exclude docs/review-clear-execute-tasks.md
 global-exclude __pycache__ *.py[cod] *.h5ad *.bam *.cram *.fastq *.fastq.gz
 include src/viralscan/data/anellovirus_accessions.tsv
 include src/viralscan/data/anellovirus_genes.tsv

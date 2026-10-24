@@ -51,9 +51,6 @@ exclude_patterns = [
     # Internal planning / manuscript drafts — not part of the public docs build.
     "manuscript_draft.md",
     "review-*.md",
-    "write-docs-prompt.md",
-    "showcase_runbook.md",
-    "notices/CAT-30_retraction_DRAFT.md",  # draft notice, not published (DEF-07)
     "plans/**",
     "handoffs/**",
     "reviews/**",
