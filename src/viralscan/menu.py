@@ -107,6 +107,38 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
     return True
 
 
+def _run_host_loss(args: argparse.Namespace) -> None:
+    """``host-loss``: D15/D16 truth loss at the host filter into ``posthoc/host_loss`` (HOST-05a)."""
+    from viralscan.scripts.host_filter import lost_truth_counts
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    run_dir = Path(args.run_dir).resolve()
+    lineage = run_dir / "host_filtered" / "fragment_lineage.tsv.gz"
+    if not lineage.is_file():
+        _die(f"{lineage} is missing: the run was not made with --host-filter starsolo.")
+    if not Path(args.truth).is_file():
+        _die(f"--truth file does not exist: {args.truth}")
+    counts = lost_truth_counts(args.truth, str(lineage), args.viral_label, args.mixed_manifest)
+    out = Path(args.output).resolve() if args.output else posthoc_dir(run_dir, "host_loss")
+    out.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": 1,
+        "lineage": str(lineage),
+        "truth": str(Path(args.truth).resolve()),
+        "viral_label": args.viral_label,
+        "mixed_manifest": str(Path(args.mixed_manifest).resolve()) if args.mixed_manifest else None,
+        "lower_bound": True,  # the lineage sees host-filter input only; outside-truth loss is invisible
+        "not_estimable": counts["not_in_lineage"] > 0,
+        **counts,
+    }
+    (out / "host_loss.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    log.info(
+        "host-loss: D15 %s/%s removed, D16 %s/%s lost (lower bound) -> %s",
+        counts["d15_removed_fragments"], counts["d15_truth_fragments"],
+        counts["d16_lost_molecules"], counts["d16_truth_molecules"], out / "host_loss.json",
+    )  # fmt: skip
+
+
 def _run_rerun_programs(args: argparse.Namespace) -> None:
     """Run layer 2 in place on a completed run directory."""
     import yaml as _yaml
@@ -826,6 +858,16 @@ def errorhandler(args: argparse.Namespace) -> None:
     elif star_index_path:
         _die("--star-hostvirus-index requires --star-confirm.")
 
+    if getattr(args, "discover", False):
+        if not getattr(args, "kraken2_db", None):
+            _die("--discover requires --kraken2-db.")
+        if not host_filter:
+            _die("--discover requires --host-filter (Kraken2 classifies the host-unmapped reads).")
+        if not os.path.isdir(str(args.kraken2_db)):
+            _die(f"Kraken2 database directory does not exist: {args.kraken2_db}.")
+    elif getattr(args, "kraken2_db", None):
+        _die("--kraken2-db requires --discover.")
+
     technology = getattr(args, "technology", None)
     if (
         technology
@@ -1386,6 +1428,19 @@ def main() -> None:
         _run_star_index(args)
         return
 
+    if getattr(args, "_subcommand", None) in ("translated-index", "translated"):
+        from viralscan import translated
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        try:
+            if args._subcommand == "translated-index":
+                translated.run_translated_index(args)
+            else:
+                translated.run_translated(args)
+        except (translated.TranslatedError, subprocess.CalledProcessError) as exc:
+            _die(str(exc))
+        return
+
     if getattr(args, "_subcommand", None) == "evidence":
         from viralscan.scripts.evidence_run import run_evidence
 
@@ -1402,6 +1457,10 @@ def main() -> None:
         _run_rerun_programs(args)
         return
 
+    if getattr(args, "_subcommand", None) == "host-loss":
+        _run_host_loss(args)
+        return
+
     if getattr(args, "_subcommand", None) == "rerun-multimap":
         _run_rerun_multimap(args)
         return
@@ -1412,6 +1471,18 @@ def main() -> None:
         configure_logging(verbose=args.verbose, quiet=args.quiet)
         try:
             run_discover(args)
+        except DiscoveryError as exc:
+            _die(str(exc))
+        return
+
+    if getattr(args, "_subcommand", None) == "discover-states":
+        from viralscan.discovery import DiscoveryError, run_discover_states
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        if args.minimap2 and not (args.host_fasta and args.candidate_fasta):
+            _die("--minimap2 requires --host-fasta and at least one --candidate-fasta TAXID=FASTA.")
+        try:
+            run_discover_states(args)
         except DiscoveryError as exc:
             _die(str(exc))
         return
@@ -1477,6 +1548,13 @@ def main() -> None:
         missing = [t for t in ("STAR", "samtools") if shutil.which(t) is None]
         if missing:
             _die(f"--star-confirm requires {', '.join(missing)} on PATH.")
+    if getattr(args, "discover", False):
+        from viralscan.discovery import DiscoveryError, check_tools
+
+        try:
+            check_tools()
+        except DiscoveryError as exc:
+            _die(f"--discover: {exc}")
 
     _check_cell_caller_tools(
         _resolve_cell_calling(
@@ -1583,6 +1661,40 @@ def main() -> None:
 
     # Every sample finished (check=True above): the run is complete.
     write_run_complete(output_dir)
+
+    if getattr(args, "discover", False):
+        _discover_after_run(args, output_dir, [_sample_id(s1) for s1 in samples1])
+
+
+def _discover_after_run(args: argparse.Namespace, output_dir: Path, samples: list[str]) -> None:
+    """``--discover``: Kraken2 discovery per sample into ``posthoc/discovery/<sample>`` (DISC-14).
+
+    Runs after ``run_complete.json`` exists because discovery resolves a completed run. A failure
+    leaves the primary run valid (``validate-run`` ignores ``posthoc/``) and exits non-zero.
+    """
+    from viralscan.discovery import DiscoveryError, run_discover
+
+    for sample in samples:
+        discover_args = argparse.Namespace(
+            run_dir=str(output_dir),
+            sample=sample,
+            output=None,
+            kraken2_db=args.kraken2_db,
+            confidence=0.05,
+            minimum_hit_groups=4,
+            memory_mapping=False,
+            polya_trim=True,
+            host_subtract=None,
+            host_index=None,
+            called_cells=None,
+            host_filter_star_params="pinned",
+            force=False,
+            threads=args.cores,
+        )
+        try:
+            run_discover(discover_args)
+        except DiscoveryError as exc:
+            _die(f"discovery failed for sample {sample} (the primary run is complete): {exc}")
 
 
 if __name__ == "__main__":

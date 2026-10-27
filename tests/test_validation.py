@@ -214,14 +214,6 @@ def test_all_required_v3_schemas_are_packaged() -> None:
         assert isinstance(schema, dict), name
 
 
-def test_packaged_v3_schemas_match_public_contracts() -> None:
-    public_schema_dir = Path(__file__).resolve().parents[1] / "schemas" / "v3"
-    for name in REQUIRED_V3_SCHEMAS:
-        assert (
-            packaged_schema_resource(name).read_bytes() == (public_schema_dir / name).read_bytes()
-        )
-
-
 def test_doctor_fails_closed_when_packaged_schemas_are_missing() -> None:
     with patch(
         "viralscan.validation.packaged_schema_resource",

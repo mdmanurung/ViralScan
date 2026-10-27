@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # ViralScan 3.0 molecule-counting contract
 
 <!-- viralscan-claim:v3-molecule-conservation-synthetic status=validated_v3 -->

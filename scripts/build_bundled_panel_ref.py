@@ -314,7 +314,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--gtf-manifest",
         type=Path,
-        default=_find_repo_root() / "analysis" / "panel_expansion" / "gtf_corpus_manifest.tsv",
+        default=_find_repo_root() / "curation" / "panel" / "gtf_corpus_manifest.tsv",
         help="Local GTF corpus hash manifest, checked before downloads or indexing.",
     )
     p.add_argument(
@@ -987,7 +987,7 @@ def main() -> None:
         "The output h5ad/mtx will contain both ENST* (host) and viral gene_ids —\n"
         "bulk_viral_summarize.py emits a viral summary TSV; the h5ad is the full\n"
         "host+viral matrix for coexpression analysis.\n"
-        "See the plan notes in scripts/bulk_viral_summarize.py."
+        "See the plan notes in ViralScan-reproducibility/scripts/bulk_viral_summarize.py."
     )
 
 

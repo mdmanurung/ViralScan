@@ -205,6 +205,82 @@ def _build_star_index_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="star-index")
 
 
+def _build_translated_index_parser(subparsers: Any) -> None:
+    """Register the 'translated-index' subcommand (PLAN AA-09)."""
+    p = subparsers.add_parser(
+        "translated-index",
+        help="Build the kallisto translated-search (protein) index for `viralscan translated`.",
+        description=(
+            "kb ref --aa over the annotated viral proteins written by scripts/prepare_viral_proteins.py "
+            "(proteins.faa, viruses.t2g, proteins.tsv), optionally combined with the PalmDB RdRP set "
+            "(three pinned files downloaded from the kallisto tutorial), with a plain nucleotide host "
+            "D-list. Writes <out-dir>/index/{index.idx,t2g.txt,proteins.tsv,translated_index.json}; "
+            "the manifest is written last. Refuses a kallisto below 0.51.1 (it does not translate the "
+            "D-list). Exploratory arm: never changes detected or tiers."
+        ),
+    )
+    p.add_argument(
+        "--proteins-dir", required=True, metavar="DIR", help="prepare_viral_proteins output"
+    )
+    p.add_argument(
+        "--host-mask", required=True, metavar="FASTA", help="Host cDNA/DNA FASTA for the D-list"
+    )
+    p.add_argument("--out-dir", required=True, metavar="DIR")
+    p.add_argument(
+        "--palmdb",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Add the PalmDB RdRP proteins (downloaded, sha256-pinned). Default: on.",
+    )
+    p.add_argument("--threads", "-c", type=int, default=4, help="kb ref threads. Default: 4.")
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="translated-index")
+
+
+def _build_translated_parser(subparsers: Any) -> None:
+    """Register the 'translated' subcommand (PLAN AA-09)."""
+    p = subparsers.add_parser(
+        "translated",
+        help="Translated (protein-level) kallisto search of a completed run, summarised per virus.",
+        description=(
+            "kb count --aa --parity single on the run's FASTQ pair (six-frame search, no strand) "
+            "against a `viralscan translated-index`, then a per-virus/protein UMI summary over all "
+            "barcodes and over the run's called cells. Writes <run-dir>/posthoc/translated/<sample>/ "
+            "(counts/, summary.all.json, summary.cells.json, barcode_check.json, "
+            "translated_receipt.json, translated_complete.json). --counts-dir summarises an existing "
+            "kb count --aa output instead of counting. Exploratory: never changes detected or tiers."
+        ),
+    )
+    p.add_argument(
+        "--run-dir", required=True, help="A completed ViralScan run (holds run_manifest.json)."
+    )
+    p.add_argument("--sample", default=None, help="Sample subdirectory when the run has several.")
+    p.add_argument(
+        "--index-dir", required=True, metavar="DIR", help="<out-dir>/index of translated-index"
+    )
+    p.add_argument(
+        "--counts-dir",
+        default=None,
+        metavar="DIR",
+        help="Existing kb count --aa output to summarise.",
+    )
+    p.add_argument(
+        "--cells",
+        default=None,
+        metavar="FILE",
+        help="Called-cell list; default results/called_cells.tsv.",
+    )
+    p.add_argument(
+        "--expected-taxa", default=None, help="Taxon ids to report first, e.g. 10376;37296."
+    )
+    p.add_argument(
+        "--output", "-o", default=None, help="Default <run-dir>/posthoc/translated/<sample>."
+    )
+    p.add_argument("--threads", "-c", type=int, default=4, help="kb count threads. Default: 4.")
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="translated")
+
+
 def _build_ref_parser(subparsers: Any) -> None:
     """Register the 'build-ref' subcommand."""
     p = subparsers.add_parser(
@@ -645,8 +721,11 @@ def _build_discover_parser(subparsers: Any) -> None:
     p.add_argument(
         "--output",
         "-o",
-        required=True,
-        help="Discovery output directory, outside --run-dir; must be empty, absent or a previous publication.",
+        default=None,
+        help=(
+            "Discovery output directory; default <run-dir>/posthoc/discovery/<sample>. Outside "
+            "--run-dir or under its posthoc/ folder; must be empty, absent or a previous publication."
+        ),
     )
     p.add_argument(
         "--kraken2-db",
@@ -751,6 +830,90 @@ def _build_discover_collapse_parser(subparsers: Any) -> None:
     )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="discover-collapse")
+
+
+def _build_host_loss_parser(subparsers: Any) -> None:
+    """Register the 'host-loss' subcommand (PLAN HOST-05a)."""
+    p = subparsers.add_parser(
+        "host-loss",
+        help="Truth-read loss at the STAR host filter of a completed run (D15/D16, lower bound).",
+        description=(
+            "Join a truth list (read_id, label[, molecule_id]) to the run's "
+            "host_filtered/fragment_lineage.tsv.gz and report the truth-viral fragments (D15) "
+            "and molecules (D16) the host filter removed, plus the host-virus-mixed boundary "
+            "count with --mixed-manifest. The figure is a lower bound on the sensitivity cost "
+            "of --host-filter starsolo (HOST-05): truth reads the lineage never saw make the "
+            "row not estimable. Writes <run-dir>/posthoc/host_loss/host_loss.json; nothing in "
+            "the run changes."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--run-dir",
+        required=True,
+        metavar="DIR",
+        help="A sample run directory holding host_filtered/.",
+    )
+    p.add_argument(
+        "--truth", required=True, metavar="TSV", help="read_id, label[, molecule_id] table."
+    )
+    p.add_argument(
+        "--viral-label", default="viral", help="Truth label of viral reads. Default: viral."
+    )
+    p.add_argument(
+        "--mixed-manifest",
+        default=None,
+        metavar="TSV",
+        help="mixed_host_virus_manifest.tsv (read_id column).",
+    )
+    p.add_argument(
+        "--output", "-o", default=None, metavar="DIR", help="Default <run-dir>/posthoc/host_loss."
+    )
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="host-loss")
+def _build_discover_states_parser(subparsers: Any) -> None:
+    """Register the 'discover-states' subcommand (PLAN DISC-15)."""
+    p = subparsers.add_parser(
+        "discover-states",
+        help="Assign a candidate state to every taxon of a published discovery.",
+        description=(
+            "Write candidate_states.tsv beside candidates.tsv. Route (i) corroboration uses the\n"
+            "run's STAR host+virus BAM when present, else kb molecule assignments\n"
+            "(--multimap-molecule-assignments), else stays not_assessed. Route (ii) read support\n"
+            "runs only with --minimap2. States never change the primary run, detected or tiers.\n"
+            "Cut-offs are documented constants, not calibrated.\n\n"
+            "Example:\n"
+            "  viralscan discover-states run/posthoc/discovery/S1 --run-dir run/"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("discovery_dir", metavar="OUT", help="A published discovery output directory.")
+    p.add_argument("--run-dir", default=None, help="The primary run OUT was built from.")
+    p.add_argument("--sample", default=None, help="Sample subdirectory when the run has several.")
+    p.add_argument(
+        "--k",
+        type=int,
+        default=None,
+        help="Resolved called-cell groups for `prioritized` (default 3; reported, not calibrated).",
+    )
+    p.add_argument(
+        "--minimap2",
+        action="store_true",
+        help="Route (ii): align the taxon's reads competitively (needs --run-dir, --host-fasta, --candidate-fasta).",
+    )
+    p.add_argument(
+        "--host-fasta", default=None, help="Host genome/transcriptome FASTA for --minimap2."
+    )
+    p.add_argument(
+        "--candidate-fasta",
+        action="append",
+        default=[],
+        metavar="TAXID=FASTA",
+        help="Candidate genome for --minimap2; repeatable, at most 3.",
+    )
+    p.add_argument("--panel-fasta", default=None, help="Optional viral panel FASTA competitor.")
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="discover-states")
 
 
 def _build_rerun_programs_parser(subparsers: Any) -> None:
@@ -1125,12 +1288,16 @@ def build_parser() -> argparse.ArgumentParser:
             "  data fetch      Download the viral annotation panel from Zenodo.\n"
             "  build-ref       Build a combined host + virus kallisto reference.\n"
             "  star-index      Build the STAR host + viral-panel index.\n"
+            "  translated-index Build the kallisto translated-search protein index.\n"
+            "  translated      Protein-level kallisto search of a completed run (posthoc).\n"
             "  evidence        Trace/extract the reads behind viral calls.\n"
             "  evidence-plot   Plot molecule-level host versus virus alignments.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
             "  rerun-programs  Re-score gene programmes on a completed run.\n"
+            "  host-loss       Truth-read loss at the STAR host filter (lower bound).\n"
             "  discover        Kraken2 taxonomic discovery on a completed run.\n"
             "  discover-collapse  Project a discovery to species/genus/family.\n"
+            "  discover-states    Assign candidate states to a published discovery.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
             "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
             "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n"
@@ -1161,12 +1328,16 @@ def build_parser() -> argparse.ArgumentParser:
     _build_data_parser(subparsers)
     _build_ref_parser(subparsers)
     _build_star_index_parser(subparsers)
+    _build_translated_index_parser(subparsers)
+    _build_translated_parser(subparsers)
     _build_evidence_parser(subparsers)
     _build_evidence_plot_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
     _build_rerun_programs_parser(subparsers)
+    _build_host_loss_parser(subparsers)
     _build_discover_parser(subparsers)
     _build_discover_collapse_parser(subparsers)
+    _build_discover_states_parser(subparsers)
     _build_doctor_parser(subparsers)
     _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)
@@ -1520,6 +1691,23 @@ def _build_run_parser(subparsers: Any) -> None:
             "Directory of a finished `viralscan star-index` index (must hold "
             "star_hostvirus_index.json). Required by --star-confirm."
         ),
+    )
+    parser.add_argument(
+        "--discover",
+        action="store_true",
+        default=False,
+        help=(
+            "After the run completes, run `viralscan discover` on every sample (Kraken2 on the "
+            "host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), "
+            "writing <output>/posthoc/discovery/<sample>/ (PLAN DISC-14). Requires --host-filter "
+            "and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results."
+        ),
+    )
+    parser.add_argument(
+        "--kraken2-db",
+        default=None,
+        metavar="DIR",
+        help="Kraken2 database directory for --discover (hash.k2d, opts.k2d, taxo.k2d).",
     )
     parser.add_argument(
         "--auto-evidence",

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """PANEL-01 (WP1): candidate table for promoting human-relevant viruses into the shipped panel (read-only).
 
-    python scripts/panel_candidates.py [--evonk analysis/panel_expansion/evonk_candidates.tsv]
-        [--curated analysis/panel_expansion/human_relevant_curated.tsv]
-        [--census analysis/panel_expansion/census.tsv]
-        [--kmer-sharing analysis/panel_expansion/kmer_sharing.tsv] [--kmer-partners .../kmer_partners.tsv] [--panel-fasta <build>/viral.fa] [--candidate-fasta other.fasta ...]
-        [--out analysis/panel_expansion/candidates.tsv]
+    python scripts/panel_candidates.py [--evonk curation/panel/evonk_candidates.tsv]
+        [--curated curation/panel/human_relevant_curated.tsv]
+        [--census curation/panel/census.tsv]
+        [--kmer-sharing curation/panel/kmer_sharing.tsv] [--kmer-partners .../kmer_partners.tsv] [--panel-fasta <build>/viral.fa] [--candidate-fasta other.fasta ...]
+        [--out curation/panel/candidates.tsv]
 
 Candidates are the catalogue rows whose `panel` is `max`, `broad` or `legacy` (listed, never shipped) plus the
 accessions of `--evonk` that the catalogue does not hold. Nothing is added to the panel here: the table is what the
@@ -18,7 +18,7 @@ user reviews row by row. Output is deterministic (sorted, no timestamps).
   H2_curated     a `status=accepted` curated row (--curated) names the accession or species
   H3_curated     as H2_curated, class H3: a vector/reagent virus that occurs in human samples
   proposed       a `status=proposed` curated row: suggested, not yet accepted by the user
-  census_host    only NCBI's host qualifier (scripts/panel_census.py) says Homo sapiens; submitter-provided and
+  census_host    only NCBI's host qualifier (ViralScan-reproducibility/scripts/panel_census.py) says Homo sapiens; submitter-provided and
                  known to include phage and bacterial records, so it is a reason to look, not to promote
   unreviewed     none of the above; never added automatically
 
@@ -247,7 +247,7 @@ def build_candidates(
 
 
 def main(argv: list[str] | None = None) -> int:
-    root = Path(__file__).resolve().parents[1] / "analysis" / "panel_expansion"
+    root = Path(__file__).resolve().parents[1] / "curation" / "panel"
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--evonk", type=Path, default=root / "evonk_candidates.tsv")
     ap.add_argument("--curated", type=Path, default=root / "human_relevant_curated.tsv")

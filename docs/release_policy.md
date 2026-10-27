@@ -9,6 +9,15 @@
 > and [`SECURITY.md`](https://github.com/mdmanurung/ViralScan/blob/main/SECURITY.md)
 > remain the short statements; this page is the full policy behind them.
 
+## Project links
+
+- [GitHub Issues](https://github.com/mdmanurung/ViralScan/issues) for bugs and
+  support; [CONTRIBUTING.md](https://github.com/mdmanurung/ViralScan/blob/main/CONTRIBUTING.md)
+  for contributions.
+- [Changelog](changelog.md), [migration](migration.md) (v3 does not migrate
+  legacy outputs), [Python API](api.md), and
+  [reference maintenance](reference_maintenance.md).
+
 ## Contact routes
 
 **DRAFT: maintainer decision** (PLAN `REL-15`): every route other than GitHub Issues and
@@ -51,7 +60,7 @@ These are read from the files named, not chosen here. A support promise for any 
 | Python (pip tier) | `>=3.10`; CI runs 3.10, 3.11 and 3.12 on ubuntu and macOS | `pyproject.toml`, `.github/workflows/ci.yml` |
 | Full workflow toolchain | Python 3.11 on `linux-64`; `kb-python` 0.30.2, kallisto 0.52.0, bustools 0.45.1, STAR 2.7.11b, snakemake 9.23.1 | `environment.yml` |
 | Release channel | tag `vMAJOR.MINOR.PATCH` publishes to PyPI and may advance the container `latest`; any other tag goes to TestPyPI | `.github/workflows/release.yml` |
-| Manifest schema | `reference_manifest.json` `schema_version` accepts `3.0.0` and `3.0.1` | `schemas/v3/reference_manifest.schema.json` |
+| Manifest schema | `reference_manifest.json` `schema_version` accepts `3.0.0` and `3.0.1` | `src/viralscan/schemas/v3/reference_manifest.schema.json` |
 
 ## Versioning
 

@@ -70,11 +70,3 @@ def test_no_correction_is_zero_drop_without_running_bustools(tmp_path: Path) -> 
 
 def test_old_audits_still_validate() -> None:
     require_schema_valid(OLD_AUDIT, "count_audit.schema.json")
-
-
-def test_schema_copies_identical() -> None:
-    root = Path(__file__).resolve().parents[1]
-    name = "v3/count_audit.schema.json"
-    assert (root / "schemas" / name).read_bytes() == (
-        root / "src" / "viralscan" / "schemas" / name
-    ).read_bytes()

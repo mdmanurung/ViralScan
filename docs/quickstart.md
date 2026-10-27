@@ -145,7 +145,7 @@ example after moving a run); it skips input re-hashing.
 
 Validation does **not** establish biological validity. It cannot tell you whether
 the reference covers your virus, whether a call is infection, or whether a
-negative is informative; see [Assess the evidence](assess_evidence.md).
+negative is informative; see [Results](results.md).
 
 ## Step 4 — Open the results
 
@@ -160,30 +160,20 @@ output/run_complete.json
 output/run_manifest.json
 ```
 
-Start with the [Inspect results](inspect_results.md) guide: it explains which file
-answers which question, what the molecule estimates and denominators mean, and
-how to read one row of `viral_summary.tsv`.
+[Results](results.md) explains which file answers which question, what the
+molecule estimates and denominators mean, how to read one row of
+`viral_summary.tsv`, and the five checks to run before a candidate becomes a
+claim.
 
 ## Other reference modes
 
-The workflow above is the recommended one. Other supported routes are documented
-in the [Reference panel](reference_panel.md) and the
-[CLI reference](cli_reference.md):
-
-- **Reuse a pre-built index** with `-i` and `-t` (Step 2 above).
-- **Build from FASTA + GTF** with `--reference --fasta ... --gtf ...`.
-- **Fetch NCBI accessions** with `--ncbi-accession ... --ncbi-email ...`.
-- **Screen an extended Anelloviridae panel** with
-  `viralscan build-ref --anellovirus` or `--reference-panel anellovirus`.
-
-For host-control choices beyond the combined reference — STARsolo pre-subtraction
-and genome D-list masking — read
-{ref}`Reference panel → Host control and reference strategies <host-control>`
-before choosing. That section carries the one measured three-arm comparison and
-the limits on what it ranks.
-
+The workflow above is the recommended one. The other routes (a pre-built index,
+`--reference --fasta ... --gtf ...`, `--ncbi-accession`, and the extended
+Anelloviridae panel) and the host-control choices beyond the combined reference
+(STARsolo pre-subtraction, genome D-list masking) are in the
+[Reference panel](reference_panel.md); read
+{ref}`Host control and reference strategies <host-control>` before choosing one.
 Without `--genome-dlist`, `build-ref` warns that host homology was not measured
-(which is not the same as zero). It also warns about reference records that are
-near-copies of each other on either strand; add `--strict-reference` to fail the
-build on such a pair instead (declared sibling strains are exempt). See
-[Panel integrity](panel_integrity.md).
+(which is not the same as zero), and it warns about reference records that are
+near-copies of each other on either strand; `--strict-reference` fails the build
+on such a pair instead (see [Panel integrity](panel_integrity.md)).

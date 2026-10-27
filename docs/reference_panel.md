@@ -343,6 +343,36 @@ and note that ViralScan redistributes none of its sequences or annotations (acce
 
 ---
 
+## Translated protein index (exploratory)
+
+`viralscan translated-index` builds a kallisto translated-search index from the panel's
+annotated proteins (`scripts/prepare_viral_proteins.py`, GenBank CDS translations) plus the
+PalmDB RdRP set (Edgar et al. 2022; CC0; downloaded from the kallisto tutorial, sha256
+pinned), following Luebbert et al. 2025. Host masking is a plain nucleotide D-list; the
+builder refuses kallisto below 0.51.1, which does not translate the D-list. `viralscan
+translated` then searches a completed run's reads in six frames and summarises UMIs per
+virus and protein, over all barcodes and over the run's called cells. The arm is
+exploratory: it never changes `detected` or tiers, its cut-offs are not calibrated, and a
+protein-level hit needs read-level confirmation before it is reported.
+
+---
+
+## Maintenance, integrity and comparison pages
+
+These pages are kept for citation and are not in the sidebar:
+
+- [Reference updates and manifest compatibility](reference_maintenance.md): a
+  frozen reference is never changed in place; identity is the checksum; manifest
+  `schema_version` rules.
+- [Panel integrity checks](panel_integrity.md): GTF corpus checks, catalogue
+  structure, near-duplicate and host-homology screens at build time.
+- [Workflow comparison](workflow_comparison.md): the five workflow families the
+  validation protocol compares, with their defined strengths and limits.
+- [ViralScan 3.0 molecule-counting contract](v3_counting_contract.md): how
+  corrected molecules become gene counts, and the conservation invariants.
+
+---
+
 ## Cache location
 
 By default, `viralscan data fetch` writes to `~/.cache/viralscan/data/`.

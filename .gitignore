@@ -97,8 +97,6 @@ covid_viralscan/viralscan_ref/
 # notes. PLAN.md is the only public operational tracker for v3.
 docs/plans/pre-v3-implementation-history.md
 
-# Generated symlink curation view (regenerate: python3 scripts/build_curation_view.py)
-/curation/
 .living/log/data-lineage/
 .living/log/.data-lineage-status-*.json
 
@@ -162,3 +160,6 @@ analysis/**/*.bus
 /SESSION_RESUME.md
 /Rplots.pdf
 /viralscan-analysis
+
+# pixi environments (pixi.lock is committed once generated)
+.pixi/

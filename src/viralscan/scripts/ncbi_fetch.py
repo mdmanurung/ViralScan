@@ -644,7 +644,7 @@ def _cache_valid(path: Path) -> bool:
     triggers a fresh download in ``_fetch_one()``.  This guards against silent
     reuse of truncated files left by interrupted downloads.
 
-    Audit §3.2: audits/2026-05-08-full-pipeline.md
+    Audit §3.2: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md
     """
     if not path.exists() or path.stat().st_size == 0:
         return False
@@ -903,7 +903,7 @@ def _fetch_one(
     only ``<accession>.gtf`` rebuilds it from the retained flatfile with no
     network access.
 
-    Audit §3.2: audits/2026-05-08-full-pipeline.md
+    Audit §3.2: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md
     """
     acc = _validate_accession(accession)
     acc_dir = cache_dir / acc

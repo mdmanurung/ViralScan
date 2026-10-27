@@ -46,3 +46,17 @@ reuse one copy across users. CI executes only the six synthetic notebooks; the
 two `[skip-ci]` notebooks never download data in CI.
 
 See [vignette design plan](https://github.com/mdmanurung/ViralScan/blob/main/docs/vignettes/VIGNETTES_PLAN.md) for the design rationale and data strategy.
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+
+Quickstart: FASTQ to per-cell viral load <quickstart_fastq_to_viral_load>
+Building a reference <building_a_reference>
+Multimapping correction <multimapping_correction>
+Cell calling and denominators <cell_calling_denominators>
+Cell-type enrichment <cell_type_enrichment>
+Specificity: true negative <specificity_true_negative>
+QC and read evidence <qc_and_read_evidence>
+Host response with depth control <host_response_depth_control>
+```

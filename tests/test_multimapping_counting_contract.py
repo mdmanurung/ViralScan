@@ -245,6 +245,6 @@ def test_run_manifest_schema_accepts_every_cli_multimap_method():
     from viralscan.defaults import MULTIMAP_METHODS
 
     root = Path(__file__).resolve().parents[1]
-    for rel in ("schemas/v3", "src/viralscan/schemas/v3"):
+    for rel in ("src/viralscan/schemas/v3",):
         schema = json.loads((root / rel / "run_manifest.schema.json").read_text())
         assert set(MULTIMAP_METHODS) <= set(schema["properties"]["allocation_method"]["enum"]), rel

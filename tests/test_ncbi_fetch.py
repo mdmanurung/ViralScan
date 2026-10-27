@@ -748,7 +748,7 @@ class TestCacheValidation:
     The fix writes a .sha256 sidecar alongside each cached file and re-downloads
     if the sidecar is missing or the checksum does not match.
 
-    Regression for: audits/2026-05-08-full-pipeline.md §3.2
+    Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §3.2
     """
 
     VALID_FASTA = ">NC_FAKE1\nATGCATGC\n"
@@ -789,7 +789,7 @@ class TestCacheValidation:
         WHEN:  _fetch_one is called
         THEN:  _efetch is called again and the file is refreshed
 
-        Regression for: audits/2026-05-08-full-pipeline.md §3.2
+        Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §3.2
         """
         from viralscan.scripts.ncbi_fetch import _fetch_one
 

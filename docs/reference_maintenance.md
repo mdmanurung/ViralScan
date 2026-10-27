@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Reference updates and manifest compatibility
 
 > **Draft for maintainer approval (PLAN `OPS-02`).** Cadences are proposals;
@@ -59,7 +63,7 @@ Rules:
 - A reader must reject a manifest with an unknown MAJOR and must fail closed
   (error), not fall back to a default or skip the check.
 - A missing field that a check depends on is reported as "not assessed".
-- Schema JSON files under `schemas/` are versioned with the package; a schema
+- Schema JSON files under `src/viralscan/schemas/` are versioned with the package; a schema
   change is listed in `CHANGELOG.md` and follows the deprecation policy in
   [release policy](release_policy.md).
 - The reference-build manifest and the packaged panel manifest are versioned

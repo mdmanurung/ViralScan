@@ -10,7 +10,7 @@ Audit findings covered:
           ``str.replace("-1", "")`` which is a global substitution that corrupts
           any barcode containing the substring "-1" at a non-trailing position.
 
-Regression for: audits/2026-05-08-full-pipeline.md §2.3
+Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §2.3
 """
 
 from __future__ import annotations
@@ -159,7 +159,7 @@ class TestLoadBarcodes:
     The original code uses ``bc.replace("-1", "")`` which removes ALL occurrences
     of the substring "-1" anywhere in the barcode string.
 
-    Regression for: audits/2026-05-08-full-pipeline.md §2.3
+    Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §2.3
     """
 
     def test_standard_10x_suffix_removed(self) -> None:
@@ -183,7 +183,7 @@ class TestLoadBarcodes:
         THEN:  only the *trailing* '-1' is removed; the internal '-1' is preserved
 
         This test would FAIL against the original buggy implementation.
-        Regression for: audits/2026-05-08-full-pipeline.md §2.3
+        Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §2.3
         """
         barcode = "ACGT-1GCTA-1"  # '-1' appears mid-string AND as trailing suffix
         result = _strip_10x_suffix(barcode)
@@ -280,7 +280,7 @@ class TestBuildMultimapMatrix:
     counts_corrected holds only the redistributed multimapper fraction.
     The final X = counts_corrected + counts_original is NOT double-counting.
 
-    Regression for: audits/2026-05-08-full-pipeline.md §3.4
+    Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §3.4
     """
 
     def test_unique_ec_contributes_zero_to_corrected(self) -> None:
@@ -327,7 +327,7 @@ class TestBuildMultimapMatrix:
         THEN:  gene_A total is 1.5, gene_B total is 0.5, and total
                molecule mass is exactly 2
 
-        Regression for: audits/2026-05-08-full-pipeline.md §3.4
+        Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §3.4
         """
         n_cells, n_genes = 1, 2
         bus_df_unique = pd.DataFrame([{"barcode": "BC1", "umi": "U1", "ec": 0, "count": 5}])

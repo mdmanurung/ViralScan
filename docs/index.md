@@ -12,15 +12,19 @@ row is not a diagnosis, and passing a threshold does not establish infection.
 [![codecov](https://codecov.io/gh/mdmanurung/ViralScan/branch/main/graph/badge.svg)](https://app.codecov.io/gh/mdmanurung/ViralScan)
 [![PyPI](https://img.shields.io/pypi/v/ViralScan)](https://pypi.org/project/ViralScan/)
 
-## Choose your next step
+## Three steps
 
-| Task | Start here |
-|---|---|
-| Install ViralScan | [Installation](installation.md) — the recommended conda route, then the pip and container alternatives |
-| Run one sample | [Run ViralScan](quickstart.md) — preflight, reference, quantification, validation |
-| Read the results | [Inspect results](inspect_results.md) — report, tables, units, denominators |
-| Judge a candidate | [Assess the evidence](assess_evidence.md) — five checks from run integrity to conclusion limits |
-| Browse worked examples | [Examples](vignettes/README.md) — notebooks from a full run to host response |
+1. [Install](installation.md) the full toolchain with conda or pixi.
+2. [Run](quickstart.md) one sample: build a combined host + virus reference,
+   quantify, validate.
+3. [Read the results](results.md): which file answers which question, what the
+   units and denominators mean, and five checks before a candidate becomes a
+   claim.
+
+Worked notebooks are under [Examples](vignettes/README.md). Every flag, file and
+column is in the [CLI reference](cli_reference.md) and the
+[Output reference](output_reference.md); symptom-first troubleshooting is in the
+[FAQ](faq.md).
 
 ## Inputs at a glance
 
@@ -29,70 +33,52 @@ row is not a diagnosis, and passing a threshold does not establish infection.
   Drop-seq is supported.
 - **Reference:** a kallisto `index.idx` and `t2g.txt`. For host-aware work, build
   a combined host + virus index with `viralscan build-ref`, or reuse a compatible
-  index that carries its build manifest.
+  index that carries its build manifest. The bundled panel and host-control
+  strategies are described under [Reference panel](reference_panel.md).
 - **Samples:** one or more FASTQ pairs per run; separate multiple samples with
   commas.
 - **Toolchain:** the full workflow needs Linux x86-64, Python 3.11, `kb`,
   `snakemake`, kallisto, bustools and STAR. EmptyDrops cell calling additionally
   needs R with `DropletUtils`.
 
-Reference modes, every flag and every output column are under
-[Reference & help](reference_help.md).
+## Project
 
-## Project information
-
-Project policies: [SUPPORT.md](https://github.com/mdmanurung/ViralScan/blob/main/SUPPORT.md)
-(version and support policy) and
-[SECURITY.md](https://github.com/mdmanurung/ViralScan/blob/main/SECURITY.md)
-(reporting vulnerabilities). Upgrading from an earlier release? See
-[migration](migration.md); v3 does not migrate legacy outputs.
+Upgrading from an earlier release? See [migration](migration.md); v3 does not
+migrate legacy outputs. Supported versions, contact routes and disclosure are in
+the [release policy](release_policy.md), with the short statements in
+[SUPPORT.md](https://github.com/mdmanurung/ViralScan/blob/main/SUPPORT.md) and
+[SECURITY.md](https://github.com/mdmanurung/ViralScan/blob/main/SECURITY.md).
 
 ```{toctree}
 :hidden:
 :maxdepth: 1
-:caption: General
+:caption: Guide
 
 installation
 quickstart
-inspect_results
-assess_evidence
-cli_reference
-output_reference
-reference_help
-discovery
-api
-api_reference
-```
-
-```{toctree}
-:hidden:
-:maxdepth: 1
-:caption: Tutorials
-
+results
 vignettes/README
-vignettes/quickstart_fastq_to_viral_load
-vignettes/building_a_reference
-vignettes/multimapping_correction
-vignettes/cell_calling_denominators
-vignettes/cell_type_enrichment
-vignettes/specificity_true_negative
-vignettes/qc_and_read_evidence
-vignettes/host_response_depth_control
 ```
 
 ```{toctree}
 :hidden:
 :maxdepth: 1
-:caption: About
+:caption: Reference
 
 reference_panel
+cli_reference
+output_reference
+discovery
 faq
-workflow_comparison
+api
+```
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+:caption: Project
+
 migration
 release_policy
-reference_maintenance
-v3_counting_contract
-panel_integrity
-project_info
 changelog
 ```

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """PANEL-01 (WP2 pool): Virus-Host DB viruses with a human host, against the catalogue and candidates (gap check).
 
-    python scripts/panel_pool.py --vhdb <virushostdb.tsv> [--candidates analysis/panel_expansion/candidates.tsv]
-        [--out analysis/panel_expansion/pool_vhdb.tsv]
+    python scripts/panel_pool.py --vhdb <virushostdb.tsv> [--candidates curation/panel/candidates.tsv]
+        [--out curation/panel/pool_vhdb.tsv]
 
 `virushostdb.tsv` is the table from https://www.genome.jp/virushostdb/ (not committed, 17 MB). A virus counts as
 human-hosted when `host tax id` is 9606. Each row is marked by where its RefSeq/GenBank ids already are:
@@ -83,7 +83,7 @@ def tier(row: dict) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    root = Path(__file__).resolve().parents[1] / "analysis" / "panel_expansion"
+    root = Path(__file__).resolve().parents[1] / "curation" / "panel"
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--vhdb", type=Path, required=True)
     ap.add_argument("--candidates", type=Path, default=root / "candidates.tsv")

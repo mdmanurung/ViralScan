@@ -11,7 +11,7 @@ Writes four files to ``--out-dir``; nothing is uploaded and no identifier is res
 
 Deterministic: members sorted by name, stored (no compression, so no zlib-version dependence), fixed
 timestamp and mode, no clock or host values in any output.  The same panel directory gives the same archive
-bytes.  Before building, the GTFs are checked against ``analysis/panel_expansion/gtf_corpus_manifest.tsv``
+bytes.  Before building, the GTFs are checked against ``curation/panel/gtf_corpus_manifest.tsv``
 so a stale local corpus cannot be archived by accident (``--no-corpus-check`` to skip).
 
     PYTHONPATH=src python scripts/make_panel_archive.py --panel-dir <dir with the GTFs> \\
@@ -170,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--corpus-manifest",
         type=Path,
-        default=REPO / "analysis" / "panel_expansion" / "gtf_corpus_manifest.tsv",
+        default=REPO / "curation" / "panel" / "gtf_corpus_manifest.tsv",
     )
     ap.add_argument("--no-corpus-check", action="store_true")
     a = ap.parse_args(argv)

@@ -1,9 +1,8 @@
 # Output Reference
 
-For the guided path through the main files, see
-[Inspect results](inspect_results.md); for how to weigh a candidate, see
-[Assess the evidence](assess_evidence.md). This page is the exact file, column and
-AnnData-layer dictionary.
+For the guided path through the main files and how to weigh a candidate, see
+[Results](results.md). This page is the exact file, column and AnnData-layer
+dictionary.
 
 Runs record `software_identity` in the root `run_manifest.json` and in
 `results/reference_provenance.json`: the executing package's content digest, plus Git
@@ -184,7 +183,11 @@ and `reason`:
 - `retained` / `host_unmapped`: STAR left the pair unmapped to the host, so it
   reached viral quantification.
 - `removed` / `host_mapped`: the pair is absent from STAR's unmapped output,
-  meaning it was host-aligned or ambiguous. STAR runs with `--outSAMtype None`,
+  meaning it was host-aligned or ambiguous. `viralscan host-loss --truth TSV` joins a truth
+  list to this file and writes `posthoc/host_loss/host_loss.json` (D15 fragments, D16
+  molecules); that loss is a lower bound, because reads the filter never saw are invisible,
+  and the sensitivity cost of the STARsolo path (`HOST-05`) stays unmeasured until the
+  real-library harness runs. STAR runs with `--outSAMtype None`,
   so no finer subclass is available. Removed rows are derived as input IDs
   minus retained IDs.
 
@@ -572,7 +575,7 @@ Two defences, and it is worth being precise about what each buys:
    the other, and a group is a greedy maximal clique of that link graph, never a
    transitive chain. The groups are maximal, not a minimum partition, so breadth
    can still over-count linked genes that land in different cliques (the sensitivity
-   table `analysis/audit_2026-10/aud01_sensitivity.tsv` counts such pairs). In EBV, `EBNA-1` is its own latent group,
+   table `ViralScan-reproducibility/analysis/audit_2026-10/aud01_sensitivity.tsv` counts such pairs). In EBV, `EBNA-1` is its own latent group,
    `EBNA-2` and `EBNA-LP` share one, and `BTRF1` and `BcLF1` are separate groups; a
    productive marker such as `BMRF1` is no longer pulled into a latent group by
    a chain of overlapping genes. Genes in one group cannot give independent
@@ -891,7 +894,7 @@ read-level evidence and are never assigned from molecule counts alone.
 
 The `evidence_tier` column above is never `probable` or `strong`. Those two tiers come from
 `viralscan.evidence_tiers`, a pure module (no file I/O, not yet wired into `detection` or the Snakefile)
-built to the frozen `calibration.threshold_search` contract in `analysis/v3_validation/protocol.yaml`:
+built to the frozen `calibration.threshold_search` contract in `ViralScan-reproducibility/analysis/v3_validation/protocol.yaml`:
 
 - the cutoff triple is (distinct supporting molecules per cell, distinct supporting features per sample,
   exact-fragment support fraction), searched over the protocol's 45-point grid, read by
@@ -1019,6 +1022,10 @@ visible. Barcodes are corrected against the chemistry's on-list; `--strand` maps
 
 - `star_hostvirus/viral.bam` (+ `.bai`): the `VIRUS|`-only records, coordinate-sorted, with `CB`/`UB`
   tags. The full BAM and STAR's temporary directory are deleted after summarising.
+- `star_hostvirus/star_read_fates.tsv.gz` (`STAR-FATE-01`): one row per read with a `VIRUS|` record,
+  written before the prune: `read_id`, `cb`, `ub`, `primary` contig, `viral_contigs` (`;`-joined
+  accessions), `host_competing` (1 when the read also placed on a `HOST|` contig). A read STAR placed on
+  the host alone does not appear; use `viralscan host-loss` with a truth list for that.
 - `results/star_support_by_virus.tsv`: one row per `virus_name` with `star_reads_primary`, `star_reads_any`,
   `star_molecules`, `star_host_competing`, `star_other_virus` (same definitions as the `viral_summary.tsv`
   columns above). Viruses STAR placed nothing on carry 0.
@@ -1058,6 +1065,8 @@ never modifies the run's own outputs (matrix, `results/`, `config.yaml`, `run_ma
 | `rerun-multimap` | `posthoc/multimap_<method>/` (a complete copy of the run; `posthoc/` itself is not copied) |
 | `rerun-programs` | `posthoc/programs/results/gene_program_{summary,cells}.tsv` |
 | `hostresponse` | `posthoc/hostresponse/` |
+| `discover` | `posthoc/discovery/<sample>/` (`candidates.tsv`, `cell_taxon.h5ad`, `qc.json`, `provenance.json`; `discover-states` adds `candidate_states.tsv`) |
+| `translated` | `posthoc/translated/<sample>/` (`counts/`, `summary.all.json`, `summary.cells.json`, `barcode_check.json`, `translated_receipt.json`, `translated_complete.json`; exploratory, never changes `detected`) |
 
 `run --hostresponse` and `--auto-evidence` are part of the run itself and still write
 `<output>/hostresponse/` and `results/evidence/<genus>/`.

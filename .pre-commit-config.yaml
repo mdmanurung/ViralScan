@@ -22,12 +22,3 @@ repos:
       - id: ruff
         args: ["--fix"]
       - id: ruff-format
-
-  - repo: local
-    hooks:
-      - id: check-tracked-file-sizes
-        name: tracked files under analysis/ and results/ are at most 1 MB
-        entry: python scripts/check_tracked_file_sizes.py
-        language: system
-        pass_filenames: false
-        files: ^(analysis|results|config/large_file_allowlist\.txt)

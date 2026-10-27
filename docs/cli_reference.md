@@ -299,6 +299,55 @@ viralscan data fetch
 
 ---
 
+## `viralscan translated-index` and `viralscan translated` — kallisto translated search
+
+Exploratory protein-level arm (Luebbert et al. 2025, doi:10.1038/s41587-025-02614-y). It never
+changes `detected`, tiers or any primary output; it writes only under
+`<run-dir>/posthoc/translated/<sample>/`.
+
+`translated-index` runs `kb ref --aa` over the annotated viral proteins written by
+`scripts/prepare_viral_proteins.py`, optionally combined with the PalmDB RdRP set (three
+pinned files downloaded from the kallisto tutorial), with a plain nucleotide host D-list. It
+refuses a kallisto below 0.51.1, which does not translate the D-list.
+
+<!-- BEGIN GENERATED: translated-index -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--proteins-dir DIR` | *required* | prepare_viral_proteins output |
+| `--host-mask FASTA` | *required* | Host cDNA/DNA FASTA for the D-list |
+| `--out-dir DIR` | *required* |  |
+| `--palmdb, --no-palmdb` | `True` | Add the PalmDB RdRP proteins (downloaded, sha256-pinned). Default: on. |
+| `--threads, -c THREADS` | `4` | kb ref threads. Default: 4. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+`translated` runs `kb count --aa --parity single` on the run's FASTQ pair (six-frame search, so
+no strand flag) and writes a per-virus/protein UMI summary over all barcodes
+(`summary.all.json`) and over the run's called cells (`summary.cells.json`), a barcode-format
+check (`barcode_check.json`; the verb stops when fewer than 90 % of the called cells appear in
+the translated matrix), a receipt and a completion marker. `--counts-dir` summarises an existing
+`kb count --aa` output instead of counting.
+
+<!-- BEGIN GENERATED: translated -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir RUN_DIR` | *required* | A completed ViralScan run (holds run_manifest.json). |
+| `--sample SAMPLE` | *(none)* | Sample subdirectory when the run has several. |
+| `--index-dir DIR` | *required* | <out-dir>/index of translated-index |
+| `--counts-dir DIR` | *(none)* | Existing kb count --aa output to summarise. |
+| `--cells FILE` | *(none)* | Called-cell list; default results/called_cells.tsv. |
+| `--expected-taxa EXPECTED_TAXA` | *(none)* | Taxon ids to report first, e.g. 10376;37296. |
+| `--output, -o OUTPUT` | *(none)* | Default <run-dir>/posthoc/translated/<sample>. |
+| `--threads, -c THREADS` | `4` | kb count threads. Default: 4. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
 ## `viralscan evidence` — trace reads behind viral calls
 
 ```
@@ -719,6 +768,8 @@ the sections above add context. Do not edit between the markers.
 | `--anello-align, --no-anello-align` | `False` | Anellovirus alignment branch (PLAN ANDET-09): align every host-unmapped read to the panel's anellovirus genomes with STARsolo, independent of kallisto, and add alignment_* evidence columns plus detection_source to viral_summary.tsv. Runs only with --host-filter starsolo and an anello_star/ index next to the kb index (built by scripts/build_bundled_panel_ref.py); otherwise alignment_status records why it was skipped. The columns are labels, never filters. Default: False. |
 | `--star-confirm, --no-star-confirm` | `False` | STARsolo confirmation arm (PLAN STAR-04): align the host-filtered reads to the host+virus index given by --star-hostvirus-index (built by `viralscan star-index`) and add star_* per-virus support columns to viral_summary.tsv, plus results/star_support_by_virus.tsv. Labels only: no call, tier or threshold changes. Requires --host-filter starsolo and STAR/samtools on PATH. Default: False. |
 | `--star-hostvirus-index PATH` | *(none)* | Directory of a finished `viralscan star-index` index (must hold star_hostvirus_index.json). Required by --star-confirm. |
+| `--discover` | `False` | After the run completes, run `viralscan discover` on every sample (Kraken2 on the host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), writing <output>/posthoc/discovery/<sample>/ (PLAN DISC-14). Requires --host-filter and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results. |
+| `--kraken2-db DIR` | *(none)* | Kraken2 database directory for --discover (hash.k2d, opts.k2d, taxo.k2d). |
 | `--auto-evidence, --no-auto-evidence` | *(none)* | After detection, run `viralscan evidence` with host confirmation (minimap2 against host + viral) for every detected Anelloviridae genus, writing results/evidence/<genus>/. Needs --host-fasta, a viral-only FASTA (--viral-fasta, or viral.fa next to the index, as written by scripts/build_bundled_panel_ref.py), minimap2 and samtools, and multimapping. Re-reads the FASTQs once per genus. Opt-in, and stays so until ANELLO-PRIOR.3 closes. Default: off. |
 | `--host-capture, --no-host-capture` | *(none)* | Split each virus's reads by host compatibility: replay the quantified FASTQs through `kallisto bus -n`, capture the reads that touch a viral transcript, then `bustools capture --complement` the host transcripts. Writes results/host_capture.tsv with reads_virus_only (no host transcript in the read's equivalence class), reads_also_host and reads_total per virus. Needs an index that holds host transcripts (a combined host + virus index); on a virus-only index every count is 'not_applicable', never 0. Counts reads, not molecules. Needs kallisto and bustools. Opt-in. Default: off. |
 | `--host-fasta FASTA` | *(none)* | Full host-genome FASTA for --auto-evidence's competitive alignment. |
@@ -898,7 +949,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 |------|---------|------|
 | `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). It is never modified. |
 | `--sample SAMPLE` | *(none)* | Sample subdirectory to classify; required when the run has more than one. |
-| `--output, -o OUTPUT` | *required* | Discovery output directory, outside --run-dir; must be empty, absent or a previous publication. |
+| `--output, -o OUTPUT` | *(none)* | Discovery output directory; default <run-dir>/posthoc/discovery/<sample>. Outside --run-dir or under its posthoc/ folder; must be empty, absent or a previous publication. |
 | `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
 | `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
 | `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |
@@ -928,6 +979,30 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 | `discovery_dir` | *required* | A published discovery output directory. |
 | `--rank RANK` | *required* |  |
 | `-o, --output FILE` | *(none)* | Output .h5ad. Default: OUT/cell_taxon_<rank>.h5ad. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan host-loss
+
+Joins a truth list (`read_id`, `label`, optional `molecule_id`) to the run's
+`host_filtered/fragment_lineage.tsv.gz` and writes `posthoc/host_loss/host_loss.json` with the
+truth-viral fragments (D15) and molecules (D16) the STAR host filter removed, and the
+host-virus-mixed boundary count with `--mixed-manifest`. The figure is a **lower bound** on the
+sensitivity cost of `--host-filter starsolo` (`HOST-05` stays open until the real-library
+harness runs): the lineage sees the filter's input only, and a truth read it never saw makes
+the row not estimable.
+
+<!-- BEGIN GENERATED: host-loss -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir DIR` | *required* | A sample run directory holding host_filtered/. |
+| `--truth TSV` | *required* | read_id, label[, molecule_id] table. |
+| `--viral-label VIRAL_LABEL` | `viral` | Truth label of viral reads. Default: viral. |
+| `--mixed-manifest TSV` | *(none)* | mixed_host_virus_manifest.tsv (read_id column). |
+| `--output, -o DIR` | *(none)* | Default <run-dir>/posthoc/host_loss. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

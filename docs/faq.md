@@ -1,9 +1,8 @@
 # Frequently Asked Questions
 
 Troubleshooting answers, symptom first. For the guided path use
-[Run ViralScan](quickstart.md), [Inspect results](inspect_results.md) and
-[Assess the evidence](assess_evidence.md); exact file and field definitions are
-in the [Output reference](output_reference.md).
+[Run ViralScan](quickstart.md) and [Results](results.md); exact file and field
+definitions are in the [Output reference](output_reference.md).
 
 ## Installation
 
@@ -86,8 +85,7 @@ and saved in `run_manifest.json` under `chemistry_detection`. Drop-seq has no
 on-list, so it is inferred when no 10x list matches and R1 is 20 bp.
 
 If the matrix is all empty but reads aligned, the denominator is the next thing
-to check; see [Inspect results](inspect_results.md) and
-[Assess the evidence](assess_evidence.md).
+to check; see [Results](results.md).
 
 ### Can I process multiple samples in one run?
 
@@ -192,7 +190,7 @@ host depth cannot be established, including virus-only matrices and external
 overrides without a host matrix. Cross-arm comparisons should use the same frozen
 reference cell set for every arm.
 
-[Inspect results](inspect_results.md) explains how to read these fields; the
+[Results](results.md) explains how to read these fields; the
 [Output reference](output_reference.md) gives their exact definitions.
 
 ### ViralScan found nothing. Is there really nothing there?
@@ -239,8 +237,7 @@ reports it along with the divergence a substitution-only model would imply. It
 certifies only the row named by `--positive-control-virus-key`: a control with no
 `--positive-control-scope` is read as `panel_mechanics` and certifies no virus.
 Alternatively, align the reads to the target directly with `viralscan evidence`.
-The [Assess the evidence](assess_evidence.md) guide lists the full negative
-checklist.
+[Results](results.md) lists the full negative checklist.
 
 A concrete reference case: the bundled 20-genome Torque teno virus panel shares
 **1.36 %** of the 31-mer space of the 2,042 real human anellovirus genomes (the
@@ -358,18 +355,11 @@ permutations run by default.
 
 ### What units is `viral_molecules_per_10k_est` in?
 
-It is a normalized selected-method molecule estimate, not a raw UMI count:
-
-```
-viral_molecules_per_10k_est =
-    viral_molecules_total_est / molecules_total_est × 10 000
-```
-
-In a two-step (`--host-filter starsolo`) run the denominator would be the virus-only
-matrix, so the value is NA there (see `denominator_note`).
-The numerator and denominator are both corrected molecule estimates; read
-multiplicity never enters. See the [Output reference](output_reference.md) for
-the full definition.
+Corrected molecules per 10,000 corrected molecules, not reads:
+`viral_molecules_total_est / molecules_total_est × 10 000`. In a two-step
+(`--host-filter starsolo`) run it is NA (see `denominator_note`). Units and
+denominators are explained under [Results](results.md); the exact definition is
+in the [Output reference](output_reference.md).
 
 ### Can we tell whether EBV is latent or lytic? Can we do this for other viruses?
 
@@ -479,7 +469,7 @@ truth-panel question.
 The `equal` method remains available with `--multimap-method equal`. v3 always
 uses the complete selected-method matrix for summaries and reports unique,
 virus–virus ambiguous, and host–virus ambiguous molecule evidence separately.
-See [Assess the evidence](assess_evidence.md) for the mapping-support checks.
+See [Results](results.md) for the mapping-support checks.
 
 ---
 
@@ -506,8 +496,8 @@ expected background rather than a finding. Known artefacts of this reference
 family are poly-G no-signal reads on two-colour chemistry, and poly-A or
 low-complexity sinks on homopolymer tracts in the reference. No anellovirus call
 in a human sample has been read-validated yet. Use `viralscan evidence` on the
-specific accession before reporting one, and read
-[Assess the evidence](assess_evidence.md) for the alignment checks.
+specific accession before reporting one, and read [Results](results.md) for the
+alignment checks.
 
 ### How do I use host pre-subtraction to reduce false positives?
 
@@ -605,5 +595,5 @@ PYTHONPATH=src python -m pytest tests/ -v -m network
 4. Run `ruff check . && ruff format . && pytest tests/`.
 5. Open a pull request against `main`.
 
-Project policies and the developer index are in
-[Project and developer information](project_info.md).
+Project policies are in the [release policy](release_policy.md); the Python
+API is under [API](api.md).

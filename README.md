@@ -342,6 +342,12 @@ schema including optional files (`cell_type_enrichment.tsv`, UMAP plots, etc.).
 
 ---
 
+## Reproducibility
+
+Validation experiments, benchmarks and manuscript analyses live in [ViralScan-reproducibility](https://github.com/mdmanurung/ViralScan-reproducibility).
+
+---
+
 ## Citation
 
 If you use ViralScan in your work, please cite it using the metadata in
