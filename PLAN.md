@@ -22,8 +22,11 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   runs (the earlier row text was wrong). Outcome: rule 2 `none` for every DB/configuration (the covid positive is capture-only
   and its panel is never reached), rule 1 `not_assessed`, rule 3 `not_assessed` (spike-in only), rule 4 reported; no default
   changes proposed. DISC-13 constants stay `calibrated: false`. Tables: repro `docs/plans/disc12/{truth,metrics_2026-10-27}/`.
-- [ ] `DISC-18` report section for discovery (`report.html.j2`): deferred. The report is rendered by the `detection` rule
-  before discovery can exist, so it needs a re-render step in the `run --discover` post-step; row only.
+- [!] `DISC-18` report section for discovery (`report.html.j2`): blocked on a design decision (2026-10-27). The report is
+  rendered by the `detection` rule before discovery can exist, and re-rendering `<sample>/report.html` from the `run --discover`
+  post-step would break the layout-v2 rule that post-hoc steps never rewrite the run's own outputs (`docs/migration.md`).
+  Options: (a) a separate `posthoc/discovery/<sample>/discovery_report.html`; (b) drop the row, since `candidates.tsv` /
+  `candidate_states.tsv` already carry the content. User decides.
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
@@ -110,7 +113,10 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   deferred on its gate and B10 plus wave 2 (B25, B27, B18) are in flight in the
   `20261018-112322-wave2-g00` packet, on `codex/perf-wave2-b25-b27-b18`; that session must re-check
   B18's oracle against `main`'s post-merge `molecule_verdict.py` before trusting it.
-- [ ] `AUD3-FLAKY` — `tests/test_cellcalling.py::test_real_r_frozen_protocol_seed_runs_and_is_reduced_modulo_int_max` failed once when R tests ran concurrently with other pytest processes and passed on rerun; investigate (R/DropletUtils temp state or timeout) before relying on parallel suite runs.
+- [x] `AUD3-FLAKY` (2026-10-27): not reproduced. `tests/test_cellcalling.py::test_real_r_frozen_protocol_seed_runs_and_is_reduced_modulo_int_max`
+  ran 40 times, 8 copies at once in 5 rounds (viralscan_test_full, R/DropletUtils): 40/40 passed in 117-138 s each. The test uses
+  per-test `tmp_path` outputs and R's per-process `tempdir()`, so no shared state was found; no code change. Reopen with the failing
+  output if it recurs.
 - [ ] `AUD3-G3-EVIDENCE` — evidence made before `AUD3-04` (the 35 `trackA_round1` evidence directories and the `dsr_round2` calls) used `minimap2 -ax sr` without secondary alignments, so it has no `tie` verdicts and its manifests lack `minimap2_options`. Replaying the 15 saved `dsr_round2` calls showed no change in verdict counts or passing molecules (none holds an exact tie), but re-run the evidence before `molecule_verdicts.tsv.gz` feeds tier measure S at G3 preparation.
 - [ ] `AUD3-REF08-DIVERGED` — audit P2-01 residual: the build-time near-duplicate screen (`AUD3-05`) reuses the curation twin cut (>= 95% shared canonical 31-mers), so a host homologue diverged by about 8% (about 90% of its k-mers unshared at k=31) is not screened; `host_homology_status=not_measured` stays the honest label. A homology threshold or alignment-identity cut belongs to `REF-08` (CAT-14 deliberately has none); do not invent one here.
 - [!] `AA-02` — **Deferred 2026-10-20 (user parked translated-search work behind Track A on 2026-10-19; a full-depth run is not authorized).** user-authorized bounded exploratory sanity check: build the
@@ -186,7 +192,11 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   `chemistry.py` 25, `multimap.py` 13, ...), assigned per file to the agent that owns that file.
 - [~] `CHEM-01` (closed 2026-10-10: the bulk path stays advice-only), `DEF-05` (done: reader's matrix verified, missing host matrix rejected),
   `DEF-06`, `DSR-08`, `SW-07`, `MECH-F` (index-aware denominators, gene-role contract).
-- [ ] `REL-04`/`REL-05` repeat on the finished source (clean installs, `doctor`, `validate-run`);
+- [~] `REL-04`/`REL-05` repeat on the finished source (clean installs, `doctor`, `validate-run`): **done 2026-10-27 on main
+  bf8214b** from a `git archive` export (uv build on local disk): wheel 945,340 B, sdist 1,064,397 B, `twine check` passes both;
+  clean uv venvs (Python 3.11) for each, `pip check` clean, `viralscan --version` 3.0.0rc1, `scripts/release_package_smoke.py`
+  exits 0 from both (doctor `ok: true`, `validate-run` `ok: true`, `issues: []`, `viralscan` imported from site-packages).
+  Still open in this row:
   `REL-03`/`DEF-08`/`CAT-25` (review the untracked `uv.lock`); `CAT-06` (index carries its GTF and
   catalogue); `REF-11` and `PANEL-01` WP4 bundling (deferred; the DOI stays external).
 - [~] `REF-03` (2026-10-10: `prepare_reference_inputs` now rejects a reference with no viral records when masking
