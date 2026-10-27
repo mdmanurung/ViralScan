@@ -29,15 +29,12 @@ include scripts/check_ship_scope.py
 include scripts/governance_utils.py
 
 prune tests
-prune docs/handoffs
 prune docs/plans
 prune docs/reviews
-prune docs/superpowers
 prune docs/vignettes
 exclude docs/manuscript_draft.md
 exclude docs/PUBLICATION_READINESS.md
 exclude docs/PUBLICATION_READINESS_2026-07-17.md
-exclude docs/PUBLICATION_READINESS_EXECUTION.md
 exclude docs/ROADMAP.md
 exclude docs/IMPLEMENTATION_PLAN.md
 global-exclude __pycache__ *.py[cod] *.h5ad *.bam *.cram *.fastq *.fastq.gz

@@ -270,7 +270,7 @@ Two limits, both verified in `scripts/generate_truth_panel.py`:
 2. **The ambient factor relocates a fraction of each virus's molecules.** It is not a soup
    concentration. Mapping its levels (0, 0.01, 0.05) to a contamination fraction needs an
    explicit statement, and empty droplets carry "ambient-only content, log-normal UMI total,
-   median 50" (generator parameters, not measurements; `docs/plans/2026-10-05-val01-generator-design.md`
+   median 50" (generator parameters, not measurements; `https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/docs/plans/2026-10-05-val01-generator-design.md`
    section 4).
 
 Acceptance for the validation (to be fixed before running): on planted data, the flag must read

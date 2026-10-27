@@ -1,23 +1,21 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
 Last audit: 2026-10-26
+Last audit: 2026-10-27
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
-| HANDOFF_2026-09-29.md | 12 entries | 2026-10-10 | Read these first, not this file, State at handoff, The thing to decide next: F-017, Other open rows, Validating the index |
-| HANDOFF_2026-09-30.md | 14 entries | 2026-10-05 | 0. Orientation (read first), 1. State at a glance, 2. Environments and commands, Governance re-pin (needed whenever a pinned file changes), 3. What this session did (commits, oldest first) |
-| HANDOFF_2026-10-01.md | 8 entries | 2026-10-05 | 1. Running right now, 2. Done this session, MECH-A closed (Virus Identity table), Datasets the user supplied: scoped (3 parallel agents), EXPL-HPV16, done: the HPV16 positive control passes |
-| HANDOFF_2026-10-03.md | 5 entries | 2026-10-05 | Closed in this pass, Advanced, still `[~]`, Running, Waiting on user decisions, Gotchas found |
+| (moved) HANDOFF_*.md, last-session.md, log/, findings/ | — | 2026-10-27 | in the reproducibility repo (batch 4e): https://github.com/mdmanurung/ViralScan-reproducibility/tree/main/.living |
 | conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
 | decisions.md | 81 entries (large — read selectively) | 2026-10-25 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
-| last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
 | learnings.md | 77 entries (large — read selectively) | 2026-10-26 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 90 sessions | 2026-10-26 | viralscan (89), translated-proteins (1) |
-| findings/ | 4 findings across 31 topics | 2026-10-25 | spikein-flank-index-retired, hhv6b-flank-reads-missed-by-cds-only-index, hsv1-lat-exon-recut, twostep-hpv77-call-is-host-reads-star-missed, evidence-replay-used-primary-ec-numbering, +26 more |
+| decisions.md | 81 entries (large — read selectively) | 2026-10-27 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
+| learnings.md | 76 entries (large — read selectively) | 2026-10-27 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
 Last summarized: 2026-10-26 (heuristic)
+Last summarized: 2026-10-27 (heuristic)
 
 ## Tag clusters
 
@@ -40,6 +38,7 @@ Last summarized: 2026-10-26 (heuristic)
 - [2026-10-21] D-75: Discovery per-UMI rule: deepest-consistent
 - [2026-10-21] D-74: Discovery Kraken2 defaults: Cellsnake 0.05 / 4
 - [2026-10-18] L-76: Perf wave 2 C00: two checkouts at different commits cannot be byte-compared without excusing the checkout sha
+- [2026-10-18] L-75: Perf wave 2 B18: a fused reducer can be a wash on its own, and tracemalloc invents CPU regressions
 
 ## By tag
 
@@ -74,6 +73,7 @@ Last summarized: 2026-10-26 (heuristic)
 - `review`: L-6, L-9
 - `snakemake`: L-12, L-16
 - `summarize_survey`: L-3, L-4
+- `testing`: L-15, L-76
 - `whitelist`: L-12, L-14
 - `10x`: L-14
 - `5-prime`: L-14
@@ -122,6 +122,7 @@ Last summarized: 2026-10-26 (heuristic)
 - `gse128078`: L-13
 - `gzip`: L-12
 - `hostresponse`: L-15
+- `hpc`: L-71
 - `hvg`: L-9
 - `index-space`: L-72
 - `ingest`: L-5

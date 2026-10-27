@@ -24,7 +24,7 @@ src/viralscan/
     ncbi_fetch.py          # download FASTA + GTF from NCBI by accession (no Biopython)
   data/*.gtf               # local reference annotations (gitignored; not package assets)
 tests/                     # pytest suite (run with PYTHONPATH=src)
-PLAN.md                    # implementation tracker — keep this current!
+PLAN.md                    # live tracker: open rows only — keep this current! (done rows: repro provenance/PLAN_archive_2026-10.md)
 ```
 
 ## Sibling repository
@@ -32,7 +32,9 @@ PLAN.md                    # implementation tracker — keep this current!
 Experiments, validation runs, results, claims/governance ledgers, manuscript drafts and handoffs live in
 [ViralScan-reproducibility](https://github.com/mdmanurung/ViralScan-reproducibility) (split from this repo, see PLAN `REPO-SPLIT-01`). This repo keeps the package,
 its tests, docs, packaging and the panel curation inputs (`curation/panel/`). Experiment `PLAN.md` sections (WP0,
-WP3, WP7, WP9, Evidence log, VR pilot) are tracked there. Locally the two checkouts may be linked by uncommitted
+WP3, WP7, WP9, Evidence log, VR pilot) are tracked there. Done `PLAN.md` rows and the dated "Next action" log up to
+2026-10-27 are frozen in the repro's `provenance/PLAN_archive_2026-10.md` (batch 4e); the package tracker holds open work only.
+Dev notes that are not package work (`.living/findings`, `.living/log`, old handoffs, superseded plans) live in the repro too. Locally the two checkouts may be linked by uncommitted
 symlinks; never commit them.
 
 ## The PLAN.md contract  (IMPORTANT — non-negotiable)
@@ -184,5 +186,5 @@ hooks (in `.claude/settings.local.json`) enforce a post-action logging protocol.
 - **Structure note**: the minimal scaffold was chosen — the standard mycelium
   `algorithms/`, `analysis/`, `reference_material/` top-level dirs were pruned
   because ViralScan already has `src/`, `scripts/`+`results/`, and `references/`.
-  Only `data/` (ingest target), `todo/`, `skillpacks/`, and `.living/` were kept,
+  Only `data/` (ingest target), `todo/`, and `.living/` were kept (`skillpacks/` moved to the repro, batch 4e),
   so `validate_structure.py`'s top-level-dir check is intentionally relaxed.
