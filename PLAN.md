@@ -685,6 +685,10 @@ No open rows; done rows are in the PLAN archive (see Next action).
 
 - [~] `REL-03` — generate and commit reproducible runtime/development lockfiles
   - 2026-10-10: `uv.lock` committed (`c5c4f9c`); `uv lock --check` passes. Runtime conda lock still open.
+  - 2026-10-28 (`codex/lock-refresh`): `uv.lock` was stale since the 2026-10-20/22 `pyproject.toml` changes
+    (scautoqc extra, taxonomy); CI never checked it. Regenerated with uv 0.11.14 `uv lock --python 3.11` on local
+    disk: 64 packages added (docs and scautoqc extras), none removed, no existing pin moved. The lint job now runs
+    `uv lock --check`, so a `pyproject.toml` change without a lock refresh fails CI.
   - 2026-10-10 (wave 4): runtime conda lock `environment.explicit.txt` committed: 487
     conda packages (URL + md5, sorted), from `viralscan_test_full` (matches `environment.yml`:
     kb-python 0.30.2, snakemake 9.23.1, STAR 2.7.11b), written by
