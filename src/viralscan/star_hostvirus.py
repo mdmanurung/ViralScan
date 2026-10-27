@@ -288,6 +288,7 @@ def star_index(
     force: bool = False,
     star: str = "STAR",
     now: datetime.datetime | None = None,
+    sa_index_nbases: int = 14,
 ) -> Path:
     """Build the host+virus index under ``out_dir/index`` (reference in ``out_dir/reference``).
 
@@ -305,7 +306,7 @@ def star_index(
         shutil.rmtree(index)
         shutil.rmtree(ref, ignore_errors=True)
     fasta, gtf = write_reference(host_fasta, viral_fasta, host_gtf, viral_gtf, ref)
-    build_star_hostvirus_index(fasta, gtf, index, threads, ram_bytes, star)
+    build_star_hostvirus_index(fasta, gtf, index, threads, ram_bytes, star, sa_index_nbases)
     write_index_manifest(
         index,
         {
@@ -313,7 +314,7 @@ def star_index(
             "viral_fasta": viral_fasta, "viral_gtf": viral_gtf,
         },
         count_contigs(fasta),
-        genome_generate_cmd(star, index, fasta, gtf, threads, ram_bytes),
+        genome_generate_cmd(star, index, fasta, gtf, threads, ram_bytes, sa_index_nbases),
         star_version(star),
         threads,
         ram_bytes,

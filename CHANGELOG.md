@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
+- CI runs the real-STAR tests (`star` in the integration environment) and a new end-to-end `run --host-filter starsolo --star-confirm` test on the tiny fixture; `star_hostvirus.star_index` accepts `sa_index_nbases` (PLAN `STAR-05`, `STAR-06`).
 - Docs: the site is cut to 13 sidebar pages. `docs/results.md` replaces `inspect_results.md` + `assess_evidence.md`; `api_reference.md` is folded into `api.md`; `reference_help.md` and `project_info.md` are removed. `v3_counting_contract.md`, `panel_integrity.md`, `workflow_comparison.md` and `reference_maintenance.md` leave the sidebar but keep their paths (PLAN `DOCS-REV-02`).
 
 - `viralscan discover --called-cells FILE` replaces the run's own `called_cells.tsv` (e.g. the EmptyDrops cells of a full-matrix run when a two-step run called only virus-carrying barcodes). The file's barcode space comes from its own `cell_calling_input.json`; its path and sha256 are recorded in `provenance.json` and the sha256 enters the fingerprint.
