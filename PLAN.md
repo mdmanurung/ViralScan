@@ -51,7 +51,7 @@ completion.
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [x] `F027-01` finding F-027 (`.living/findings/hhv6b-flank-reads-missed-by-cds-only-index.md`): HHV-6B reads in the positional 3' flank class (8.9% of viral reads, GSM6416022, 5' v2) are outside a CDS-only kallisto index.
   - Note (2026-10-22): Lareau comparison done against the public reference at caleblareau/hhv6-reactivation@dd2eb77: 103 CDS-only entries, same NCBI CDS coordinates, no flank/UTR, no masking.
-- **Focus: package maturity (2026-10-27).** Code-only units STAR-05/06, DISC-14/15/16, AA-08..AA-12, HOST-05a/b/d, STAR-FATE-01 are on PRs #127-#133. Next: DISC-17 (user gates: ratify the 5 ambiguities, OK `rerun-multimap --multimap-molecule-assignments` on the 4 positives), AA-11 oracle test in the repro, then the compute-gated rows: SPIKE-01 (phase 5, unrun), the
+- **Focus: package maturity (2026-10-27).** Code-only units STAR-05/06, DISC-14/15/16, AA-08..AA-12, HOST-05a/b/d, STAR-FATE-01 are on PRs #127-#133. AA-11 done (repro PR #9). Next: DISC-17 (user gates: ratify the 5 ambiguities, OK `rerun-multimap --multimap-molecule-assignments` on the 4 positives), AA-11 oracle test in the repro, then the compute-gated rows: SPIKE-01 (phase 5, unrun), the
   STAR-GATE-01 decision, and the phase 6 EBV acceptance run.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
@@ -628,7 +628,7 @@ port the kallisto translated-search tutorial with explicit attribution.
 - [x] `AA-10` (2026-10-27): `tests/test_translated.py` (10: the repro summary/barcode/combine tests repointed, index version
   gate, `kb ref`/`kb count` command shapes incl. the SW-21 `-w None` case, the verb on an existing counts dir, the barcode
   abort).
-- [ ] `AA-11`: regression oracle in the repro (`research` marker, `ARMP_ROOT`): ported `summarize()` on 3 existing
+- [x] `AA-11` (2026-10-27, repro PR #9 `tests/test_translated_oracle.py`): 6/6 equal (GSM3511317 Drop-seq, GSM4796272 10x v2, GSM5705760 10x v3; all + called cells) in 2 min 17 s against the frozen arm P summaries; skips while the repro `pkg` pin predates `translated.py`. Original row: regression oracle in the repro (`research` marker, `ARMP_ROOT`): ported `summarize()` on 3 existing
   `data/runs/work/trackA_round1/armP/counts/<GSM>` outputs vs `summary/<GSM>/{all,cells}` (re-analysis only; the 0.50.0
   index itself is not consumable by the bundled 0.52.0). Deferred to the repro PR.
 - [x] `AA-12` (2026-10-27): docs (`cli_reference.md` sections + generated tables, `reference_panel.md` "Translated protein
