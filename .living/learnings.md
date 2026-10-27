@@ -4,93 +4,6 @@ Append-only log of gotchas, surprises, and insights.
 
 **Entry template:** copy from `skills/core/templates/learning-entry.md` (includes Category, What happened, Why it matters, Resolution, Tags fields). The `**Tags**:` line is consumed by `generate_index.py --summary-heuristic` to build the cluster summary in INDEX.md — use them.
 
-### [2026-07-06] cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads
-
-**Category**: finding (methodological limitation)
-
-**What happened**: STAR read-origin test on x213-g (job 25151971) showed 0 viral-primary reads
-/ 4.5M aligned when using the combined GRCh38+anellovirus genome. Every read kallisto assigns to
-Alphatorquevirus has its STAR primary alignment on GRCh38, not on any viral contig.
-
-**Why it matters**: ViralScan's host reference is cDNA-only. Reads from GRCh38 non-coding
-regions (introns, intergenic) that share sequence similarity with viral references are NOT counted
-as host-mapping (cDNA doesn't cover them), and appear as viral signal. `--multimap-method
-host-conservative` cannot correct this — the host cDNA simply doesn't span those regions.
-This makes the anellovirus ~90% prevalence claim a false positive, and likely affects bulk
-RNA-seq even more (where non-coding reads are a larger fraction).
-
-**Resolution**: F-005 closed as artifact. Do NOT cite TTV ~90% in manuscript. For bulk RNA-seq,
-the full 99-sample analysis (B5) requires a genomic (full-genome) host reference to suppress
-non-coding homology artifacts before herpesvirus signals can be interpreted.
-
-**Tags**: cDNA-reference, host-homology, anellovirus, false-positive, specificity, star, bulk-rnaseq
-
-**mitigation_type**: finding
-
-### [2026-07-06] samtools view exits 1 on duplicate BAM header entry (NC_002076.2)
-
-**Category**: gotcha
-
-**What happened**: `diag_viral_read_origin.sh` job 25151971 reported exit code 1 despite the
-STAR run and awk analysis completing and printing valid results. Root cause: `samtools view`
-exits with code 1 when it encounters a duplicate reference sequence (`NC_002076.2`) in the
-BAM header and cannot add the PG line. With `set -eo pipefail`, the script exits after the
-samtools|awk pipeline, suppressing only the final `echo done`.
-
-**Why it matters**: SLURM marks the job FAILED; the analysis output is valid. Future scripts
-using `samtools view` against this combined STAR genome should add `|| true` or check for the
-NC_002076.2 duplicate, or rebuild the index without the duplicate.
-
-**Resolution**: Results accepted as valid. The duplicate originates from the ViralScan reference
-build (NC_002076.2 dedup guard, commit `covid_dedup`). Fix: rebuild the STAR genome once the
-reference dedup fix is applied, or add `2>/dev/null || :` to the samtools|awk pipeline.
-
-**Tags**: samtools, bam-header, duplicate-contig, NC_002076.2, set-e, slurm-exit-code
-
-**mitigation_type**: gotcha
-
-### [2026-07-06] covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked
-
-**Category**: gotcha
-
-**What happened**: `summarize_survey.py` wrote `covid_viralscan/results/SURVEY_SUMMARY.md`
-successfully (Task 2C), but `git status` showed it as untracked and `git status -- <file>`
-said "nothing to commit." Root cause: `.gitignore` line 73 ignores `covid_viralscan/results/`
-entirely (alongside the `results/**/*.h5ad` rule on line 53).
-
-**Why it matters**: The SURVEY_SUMMARY.md is a key analysis output referenced by the plan;
-it exists on disk but is invisible to git. Future sessions must regenerate it from the
-already-committed scripts and gitignored results files — it is not persisted in history.
-
-**Resolution**: Accepted as-is (results are large/transient by design). PLAN.md updated
-to note Task 2C done; the file remains on disk at `covid_viralscan/results/SURVEY_SUMMARY.md`.
-
-**Tags**: git, gitignore, results, covid_viralscan, summarize_survey
-
-**mitigation_type**: ambient-awareness
-
-### [2026-07-06] summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples
-
-**Category**: gotcha
-
-**What happened**: `summarize_survey.py` section 4 (viral+ barcode vs called-cell overlap)
-requires `--cellranger-outs` pointing to a dir with
-`filtered_feature_bc_matrix/barcodes.tsv[.gz]`. STARsolo output has a different path
-(`Solo.out/GeneFull/filtered/barcodes.tsv`) AND the script applies ONE barcode set to ALL
-samples — not per-sample. Running with two samples (x213-g and x216-g) that have different
-barcode universes makes section 4 ambiguous.
-
-**Why it matters**: Section 4 overlap was skipped silently; the output reads "CellRanger
-barcodes not available — overlap not computed." This is acceptable because the overlap numbers
-are already documented in the manuscript (Task 2D).
-
-**Resolution**: Ran without `--cellranger-outs`; sections 1–3 (ranked panel, per-sample
-summaries, SARS-CoV-2 specificity control) are correct and complete.
-
-**Tags**: summarize_survey, cellranger, starsolo, barcodes, covid_viralscan
-
-**mitigation_type**: ambient-awareness
-
 ### [2026-07-01] 64 GB references/ was untracked but NOT gitignored
 
 **Category**: gotcha
@@ -106,86 +19,6 @@ summaries, SARS-CoV-2 specificity control) are correct and complete.
 **mitigation_type**: convention
 
 **structural_mitigation_candidate**: A pre-commit hook rejecting staged files > ~50 MB would structurally catch this class of error; not yet shipped.
-
-### [2026-07-02] Controlling for a composite covariate that CONTAINS the tested feature is circular
-
-**Category**: gotcha
-
-**What happened**: A verification review flagged that the %mito control for MT-ND4L was circular — %mito was computed from a mito-gene set that INCLUDED MT-ND4L, so regressing MT-ND4L on %mito partly regresses it on itself (self-suppression), which would drop its significance even absent any real confound.
-
-**Why it matters**: Composite covariates (%mito, %ribo, total counts, module scores, a cell-type signature) often contain the very feature being tested. Controlling for them then absorbs the feature's own variance and manufactures a null. The verdict is uninterpretable until the tested feature is excluded from the covariate.
-
-**Resolution**: Recomputed %mito with MT-ND4L excluded (leave-one-out); MT-ND4L still dropped (FDR 4e-7→0.067), so the mito-QC confound is real and now non-circular. Fixed `go_enrichment.py`. General fix: exclude the tested feature from any composite covariate (leave-one-out) before adjustment.
-
-**Tags**: confounding, circularity, covariate, scrna-seq, mito, review, statistics
-
-**mitigation_type**: ambient-awareness
-
-**structural_mitigation_candidate**: When a covariate is a sum/score over features, build it leave-one-out per tested feature (or assert the tested feature ∉ the covariate's inputs).
-
-### [2026-07-02] Mitochondrial genes need a %mito control before claiming them as biology
-
-**Category**: gotcha
-
-**What happened**: MT-ND4L was one of the 5 "depth-robust" EBV host-response genes (depth-adjusted FDR 4e-7). Adding a percent-mitochondrial covariate dropped it to FDR 0.07 — it was a mitochondrial-content/QC effect, not an EBV response. Across the full set, 217 of 518 depth-robust genes were lost once %mito was controlled.
-
-**Why it matters**: In scRNA-seq, %mito tracks cell stress/quality and correlates with many conditions; a mitochondrial gene surviving depth adjustment can still be a QC artifact. Depth control is not enough — %mito is a separate confounder for mito-encoded genes (and for stress signatures generally).
-
-**Resolution**: Added a %mito covariate alongside log-depth; reported only the depth-AND-mito-robust set (301 genes) and dropped MT-ND4L. See `go_enrichment.py`, finding F-001.
-
-**Tags**: confounding, mitochondrial, scrna-seq, qc, gene-selection, causal-inference
-
-**mitigation_type**: convention
-
-**structural_mitigation_candidate**: Convention: "for scRNA-seq association/DE, control for %mito (and cell-cycle where relevant) in addition to depth; flag any mito-encoded hit for a %mito control." Fits alongside the depth-label convention.
-
-### [2026-07-01] Raw-count positivity thresholds silently confound with sequencing depth
-
-**Category**: gotcha
-
-**What happened**: The EBV+ label (≥10 raw viral UMI) turned out to be strongly depth-dependent — EBV+ rate rose 27.5%→96.3% across host-depth quintiles, and depth alone predicted the label at AUC 0.80–0.97, beating the host-gene classifier. Class balancing + top-depth filtering did NOT fix it (they match class counts, not between-class depth distributions; the filter even widened the gap).
-
-**Why it matters**: Any "positive/detected/expressed at ≥N raw counts" label makes the label a proxy for sequencing depth, so any depth-correlated feature looks predictive. This can turn a technical artifact into a headline biological result. It nearly did here.
-
-**Resolution**: Ran a depth-confounder check (depth-alone AUC baseline, quintile rates, E-values); reported the headline as substantially confounded; recommended a depth-normalized label. See findings F-001 (contradicted) and F-003.
-
-**Tags**: confounding, sequencing-depth, count-data, thresholding, label-definition, scrna-seq, causal-inference
-
-**mitigation_type**: convention
-
-**structural_mitigation_candidate**: A convention "define positive/detected labels depth-independently (CPM/fraction or depth-matched); always report depth-alone predictive baseline for any count-threshold label." Candidate for `.living/conventions.md`.
-
-### [2026-07-01] Feature selection (HVG) before the CV split leaks into held-out metrics
-
-**Category**: gotcha
-
-**What happened**: Review of the EBV host-response classifier found `sc.pp.highly_variable_genes` fit on all 1906 cells before the per-seed train/test split. Because EBV+ cells drive variance in EBV-responsive genes, the HVG feature set is chosen using cells later used for evaluation — the held-out AUC/MCC are upward-biased. Documentation ("evaluated on held-out cells") was true for rows but not feature columns.
-
-**Why it matters**: This is the single most common silent leak in scRNA-seq classifiers, and it inflated a headline metric that was about to go into a report. Any per-cell feature selection, normalization-parameter fit, or gene selection done before the split is suspect.
-
-**Resolution**: Flagged as Major (F1) in `.living/outputs/reviews/2026-07-01-hostresponse-ebv-matched.md`; fix is to move HVG/gene selection inside the CV loop and re-run.
-
-**Tags**: leakage, feature-selection, hvg, scrna-seq, cross-validation, classifier, review
-
-**mitigation_type**: ambient-awareness
-
-**structural_mitigation_candidate**: A review-checklist item (and a possible convention) "feature selection / normalization params must be fit inside the CV split"; a test that asserts HVG is recomputed per fold. Candidate for promotion to `.living/conventions.md` if it recurs.
-
-**Update (fixed 2026-07-01)**: After moving HVG inside the CV split, the corrected metrics differed from the pre-fix values by **less than one seed-SD on every metric** — i.e. unchanged within noise. HVG is *unsupervised* (variance-based, never sees labels), so this leak class is expected to be negligible, and it was. Two lessons: (1) don't assume "remove leak ⇒ lower number" — an unsupervised-selection leak can move the number either way or not at all; (2) more importantly, don't narrate a mechanism for a sub-SD shift (an earlier draft claimed per-fold HVG "tracks the EBV contrast better" — that was story-fitting noise; corrected per advisor). Fix the leak because it's methodologically correct, not because it changes the answer here.
-
-**Category**: insight
-
-**What happened**: Re-ran `_run_l2_regression` (fixed seeds) in a different conda env (bioenv, sklearn 1.7.1) than the original run to add MCC. Sensitivity/specificity/balanced-accuracy and the 15-gene stable set reproduced **exactly**; AUC differed in the 4th decimal (0.84456 → 0.84487).
-
-**Why it matters**: AUC is rank-based on continuous `predict_proba` outputs, so it's sensitive to tiny BLAS/sklearn-version numerical differences; thresholded metrics (predictions at 0.5) are not. When reporting AUC across environments, quote ≤3 decimals or pin the env, or the "same" analysis looks irreproducible at high precision.
-
-**Resolution**: Reported AUC as 0.845 (3 dp); documented the reproduction in the analysis provenance. Adopted the re-run outputs wholesale so all metrics come from one consistent run.
-
-**Tags**: reproducibility, auc, sklearn, numerical, metrics, bioinformatics
-
-**mitigation_type**: ambient-awareness
-
-**structural_mitigation_candidate**: Pin sklearn/BLAS versions in the analysis env and record them in ENVIRONMENTS_INSTALLATIONS.md; assert AUC reproduces to 3 dp in a regression test.
 
 ### [2026-07-01] ACTIVE_CONVENTIONS.yaml is malformed after install_convention.py
 
@@ -646,62 +479,6 @@ learnings/decisions note (as here); there is no "skip triage" path once the bloc
 `stop_hook_active`. See [[verify-agent-plans-against-head-before-executing]].
 
 ---
-
-### [2026-07-06] Synthetic depth-proxy test: "fragile" is too strict; use "not robust"
-
-**Category**: test-design gotcha
-
-**What happened**: A synthetic test (`test_depth_proxy_gene_is_fragile`) expected a gene that is a
-noisy proxy of depth to land in the `fragile` bucket (E < 1.5). With `n=600` and noise `σ=1.0`, the
-depth-adjusted E-value came out at 1.592 — technically `moderate` (1.5 ≤ E < 3), not `fragile`.
-The test failed on first run.
-
-**Why it matters**: The `fragile/moderate/robust` thresholds (< 1.5 / 1.5–3 / ≥ 3) are *ordinal*,
-not hard cutoffs. A synthetic depth-proxy gene with nonzero noise can legitimately land anywhere in
-the sub-robust range depending on the correlation coefficient and sample size. The *meaningful*
-scientific guard is that a depth-driven gene is not `robust` (E ≥ 3 would claim a confounder needs
-to be 3× on both arms to explain the association — obviously false for a depth artifact).
-
-**Resolution**: Renamed the test to `test_depth_proxy_gene_is_not_robust`; asserts
-`evalue_flag != "robust"` instead of `== "fragile"`. The existing companion test
-(`test_synthetic_depth_only_gene_is_not_robust` in `TestDepthDiagnostics`) already used the correct
-`E_value < 1.8` guard — this mirrors that philosophy at the flag level.
-
-**How to apply**: When writing tests for ordinal classifiers derived from noisy regressions, assert
-the *class boundary* that matters (e.g., "not in the top category") rather than the exact bucket,
-unless n is large enough to make the regression stable and the noise is small enough to ensure
-within-bucket landing.
-
-**Tags**: testing, hostresponse, evalue, depth-confound, synthetic-data
-
-**Tags**: mycelium, hooks, stop-hook, session-end, tooling, process
-
-## [2026-07-06] Per-cell EM regresses sibling virus (HHV-6A/6B) disambiguation
-
-**Category**: finding / gotcha
-
-**What happened**: Investigated whether per-cell EM (SH2.4) would improve HHV-6A/6B
-disambiguation over the current global-pool EM. Result: per-cell EM REGRESSES it. In the
-known-HHV-6B sample SRR20710641, the global EM achieves ~200:1 6B:6A ratio (6944 UMI 6B vs
-32.87 UMI 6A) because it aggregates signal from all cells and gives the algorithm an informative
-prior. A cell-level EM would start from a uniform prior — cells with no 6A-unique reads split
-shared-region multimappers ~50/50, producing a large false-6A signal instead of the correct
-near-zero allocation.
-
-**Why it matters**: Per-cell EM is a principled approach in transcriptomics (alevin-fry style)
-but is the wrong tool specifically for sibling-virus disambiguation. The mechanism runs in
-reverse: the global pool's 200:1 prior is load-bearing; discarding it per-cell loses the only
-information that separates genuine 6A from EM bleed in any given cell.
-
-**Resolution**: SH2.4 deferred. SH2.3 implemented as a detection-level warning instead —
-`check_sibling_crossmapping()` in `detection.py` + `sibling_crossmap_note` column in
-`viral_summary.tsv` + `SIBLING_VIRUS_PAIRS`/`SIBLING_CROSSMAP_RATIO_THRESHOLD` in
-`constants.py`. The 32.87 UMI 6A residual is analytically provable as EM bleed (shared-region
-multimapper fraction × global theta), not genuine co-infection. Per-cell EM may still be
-valuable for heterogeneous multi-virus samples (e.g. EBV+ cells vs CMV+ cells), but that
-requires a dedicated design PR.
-
-**Tags**: multimap, em, sibling-virus, hhv-6, disambiguation, per-cell, global-pool, scrna-seq, detection
 
 ### [2026-07-07] A ViralScan quant "redo" silently reuses cached outputs; and how to re-run only the detection tail
 
@@ -1594,20 +1371,6 @@ Two more checks:
 - RefSeq `NC_001526.4` (HPV16) is linearised at E1, not at the K02718 origin,
   so literature coordinates such as p97 must be shifted (p97 → 7139).
 
-### [2026-09-27] A self-vs-self positive control cannot catch a strand bug in a k-mer metric
-- **Category**: testing-patterns
-- **What happened**: `scripts/measure_kmer_capture.py` built forward-strand k-mer sets while kallisto indexes canonical k-mers (folded with the reverse complement). The bug survived 12 unit tests and a `--self-check` whose positive control measured a genome against a panel containing itself. That control is structurally blind to the defect: the genome and its panel copy are the same strand by construction, so a strand-naive implementation passes it perfectly.
-- **Why it matters**: 350 of 2,042 genomes were understated, 55 of them by more than 0.25 absolute fragment capture, and the worst case read 0.0329 when the true value is 0.9514. Aggregate medians moved only ~5 % relative, so every summary statistic looked fine. A metric that models a tool must be tested against that tool's actual matching semantics, not against its own arithmetic.
-- **Resolution**: the discriminating test is a panel containing **only the reverse complement** of the target, which must still yield coverage 1.0. Added to both `--self-check` and the unit suite; `--strand canonical` is now the default with `--strand forward` retained for reproducing superseded numbers.
-- **Tags**: testing-patterns, bioinformatics, kmer, controls, false-negative
-
-### [2026-09-27] Dereplication thresholds silently set the sensitivity ceiling of a k-mer reference
-- **Category**: scientific-analysis
-- **What happened**: The ViralScan anellovirus panel's measured median leave-one-out 31-mer capture is 0.2162. Its upstream (`clareaulab/human_anellovirus_pangenome`) built the set by CD-HIT clustering 3,545 human-host genomes at 95 % ANI down to 2,023 representatives. Since a 31-mer matches only with zero mismatches, the expected shared fraction at 5 % divergence is `0.95**31 = 0.2039` — agreeing with the measurement to ~0.012.
-- **Why it matters**: The genomes dereplication discards are exactly the ones in the divergence band where k-mer pseudoalignment fails, so dereplication optimised for a redundancy criterion that is adversarial to k-mer sensitivity. Chasing "more genera" or "more genomes from NCBI" was the wrong lever entirely; the lever is undoing the dereplication. Any pipeline that inherits a CD-HIT'd reference and then measures k-mer capture is measuring the clustering threshold.
-- **Resolution**: Recorded as F-013. Before acting, reconcile against F-011 — the binomial assumes independent, uniformly distributed substitutions, while clustering of conserved blocks was already shown to break that assumption badly (analytic 1.00 vs empirical 0.51).
-- **Tags**: scientific-analysis, bioinformatics, kmer, reference-design, cd-hit, dereplication
-
 ### [2026-09-29] Snakemake: an unconsumed extra output of a rule never triggers its rerun; a rewritten input does
 - Category: pipeline gotcha
 - What happened: adding results/virus_identity.tsv to rule analysis did not reschedule analysis in old run dirs (no rule requests it), while rewriting config.yaml (input of kb_count) rescheduled kb_count and everything downstream.
@@ -1650,13 +1413,6 @@ Two more checks:
 - Resolution: self-named rows record no accession and are named via the legacy prefix map (f9cc725). Covid parity: every multimap layer identical to 815838a.
 - Tags: kallisto, t2g, guard, virus-identity, third-party-reference
 
-### [2026-09-30] ENA serves only R2 for many 10x runs on SRA — barcodes missing
-- Category: data-formats
-- What happened: for GSE189670 and GSE164690, ENA's fastq_ftp has one file per run (R2 only), though the library is listed PAIRED.
-- Why it matters: kb count needs R1 (CB+UMI); an ENA download silently yields an unusable run.
-- Resolution: use SRA `prefetch` + `fasterq-dump --include-technical --split-files` (module bioinformatics/tools/ncbi/sra/3.0.10), then pick R1/R2 by read length.
-- Tags: sra, ena, 10x, fastq, download
-
 ### [2026-10-01] A panel rebuild can rename gene IDs; the old run GTF then no longer matches the index
 - Category: bioinformatics
 - What happened: the CAT-42 rebuild wrote 124 RefSeq anellovirus gene IDs with an accession prefix (`TTV3_gp1` → `NC_014081.1_TTV3_gp1`), so `hpv16_gse189670/ref/viral_panel.gtf` (cut from the 09-28 build) no longer matched. The builder commit responsible is not yet traced.
@@ -1669,13 +1425,6 @@ Two more checks:
 - What happened: on TTV-1 (NC_002076.2) the AATAAA is at nt 3,073 but the ORF1/ORF2 models end at 2,901/2,875 (only spliced gp1 reaches 3,077). Across 1,992 ORF-model anellovirus genomes, the gap from the last exon end to the polyA site is median ~20 nt, 90th percentile ~220 nt (AWTAAA heuristic). 48 genomes are whole-genome pseudo-transcripts.
 - Why it matters: 3′ 10x reads sit just upstream of the polyA tail; reads in the uncovered 3′ UTR have no transcript to pseudoalign to, a sensitivity loss for true anellovirus.
 - Tags: anellovirus, 3prime, utr, polyA, sensitivity, gtf
-
-### [2026-10-03] Appending R to PATH loses to a conda env that ships its own Rscript
-- Category: environment
-- What happened: covid 5′ reruns (25695057_0-3) died after ~1.6 h in emptyDrops with `there is no package called 'Matrix'`. The script put `$ENV/bin` first and R4_51 last, and the `test_viralscan` env has its own Rscript without Matrix. HHV-6B tasks used `viralscan_bench`, which has no Rscript, so they passed.
-- Why it matters: "append R4_51 to PATH" (decision 2026-10-01) only works when no earlier PATH entry has an Rscript. R4_51 also ships python, so it cannot simply go first either.
-- Resolution: a temp shim dir holding only a symlink to R4_51's Rscript, prepended to PATH. A `RESUME=1` mode reuses the finished kb count (the kb-python timestamps confirm the skip).
-- Tags: slurm, conda, rscript, path, emptydrops
 
 ### [2026-10-03] A low-complexity N-mask can *raise* kallisto's k-mer count
 - Category: bioinformatics
@@ -1716,13 +1465,6 @@ Two more checks:
 - Resolution: take sequence and CDS coordinates from the GenBank file, which also keeps both in one coordinate system. Check a sequence file's lengths against the paper's own metadata before using it.
 - Tags: anellovirus, reference-data, provenance, ORF1, gotcha
 
-### [2026-10-03] STARsolo discards homopolymer UMIs, and the read then has no barcode at all
-- Category: bioinformatics
-- What happened: the real-STAR integration test for ANDET-09 failed on `CB:Z:-`/`UB:Z:-` even with the read's barcode on the supplied on-list. The fixture's UMI is `CCCCCCCCCCCC`; STARsolo filters homopolymer UMIs and then writes `-` for **both** CB and UB. With a normal UMI the same read gets corrected CB and UB tags, with or without an on-list.
-- Why it matters: molecule counting keys on (CB, UB), so such a read counts as no molecule. A simulator that generates random UMIs will hit this by chance, and a homopolymer-rich artefact library will hit it systematically — which is conservative here, but it has to be deliberate rather than discovered in the numbers.
-- Resolution: the ANDET-09 metrics skip reads whose CB or UB is `-`, and `plant_anello_10x.py` only generates non-homopolymer UMIs.
-- Tags: starsolo, umi, barcodes, molecules, anellovirus
-
 ### [2026-10-03] kb uses its own bundled kallisto, and a foreign index can spin for ever
 - Category: tooling
 - What happened: a tiny end-to-end smoke run built `index.idx` with the `viralscan_bench` env's `kallisto`, then `kb count` ran `kallisto bus` from `site-packages/kb_python/bins/linux/kallisto/kallisto`. It burned 787 % CPU for 13 minutes on **one** read pair before being killed.
@@ -1737,46 +1479,6 @@ Two more checks:
 - Resolution: delete the import from any `script:` module (PEP 585 generics evaluate natively on the supported versions); convert `X | Y` annotations to `Optional[...]` where the declared minimum is 3.9. `tests/test_snakemake_script_modules.py` reads the `script:` targets out of the Snakefile and fails on any future import.
 - Tags: snakemake, gotcha, scripts, ci, python
 
-### [2026-10-03] A pipeline's own `cdna.fa` is host+viral, so it cannot seed a negative control
-- Category: scientific-analysis
-- What happened: the first ANDET-09e synthetic negative drew 60 % of its reads from `viral_ref_cat42b/build/cdna.fa`, read as "the host transcriptome". That file is what `kb ref` extracted from the **combined** reference: 471,944 records, 465,769 `ENST*` and **6,175 viral**, including all 2,040 anellovirus genomes. The negative therefore contained real anellovirus cDNA, and the arm reported ~16,000 anellovirus molecules — by both kallisto and the alignment branch, agreeing closely, at `homopolymer_fraction` 0.0.
-- Why it matters: the control was built to answer "what does the branch call when no virus is present", and it silently answered a different question. The tell was the agreement plus the zero homopolymer fraction: the reads were clean viral sequence, not the artefact classes the negative was supposed to contain. Had the branch been the only method scored, this would have read as a catastrophic false-positive rate and could have shipped the feature disabled for the wrong reason.
-- Resolution: build the negative from the pure Ensembl cDNA (`build/host/Homo_sapiens.GRCh38.cdna.all.fa.gz`). `plant_anello_10x.py:read_fasta` now filters host records to `ENST*`, reports how many it excluded, and fails closed if none remain. GRCh38 `genome.fa` is safe (CAT-34: 194 contigs, no viral).
-- Generalisation: a negative control assembled from pipeline intermediates inherits whatever those intermediates contain. Check the composition of any FASTA used as "host", by record prefix, not by filename.
-- Tags: negative-control, specificity, reference-data, anellovirus, ANDET-09, gotcha
-
-### [2026-10-04] NM = 0 without the aligned fraction is not evidence
-- Category: scientific-analysis
-- What happened: the covid anellovirus case was argued on "every reference's reads sit in 1–3 100-bp bins, ~100 % homopolymer, median NM = 0". An independent re-alignment of the same reads (Biomni `tsk_010G28jS5K1qC5TzDMva8eZR`) showed the median **aligned fraction is 38 %** (mlen ~ 34 nt, MAPQ <= 4): NM = 0 held over ~34 nt of A/C-rich sequence while ~62 % of each read, including the entire TSO, was soft-clipped.
-- Why it matters: NM is reported per *alignment*, not per *read*. A local alignment over a homopolymer tract is perfect by construction, so NM = 0 on a soft-clipped alignment carries no information — and it reads as strong evidence. The same trap applies to every identity metric derived from a BAM in this repo (`alignment_median_identity` in `anello_align.py` included).
-- Resolution: report aligned fraction (or query coverage) next to any NM/identity figure, and classify reads by their own sequence before trusting a reference-side number. The decisive test here was read-side: 0/30 read *bodies* (the sequence 5' of the poly-A run) align to any anellovirus genome.
-- Generalisation: a soft clip hides the part of the read that would have falsified the hit. Any identity claim needs the length it was computed over.
-- Tags: alignment, qc, soft-clipping, identity, anellovirus, F-019
-
-### [2026-10-04] A 3'-biased chemistry makes the artefact and the real signal look identical
-- Category: scientific-analysis
-- What happened: three of our artefact arguments — single-window pileup, poly-A richness, NM = 0 — are each exactly what a *genuine* TTV 3'-end read would show. 10x 3' chemistry sees only terminal fragments; TTV mRNAs share a common polyadenylated 3' end. Worse, the artefact piles up *at the polyA site* by construction, because that is the genome's longest templated A-tract (MZ286238.1 nt 2835–2865, A31). Position is evidence for neither hypothesis.
-- Why it matters: we nearly shipped a conclusion whose stated support could not distinguish the two hypotheses. The conclusion survived only because other evidence (TSO content) happened to be in the same table.
-- Resolution: before citing a feature as diagnostic, write down what the *competing* hypothesis predicts for it. Here the discriminators are features that are impossible under one hypothesis: TSO at the read 3' end (the TSO end of the cDNA is physically discarded in 10x 3' v3), a poly-A run that stops mid-tract rather than extending past it, and perfect identity to 8 genotypes that differ by > 30 % from each other.
-- Generalisation: a homopolymer-based filter removes exactly the reads that would prove a genuine low-level component, so such evidence *bounds* a true signal, never excludes it. Say "bound", not "absent".
-- Tags: specificity, artefact, 10x, polya, anellovirus, F-019, hypothesis-testing
-
-### [2026-10-04] SAM stores SEQ reverse-complemented, which inverts every read-side measure
-- Category: gotcha
-- What happened: the new `complex_body_fraction` and `tso_fraction` read `Alignment.seq` straight from the BAM. On a reverse-strand record (flag 0x10) SAM stores SEQ reverse-complemented, so a genuine `[body][poly-A]` read arrives as `[poly-T][rc body]`: the body-splitter cuts at the leading poly-T, returns an empty body, and the read is flagged an artefact. The TSO/poly-A chimera inverts the same way — reversed it is `[TSO][poly-T]`, whose "body" is the 25-nt TSO at 3.52 bits, so it scores as complex. Both calls were exactly backwards, verified by probe before the fix.
-- Why it matters: `--soloStrand Unstranded` means about half of all records are reverse, so this was not an edge case — it would have silently halved the measure's value and, worse, flagged genuine reads as artefact under a setting explicitly chosen to never do that. Unit tests over sequence strings could not see it; only a test built from a flag-16 SAM line catches it.
-- Resolution: `Alignment.read_seq()` restores sequencing orientation and carries the explanation; every read-*sequence* measure goes through it. NH, NM, CIGAR-derived coverage and homopolymer detection are orientation-free (a poly-A run revcomps to a poly-T run, still a homopolymer). Pinned by `test_reverse_strand_reads_are_measured_in_sequencing_orientation`, verified to fail against the unfixed code.
-- Generalisation: anything reading SEQ from a BAM must ask which strand it is on first. A measure that is asymmetric between a read's two ends — a tail, a leading adapter, a 5'/3' motif — is the kind that inverts rather than merely degrades.
-- Tags: sam, bam, strand, gotcha, anellovirus, artefact, ANELLO-PRIOR
-
-### [2026-10-04] An empty diagnostic column is "not measured", never "clean"
-- Category: scientific-analysis
-- What happened: the four validation arms planned for the new artefact columns cannot give a reading through the path they were specified on. Covid x213 and the synthetic negative yield ~0 aligned reads through the STARsolo branch — its `--outFilterMatchNminOverLread 0.80` rejects the chimeras *before* they are counted — so the columns come out empty, not "0.0 = artefact". HPV16 is not an anellovirus, so the branch never touches it. And the columns are only reachable with `--anello-align`, which ships off.
-- Why it matters: an empty cell reads as reassurance. The arm that most needed the measure was the one guaranteed to produce no value for it, and that would have been reported as a pass.
-- Resolution: validate the artefact arm by running the pure functions directly over the already-extracted covid aligned reads rather than through the pipeline, and document explicitly that empty means not measured. Where a column can be absent for structural reasons, say which ones in the docs beside the column.
-- Generalisation: before designing a validation arm, check the arm can physically produce the quantity being validated. An upstream filter that removes the thing you are trying to measure makes the measurement vacuous rather than negative.
-- Tags: validation, diagnostics, anellovirus, ANELLO-PRIOR, methodology
-
 ### [2026-10-04] Tests that read git-ignored data pass locally and fail on every clean checkout
 - What: `src/viralscan/data/*.gtf` has been git-ignored since 6bb5c64, but stale local copies (May) stayed on the developer tree. Two tests (`test_index_reconciliation` Retroviridae and `test_ncbi_fetch` EBER) globbed or read them, so they passed here and failed in every clean worktree (and in CI). One PLAN closure (CAT-27) had also cited such a file as evidence.
 - Evidence: a full suite on `git worktree add --detach <scratch> HEAD` gave 2 failures; the main tree gave 0. Fixed in 227a2f6 (hermetic fixtures, tracked tables).
@@ -1789,92 +1491,12 @@ Two more checks:
   1" holds for integer count layers only, because EM layers are fractional, so a
   grouped sum can add calls there.
 
-### [2026-10-05] A frozen protocol can contradict itself in ways that only show up when you lay out the generator
-- Category: scientific-analysis
-- What happened: `protocol.yaml` went through 11 SCI-05 review rounds. Even so, designing VAL-01 against it found seven conflicts:
-  - R2.9's real-PBMC background against sample-bootstrap independence. The only v3 PBMC is also the external-evaluation negative.
-  - "Every target at every level" against "sibling absent".
-  - Abundance defined per infected cell, against per-sample detection with summed-count thresholds.
-  - The template-leakage rule against six fixed viral genomes.
-  - 50 M pairs per sample with a per-read truth manifest of ~2.5 TB.
-  - The location of holdout truth (R3.4) against the in-repo locators.
-  - Homology levels gated on REF-08 and REF-06.
-- A further gap: `seeds.split` has no call site, because the largest-remainder split is deterministic once the IDs are fixed. Readable IDs would also bias the ASCII-ordered holdout selection.
-- Why it matters: review rounds read the protocol text. Only enumerating the generator's concrete outputs surfaces whether the text can be executed. This repeats the 2026-07-27 standing limitation, now from the input side.
-- Resolution: the conflicts are recorded as decisions D1–D7 in `docs/plans/2026-10-05-val01-generator-design.md`, as DEF-00 inputs. None is resolved silently.
-- Generalisation: before freezing a protocol, draft the generator and scorer data flows against it. For every frozen seed, ask where it is consumed. For every truth column, ask how many rows it implies.
-- Tags: protocol, preregistration, VAL-01, DEF-00, truth-panel, leakage, blinding
-
-### [2026-10-05] Deterministic generators leak blinding through names, order, and public seeds
-- Category: gotcha
-- What happened: two shortcuts would have exposed holdout truth to anyone with the files:
-  - writing host truth into read names, which saves terabytes of manifest;
-  - writing reads in deterministic block order.
-
-  A public root seed would also let anyone regenerate holdout truth. Separately, `gzip.open` stamps mtime, so identical runs give different sha256 values.
-- Resolution (design):
-  - holdout reads use opaque names and a seeded shuffled order;
-  - the holdout manifest is owner-only;
-  - holdout generation takes a secret salt, and only its hash is published;
-  - gzip is written with `GzipFile(mtime=0)`, and the uncompressed-stream sha256 is recorded.
-- Tags: blinding, determinism, gzip, VAL-01, VAL-08, R3.4
-
-### [2026-10-05] A genome D-list removes host-derived viral background, and moves the cell anchor
-- Category: scientific-analysis
-- What happened (REF-06, cat42b → cat42d, adding GRCh38 `genome.fa` to the D-list): target viruses are unchanged or slightly up. HPV16 +0.0 %, EBV +0.2 %, HSV-1 +1.0 %; unresolved molecules fall. Spurious low-level unique calls vanish: covid x213 goes from 74 to 4 unique viral molecules, and HHV-6 `p23`, MPXV, MOCV and HPV9 go to 0. emptyDrops with the same seed calls fewer cells, −22 % on the HPV16 rafts. The dropped barcodes have a median of 130 UMIs, and kept barcodes lose ~8.5 % of their host UMIs.
-- Why it matters: the D-list is a specificity gain at no measurable sensitivity cost. But any kb-derived cell anchor depends on the reference, so the protocol's frozen anchor has to come after the G4 reference freeze.
-- Evidence: `scripts/ref06_compare_cat42b_d.py`; PLAN REF-06 2026-10-05 note.
-- Tags: REF-06, dlist, specificity, cell-calling, emptydrops, G4
-
-### [2026-10-05] Align the small panel and stream the big genome, not the other way round
-- Category: gotcha
-- What happened: measuring viral/host homology with `minimap2 -x asm10/asm20` and GRCh38 as the reference returned **zero** alignments for all 2,343 viral genomes, after 78 s and 13 GB just to index. The `asm` presets want long colinear high-identity blocks; viral/host homology is short diverged patches. Swapping the direction — index the 11 MB viral panel, stream the genome as the query, `-k 15 -w 10 -s 40 -m 20` — found 5,971 alignments in ~2 min at 0.5 GB.
-- Why it matters: a zero result read as "no homology exists" when it was a preset mismatch. The usual convention (big thing = reference) is the expensive and less sensitive direction when the query set is a whole genome and the target set is small.
-- Generalisation: when one side of an alignment is small, index that side. And treat any all-zero result from a preset-driven aligner as a preset question before it is a biology answer.
-- Tags: minimap2, alignment, REF-07, gotcha, homology
-
-### [2026-10-05] Amending the v3 protocol touches five pinned layers, in a fixed digest order
-- Category: gotcha
-- What happened: DEF-00 had to change more than `protocol.yaml`:
-  - the schema, which pins harmonization digests as `const` and hard-codes the denominator and `covers` enums;
-  - the packaged copy of the schema;
-  - the validator, which keeps its own denominator, endpoint-map and audit-column registries;
-  - the deviation ledger;
-  - the governance sha256 pins in the artifact inventory and claim registry.
-- Why it matters: if one layer is missed, validation or governance fails. The digests must be recomputed in this order:
-  1. `dependent_fields`;
-  2. the harmonization contract;
-  3. partitions and calibration;
-  4. `frozen_inputs` last, after `recorded_deviations` lists the new DEV id;
-  5. then chain the ledger `record_sha256`.
-- Resolution: recompute through the validator's own `*_sha256` functions, never by hand. A ledger record can be re-digested freely until it is committed, because `check_ledger_append_only.py` compares against HEAD. Re-pin governance only after the commit.
-- Tags: protocol, digests, governance, ledger, DEF-00
-
-### [2026-10-05] A governance re-pin that touches claims/registry.json needs a second re-pin commit
-- Category: gotcha
-- What happened: re-pinning the DEF-00 files (a2ca4c4) edited `claims/registry.json`, which made the inventory's own `claim-registry` row stale. A row's `git_sha` must name the commit that holds the file, so the fix cannot go in the same commit. It took a follow-up commit (0f9069a), the same chain as 9bc7e7e → 76a94fb.
-- Second trap: claims can share a `git_sha`. `886cca0` was used by both `v3-validation-harmonization` and `v3-ebv-molecule-baseline`, so a blanket sed/replace of the old sha in registry.json re-pins an unrelated claim.
-- Resolution: change shas only inside the target claim or row, matching on path or claim id. Expect amend → re-pin → re-pin-registry, i.e. three commits. Check with `validate_inventory_file()+validate_registry_file(coverage=True)` == `[]`.
-- Tags: governance, re-pin, claim-registry, inventory, DEF-00
-
 ### [2026-10-05] Switching to a stale local `main` silently deletes the gitignored bundled GTFs
 - Category: gotcha
 - What happened: local `main` was 350 commits behind and still tracked the 195 `src/viralscan/data/*.gtf`, which 6bb5c64 untracked and gitignored ("local copies kept"). `git checkout main` overwrote the ignored local copies without a warning, because git overwrites ignored files freely. The fast-forward to 319fd77 then deleted them, since the new main no longer tracks them. Two tests failed: `test_every_marker_resolves_in_the_bundled_panel` and `test_bundled_panel` (933 genes against an expected >2000).
 - Resolution: restore each missing file with `git show 6bb5c64^:<path>` (never `git checkout <rev> -- path`, which stages it). Old main's GTFs were byte-identical to 6bb5c64^. No other ignored path was affected.
 - Prevention: update a stale branch without checking it out (`git fetch origin main:main`), or diff `git ls-tree` between the old and new tips for ignored paths before switching.
 - Tags: git, gitignore, bundled-data, gtf, checkout
-
-### [2026-10-05] SLURM downloads into the repo tree block the mycelium Stop hook on read-only sessions
-- Category: gotcha
-- What happened: the DSR-09 arrays (25701724/25701725) write FASTQ, md5.txt, read_lengths.txt and `fasterq-dump` temp files into `benchmark_inputs/dsr_2026-10-05/`. That directory is inside the repo, untracked and not gitignored. The Stop hook counted those 65 job-written files as session changes and blocked a status-check session that edited nothing. Updates under `.living/log/` do not clear the block (the hook excludes that prefix). Only learnings/decisions/conventions/findings do.
-- Resolution: `.gitignore` now has `benchmark_inputs/dsr_*/*/` (2026-10-05), which hides the per-run dirs, `sra/` and the fasterq-dump temp files and leaves the top-level manifests and sbatch scripts visible. The hook reads `git status --untracked-files=all` without `--ignored`, so ignored paths no longer count.
-- Tags: mycelium, hooks, slurm, benchmark_inputs, DSR-09
-
-### [2026-10-06] kb count is only about a third of a combined full-depth run
-- Category: insight
-- What happened: the step sentinels of the COST-01 combined run SRR12682296 (10xv2, 127 M pairs, job 25652878_0, 26 min) show `create_config` 04:35 → `kb.done` 04:44 (about 9 min) → `multimap.done` 04:53 → `detection`/`umap.done` 05:01. Multimap, detection and umap took about 17 of the 26 min.
-- Implication: `rerun-multimap` skips only `kb count`. A rerun is not cheap next to a full run, even on the instant layer-swap path (detection and umap still rerun), plus a full `copytree` of the source run (3.7 GB here). F-024's lower grid bound (7.4 core-h per sample, reruns ≈ free) is optimistic. Check it against the measured em-cell rerun (job 25702291).
-- Tags: cost, rerun-multimap, Q10d, COST-01, grid
 
 ### [2026-10-06] em-cell stores a dense all-gene theta per barcode and OOMs at full depth
 - Category: gotcha
@@ -1887,12 +1509,6 @@ Two more checks:
 - What happened: session 6339e1f7 only answered a clarifying question (user pasted the "00 — Current repository baseline" spec, no request). The Stop hook still reported `prompt.MD` as changed and demanded a `.living/` update. The file is not in `git ls-files -o -m` and this session did not edit it; it was probably a user-side file that existed briefly.
 - Implication: no scientific content to triage. This entry exists only to satisfy the hook. If the spec in `prompt.MD` is later adopted, record that as a decision then.
 - Tags: mycelium, hooks, stop-check
-
-### [2026-10-06] The old overlapping-window capture formula overstated recall by tens of points
-- Category: finding
-- What happened: `fragment_capture` multiplied `(1 - (1-d)^31)` across the 60 overlapping windows of a 90 bp read as if independent. Against the only empirical series available, Luebbert et al. 2025 Fig 1c (EBOV, i.i.d. substitutions, kallisto standard workflow; values read off the figure image, about +/-3 points, read length of the 676 sequences NOT verified at 88 bp), observed recall is about 55 % at 4.4 % divergence, 43 % at 5.4 %, 31 % at 6.4 %, 22 % at 7.4 %, 16 % at 8.4 % and 8 % at 10.3 %. The old formula gives about 100 % up to ~6 % and ~90 % at 10 %, so it was roughly 45 points high at 4.4 % and 70-80 points high by 6-8 %. (This gap is old formula versus observed recall, not versus the exact model.) The exact DP at L=88 (76 % at 4.4 %, 36 % at 8.4 %) is still 10-20 points optimistic against the figure; L about 58-60 fits it. Exact values at 90 bp, k=31: 5 % -> 0.708, 10 % -> 0.254, 15 % -> 0.063, 20 % -> 0.013.
-- Implication: `fragment_capture` now delegates to `fragment_capture_exact` and is labelled a substitution-only heuristic that never feeds `capture_measured`. The exact model is an i.i.d., single-target idealisation, not a bound. Only a calibration on ViralScan's own panel+host index (PLAN `SENS-CAL-01`) can say how far real capture sits from it.
-- Tags: sensitivity, capture, SENS-CORR-02, Luebbert, calibration
 
 ### [2026-10-08] `viral_ref_final/build/viral.fa` is not in this checkout; synthetic-test pitfall
 - Category: learning
@@ -2091,3 +1707,5 @@ drift at source.
 **Evidence**: job 25882793 log; `sibling_specific_reads.py:29` same pattern; `confirm_hits.py:411` was dangling even before the move.
 **Rule**: before and after any tree move, `grep -nE "parents\[[0-9]\]|Path\.cwd\(\)|\.\./\.\."` the live scripts and fix those by hand; add them to the per-group diff list.
 Tags: migration, paths, slurm, testing, gotcha
+
+<!-- 2026-10-27 batch 4e (D64/D69): 28 experiment-only entries live only in the reproducibility repo copy (https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/.living/learnings.md); this copy keeps package and shared entries -->

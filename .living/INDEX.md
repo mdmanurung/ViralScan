@@ -5,20 +5,12 @@ Last audit: 2026-10-27
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
-| HANDOFF_2026-09-29.md | 12 entries | 2026-10-10 | Read these first, not this file, State at handoff, The thing to decide next: F-017, Other open rows, Validating the index |
-| HANDOFF_2026-09-30.md | 14 entries | 2026-10-05 | 0. Orientation (read first), 1. State at a glance, 2. Environments and commands, Governance re-pin (needed whenever a pinned file changes), 3. What this session did (commits, oldest first) |
-| HANDOFF_2026-10-01.md | 8 entries | 2026-10-05 | 1. Running right now, 2. Done this session, MECH-A closed (Virus Identity table), Datasets the user supplied: scoped (3 parallel agents), EXPL-HPV16, done: the HPV16 positive control passes |
-| HANDOFF_2026-10-03.md | 5 entries | 2026-10-05 | Closed in this pass, Advanced, still `[~]`, Running, Waiting on user decisions, Gotchas found |
+| (moved) HANDOFF_*.md, last-session.md, log/, findings/ | — | 2026-10-27 | in the reproducibility repo (batch 4e): https://github.com/mdmanurung/ViralScan-reproducibility/tree/main/.living |
 | conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
 | decisions.md | 81 entries (large — read selectively) | 2026-10-25 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
-| last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
 | learnings.md | 77 entries (large — read selectively) | 2026-10-26 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 90 sessions | 2026-10-26 | viralscan (89), translated-proteins (1) |
 | decisions.md | 81 entries (large — read selectively) | 2026-10-27 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
-| last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
 | learnings.md | 76 entries (large — read selectively) | 2026-10-27 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 85 sessions | 2026-10-27 | viralscan (84), translated-proteins (1) |
-| findings/ | 4 findings across 31 topics | 2026-10-25 | spikein-flank-index-retired, hhv6b-flank-reads-missed-by-cds-only-index, hsv1-lat-exon-recut, twostep-hpv77-call-is-host-reads-star-missed, evidence-replay-used-primary-ec-numbering, +26 more |
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->

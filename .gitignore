@@ -163,3 +163,6 @@ analysis/**/*.bus
 
 # pixi environments (pixi.lock is committed once generated)
 .pixi/
+
+# batch 4e (D64/D70): session logs are hook-written and tracked in the reproducibility repo only
+.living/log/
