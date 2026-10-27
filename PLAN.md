@@ -30,11 +30,28 @@ completion.
   `SPLIT_TRACKER.md` in the reproducibility repo. `ENVIRONMENTS_INSTALLATIONS.md` (an empty template; software versions are pinned in `environment.yml`/`uv.lock`) was deleted with the owner's approval. The reproducibility tests run against the pinned package commit `4da4674` (see that repo's `CLAUDE.md`).
 - **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
   rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
+- [~] `DISC-17` (2026-10-27, `codex/disc12-metrics` pushed for review): run `scripts/disc12_metrics.py` on the EXISTING DISC-12
+  outputs (all 182 conditions under repro `data/runs/work/disc12_run_2026-10-23/out/` are published). Two gates before any
+  `out/` value is read: (1) the user ratifies the five protocol ambiguities fixed in the script docstring; (2) the four
+  positives need `--truth LIB=TSV` per-cell UNIQUE molecules of the panel virus, which only `viralscan rerun-multimap
+  --multimap-molecule-assignments` on their existing `.bus` files can produce (compute on existing outputs; **user OK
+  needed**). Outcome it can fix: `--confidence` / `--minimum-hit-groups` defaults and `k` for `prioritized`. It cannot
+  fix the DISC-13 constants (protocol §5: spike-ins only; none exist), which stay `calibrated: false`.
+- [ ] `DISC-18` report section for discovery (`report.html.j2`): deferred. The report is rendered by the `detection` rule
+  before discovery can exist, so it needs a re-render step in the `run --discover` post-step; row only.
+- [x] `DISC-12-METRICS` (2026-10-24): protocol §4/§5 metrics script committed BLIND (no DISC-12 output values read):
+  `scripts/disc12_metrics.py` (`--run`, `--manifest`, `--panel-taxid LIB=TAXID`, `--truth LIB=TSV` barcode/molecules = primary
+  per-cell UNIQUE molecules; both required for every positive, else exit), writes `metrics.tsv`, `offcell.tsv`, `decisions.json`;
+  tests `tests/test_disc12_metrics.py`. Protocol ambiguities fixed in the docstring: prioritized(k) = candidate row with
+  groups_called >= k, not host lineage, not viral-only (off-cell reported not gated; `artefact_supported_only` absent; negative
+  control not_assessed); FP taxa exclude host lineage; rule 1 uses the rule-2 k of 0.05/4 of the same DB, excludes the notrim arm,
+  reads "both negatives" as all three, drops capture-only positives (no truth cell, covid) from recovery only; recovery = median over
+  truth cells of panel groups / primary molecules. Truth TSVs are not built yet (per_cell_viral.tsv has only `viral_molecules_total_est`).
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [x] `F027-01` finding F-027 (`.living/findings/hhv6b-flank-reads-missed-by-cds-only-index.md`): HHV-6B reads in the positional 3' flank class (8.9% of viral reads, GSM6416022, 5' v2) are outside a CDS-only kallisto index.
   - Note (2026-10-22): Lareau comparison done against the public reference at caleblareau/hhv6-reactivation@dd2eb77: 103 CDS-only entries, same NCBI CDS coordinates, no flank/UTR, no masking.
-- **Focus: STARsolo host+virus readiness.** Phases 1-4 are committed on `codex/star-confirm`; next are SPIKE-01 (phase 5, unrun), the
+- **Focus: package maturity (2026-10-27).** Code-only units STAR-05/06, DISC-14/15/16, AA-08..AA-12, HOST-05a/b/d, STAR-FATE-01 are on PRs #127-#133. Next: DISC-17 (user gates: ratify the 5 ambiguities, OK `rerun-multimap --multimap-molecule-assignments` on the 4 positives), AA-11 oracle test in the repro, then the compute-gated rows: SPIKE-01 (phase 5, unrun), the
   STAR-GATE-01 decision, and the phase 6 EBV acceptance run.
 - [x] REVIEW-A (WP-1): called-cell summary denominator and host-only plot null.
 - [x] REVIEW-B (WP-2): bounded coverage zero filling; preserve depth policy.
