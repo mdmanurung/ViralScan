@@ -78,7 +78,7 @@ leaves the run valid. For other settings run `viralscan discover` afterwards.
 `run/posthoc/discovery/SAMPLE` (layout version 2; `validate-run` ignores `posthoc/`), or to
 `-o DIR` outside the run. Either must be empty, absent or a previous publication. The defaults are
 `--confidence 0.05` and `--minimum-hit-groups 4` (the Cellsnake documented defaults, not
-calibrated here; Kraken2's own are 0.0 and 2) and `--polya-trim` on. See the
+calibrated here: the DISC-12 benchmark could not evaluate its default rule, see below; Kraken2's own are 0.0 and 2) and `--polya-trim` on. See the
 [CLI reference](cli_reference.md) for every flag.
 
 Re-running with the same inputs and settings exits 0 and does nothing. Changing the
@@ -191,13 +191,9 @@ the run's pruned `star_hostvirus/viral.bam` (`--star-confirm`), else
 `results/molecule_assignments.tsv.gz` (`--multimap-molecule-assignments`), else
 `not_assessed`. Route (ii) runs only with `--minimap2 --host-fasta F --candidate-fasta
 TAXID=FASTA` (at most 3). Without `--run-dir` no evidence is produced and every taxon is
-`observation` or `prioritized`. States:
+`observation`. States:
 
 - `observation`: Kraken2 only, or evidence that did not pass.
-- `prioritized`: Kraken2 only, at least `--k` resolved called-cell groups (default 3, the
-  DISC-12 blind rule; reported, not calibrated), no host lineage, not a viral-only database.
-  Evidence that came back negative does not demote a `prioritized` taxon; its explanation is
-  appended to `reason` (for example `prioritized(k=3): Kraken2 only; corroboration: 0/10 ...`).
 - `corroborated` (route i): the same taxon is supported by the kb (panel) arm or the STAR
   host+virus arm. The molecules were competitively adjudicated (not better explained by
   host or another virus) and fall in cells that are also called-cell groups of the taxon.
@@ -314,4 +310,7 @@ whether a rerun is the same.
   table, does not show the organism is absent: it may be missing from the database,
   lost to host subtraction or the capture chemistry, or below the thresholds.
 - **Not calibrated.** The confidence and hit-group defaults and the flag cut-offs are
-  not tuned against a benchmark, and no discovery performance claim is made.
+  not tuned against a benchmark, and no discovery performance claim is made. The frozen
+  DISC-12 benchmark (2026-10-27) returned `not_assessed` for the default rule and found no
+  group count that separates its negatives from every positive, so Kraken2 alone never
+  lifts a taxon above `observation` (there is no `prioritized` state).

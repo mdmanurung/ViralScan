@@ -990,8 +990,8 @@ Assigns a state to every taxon of a published discovery and writes `candidate_st
 plus `candidate_states.provenance.json` beside `candidates.tsv`. Route (i) corroboration
 uses the run's pruned STAR BAM when present, else kb molecule assignments
 (`--multimap-molecule-assignments`), else stays `not_assessed`; route (ii) read support
-runs only with `--minimap2`. `prioritized` is Kraken2-only with at least `--k` resolved
-called-cell groups. Nothing changes in the primary run, `detected` or tiers; cut-offs are
+runs only with `--minimap2`. A taxon with Kraken2 support alone stays `observation`.
+Nothing changes in the primary run, `detected` or tiers; cut-offs are
 documented constants, not calibrated.
 
 <!-- BEGIN GENERATED: discover-states -->
@@ -1001,7 +1001,6 @@ documented constants, not calibrated.
 | `discovery_dir` | *required* | A published discovery output directory. |
 | `--run-dir RUN_DIR` | *(none)* | The primary run OUT was built from. |
 | `--sample SAMPLE` | *(none)* | Sample subdirectory when the run has several. |
-| `--k K` | *(none)* | Resolved called-cell groups for `prioritized` (default 3; reported, not calibrated). |
 | `--minimap2` | `False` | Route (ii): align the taxon's reads competitively (needs --run-dir, --host-fasta, --candidate-fasta). |
 | `--host-fasta HOST_FASTA` | *(none)* | Host genome/transcriptome FASTA for --minimap2. |
 | `--candidate-fasta TAXID=FASTA` | `[]` | Candidate genome for --minimap2; repeatable, at most 3. |

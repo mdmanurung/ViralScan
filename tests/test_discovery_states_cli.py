@@ -73,7 +73,7 @@ def _states(out: Path) -> dict[str, dict[str, str]]:
 
 def _args(out: Path, **kw) -> argparse.Namespace:
     base = dict(
-        discovery_dir=out, run_dir=None, sample=None, k=None, minimap2=False,
+        discovery_dir=out, run_dir=None, sample=None, minimap2=False,
         host_fasta=None, candidate_fasta=[], panel_fasta=None,
     )  # fmt: skip
     base.update(kw)
@@ -111,18 +111,17 @@ def test_states_cli_no_evidence_is_not_assessed(tmp_path):
     record = discovery.run_discover_states(_args(out))
     assert record["route_i_source"] == "not_assessed" and record["route_ii"] is False
     states = _states(out)
-    assert states["562"]["state"] == "prioritized"  # 5 groups >= k=3, Kraken2 only
-    assert states["562"]["reason"] == "prioritized(k=3): Kraken2 only"
+    assert states["562"]["state"] == "observation"  # Kraken2 only, however many groups
+    assert states["562"]["reason"] == "no orthogonal evidence supplied"
     assert states["9606"]["state"] == "observation"  # host lineage caps it
     assert not (out / "evidence.tsv").exists()
 
 
-def test_states_cli_k_override_and_provenance(tmp_path):
+def test_states_cli_provenance(tmp_path):
     out = _discovery(tmp_path, [_candidate(562, "E. coli", 5)])
-    discovery.run_discover_states(_args(out, k=6))
-    assert _states(out)["562"]["state"] == "observation"
+    discovery.run_discover_states(_args(out))
     record = json.loads((out / discovery.CANDIDATE_STATES_PROVENANCE_JSON).read_text())
-    assert record["k"] == 6 and record["calibrated"] is False
+    assert "k" not in record and record["calibrated"] is False
     assert record["discovery_fingerprint"] == "d" * 64
     assert record["constants"]["MIN_TAXON_BEST"] == discovery.MIN_TAXON_BEST
 
@@ -136,13 +135,13 @@ def test_states_cli_refuses_fingerprint_mismatch_and_unpublished(tmp_path):
         discovery.run_discover_states(_args(out))
 
 
-@pytest.mark.parametrize("groups", range(0, 8))
-def test_prioritized_never_overrides_caps_or_evidence(groups):
+@pytest.mark.parametrize("groups", [0, 3, 1648, 10**6])
+def test_kraken2_alone_is_always_observation(groups):
+    # DISC-12 rule 2 found no k (2026-10-27): no group count lifts a Kraken2-only taxon.
     capped = _candidate(9606, "human", groups, host_lineage="1")
     assert discovery.assign_state(capped, {})["state"] == "observation"
     plain = _candidate(562, "E. coli", groups)
-    expect = "prioritized" if groups >= discovery.PRIORITIZED_MIN_GROUPS else "observation"
-    assert discovery.assign_state(plain, {})["state"] == expect
+    assert discovery.assign_state(plain, {})["state"] == "observation"
     positive = {
         (562, "corroboration"): dict(
             n_adjudicated=10, n_taxon_best=10, n_shared_cells=1, n_shared_umis=1
@@ -151,20 +150,10 @@ def test_prioritized_never_overrides_caps_or_evidence(groups):
     assert discovery.assign_state(plain, positive)["state"] == "corroborated"
 
 
-def test_prioritized_keeps_negative_evidence_in_reason():
-    cand = {
-        "taxid": "562",
-        "name": "x",
-        "rank": "species",
-        "host_lineage": "0",
-        "viral_only_db": "0",
-        "groups_called": "5",
-    }
+def test_negative_evidence_stays_in_reason():
+    cand = _candidate(562, "x", 5)
     row = dict.fromkeys(discovery.EVIDENCE_COLUMNS[3:], 0)
     row.update(taxid=562, route="corroboration", n_adjudicated=10, n_taxon_best=0)
     out = discovery.assign_state(cand, {(562, "corroboration"): row})
-    assert out["state"] == "prioritized"
-    assert (
-        out["reason"]
-        == "prioritized(k=3): Kraken2 only; corroboration: 0/10 units best for the taxon"
-    )
+    assert out["state"] == "observation"
+    assert out["reason"] == "corroboration: 0/10 units best for the taxon"
