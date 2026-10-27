@@ -583,6 +583,28 @@ port the kallisto translated-search tutorial with explicit attribution.
   PalmDB adds 344 UMIs, none EBV (PalmDB has no DNA viruses). Not a validation. Numbers: `analysis/translated_search/palmdb_provenance.json`
   and the README. **Open:** full-depth runs on all 17 libraries (jobs prepared, not submitted: the permission
   system blocked the submission) and read-level confirmation of suspicious hits.
+- [x] `AA-08` (2026-10-27, `codex/translated-verb`): `src/viralscan/translated.py` ports `summarize`, `read_proteins`,
+  `taxon_ids`, `bus_text_rows` (bustools via `validation.tool_path`), `normalize_barcode`/`read_barcodes`/`compare`
+  (`check_barcodes.py`) and `combine_palmdb` (core of `scripts/combine_palmdb_reference.py`, without the BLAST/expected
+  extras) plus `fetch_palmdb` (three sha256-pinned tutorial files via `build_reference._download`),
+  `build_translated_index` (`kb ref --aa -k 31 --workflow custom --d-list <host>`; plain nucleotide mask, AA-05; **fails
+  closed below kallisto 0.51.1**, Q155) and `count_translated` (`kb count --aa --parity single --num`, whitelist through
+  `kb_whitelist_arg`, no strand: six frames).
+- [x] `AA-09` (2026-10-27): verbs `viralscan translated-index --proteins-dir --host-mask --out-dir [--palmdb/--no-palmdb]`
+  (writes `<out-dir>/index/{index.idx,t2g.txt,proteins.tsv,translated_index.json}`, manifest last) and
+  `viralscan translated --run-dir --index-dir [--counts-dir] [--cells] [--expected-taxa] [-o]` (default
+  `posthoc/translated/<sample>`; `summary.all.json`, `summary.cells.json`, `barcode_check.json` with the 90 % abort,
+  `translated_receipt.json`, `translated_complete.json` last). `doctor --profile full` reports `kallisto_translated_ok`
+  (informational). `confirm_hits.py` stays in the repro.
+- [x] `AA-10` (2026-10-27): `tests/test_translated.py` (10: the repro summary/barcode/combine tests repointed, index version
+  gate, `kb ref`/`kb count` command shapes incl. the SW-21 `-w None` case, the verb on an existing counts dir, the barcode
+  abort).
+- [ ] `AA-11`: regression oracle in the repro (`research` marker, `ARMP_ROOT`): ported `summarize()` on 3 existing
+  `data/runs/work/trackA_round1/armP/counts/<GSM>` outputs vs `summary/<GSM>/{all,cells}` (re-analysis only; the 0.50.0
+  index itself is not consumable by the bundled 0.52.0). Deferred to the repro PR.
+- [x] `AA-12` (2026-10-27): docs (`cli_reference.md` sections + generated tables, `reference_panel.md` "Translated protein
+  index (exploratory)", `output_reference.md` posthoc rows for `discover`/`translated`), CHANGELOG. AA-02/AA-04 stay `[!]`:
+  full-depth masked re-runs on the 71 libraries and negative-control confirms are not authorised.
 - [x] `AA-07` — read-level confirmation and artefact checks for arm-P hits (`codex/translated-search-confirm`, stacked on
   `codex/translated-search-arm-p`; pilot data only, 1M pairs). `analysis/translated_search/confirm_hits.py`:
   `kallisto bus --aa --num` keeps the read number in the BUS flag (works in 0.50.0; the corrected BUS file has the same

@@ -299,6 +299,55 @@ viralscan data fetch
 
 ---
 
+## `viralscan translated-index` and `viralscan translated` — kallisto translated search
+
+Exploratory protein-level arm (Luebbert et al. 2025, doi:10.1038/s41587-025-02614-y). It never
+changes `detected`, tiers or any primary output; it writes only under
+`<run-dir>/posthoc/translated/<sample>/`.
+
+`translated-index` runs `kb ref --aa` over the annotated viral proteins written by
+`scripts/prepare_viral_proteins.py`, optionally combined with the PalmDB RdRP set (three
+pinned files downloaded from the kallisto tutorial), with a plain nucleotide host D-list. It
+refuses a kallisto below 0.51.1, which does not translate the D-list.
+
+<!-- BEGIN GENERATED: translated-index -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--proteins-dir DIR` | *required* | prepare_viral_proteins output |
+| `--host-mask FASTA` | *required* | Host cDNA/DNA FASTA for the D-list |
+| `--out-dir DIR` | *required* |  |
+| `--palmdb, --no-palmdb` | `True` | Add the PalmDB RdRP proteins (downloaded, sha256-pinned). Default: on. |
+| `--threads, -c THREADS` | `4` | kb ref threads. Default: 4. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+`translated` runs `kb count --aa --parity single` on the run's FASTQ pair (six-frame search, so
+no strand flag) and writes a per-virus/protein UMI summary over all barcodes
+(`summary.all.json`) and over the run's called cells (`summary.cells.json`), a barcode-format
+check (`barcode_check.json`; the verb stops when fewer than 90 % of the called cells appear in
+the translated matrix), a receipt and a completion marker. `--counts-dir` summarises an existing
+`kb count --aa` output instead of counting.
+
+<!-- BEGIN GENERATED: translated -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir RUN_DIR` | *required* | A completed ViralScan run (holds run_manifest.json). |
+| `--sample SAMPLE` | *(none)* | Sample subdirectory when the run has several. |
+| `--index-dir DIR` | *required* | <out-dir>/index of translated-index |
+| `--counts-dir DIR` | *(none)* | Existing kb count --aa output to summarise. |
+| `--cells FILE` | *(none)* | Called-cell list; default results/called_cells.tsv. |
+| `--expected-taxa EXPECTED_TAXA` | *(none)* | Taxon ids to report first, e.g. 10376;37296. |
+| `--output, -o OUTPUT` | *(none)* | Default <run-dir>/posthoc/translated/<sample>. |
+| `--threads, -c THREADS` | `4` | kb count threads. Default: 4. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
 ## `viralscan evidence` — trace reads behind viral calls
 
 ```

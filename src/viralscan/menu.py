@@ -1386,6 +1386,19 @@ def main() -> None:
         _run_star_index(args)
         return
 
+    if getattr(args, "_subcommand", None) in ("translated-index", "translated"):
+        from viralscan import translated
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        try:
+            if args._subcommand == "translated-index":
+                translated.run_translated_index(args)
+            else:
+                translated.run_translated(args)
+        except (translated.TranslatedError, subprocess.CalledProcessError) as exc:
+            _die(str(exc))
+        return
+
     if getattr(args, "_subcommand", None) == "evidence":
         from viralscan.scripts.evidence_run import run_evidence
 
