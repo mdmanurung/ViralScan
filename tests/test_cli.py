@@ -877,3 +877,77 @@ def test_build_ref_cores_defaults_to_legacy_and_parses() -> None:
     parser = build_parser()
     assert parser.parse_args(["build-ref", "-o", "x"]).cores is None
     assert parser.parse_args(["build-ref", "-o", "x", "--cores", "3"]).cores == 3
+
+
+# ── DISC-14: `run --discover` ───────────────────────────────────────────────
+
+
+def _discover_args(tmp_path: Path, **kw):
+    import argparse
+
+    (tmp_path / "R1.fastq.gz").touch()
+    (tmp_path / "R2.fastq.gz").touch()
+    (tmp_path / "k2").mkdir(exist_ok=True)
+    base = {
+        "ncbi_accession": None, "reference": False, "gtf": None, "fasta": None,
+        "index": str(tmp_path / "index.idx"), "transcripts": "/fake/t2g.txt", "f1": None,
+        "host_filter": "starsolo", "host_index": "/fake/host",
+        "sample1": str(tmp_path / "R1.fastq.gz"), "sample2": str(tmp_path / "R2.fastq.gz"),
+        "star_confirm": False, "star_hostvirus_index": None,
+        "discover": True, "kraken2_db": str(tmp_path / "k2"),
+    }  # fmt: skip
+    base.update(kw)
+    return argparse.Namespace(**base)
+
+
+@pytest.mark.parametrize(
+    "bad, message",
+    [
+        ({"kraken2_db": None}, "--discover requires --kraken2-db"),
+        ({"host_filter": None, "host_index": None}, "--discover requires --host-filter"),
+        ({"discover": False}, "--kraken2-db requires --discover"),
+    ],
+)
+def test_run_discover_flag_pairing(tmp_path: Path, bad, message, caplog) -> None:
+    from viralscan import menu
+
+    with patch("os.path.exists", return_value=True):
+        with pytest.raises(SystemExit) as exc:
+            menu.errorhandler(_discover_args(tmp_path, **bad))
+    assert exc.value.code != 0 and message in caplog.text
+
+
+def test_run_discover_valid_pairing_passes(tmp_path: Path) -> None:
+    from viralscan import menu
+
+    with patch("os.path.exists", return_value=True):
+        menu.errorhandler(_discover_args(tmp_path))
+
+
+def test_run_discover_calls_run_discover_per_sample(tmp_path: Path, monkeypatch) -> None:
+    import argparse
+
+    from viralscan import discovery, menu
+
+    seen = []
+    monkeypatch.setattr(discovery, "run_discover", lambda a: seen.append(a))
+    args = argparse.Namespace(discover=True, kraken2_db="/db", cores=3)
+    menu._discover_after_run(args, tmp_path / "out", ["A", "B"])
+    assert [a.sample for a in seen] == ["A", "B"]
+    assert all(a.run_dir == str(tmp_path / "out") and a.output is None for a in seen)
+    assert seen[0].kraken2_db == "/db" and seen[0].threads == 3
+    assert seen[0].confidence == 0.05 and seen[0].minimum_hit_groups == 4
+
+
+def test_run_discover_failure_dies_after_completion(tmp_path: Path, monkeypatch, caplog) -> None:
+    import argparse
+
+    from viralscan import discovery, menu
+
+    def boom(a):
+        raise discovery.DiscoveryError("db unreadable")
+
+    monkeypatch.setattr(discovery, "run_discover", boom)
+    with pytest.raises(SystemExit) as exc:
+        menu._discover_after_run(argparse.Namespace(kraken2_db="/db", cores=1), tmp_path, ["A"])
+    assert exc.value.code != 0 and "primary run is complete" in caplog.text

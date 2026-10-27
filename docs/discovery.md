@@ -62,6 +62,18 @@ viralscan discover --run-dir run/ --sample SAMPLE \
     --kraken2-db k2_pluspf_16/ --threads 8
 ```
 
+### From `viralscan run`
+
+```bash
+viralscan run ... --host-filter starsolo --host-index star_hg38/ \
+    --discover --kraken2-db k2_pluspf_16/
+```
+
+runs the same discovery on every sample after the run completes, with the defaults below,
+into `<output>/posthoc/discovery/<sample>/`. The primary results are written and
+`run_complete.json` exists before discovery starts; a discovery failure exits non-zero but
+leaves the run valid. For other settings run `viralscan discover` afterwards.
+
 `--sample` is required only when the run holds more than one. Outputs go to
 `run/posthoc/discovery/SAMPLE` (layout version 2; `validate-run` ignores `posthoc/`), or to
 `-o DIR` outside the run. Either must be empty, absent or a previous publication. The defaults are

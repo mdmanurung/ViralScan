@@ -1572,6 +1572,23 @@ def _build_run_parser(subparsers: Any) -> None:
         ),
     )
     parser.add_argument(
+        "--discover",
+        action="store_true",
+        default=False,
+        help=(
+            "After the run completes, run `viralscan discover` on every sample (Kraken2 on the "
+            "host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), "
+            "writing <output>/posthoc/discovery/<sample>/ (PLAN DISC-14). Requires --host-filter "
+            "and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results."
+        ),
+    )
+    parser.add_argument(
+        "--kraken2-db",
+        default=None,
+        metavar="DIR",
+        help="Kraken2 database directory for --discover (hash.k2d, opts.k2d, taxo.k2d).",
+    )
+    parser.add_argument(
         "--auto-evidence",
         action=argparse.BooleanOptionalAction,
         # None (not False) when unset, so default runs keep their --resume fingerprint.

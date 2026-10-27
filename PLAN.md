@@ -7423,7 +7423,11 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     its reads are. Raises on missing files, no molecule, or no called-cell overlap. Tests `tests/test_discovery_star_evidence.py`.
   - 2026-10-27: CLI and `prioritized` landed in `DISC-15`; `sequence_supported` and the cut-offs still wait on `DISC-12`
     spike-in data.
-- [ ] `DISC-14` optional Snakemake leaf (only on request).
+- [x] `DISC-14` (2026-10-27, `codex/disc14-run`): `viralscan run --discover --kraken2-db DIR` runs `discovery.run_discover`
+  per sample after `write_run_complete` (not a Snakefile rule: `resolve_sample_dir` needs `run_complete.json`, written after
+  Snakemake exits), with the documented defaults (confidence 0.05, min hit groups 4, poly-A trim, pinned STAR params) into
+  `posthoc/discovery/<sample>`. Requires `--host-filter`; preflight runs `discovery.check_tools()`. A discovery failure exits
+  non-zero after the run is complete. No `RunConfig` field, no DAG change, no `doctor` change. Tests in `tests/test_cli.py` (6).
 - [x] `DISC-16` (2026-10-27, `codex/disc16-posthoc`): `discover` writes to `<run>/posthoc/discovery/<sample>` by default
   (layout v2, like `evidence`/`rerun-multimap`); `-o` is optional and may point outside the run or under its `posthoc/`.
   `check_output_dir` admits `posthoc/` through `outputs.is_posthoc` and still refuses `results/`. Prerequisite for DISC-15
