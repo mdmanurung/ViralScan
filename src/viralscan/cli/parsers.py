@@ -871,6 +871,8 @@ def _build_host_loss_parser(subparsers: Any) -> None:
     )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="host-loss")
+
+
 def _build_discover_states_parser(subparsers: Any) -> None:
     """Register the 'discover-states' subcommand (PLAN DISC-15)."""
     p = subparsers.add_parser(
