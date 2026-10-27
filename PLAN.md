@@ -87,8 +87,11 @@ completion.
   tiers. Evidence: STAR detects at <=3 spiked UMIs in both backgrounds (F-028), but host competition was not measurable
   (fates read from the pruned VIRUS|-only BAM). Revisit only after a rerun that extracts STAR fates before pruning
   (follow-up `STAR-FATE-01`).
-- [ ] `STAR-FATE-01`: extract per-spike STAR fates before `prune_to_viral` (or keep the full BAM in the spike-in runner) so
-  `fate_host` measures host competition; prerequisite for any future STAR tiering/gating.
+- [x] `STAR-FATE-01` (2026-10-27, `codex/host-loss`): `align_host_unmapped(prune=True)` collects the viral reads once
+  (`_collect_viral_reads`), writes `star_hostvirus/star_read_fates.tsv.gz` (`read_id, cb, ub, primary, viral_contigs,
+  host_competing`) before `prune_to_viral`, then feeds the same reads to `summarise_by_virus(reads=...)`. Host partners of
+  viral multimappers are therefore kept per read. Ceiling: reads STAR placed on the host alone are absent (truth list +
+  `host-loss`). Test `test_read_fates_written_before_prune`.
   - 2026-10-23: SPIKE-01 is done (F-028): STAR arm threshold <=3 spiked UMIs in both backgrounds, 0-8 non-spike STAR reads in nulls. The decision is now the user's. `fate_host` is not a measure of host competition (pruned BAM); see F-028.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
   `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
@@ -3566,6 +3569,16 @@ homology negatives cannot become probable/strong calls.
 - [ ] `HOST-05` — **open.** The sensitivity cost of the v3 STARsolo path is still
   unmeasured. It blocks `MS-02`/`CMP-01`–`CMP-03` and the preregistered
   `D15`/`D16` endpoints; no number should be quoted for it until then.
+  - [x] `HOST-05a` (2026-10-27, `codex/host-loss`): `viralscan host-loss --run-dir SAMPLE --truth TSV [--viral-label]
+    [--mixed-manifest] [-o]` exposes `host_filter.lost_truth_counts` on a run's `host_filtered/fragment_lineage.tsv.gz`,
+    writing `posthoc/host_loss/host_loss.json` with `lower_bound: true` and `not_estimable` when truth reads are missing
+    from the lineage. Tests `tests/test_host_loss.py` (2).
+  - [x] `HOST-05b` (2026-10-27): `tests/integration/test_host_filter_star.py` parametrised over `STAR_FILTER_PARAM_SETS`
+    (`pinned`, `star-default`); the spiked viral read survives both (D15 loss 0, nothing unseen). Runs in CI once STAR-05
+    lands.
+  - [x] `HOST-05d` (2026-10-27): docs state the loss as a lower bound (`output_reference.md`, `cli_reference.md`).
+  - Still open (needs real-data compute): `hosthomolog.sbatch` on the Track A libraries (DISC-12-HH), phase-6 EBV
+    acceptance, CMP-01..03. HOST-05 itself stays `[ ]`.
 
 ## WP4C — Detection sensitivity and negative-result claims (new 2026-09-26)
 

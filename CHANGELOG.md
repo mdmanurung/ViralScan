@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
+- Added `viralscan host-loss`: D15/D16 truth-read loss at the STAR host filter from `fragment_lineage.tsv.gz`, reported as a lower bound under `posthoc/host_loss/` (PLAN `HOST-05a`). `--star-confirm` now keeps `star_hostvirus/star_read_fates.tsv.gz`, per-read STAR fates written before the prune (PLAN `STAR-FATE-01`).
 - Docs: the site is cut to 13 sidebar pages. `docs/results.md` replaces `inspect_results.md` + `assess_evidence.md`; `api_reference.md` is folded into `api.md`; `reference_help.md` and `project_info.md` are removed. `v3_counting_contract.md`, `panel_integrity.md`, `workflow_comparison.md` and `reference_maintenance.md` leave the sidebar but keep their paths (PLAN `DOCS-REV-02`).
 
 - `viralscan discover --called-cells FILE` replaces the run's own `called_cells.tsv` (e.g. the EmptyDrops cells of a full-matrix run when a two-step run called only virus-carrying barcodes). The file's barcode space comes from its own `cell_calling_input.json`; its path and sha256 are recorded in `provenance.json` and the sha256 enters the fingerprint.

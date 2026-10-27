@@ -753,6 +753,47 @@ def _build_discover_collapse_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="discover-collapse")
 
 
+def _build_host_loss_parser(subparsers: Any) -> None:
+    """Register the 'host-loss' subcommand (PLAN HOST-05a)."""
+    p = subparsers.add_parser(
+        "host-loss",
+        help="Truth-read loss at the STAR host filter of a completed run (D15/D16, lower bound).",
+        description=(
+            "Join a truth list (read_id, label[, molecule_id]) to the run's "
+            "host_filtered/fragment_lineage.tsv.gz and report the truth-viral fragments (D15) "
+            "and molecules (D16) the host filter removed, plus the host-virus-mixed boundary "
+            "count with --mixed-manifest. The figure is a lower bound on the sensitivity cost "
+            "of --host-filter starsolo (HOST-05): truth reads the lineage never saw make the "
+            "row not estimable. Writes <run-dir>/posthoc/host_loss/host_loss.json; nothing in "
+            "the run changes."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--run-dir",
+        required=True,
+        metavar="DIR",
+        help="A sample run directory holding host_filtered/.",
+    )
+    p.add_argument(
+        "--truth", required=True, metavar="TSV", help="read_id, label[, molecule_id] table."
+    )
+    p.add_argument(
+        "--viral-label", default="viral", help="Truth label of viral reads. Default: viral."
+    )
+    p.add_argument(
+        "--mixed-manifest",
+        default=None,
+        metavar="TSV",
+        help="mixed_host_virus_manifest.tsv (read_id column).",
+    )
+    p.add_argument(
+        "--output", "-o", default=None, metavar="DIR", help="Default <run-dir>/posthoc/host_loss."
+    )
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="host-loss")
+
+
 def _build_rerun_programs_parser(subparsers: Any) -> None:
     """Register the 'rerun-programs' subcommand."""
     p = subparsers.add_parser(
@@ -1129,6 +1170,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  evidence-plot   Plot molecule-level host versus virus alignments.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
             "  rerun-programs  Re-score gene programmes on a completed run.\n"
+            "  host-loss       Truth-read loss at the STAR host filter (lower bound).\n"
             "  discover        Kraken2 taxonomic discovery on a completed run.\n"
             "  discover-collapse  Project a discovery to species/genus/family.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
@@ -1165,6 +1207,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_evidence_plot_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
     _build_rerun_programs_parser(subparsers)
+    _build_host_loss_parser(subparsers)
     _build_discover_parser(subparsers)
     _build_discover_collapse_parser(subparsers)
     _build_doctor_parser(subparsers)

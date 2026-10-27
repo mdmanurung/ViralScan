@@ -933,6 +933,30 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 
 <!-- END GENERATED -->
 
+### viralscan host-loss
+
+Joins a truth list (`read_id`, `label`, optional `molecule_id`) to the run's
+`host_filtered/fragment_lineage.tsv.gz` and writes `posthoc/host_loss/host_loss.json` with the
+truth-viral fragments (D15) and molecules (D16) the STAR host filter removed, and the
+host-virus-mixed boundary count with `--mixed-manifest`. The figure is a **lower bound** on the
+sensitivity cost of `--host-filter starsolo` (`HOST-05` stays open until the real-library
+harness runs): the lineage sees the filter's input only, and a truth read it never saw makes
+the row not estimable.
+
+<!-- BEGIN GENERATED: host-loss -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir DIR` | *required* | A sample run directory holding host_filtered/. |
+| `--truth TSV` | *required* | read_id, label[, molecule_id] table. |
+| `--viral-label VIRAL_LABEL` | `viral` | Truth label of viral reads. Default: viral. |
+| `--mixed-manifest TSV` | *(none)* | mixed_host_virus_manifest.tsv (read_id column). |
+| `--output, -o DIR` | *(none)* | Default <run-dir>/posthoc/host_loss. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
 ### viralscan rerun-programs
 
 <!-- BEGIN GENERATED: rerun-programs -->

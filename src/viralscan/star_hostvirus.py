@@ -14,6 +14,7 @@ Command line: ``python -m viralscan.star_hostvirus {reference,index,align} ...``
 import argparse
 import csv
 import datetime
+import gzip
 import json
 import shutil
 import subprocess
@@ -410,11 +411,75 @@ def align_host_unmapped(
     bam = out / "Aligned.sortedByCoord.out.bam"
     subprocess.run([samtools, "index", str(bam)], check=True)
     if prune:
+        reads = _collect_viral_reads(bam, samtools)
+        # STAR-FATE-01: per-read fates survive the prune (host partners are lost with the full BAM).
+        write_read_fates(reads, out / READ_FATES_TSV)
         write_summary(
-            summarise_by_virus(bam, samtools, virus_of), out / "star_support_by_virus.tsv"
+            summarise_by_virus(bam, samtools, virus_of, reads=reads),
+            out / "star_support_by_virus.tsv",
         )
         return prune_to_viral(bam, samtools)
     return bam
+
+
+READ_FATES_TSV = "star_read_fates.tsv.gz"
+READ_FATE_COLUMNS = ("read_id", "cb", "ub", "primary", "viral_contigs", "host_competing")
+
+
+def _collect_viral_reads(bam: Path, samtools: str = "samtools") -> dict[str, dict[str, object]]:
+    """Every read with a ``VIRUS|`` record: its contig set (host partners included), primary, CB, UB."""
+    reads: dict[str, dict[str, object]] = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        bed = Path(tmp) / "viral.bed"
+        if not _viral_bed(bam, samtools, bed):
+            return reads
+        multi: set[str] = set()
+        for f in _sam_lines(samtools, "-L", str(bed), str(bam)):
+            r = reads.setdefault(f[0], {"contigs": set(), "primary": None, "cb": None, "ub": None})
+            r["contigs"].add(f[2])  # type: ignore[attr-defined]
+            if not int(f[1]) & 0x100:
+                r["primary"] = f[2]
+            r["cb"], r["ub"] = _tag(f, "CB:Z:"), _tag(f, "UB:Z:")
+            if int(_tag(f, "NH:i:") or 1) > 1:
+                multi.add(f[0])
+        if multi:
+            names = Path(tmp) / "names.txt"
+            names.write_text("".join(f"{q}\n" for q in sorted(multi)), encoding="utf-8")
+            for f in _sam_lines(samtools, "-N", str(names), str(bam)):
+                if f[0] in multi and f[2] != "*":
+                    r = reads[f[0]]
+                    r["contigs"].add(f[2])  # type: ignore[attr-defined]
+                    if not int(f[1]) & 0x100:
+                        r["primary"] = f[2]
+    return reads
+
+
+def write_read_fates(reads: Mapping[str, Mapping[str, object]], path: str | Path) -> Path:
+    """One row per viral read (STAR-FATE-01): ``READ_FATE_COLUMNS``, sorted by read id.
+
+    ponytail: only reads with at least one ``VIRUS|`` record appear; a spiked read STAR placed on
+    the host alone is invisible here and needs a truth list (``viralscan host-loss``).
+    """
+    path = Path(path)
+    with gzip.open(path, "wt", encoding="utf-8", newline="") as handle:
+        w = csv.writer(handle, delimiter="\t")
+        w.writerow(READ_FATE_COLUMNS)
+        for q in sorted(reads):
+            r = reads[q]
+            contigs: set[str] = r["contigs"]  # type: ignore[assignment]
+            w.writerow(
+                [
+                    q,
+                    r["cb"] or "-",
+                    r["ub"] or "-",
+                    r["primary"] or "-",
+                    ";".join(
+                        sorted(c.removeprefix("VIRUS|") for c in contigs if c.startswith("VIRUS|"))
+                    ),
+                    int(any(c.startswith("HOST|") for c in contigs)),
+                ]
+            )
+    return path
 
 
 # ── per-virus summary ───────────────────────────────────────────────────────────────
@@ -460,7 +525,10 @@ def _tag(fields: list[str], key: str) -> str | None:
 
 
 def summarise_by_virus(
-    bam: str | Path, samtools: str = "samtools", virus_of: Mapping[str, str] | None = None
+    bam: str | Path,
+    samtools: str = "samtools",
+    virus_of: Mapping[str, str] | None = None,
+    reads: Mapping[str, Mapping[str, object]] | None = None,
 ) -> list[dict[str, object]]:
     """Per-``VIRUS|`` contig support of a STAR host+virus BAM (rows keyed by STAR_SUMMARY_COLUMNS).
 
@@ -486,30 +554,10 @@ def summarise_by_virus(
     loci. Memory is one small record per viral read plus the contig set of each viral
     multimapper; host-only reads are never held. Rows are sorted by accession.
     """
-    bam = Path(bam)
-    reads: dict[str, dict[str, object]] = {}
-    with tempfile.TemporaryDirectory() as tmp:
-        bed = Path(tmp) / "viral.bed"
-        if not _viral_bed(bam, samtools, bed):
-            return []
-        multi: set[str] = set()
-        for f in _sam_lines(samtools, "-L", str(bed), str(bam)):
-            r = reads.setdefault(f[0], {"contigs": set(), "primary": None, "cb": None, "ub": None})
-            r["contigs"].add(f[2])  # type: ignore[attr-defined]
-            if not int(f[1]) & 0x100:
-                r["primary"] = f[2]
-            r["cb"], r["ub"] = _tag(f, "CB:Z:"), _tag(f, "UB:Z:")
-            if int(_tag(f, "NH:i:") or 1) > 1:
-                multi.add(f[0])
-        if multi:
-            names = Path(tmp) / "names.txt"
-            names.write_text("".join(f"{q}\n" for q in sorted(multi)), encoding="utf-8")
-            for f in _sam_lines(samtools, "-N", str(names), str(bam)):
-                if f[0] in multi and f[2] != "*":
-                    r = reads[f[0]]
-                    r["contigs"].add(f[2])  # type: ignore[attr-defined]
-                    if not int(f[1]) & 0x100:
-                        r["primary"] = f[2]
+    if reads is None:
+        reads = _collect_viral_reads(Path(bam), samtools)
+    if not reads:
+        return []
 
     def name(contig: str) -> str:
         acc = contig.removeprefix("VIRUS|")

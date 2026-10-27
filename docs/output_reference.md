@@ -183,7 +183,11 @@ and `reason`:
 - `retained` / `host_unmapped`: STAR left the pair unmapped to the host, so it
   reached viral quantification.
 - `removed` / `host_mapped`: the pair is absent from STAR's unmapped output,
-  meaning it was host-aligned or ambiguous. STAR runs with `--outSAMtype None`,
+  meaning it was host-aligned or ambiguous. `viralscan host-loss --truth TSV` joins a truth
+  list to this file and writes `posthoc/host_loss/host_loss.json` (D15 fragments, D16
+  molecules); that loss is a lower bound, because reads the filter never saw are invisible,
+  and the sensitivity cost of the STARsolo path (`HOST-05`) stays unmeasured until the
+  real-library harness runs. STAR runs with `--outSAMtype None`,
   so no finer subclass is available. Removed rows are derived as input IDs
   minus retained IDs.
 
@@ -1018,6 +1022,10 @@ visible. Barcodes are corrected against the chemistry's on-list; `--strand` maps
 
 - `star_hostvirus/viral.bam` (+ `.bai`): the `VIRUS|`-only records, coordinate-sorted, with `CB`/`UB`
   tags. The full BAM and STAR's temporary directory are deleted after summarising.
+- `star_hostvirus/star_read_fates.tsv.gz` (`STAR-FATE-01`): one row per read with a `VIRUS|` record,
+  written before the prune: `read_id`, `cb`, `ub`, `primary` contig, `viral_contigs` (`;`-joined
+  accessions), `host_competing` (1 when the read also placed on a `HOST|` contig). A read STAR placed on
+  the host alone does not appear; use `viralscan host-loss` with a truth list for that.
 - `results/star_support_by_virus.tsv`: one row per `virus_name` with `star_reads_primary`, `star_reads_any`,
   `star_molecules`, `star_host_competing`, `star_other_virus` (same definitions as the `viral_summary.tsv`
   columns above). Viruses STAR placed nothing on carry 0.

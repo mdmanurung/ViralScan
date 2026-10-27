@@ -17,7 +17,9 @@ pytestmark = pytest.mark.integration
 FIXTURE = Path(__file__).parents[1] / "data" / "evidence_tiny"
 
 
-def test_star_host_filter_lineage_lists_removed_fragments(tmp_path: Path) -> None:
+@pytest.mark.parametrize("param_set", sorted(host_filter.STAR_FILTER_PARAM_SETS))
+def test_star_host_filter_lineage_lists_removed_fragments(tmp_path: Path, param_set: str) -> None:
+    """HOST-05b: the spiked viral read survives both STAR parameter sets (d15 loss 0 on the fixture)."""
     missing = have_tools(["STAR"])
     if missing:
         pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
@@ -60,6 +62,7 @@ def test_star_host_filter_lineage_lists_removed_fragments(tmp_path: Path) -> Non
         str(r1),
         str(r2),
         1,
+        param_set=param_set,
     )
     with gzip.open(out / "fragment_lineage.tsv.gz", "rt") as fh:
         rows = {r["read_id"]: r for r in csv.DictReader(fh, delimiter="\t")}
@@ -71,3 +74,4 @@ def test_star_host_filter_lineage_lists_removed_fragments(tmp_path: Path) -> Non
     truth.write_text("read_id\tlabel\nviral_read\tviral\nhost_read\thost\n")
     got = host_filter.lost_truth_counts(str(truth), str(out / "fragment_lineage.tsv.gz"))
     assert got["d15_removed_fragments"] == 0 and got["d15_truth_fragments"] == 1
+    assert got["d15_loss_fraction"] == 0 and got["not_in_lineage"] == 0
