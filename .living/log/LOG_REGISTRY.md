@@ -81,3 +81,5 @@
 | 2026-10-11 | 2026-10-11-001 | viralscan | main | 3m | 4 | decisions.md, learnings.md, PLAN.md (+1 more) | | complete | | [log](2026-10-11-001-viralscan.md) |
 | 2026-10-11 | 2026-10-11-003 | viralscan | codex/audit-fixes-2026-10 | 37m | 6 | docs(plan): AUD-16 partial (ANDET-01 breadth merged); Merge codex/aud-a1: per-virus best-genome breadth (ANDET-01 part of AUD-16); Merge codex/aud-h: reference_strategy, evidence_run, constants, ho... | | complete | | [log](2026-10-11-003-viralscan.md) |
 | 2026-10-12 | 2026-10-12-001 | viralscan | main | 17m | 11 | fix(ci): clear the red CI groups left after PR #13 | | complete | | [log](2026-10-12-001-viralscan.md) |
+| 2026-10-26 | 2026-10-26-001 | viralscan | main | 22m | 1 | learnings.md | | complete | | [log](2026-10-26-001-viralscan.md) |
+| 2026-10-26 | 2026-10-26-003 | viralscan | main | 17m | 1 | learnings.md | | complete | | [log](2026-10-26-003-viralscan.md) |
