@@ -1150,6 +1150,10 @@ MIN_TAXON_BEST = 3
 MIN_TAXON_BEST_FRACTION = 0.8
 MIN_SHARED_CELLS = 1
 MIN_SHARED_UMIS = 1
+#: ``prioritized(k)`` (plan §9.2, the DISC-12 blind rule): at least this many resolved called-cell groups,
+#: no host lineage, not a viral-only database. Reported, not calibrated; ``--k`` overrides.
+PRIORITIZED_MIN_GROUPS = 3
+CANDIDATE_STATES_PROVENANCE_JSON = "candidate_states.provenance.json"
 
 
 def read_evidence_table(path: Path) -> dict[tuple[int, str], dict[str, Any]]:
@@ -1610,13 +1614,17 @@ def judge_evidence(row: dict[str, Any] | None, route: str) -> tuple[str, str]:
 
 
 def assign_state(
-    candidate: dict[str, str], evidence: dict[tuple[int, str], dict[str, Any]]
+    candidate: dict[str, str],
+    evidence: dict[tuple[int, str], dict[str, Any]],
+    k: int = PRIORITIZED_MIN_GROUPS,
 ) -> dict[str, str]:
-    """State for one ``candidates.tsv`` row (Q12). Kraken2 alone never goes above ``observation``.
+    """State for one ``candidates.tsv`` row (Q12). Kraken2 alone never goes above ``prioritized``.
 
     ``corroborated``: route (i) positive. ``read_supported_observation``: route (ii) positive (and (i) not);
-    an observation backed by reads, never an infection claim. Host-lineage taxa and a viral-only database
-    (residual host invisible, approved G15) stay at ``observation`` whatever the evidence says.
+    an observation backed by reads, never an infection claim. ``prioritized``: no evidence passed but at
+    least *k* resolved called-cell groups (plan §9.2); still Kraken2-only. Host-lineage taxa and a
+    viral-only database (residual host invisible, approved G15) stay at ``observation`` whatever the
+    evidence says.
     """
     taxid = int(candidate["taxid"])
     results = {r: judge_evidence(evidence.get((taxid, r)), r) for r in ROUTES}
@@ -1639,17 +1647,25 @@ def assign_state(
         )
     else:
         why = [w for _, w in results.values() if w]
-        out["state"] = "observation"
-        out["reason"] = "; ".join(why) or "no orthogonal evidence supplied"
+        if int(candidate.get("groups_called", "0")) >= k:
+            # Blind rule on groups only (matches scripts/disc12_metrics.py); negative
+            # evidence does not demote but stays visible in ``reason``.
+            out["state"] = "prioritized"
+            out["reason"] = "; ".join([f"prioritized(k={k}): Kraken2 only", *why])
+        else:
+            out["state"] = "observation"
+            out["reason"] = "; ".join(why) or "no orthogonal evidence supplied"
     return out
 
 
-def build_candidate_states(out_dir: Path, evidence_path: Path | None = None) -> int:
+def build_candidate_states(
+    out_dir: Path, evidence_path: Path | None = None, k: int = PRIORITIZED_MIN_GROUPS
+) -> int:
     """Write ``candidate_states.tsv`` beside ``candidates.tsv``; returns its rows.
 
     ``evidence_path`` is the documented evidence table (``read_evidence_table``); without it every
-    candidate is ``observation`` with both routes ``not_assessed``. Evidence for a taxid that is not a
-    candidate is an error (a stale or mismatched table).
+    candidate is ``observation`` or ``prioritized`` with both routes ``not_assessed``. Evidence for a
+    taxid that is not a candidate is an error (a stale or mismatched table).
     """
     candidates = list(_tsv_rows(out_dir / CANDIDATES_TSV))
     evidence = read_evidence_table(evidence_path) if evidence_path else {}
@@ -1660,9 +1676,104 @@ def build_candidate_states(out_dir: Path, evidence_path: Path | None = None) -> 
         writer = csv.writer(handle, delimiter="\t")
         writer.writerow(CANDIDATE_STATE_COLUMNS)
         for candidate in candidates:
-            state = assign_state(candidate, evidence)
+            state = assign_state(candidate, evidence, k)
             writer.writerow([state[c] for c in CANDIDATE_STATE_COLUMNS])
     return len(candidates)
+
+
+def _concat_evidence(paths: list[Path], output: Path) -> Path | None:
+    """One evidence table from the producers' tables; ``None`` when there is none."""
+    rows = [row for p in paths for row in _tsv_rows(p)]
+    if not rows:
+        return None
+    with output.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=EVIDENCE_COLUMNS, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+    return output
+
+
+def run_discover_states(args: argparse.Namespace) -> dict[str, Any]:
+    """``discover-states``: assign a state to every candidate of a published discovery (DISC-15).
+
+    Route (i) uses one source by availability: the run's pruned STAR BAM, else kb molecule
+    assignments, else ``not_assessed``. Route (ii) runs only with ``--minimap2``. The states are
+    written beside ``candidates.tsv`` with a provenance file naming the sources, *k* and the
+    (uncalibrated) constants; the discovery fingerprint is checked against ``--run-dir`` when given.
+    """
+    out = Path(args.discovery_dir).resolve()
+    if not (out / COMPLETE_JSON).is_file():
+        raise DiscoveryError(f"{out} is not a published discovery ({COMPLETE_JSON} missing).")
+    provenance = json.loads((out / PROVENANCE_JSON).read_text(encoding="utf-8"))
+    sample_dir = _states_sample_dir(out, provenance, args)
+    k = args.k if getattr(args, "k", None) is not None else PRIORITIZED_MIN_GROUPS
+    produced: list[Path] = []
+    route_i = "not_assessed"
+    if sample_dir is not None:
+        if (sample_dir / STAR_VIRAL_BAM).is_file():
+            produced.append(build_star_evidence(out, sample_dir))
+            route_i = "star"
+        elif (sample_dir / MOLECULE_ASSIGNMENTS).is_file():
+            produced.append(build_kb_evidence(out, sample_dir))
+            route_i = "kb"
+    route_ii = False
+    if getattr(args, "minimap2", False):
+        if sample_dir is None:
+            raise DiscoveryError(
+                "--minimap2 needs --run-dir (the FASTQ pair is resolved from the run)."
+            )
+        resolved = provenance.get("resolved_input", {})
+        candidate_fastas = {
+            int(t): Path(f).resolve() for t, f in (c.split("=", 1) for c in args.candidate_fasta)
+        }
+        produced.append(
+            build_read_support_evidence(
+                out,
+                sample_dir,
+                Path(resolved["r1"]),
+                Path(resolved["r2"]),
+                Path(args.host_fasta).resolve(),
+                candidate_fastas,
+                panel_fasta=Path(args.panel_fasta).resolve() if args.panel_fasta else None,
+            )
+        )
+        route_ii = True
+    evidence = _concat_evidence(produced, out / "evidence.tsv")
+    n = build_candidate_states(out, evidence, k)
+    record = {
+        "schema_version": 1,
+        "discovery_fingerprint": provenance.get("discovery_fingerprint"),
+        "route_i_source": route_i,
+        "route_ii": route_ii,
+        "k": k,
+        "constants": {
+            "MIN_TAXON_BEST": MIN_TAXON_BEST,
+            "MIN_TAXON_BEST_FRACTION": MIN_TAXON_BEST_FRACTION,
+            "MIN_SHARED_CELLS": MIN_SHARED_CELLS,
+            "MIN_SHARED_UMIS": MIN_SHARED_UMIS,
+        },
+        "calibrated": False,
+        "n_candidates": n,
+    }
+    _write_json(out / CANDIDATE_STATES_PROVENANCE_JSON, record)
+    log.info("Candidate states: %d rows, route (i) %s, route (ii) %s.", n, route_i, route_ii)
+    return record
+
+
+def _states_sample_dir(
+    out: Path, provenance: dict[str, Any], args: argparse.Namespace
+) -> Path | None:
+    """The primary sample directory for the evidence producers, or ``None`` without ``--run-dir``."""
+    if not getattr(args, "run_dir", None):
+        return None
+    run_root = Path(args.run_dir).resolve()
+    manifest = json.loads((run_root / RUN_MANIFEST).read_text(encoding="utf-8"))
+    want, have = provenance.get("primary_run_fingerprint"), manifest.get("run_fingerprint")
+    if want != have:
+        raise DiscoveryError(
+            f"{out} was built from run fingerprint {want}, but {run_root} has {have}."
+        )
+    return resolve_sample_dir(run_root, getattr(args, "sample", None))
 
 
 # ── Rank views (DISC-11) ─────────────────────────────────────────────────────

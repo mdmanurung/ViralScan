@@ -756,6 +756,51 @@ def _build_discover_collapse_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="discover-collapse")
 
 
+def _build_discover_states_parser(subparsers: Any) -> None:
+    """Register the 'discover-states' subcommand (PLAN DISC-15)."""
+    p = subparsers.add_parser(
+        "discover-states",
+        help="Assign a candidate state to every taxon of a published discovery.",
+        description=(
+            "Write candidate_states.tsv beside candidates.tsv. Route (i) corroboration uses the\n"
+            "run's STAR host+virus BAM when present, else kb molecule assignments\n"
+            "(--multimap-molecule-assignments), else stays not_assessed. Route (ii) read support\n"
+            "runs only with --minimap2. States never change the primary run, detected or tiers.\n"
+            "Cut-offs are documented constants, not calibrated.\n\n"
+            "Example:\n"
+            "  viralscan discover-states run/posthoc/discovery/S1 --run-dir run/"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("discovery_dir", metavar="OUT", help="A published discovery output directory.")
+    p.add_argument("--run-dir", default=None, help="The primary run OUT was built from.")
+    p.add_argument("--sample", default=None, help="Sample subdirectory when the run has several.")
+    p.add_argument(
+        "--k",
+        type=int,
+        default=None,
+        help="Resolved called-cell groups for `prioritized` (default 3; reported, not calibrated).",
+    )
+    p.add_argument(
+        "--minimap2",
+        action="store_true",
+        help="Route (ii): align the taxon's reads competitively (needs --run-dir, --host-fasta, --candidate-fasta).",
+    )
+    p.add_argument(
+        "--host-fasta", default=None, help="Host genome/transcriptome FASTA for --minimap2."
+    )
+    p.add_argument(
+        "--candidate-fasta",
+        action="append",
+        default=[],
+        metavar="TAXID=FASTA",
+        help="Candidate genome for --minimap2; repeatable, at most 3.",
+    )
+    p.add_argument("--panel-fasta", default=None, help="Optional viral panel FASTA competitor.")
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="discover-states")
+
+
 def _build_rerun_programs_parser(subparsers: Any) -> None:
     """Register the 'rerun-programs' subcommand."""
     p = subparsers.add_parser(
@@ -1134,6 +1179,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  rerun-programs  Re-score gene programmes on a completed run.\n"
             "  discover        Kraken2 taxonomic discovery on a completed run.\n"
             "  discover-collapse  Project a discovery to species/genus/family.\n"
+            "  discover-states    Assign candidate states to a published discovery.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
             "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
             "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n"
@@ -1170,6 +1216,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_rerun_programs_parser(subparsers)
     _build_discover_parser(subparsers)
     _build_discover_collapse_parser(subparsers)
+    _build_discover_states_parser(subparsers)
     _build_doctor_parser(subparsers)
     _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)

@@ -168,11 +168,24 @@ documented constants, not calibrated.
 
 ### Candidate states
 
-`build_candidate_states(out_dir, evidence_path)` (Python API; no command yet) writes
-`candidate_states.tsv` beside `candidates.tsv`: `taxid`, `name`, `rank`, `state`,
-`corroboration`, `read_support`, `reason`. States:
+```bash
+viralscan discover-states run/posthoc/discovery/S1 --run-dir run/
+```
+
+writes `candidate_states.tsv` beside `candidates.tsv` (`taxid`, `name`, `rank`, `state`,
+`corroboration`, `read_support`, `reason`) and `candidate_states.provenance.json` (sources
+used, `k`, the constants, `calibrated: false`). Route (i) takes one source by availability:
+the run's pruned `star_hostvirus/viral.bam` (`--star-confirm`), else
+`results/molecule_assignments.tsv.gz` (`--multimap-molecule-assignments`), else
+`not_assessed`. Route (ii) runs only with `--minimap2 --host-fasta F --candidate-fasta
+TAXID=FASTA` (at most 3). Without `--run-dir` no evidence is produced and every taxon is
+`observation` or `prioritized`. States:
 
 - `observation`: Kraken2 only, or evidence that did not pass.
+- `prioritized`: Kraken2 only, at least `--k` resolved called-cell groups (default 3, the
+  DISC-12 blind rule; reported, not calibrated), no host lineage, not a viral-only database.
+  Evidence that came back negative does not demote a `prioritized` taxon; its explanation is
+  appended to `reason` (for example `prioritized(k=3): Kraken2 only; corroboration: 0/10 ...`).
 - `corroborated` (route i): the same taxon is supported by the kb (panel) arm or the STAR
   host+virus arm. The molecules were competitively adjudicated (not better explained by
   host or another virus) and fall in cells that are also called-cell groups of the taxon.
@@ -196,7 +209,7 @@ shared cell (route ii also one shared molecule). These cut-offs are documented c
 (`MIN_TAXON_BEST`, `MIN_TAXON_BEST_FRACTION`), not calibrated. Malformed, duplicate or
 unmatched evidence rows abort.
 
-`build_kb_evidence(discovery_dir, sample_dir)` (Python API; no command) writes the route (i)
+`build_kb_evidence(discovery_dir, sample_dir)` (what `discover-states` runs for `source=kb`) writes the route (i)
 `source=kb` table `evidence_kb.tsv` from the primary run's
 `results/molecule_assignments.tsv.gz` (needs `--multimap-molecule-assignments`) and
 `results/virus_identity.tsv`. A viral panel gene belongs to a candidate when its `taxid` equals
@@ -211,7 +224,7 @@ and `n_taxon_best` cover all barcodes; the shared counts cover called cells only
 gene gets no row (`not_assessed`); one with panel genes but no molecule gets a zero row
 (`negative`). An empty molecule file, or one with no molecule in a called cell, aborts. It refuses unless the called cells are in kb barcode space (a STARsolo or unknown
 space, or kb molecules sharing no barcode with the called cells, aborts). 
-`build_star_evidence(discovery_dir, sample_dir)` (Python API; no command) is the `source=star`
+`build_star_evidence(discovery_dir, sample_dir)` (run by `discover-states` when the STAR BAM exists) is the `source=star`
 counterpart (`evidence_star.tsv`). It reads the run's pruned `star_hostvirus/viral.bam`
 (`VIRUS|` records only), maps `VIRUS|<accession>` to taxids through `results/virus_identity.tsv`
 (same lineage rule as above) and counts molecules as distinct (CB, UB) with the `-N` suffix of the
@@ -222,7 +235,7 @@ so a read is taxon-best for a taxon only when its visible records on matching co
 overlap, a missing BAM or no molecule aborts.
 
 `build_read_support_evidence(discovery_dir, sample_dir, r1, r2, host_fasta, {taxid: candidate_fasta})`
-(Python API; no command, no genome download) writes the route (ii) `source=minimap2` table
+(run by `discover-states --minimap2`; no genome download) writes the route (ii) `source=minimap2` table
 `evidence_read_support.tsv` for at most `max_candidates` (default 3) taxa. `r1`/`r2` must be the
 resolved pair discovery classified (read IDs are checked). The R2 reads of the taxon's resolved
 called-cell groups are aligned competitively to host, the candidate FASTA and optionally a panel
