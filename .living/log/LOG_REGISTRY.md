@@ -83,3 +83,4 @@
 | 2026-10-12 | 2026-10-12-001 | viralscan | main | 17m | 11 | fix(ci): clear the red CI groups left after PR #13 | | complete | | [log](2026-10-12-001-viralscan.md) |
 | 2026-10-26 | 2026-10-26-001 | viralscan | main | 22m | 1 | learnings.md | | complete | | [log](2026-10-26-001-viralscan.md) |
 | 2026-10-26 | 2026-10-26-003 | viralscan | main | 17m | 1 | learnings.md | | complete | | [log](2026-10-26-003-viralscan.md) |
+| 2026-10-27 | 2026-10-27-001 | viralscan | main | 62m | 1 | decisions.md | | complete | | [log](2026-10-27-001-viralscan.md) |
