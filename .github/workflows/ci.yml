@@ -205,7 +205,7 @@ jobs:
         with:
           environment-name: viralscan-it
           create-args: >-
-            python=3.11 kb-python snakemake-minimal minimap2 samtools blast kraken2
+            python=3.11 kb-python snakemake-minimal minimap2 samtools blast kraken2 star
             deeptools pygenometracks bedops
             pytest responses numpy pandas scipy scikit-learn anndata scanpy
             matplotlib plotly jinja2 pyyaml requests

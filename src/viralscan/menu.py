@@ -826,6 +826,16 @@ def errorhandler(args: argparse.Namespace) -> None:
     elif star_index_path:
         _die("--star-hostvirus-index requires --star-confirm.")
 
+    if getattr(args, "discover", False):
+        if not getattr(args, "kraken2_db", None):
+            _die("--discover requires --kraken2-db.")
+        if not host_filter:
+            _die("--discover requires --host-filter (Kraken2 classifies the host-unmapped reads).")
+        if not os.path.isdir(str(args.kraken2_db)):
+            _die(f"Kraken2 database directory does not exist: {args.kraken2_db}.")
+    elif getattr(args, "kraken2_db", None):
+        _die("--kraken2-db requires --discover.")
+
     technology = getattr(args, "technology", None)
     if (
         technology
@@ -1429,6 +1439,18 @@ def main() -> None:
             _die(str(exc))
         return
 
+    if getattr(args, "_subcommand", None) == "discover-states":
+        from viralscan.discovery import DiscoveryError, run_discover_states
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        if args.minimap2 and not (args.host_fasta and args.candidate_fasta):
+            _die("--minimap2 requires --host-fasta and at least one --candidate-fasta TAXID=FASTA.")
+        try:
+            run_discover_states(args)
+        except DiscoveryError as exc:
+            _die(str(exc))
+        return
+
     if getattr(args, "_subcommand", None) == "discover-collapse":
         from viralscan.discovery import DiscoveryError, collapse_rank
 
@@ -1490,6 +1512,13 @@ def main() -> None:
         missing = [t for t in ("STAR", "samtools") if shutil.which(t) is None]
         if missing:
             _die(f"--star-confirm requires {', '.join(missing)} on PATH.")
+    if getattr(args, "discover", False):
+        from viralscan.discovery import DiscoveryError, check_tools
+
+        try:
+            check_tools()
+        except DiscoveryError as exc:
+            _die(f"--discover: {exc}")
 
     _check_cell_caller_tools(
         _resolve_cell_calling(
@@ -1596,6 +1625,40 @@ def main() -> None:
 
     # Every sample finished (check=True above): the run is complete.
     write_run_complete(output_dir)
+
+    if getattr(args, "discover", False):
+        _discover_after_run(args, output_dir, [_sample_id(s1) for s1 in samples1])
+
+
+def _discover_after_run(args: argparse.Namespace, output_dir: Path, samples: list[str]) -> None:
+    """``--discover``: Kraken2 discovery per sample into ``posthoc/discovery/<sample>`` (DISC-14).
+
+    Runs after ``run_complete.json`` exists because discovery resolves a completed run. A failure
+    leaves the primary run valid (``validate-run`` ignores ``posthoc/``) and exits non-zero.
+    """
+    from viralscan.discovery import DiscoveryError, run_discover
+
+    for sample in samples:
+        discover_args = argparse.Namespace(
+            run_dir=str(output_dir),
+            sample=sample,
+            output=None,
+            kraken2_db=args.kraken2_db,
+            confidence=0.05,
+            minimum_hit_groups=4,
+            memory_mapping=False,
+            polya_trim=True,
+            host_subtract=None,
+            host_index=None,
+            called_cells=None,
+            host_filter_star_params="pinned",
+            force=False,
+            threads=args.cores,
+        )
+        try:
+            run_discover(discover_args)
+        except DiscoveryError as exc:
+            _die(f"discovery failed for sample {sample} (the primary run is complete): {exc}")
 
 
 if __name__ == "__main__":

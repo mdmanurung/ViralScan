@@ -87,6 +87,15 @@ completion.
   tiers. Evidence: STAR detects at <=3 spiked UMIs in both backgrounds (F-028), but host competition was not measurable
   (fates read from the pruned VIRUS|-only BAM). Revisit only after a rerun that extracts STAR fates before pruning
   (follow-up `STAR-FATE-01`).
+- [x] `STAR-05` (2026-10-27, `codex/star-ci`): STAR runs in CI. `star` added to the integration job's micromamba env
+  (`.github/workflows/ci.yml`); `test_end_to_end_viral_and_host_reads` carries `@pytest.mark.integration` beside its skipif,
+  so `pytest -m "integration and not network"` executes it there. `star_index` gained a `sa_index_nbases` passthrough
+  (default 14 unchanged) so tiny test genomes build.
+- [x] `STAR-06` (2026-10-27, `codex/star-ci`): end-to-end `viralscan run --host-filter starsolo --star-confirm` on
+  `tests/data/evidence_tiny` (`tests/integration/test_tiny_end_to_end.py::TestStarConfirmRun`): publishes
+  `results/star_support_by_virus.tsv`, `log/star_confirm.done`, `star_hostvirus/viral.bam(.bai)`; every `star_*` column is in
+  `viral_summary.tsv` and `detected` equals the plain run (labels only, STAR-GATE-01); `validate-run` is clean. Local: 4 passed
+  in 6 min with STAR 2.7.11b. The Snakefile target ladder stays as is (`test_snakefile_dag.py` execs it line-wise).
 - [ ] `STAR-FATE-01`: extract per-spike STAR fates before `prune_to_viral` (or keep the full BAM in the spike-in runner) so
   `fate_host` measures host competition; prerequisite for any future STAR tiering/gating.
   - 2026-10-23: SPIKE-01 is done (F-028): STAR arm threshold <=3 spiked UMIs in both backgrounds, 0-8 non-spike STAR reads in nulls. The decision is now the user's. `fate_host` is not a measure of host competition (pruned BAM); see F-028.
@@ -7412,7 +7421,7 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   `k2_viral_20260626` vs PlusPF-16; HHV-6B library by max primary unique molecules; HSV-1 Drop-seq excluded (`not_assessed`);
   spike-in truth from array 25864985 if per-read; §5 rules filled. 2026-10-23: all inputs decided (Q3', Q16-Q20); input
   manifest pinned (`docs/plans/disc12/input_manifest.tsv`); runs need `discover --called-cells` (PR #112). **Frozen 2026-10-23** (user approved PR #103; `discover --called-cells` merged as #112). Next: the benchmark run.
-- [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
+- [x] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12; closed 2026-10-27 by `DISC-15`, constants provisional): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
   `read_evidence_table` in `discovery.py` write `candidate_states.tsv` (`observation`, `corroborated` route i,
   `read_supported_observation` route ii; `corroboration` / `read_support` = `not_assessed|negative|positive`; viral-only DB
   and host lineage capped at `observation`). Pure functions, 4 new tests; `docs/discovery.md` "Candidate states".
@@ -7434,7 +7443,22 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     Molecule = distinct (CB, UB), `-N` CB suffix stripped; `-`/missing CB or UB dropped (Unique-mode UB: lower bound). NH rule:
     a read is taxon-best only if visible T records == `NH` (host/unseen loci invisible after pruning); molecule best when all
     its reads are. Raises on missing files, no molecule, or no called-cell overlap. Tests `tests/test_discovery_star_evidence.py`.
-  - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch).
-  - Left: no CLI (plan §7 specifies none); `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
-    need `DISC-12`.
-- [ ] `DISC-14` optional Snakemake leaf (only on request).
+  - 2026-10-27: CLI and `prioritized` landed in `DISC-15`; `sequence_supported` and the cut-offs still wait on `DISC-12`
+    spike-in data.
+- [x] `DISC-14` (2026-10-27, `codex/disc14-run`): `viralscan run --discover --kraken2-db DIR` runs `discovery.run_discover`
+  per sample after `write_run_complete` (not a Snakefile rule: `resolve_sample_dir` needs `run_complete.json`, written after
+  Snakemake exits), with the documented defaults (confidence 0.05, min hit groups 4, poly-A trim, pinned STAR params) into
+  `posthoc/discovery/<sample>`. Requires `--host-filter`; preflight runs `discovery.check_tools()`. A discovery failure exits
+  non-zero after the run is complete. No `RunConfig` field, no DAG change, no `doctor` change. Tests in `tests/test_cli.py` (6).
+- [x] `DISC-16` (2026-10-27, `codex/disc16-posthoc`): `discover` writes to `<run>/posthoc/discovery/<sample>` by default
+  (layout v2, like `evidence`/`rerun-multimap`); `-o` is optional and may point outside the run or under its `posthoc/`.
+  `check_output_dir` admits `posthoc/` through `outputs.is_posthoc` and still refuses `results/`. Prerequisite for DISC-15
+  (`discover-states`) and DISC-14 (`run --discover`).
+- [x] `DISC-15` (2026-10-27, `codex/disc15-states`): `viralscan discover-states OUT [--run-dir RUN] [--sample S] [--k N]
+  [--minimap2 --host-fasta F --candidate-fasta TAXID=FASTA ... [--panel-fasta F]]` (`discovery.run_discover_states`). Route (i)
+  picks one source by availability (STAR pruned BAM, else kb molecule assignments, else `not_assessed`); route (ii) only with
+  `--minimap2`. Writes `evidence.tsv` (when any), `candidate_states.tsv` and `candidate_states.provenance.json`
+  (`discovery_fingerprint`, sources, `k`, constants, `calibrated: false`); refuses an unpublished OUT or a `--run-dir` whose
+  fingerprint differs from OUT's provenance. New state `prioritized` (plan §9.2, the DISC-12 blind rule: `groups_called >= k`,
+  no host lineage, not viral-only; `PRIORITIZED_MIN_GROUPS = 3`, reported not calibrated) sits between `observation` and the
+  evidence states. Tests `tests/test_discovery_states_cli.py` (5 incl. a 0..7-group sweep). `sequence_supported` deferred.

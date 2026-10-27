@@ -721,8 +721,11 @@ def _build_discover_parser(subparsers: Any) -> None:
     p.add_argument(
         "--output",
         "-o",
-        required=True,
-        help="Discovery output directory, outside --run-dir; must be empty, absent or a previous publication.",
+        default=None,
+        help=(
+            "Discovery output directory; default <run-dir>/posthoc/discovery/<sample>. Outside "
+            "--run-dir or under its posthoc/ folder; must be empty, absent or a previous publication."
+        ),
     )
     p.add_argument(
         "--kraken2-db",
@@ -827,6 +830,51 @@ def _build_discover_collapse_parser(subparsers: Any) -> None:
     )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="discover-collapse")
+
+
+def _build_discover_states_parser(subparsers: Any) -> None:
+    """Register the 'discover-states' subcommand (PLAN DISC-15)."""
+    p = subparsers.add_parser(
+        "discover-states",
+        help="Assign a candidate state to every taxon of a published discovery.",
+        description=(
+            "Write candidate_states.tsv beside candidates.tsv. Route (i) corroboration uses the\n"
+            "run's STAR host+virus BAM when present, else kb molecule assignments\n"
+            "(--multimap-molecule-assignments), else stays not_assessed. Route (ii) read support\n"
+            "runs only with --minimap2. States never change the primary run, detected or tiers.\n"
+            "Cut-offs are documented constants, not calibrated.\n\n"
+            "Example:\n"
+            "  viralscan discover-states run/posthoc/discovery/S1 --run-dir run/"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("discovery_dir", metavar="OUT", help="A published discovery output directory.")
+    p.add_argument("--run-dir", default=None, help="The primary run OUT was built from.")
+    p.add_argument("--sample", default=None, help="Sample subdirectory when the run has several.")
+    p.add_argument(
+        "--k",
+        type=int,
+        default=None,
+        help="Resolved called-cell groups for `prioritized` (default 3; reported, not calibrated).",
+    )
+    p.add_argument(
+        "--minimap2",
+        action="store_true",
+        help="Route (ii): align the taxon's reads competitively (needs --run-dir, --host-fasta, --candidate-fasta).",
+    )
+    p.add_argument(
+        "--host-fasta", default=None, help="Host genome/transcriptome FASTA for --minimap2."
+    )
+    p.add_argument(
+        "--candidate-fasta",
+        action="append",
+        default=[],
+        metavar="TAXID=FASTA",
+        help="Candidate genome for --minimap2; repeatable, at most 3.",
+    )
+    p.add_argument("--panel-fasta", default=None, help="Optional viral panel FASTA competitor.")
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="discover-states")
 
 
 def _build_rerun_programs_parser(subparsers: Any) -> None:
@@ -1209,6 +1257,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  rerun-programs  Re-score gene programmes on a completed run.\n"
             "  discover        Kraken2 taxonomic discovery on a completed run.\n"
             "  discover-collapse  Project a discovery to species/genus/family.\n"
+            "  discover-states    Assign candidate states to a published discovery.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
             "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
             "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n"
@@ -1247,6 +1296,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_rerun_programs_parser(subparsers)
     _build_discover_parser(subparsers)
     _build_discover_collapse_parser(subparsers)
+    _build_discover_states_parser(subparsers)
     _build_doctor_parser(subparsers)
     _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)
@@ -1600,6 +1650,23 @@ def _build_run_parser(subparsers: Any) -> None:
             "Directory of a finished `viralscan star-index` index (must hold "
             "star_hostvirus_index.json). Required by --star-confirm."
         ),
+    )
+    parser.add_argument(
+        "--discover",
+        action="store_true",
+        default=False,
+        help=(
+            "After the run completes, run `viralscan discover` on every sample (Kraken2 on the "
+            "host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), "
+            "writing <output>/posthoc/discovery/<sample>/ (PLAN DISC-14). Requires --host-filter "
+            "and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results."
+        ),
+    )
+    parser.add_argument(
+        "--kraken2-db",
+        default=None,
+        metavar="DIR",
+        help="Kraken2 database directory for --discover (hash.k2d, opts.k2d, taxo.k2d).",
     )
     parser.add_argument(
         "--auto-evidence",
