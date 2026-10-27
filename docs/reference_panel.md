@@ -343,6 +343,22 @@ and note that ViralScan redistributes none of its sequences or annotations (acce
 
 ---
 
+## Maintenance, integrity and comparison pages
+
+These pages are kept for citation and are not in the sidebar:
+
+- [Reference updates and manifest compatibility](reference_maintenance.md): a
+  frozen reference is never changed in place; identity is the checksum; manifest
+  `schema_version` rules.
+- [Panel integrity checks](panel_integrity.md): GTF corpus checks, catalogue
+  structure, near-duplicate and host-homology screens at build time.
+- [Workflow comparison](workflow_comparison.md): the five workflow families the
+  validation protocol compares, with their defined strengths and limits.
+- [ViralScan 3.0 molecule-counting contract](v3_counting_contract.md): how
+  corrected molecules become gene counts, and the conservation invariants.
+
+---
+
 ## Cache location
 
 By default, `viralscan data fetch` writes to `~/.cache/viralscan/data/`.

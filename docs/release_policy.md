@@ -9,6 +9,15 @@
 > and [`SECURITY.md`](https://github.com/mdmanurung/ViralScan/blob/main/SECURITY.md)
 > remain the short statements; this page is the full policy behind them.
 
+## Project links
+
+- [GitHub Issues](https://github.com/mdmanurung/ViralScan/issues) for bugs and
+  support; [CONTRIBUTING.md](https://github.com/mdmanurung/ViralScan/blob/main/CONTRIBUTING.md)
+  for contributions.
+- [Changelog](changelog.md), [migration](migration.md) (v3 does not migrate
+  legacy outputs), [Python API](api.md), and
+  [reference maintenance](reference_maintenance.md).
+
 ## Contact routes
 
 **DRAFT: maintainer decision** (PLAN `REL-15`): every route other than GitHub Issues and

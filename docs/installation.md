@@ -1,7 +1,5 @@
 # Installation
 
-## Requirements
-
 ViralScan installs in two tiers.
 
 - **pip tier** (`pip install ViralScan`, Python ≥ 3.10): `build-ref`, `evidence`,
@@ -9,74 +7,32 @@ ViralScan installs in two tiers.
 - **Full tier** (quantification workflow): Python 3.11 on `linux-64` (the canonical,
   tested toolchain), [kb-python](https://www.kallistobus.tools/) (`kb` command) and
   [Snakemake](https://snakemake.readthedocs.io/en/stable/) ≥ 7.0, plus kallisto, bustools and STAR.
+  EmptyDrops cell calling additionally needs R with `DropletUtils`.
 
-## Option 1 — Conda (recommended)
-
-The repository provides a conda environment file:
+## Conda (recommended)
 
 ```bash
 conda env create -f environment.yml
 conda activate viralscan
 python -m pip install -e .
-viralscan data fetch             # optional, see below
-```
-
-The environment contains Python, `kb-python`, `snakemake` and all Python dependencies.
-The last command installs the local ViralScan checkout. `viralscan data fetch`
-downloads the bundled viral annotation panel. A run needs the panel only when its
-index has no `<index>.build_manifest.json`. An index from `viralscan build-ref`
-has one and carries its own viral gene list.
-
-The optional `--scautoqc` workflow needs SCTK and pybiomart, which are not part of the
-`full` extra: install them with `pip install 'viralscan[scautoqc]'` (or
-`python -m pip install -e '.[scautoqc]'` in the conda environment). A run with `--scautoqc`
-stops at start-up if SCTK is missing.
-Ensembl-indexed features are annotated through Scanpy's BioMart queries on the
-first opt-in run, so that run needs access to Ensembl; annotations are cached
-in the sample's `results/scautoqc_gene_annotations.tsv`.
-
-## Option 2 — pip (pip tier)
-
-```bash
-pip install ViralScan
-viralscan doctor --profile pip
-```
-
-This command does not install Snakemake. The `full` extra adds the Python workflow
-dependencies (`snakemake`, `scanpy`, `scikit-learn`, `plotly`, `seaborn`, `pyfiglet`):
-
-```bash
-pip install "viralscan[full]"
-```
-
-The native tools (`kb`, `kallisto`, `bustools`, `STAR`) come from conda:
-
-```bash
-conda install -c bioconda -c conda-forge kb-python kallisto bustools star
 viralscan doctor --profile full
-viralscan data fetch             # optional: only for indices without a build manifest
 ```
 
-A workflow run stops with an error that names the `full` extra when `snakemake` or
-`kb` is missing. Option 1 is preferred for the full workflow.
+`environment.yml` pins Python, `kb-python`, `snakemake`, kallisto, bustools, STAR,
+samtools, minimap2, BLAST, CD-HIT and R/DropletUtils. The last two commands install
+the checkout and check that every full-workflow tool is on `PATH`.
 
-### Optional extras
+Optional extras, each installed with `python -m pip install -e '.[<extra>]'` in that
+environment: `scautoqc` (SCTK and pybiomart for `--scautoqc`; the first opt-in run
+queries Ensembl and caches the annotations in the sample's
+`results/scautoqc_gene_annotations.tsv`) and `enrichment` (`gget>=0.27` for
+`viralscan hostresponse --enrichment`). Standard quantification and host-response
+analysis need neither.
 
-Standard viral quantification and host-response analysis need no optional extras.
-**Pathway enrichment** in `viralscan hostresponse --enrichment` (via `gget.enrichr`)
-needs the `enrichment` extra:
+## Pixi
 
-```bash
-pip install "viralscan[enrichment]"
-```
-
-The extra installs `gget>=0.27`. All other subcommands work without it.
-
-## Option 3 — Pixi
-
-[Pixi](https://pixi.sh) installs the full tool suite (kb-python, kallisto, bustools,
-STAR, samtools, Snakemake, minimap2, BLAST, CD-HIT, R/DropletUtils) from the same pins as
-`environment.yml`, using the repository's `pixi.toml` (linux-64):
+[Pixi](https://pixi.sh) installs the same pins as `environment.yml` from the
+repository's `pixi.toml` (linux-64):
 
 ```bash
 curl -fsSL https://pixi.sh/install.sh | bash   # once
@@ -86,94 +42,69 @@ pixi run doctor                                 # viralscan doctor --profile ful
 pixi run viralscan --help
 ```
 
-Other environments: `pixi install -e dev` (pytest, ruff, mypy; `pixi run -e dev test`) and
-`pixi install -e docs` (`pixi run -e docs docs` builds this site into `docs/_build/html`).
+Other environments: `pixi install -e dev` (pytest, ruff, mypy; `pixi run -e dev test`),
+`pixi install -e docs` (`pixi run -e docs docs` builds this site into `docs/_build/html`)
+and `pixi install -e discovery` (adds Kraken2). Keep the checkout and the pixi cache on a
+local disk: on a network filesystem the solve can stop with a uv cache lock timeout.
 Commit `pixi.lock` once generated so every machine resolves identically.
 
-## Option 4 — Singularity / Apptainer image
+## Containers
 
-`Singularity.pixi.def` builds one image containing ViralScan and the whole tool suite from
-`pixi.toml`:
+`Singularity.pixi.def` builds one image with ViralScan and the whole tool suite from
+`pixi.toml`. It re-solves at build time, so it is a development and convenience image,
+not a release artifact. Build and run it from the repository root; the build needs
+`APPTAINER_TMPDIR` on a local disk and takes about 20 minutes:
 
 ```bash
-apptainer build viralscan-pixi.sif Singularity.pixi.def   # from the repository root
-apptainer run viralscan-pixi.sif --help
-apptainer exec viralscan-pixi.sif kb info
-apptainer run --bind /path/to/data:/data viralscan-pixi.sif \
+export APPTAINER_TMPDIR=/tmp/$USER-apptainer && mkdir -p "$APPTAINER_TMPDIR"
+apptainer build viralscan-pixi.sif Singularity.pixi.def
+apptainer test viralscan-pixi.sif        # runs viralscan doctor --profile full
+apptainer run --bind /path/to/data:/data viralscan-pixi.sif run \
   -t /data/t2g.txt -i /data/index.idx -o /data/out --r1 /data/a_1.fastq.gz --r2 /data/a_2.fastq.gz
 ```
 
-This image re-solves its environment at build time. Use it for development and
-convenience. For releases, build from a tested OCI digest (below), which replays the
-committed lock.
-
-## Option 5 — Container (Docker / Singularity release build)
-
-Pre-built containers bundle every dependency including external tools.
-
-A versioned image is listed in the release notes when one is available. The v3
-container workflow is prepared; a verified v3 image and Docker/Apptainer parity
-receipt are still pending.
-
-A local release build needs the tested wheel in `dist/` and the committed
-`environment.explicit.txt` lock:
+Release images replay the committed `environment.explicit.txt` lock and install the
+tested wheel instead of building from the checkout:
 
 ```bash
 docker build --build-context wheel=./dist -t viralscan:release-test .
-```
-
-The image replays that lock and installs the supplied wheel. It does not build
-the package from the checkout. For Apptainer, generate a definition from the
-tested image's full digest:
-
-```bash
 python scripts/release_sif_definition.py \
   ghcr.io/mdmanurung/viralscan@sha256:<full-digest> > Singularity.release.def
 apptainer build viralscan.sif Singularity.release.def
 ```
 
-The root `Singularity.def` is a template and requires that digest.
+The root `Singularity.def` is a template; the generator refuses a mutable tag and
+needs the image's full digest. A versioned image is listed in the release notes when
+one is available; a verified v3 image and Docker/Apptainer parity receipt are still
+pending.
 
-## Verify the installation
-
-```bash
-viralscan --help
-viralscan data fetch --help
-viralscan build-ref --help
-kb info
-snakemake --version
-```
-
-Each command prints help text or version output. If `kb` or `snakemake` is missing,
-activate the conda environment or install those tools before running a workflow.
-
-## Download the bundled viral reference panel
-
-The default viral GTF annotation panel is distributed separately on Zenodo to keep
-the Python package small. A run needs it only when its index has no
-`<index>.build_manifest.json`. With a manifest (every index built by
-`viralscan build-ref`) the viral gene list comes from the manifest and no fetch is
-required. For an index without one, fetch the panel once:
+## pip only
 
 ```bash
-viralscan data fetch
+pip install ViralScan                 # pip tier
+pip install "viralscan[full]"         # adds snakemake, scanpy, scikit-learn, plotly, seaborn, pyfiglet
+conda install -c bioconda -c conda-forge kb-python kallisto bustools star   # native tools
+viralscan doctor --profile full
 ```
 
-This downloads the archive for DOI `10.5281/zenodo.20112332`, verifies the
-Zenodo checksum, and unpacks the GTF files under
-`~/.cache/viralscan/data/`. Custom `--gtf` workflows do not require this cache.
+A workflow run stops with an error naming the `full` extra when `snakemake` or `kb`
+is missing. `snakemake` has a transitive dependency (`connection_pool`) that fails
+to build with recent setuptools; installing it from conda avoids that. Prefer the
+conda route for the full workflow.
 
-On HPC systems, a shared cache lets many users or jobs reuse the same panel:
+## The bundled viral reference panel
+
+The default viral GTF annotation panel is distributed separately on Zenodo
+(DOI `10.5281/zenodo.20112332`). A run needs it only when its index has no
+`<index>.build_manifest.json`; every index from `viralscan build-ref` has one and
+carries its own viral gene list. Custom `--gtf` and `--ncbi-accession` runs do not
+need it either. When it is needed, fetch it once:
 
 ```bash
-viralscan data fetch --cache-dir /shared/viralscan-cache
+viralscan data fetch                                   # ~/.cache/viralscan/data/
+viralscan data fetch --cache-dir /shared/viralscan-cache   # shared HPC cache
 ```
 
-Point quantification runs at the same cache:
-
-```bash
-viralscan run --cache-dir /shared/viralscan-cache ...
-```
-
-Alternatively, set `VIRALSCAN_CACHE=/shared/viralscan-cache` before both the fetch
-and quantification commands.
+Point runs at a shared cache with `viralscan run --cache-dir /shared/viralscan-cache ...`
+or set `VIRALSCAN_CACHE=/shared/viralscan-cache` for both commands. The command
+verifies the Zenodo checksum before unpacking.

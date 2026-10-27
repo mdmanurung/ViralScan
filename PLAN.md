@@ -309,6 +309,19 @@ completion.
   `faq-doc`/`output-reference-doc`/`public-readme` inventory rows re-pinned in a final commit. Lesson (INV-REPIN-01): pins
   name the last content commit of this branch, which survives only a merge-commit PR; after a rebase/squash merge re-pin to the merged commit.
 
+- [x] `DOCS-REV-02` (2026-10-27, `codex/docs-minimal`): minimal site. Sidebar cut to 13 pages in three groups
+  (Guide: installation, quickstart, results, examples; Reference: reference_panel, cli_reference, output_reference,
+  discovery, faq, api; Project: migration, release_policy, changelog) with the 8 notebooks nested under Examples
+  (explicit toctree titles, no `[skip-ci]` in the sidebar). `results.md` merges `inspect_results` + `assess_evidence`
+  unchanged in every limit statement; `api.md` absorbs `api_reference`; `reference_help`, `project_info`,
+  `inspect_results`, `assess_evidence`, `api_reference` deleted (also from `MANIFEST.in` and
+  `config/public_ship_scope.json`). `v3_counting_contract`, `panel_integrity`, `workflow_comparison`,
+  `reference_maintenance` stay on disk as `orphan` pages (cited by code, tests and the repro) and are linked from
+  `reference_panel.md`. `index.md` and `installation.md` rewritten; FAQ answers that repeated the results page now
+  link to it. Installation carries the verified container facts: `Singularity.pixi.def` builds with apptainer 1.5.3
+  (`APPTAINER_TMPDIR` on local disk), `apptainer test` passes; `pixi install` needs the checkout on local disk
+  (uv cache lock timeout on NFS).
+
 - [~] `DOCS-PAGES-01` (2026-10-20, `codex/docs-pages`): publish the Sphinx docs on GitHub Pages (user choice over
   Read the Docs). `.github/workflows/docs.yml` builds on push to `main` (and by hand), installs pandoc for nbsphinx
   and `.[docs]`, and deploys with `actions/upload-pages-artifact` v5.0.0 / `actions/deploy-pages` v5.0.1 (SHA-pinned,
