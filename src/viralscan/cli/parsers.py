@@ -893,12 +893,6 @@ def _build_discover_states_parser(subparsers: Any) -> None:
     p.add_argument("--run-dir", default=None, help="The primary run OUT was built from.")
     p.add_argument("--sample", default=None, help="Sample subdirectory when the run has several.")
     p.add_argument(
-        "--k",
-        type=int,
-        default=None,
-        help="Resolved called-cell groups for `prioritized` (default 3; reported, not calibrated).",
-    )
-    p.add_argument(
         "--minimap2",
         action="store_true",
         help="Route (ii): align the taxon's reads competitively (needs --run-dir, --host-fasta, --candidate-fasta).",

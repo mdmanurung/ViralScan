@@ -22,11 +22,14 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   runs (the earlier row text was wrong). Outcome: rule 2 `none` for every DB/configuration (the covid positive is capture-only
   and its panel is never reached), rule 1 `not_assessed`, rule 3 `not_assessed` (spike-in only), rule 4 reported; no default
   changes proposed. DISC-13 constants stay `calibrated: false`. Tables: repro `docs/plans/disc12/{truth,metrics_2026-10-27}/`.
-- [!] `DISC-18` report section for discovery (`report.html.j2`): blocked on a design decision (2026-10-27). The report is
-  rendered by the `detection` rule before discovery can exist, and re-rendering `<sample>/report.html` from the `run --discover`
-  post-step would break the layout-v2 rule that post-hoc steps never rewrite the run's own outputs (`docs/migration.md`).
-  Options: (a) a separate `posthoc/discovery/<sample>/discovery_report.html`; (b) drop the row, since `candidates.tsv` /
-  `candidate_states.tsv` already carry the content. User decides.
+- [x] `DISC-18` dropped (user, 2026-10-27 grilling Q2): re-rendering `report.html` after discovery would break layout v2,
+  and `candidates.tsv` / `candidate_states.tsv` already carry the content; no discovery report page.
+- [x] `DISC-19` (2026-10-27, user grilling Q1/Q3/Q5): DISC-12 closed under its frozen rules. Rule 2 found no `k` (the
+  capture-only covid positive never reaches its panel), so by the protocol `prioritized` stays unbuilt: the state,
+  `PRIORITIZED_MIN_GROUPS` and `discover-states --k` are removed (unreleased since rc1), and Kraken2-only taxa stay
+  `observation`. Rule 1 `not_assessed`: the 0.05/4 defaults stay, labelled not calibrated. Test
+  `test_kraken2_alone_is_always_observation`. Results note with the fenced no-covid preview (k = 1648 at 0.05/4): repro
+  `.living/findings/disc12-benchmark-result-2026-10-27.md`.
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
