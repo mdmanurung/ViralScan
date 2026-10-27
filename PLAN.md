@@ -29,6 +29,15 @@ completion.
   `check_ship_scope.py` failed; added. No files move in this change.
 - **2026-10-23:** spike-in grid done, flank index retired (F-028). STAR-GATE-01 decided (labels only). DISC-12 frozen (#103) and running.
   rc1: release fixed (#114, #113), tag to be moved to a CI-green main commit (Q23a).
+- [~] `DISC-17` (2026-10-27, `codex/disc12-metrics` pushed for review): run `scripts/disc12_metrics.py` on the EXISTING DISC-12
+  outputs (all 182 conditions under repro `data/runs/work/disc12_run_2026-10-23/out/` are published). Two gates before any
+  `out/` value is read: (1) the user ratifies the five protocol ambiguities fixed in the script docstring; (2) the four
+  positives need `--truth LIB=TSV` per-cell UNIQUE molecules of the panel virus, which only `viralscan rerun-multimap
+  --multimap-molecule-assignments` on their existing `.bus` files can produce (compute on existing outputs; **user OK
+  needed**). Outcome it can fix: `--confidence` / `--minimum-hit-groups` defaults and `k` for `prioritized`. It cannot
+  fix the DISC-13 constants (protocol §5: spike-ins only; none exist), which stay `calibrated: false`.
+- [ ] `DISC-18` report section for discovery (`report.html.j2`): deferred. The report is rendered by the `detection` rule
+  before discovery can exist, so it needs a re-render step in the `run --discover` post-step; row only.
 - [x] `DISC-12-METRICS` (2026-10-24): protocol §4/§5 metrics script committed BLIND (no DISC-12 output values read):
   `scripts/disc12_metrics.py` (`--run`, `--manifest`, `--panel-taxid LIB=TAXID`, `--truth LIB=TSV` barcode/molecules = primary
   per-cell UNIQUE molecules; both required for every positive, else exit), writes `metrics.tsv`, `offcell.tsv`, `decisions.json`;
