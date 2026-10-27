@@ -1416,6 +1416,18 @@ def main() -> None:
             _die(str(exc))
         return
 
+    if getattr(args, "_subcommand", None) == "discover-states":
+        from viralscan.discovery import DiscoveryError, run_discover_states
+
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        if args.minimap2 and not (args.host_fasta and args.candidate_fasta):
+            _die("--minimap2 requires --host-fasta and at least one --candidate-fasta TAXID=FASTA.")
+        try:
+            run_discover_states(args)
+        except DiscoveryError as exc:
+            _die(str(exc))
+        return
+
     if getattr(args, "_subcommand", None) == "discover-collapse":
         from viralscan.discovery import DiscoveryError, collapse_rank
 
