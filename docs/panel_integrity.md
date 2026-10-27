@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Panel integrity checks
 
 The bundled reference builder checks the local GTF corpus hash manifest before

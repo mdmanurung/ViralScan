@@ -1,9 +1,8 @@
 # Output Reference
 
-For the guided path through the main files, see
-[Inspect results](inspect_results.md); for how to weigh a candidate, see
-[Assess the evidence](assess_evidence.md). This page is the exact file, column and
-AnnData-layer dictionary.
+For the guided path through the main files and how to weigh a candidate, see
+[Results](results.md). This page is the exact file, column and AnnData-layer
+dictionary.
 
 Runs record `software_identity` in the root `run_manifest.json` and in
 `results/reference_provenance.json`: the executing package's content digest, plus Git
