@@ -262,7 +262,7 @@ def doctor_report(profile: str = "full") -> dict[str, Any]:
         else:
             schemas[name] = True
     ok = all(python.values()) and all(tools.values()) and all(schemas.values())
-    return {
+    report = {
         "profile": profile,
         "ok": ok,
         "python": python,
@@ -270,6 +270,12 @@ def doctor_report(profile: str = "full") -> dict[str, Any]:
         "schemas": schemas,
         "schema_errors": schema_errors,
     }
+    if profile == "full":
+        from viralscan.translated import kallisto_translated_ok
+
+        # Informational (never changes ``ok``): the translated-search index needs kallisto >= 0.51.1.
+        report["kallisto_translated_ok"] = kallisto_translated_ok()[0]
+    return report
 
 
 def _matrix_issues(
