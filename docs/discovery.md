@@ -184,6 +184,8 @@ TAXID=FASTA` (at most 3). Without `--run-dir` no evidence is produced and every 
 - `observation`: Kraken2 only, or evidence that did not pass.
 - `prioritized`: Kraken2 only, at least `--k` resolved called-cell groups (default 3, the
   DISC-12 blind rule; reported, not calibrated), no host lineage, not a viral-only database.
+  Evidence that came back negative does not demote a `prioritized` taxon; its explanation is
+  appended to `reason` (for example `prioritized(k=3): Kraken2 only; corroboration: 0/10 ...`).
 - `corroborated` (route i): the same taxon is supported by the kb (panel) arm or the STAR
   host+virus arm. The molecules were competitively adjudicated (not better explained by
   host or another virus) and fall in cells that are also called-cell groups of the taxon.

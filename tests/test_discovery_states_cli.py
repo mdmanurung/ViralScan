@@ -149,3 +149,22 @@ def test_prioritized_never_overrides_caps_or_evidence(groups):
         )
     }
     assert discovery.assign_state(plain, positive)["state"] == "corroborated"
+
+
+def test_prioritized_keeps_negative_evidence_in_reason():
+    cand = {
+        "taxid": "562",
+        "name": "x",
+        "rank": "species",
+        "host_lineage": "0",
+        "viral_only_db": "0",
+        "groups_called": "5",
+    }
+    row = dict.fromkeys(discovery.EVIDENCE_COLUMNS[3:], 0)
+    row.update(taxid=562, route="corroboration", n_adjudicated=10, n_taxon_best=0)
+    out = discovery.assign_state(cand, {(562, "corroboration"): row})
+    assert out["state"] == "prioritized"
+    assert (
+        out["reason"]
+        == "prioritized(k=3): Kraken2 only; corroboration: 0/10 units best for the taxon"
+    )
