@@ -645,8 +645,11 @@ def _build_discover_parser(subparsers: Any) -> None:
     p.add_argument(
         "--output",
         "-o",
-        required=True,
-        help="Discovery output directory, outside --run-dir; must be empty, absent or a previous publication.",
+        default=None,
+        help=(
+            "Discovery output directory; default <run-dir>/posthoc/discovery/<sample>. Outside "
+            "--run-dir or under its posthoc/ folder; must be empty, absent or a previous publication."
+        ),
     )
     p.add_argument(
         "--kraken2-db",

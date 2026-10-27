@@ -7416,3 +7416,7 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   - Left: no CLI (plan §7 specifies none); `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
     need `DISC-12`.
 - [ ] `DISC-14` optional Snakemake leaf (only on request).
+- [x] `DISC-16` (2026-10-27, `codex/disc16-posthoc`): `discover` writes to `<run>/posthoc/discovery/<sample>` by default
+  (layout v2, like `evidence`/`rerun-multimap`); `-o` is optional and may point outside the run or under its `posthoc/`.
+  `check_output_dir` admits `posthoc/` through `outputs.is_posthoc` and still refuses `results/`. Prerequisite for DISC-15
+  (`discover-states`) and DISC-14 (`run --discover`).

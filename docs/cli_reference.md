@@ -898,7 +898,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 |------|---------|------|
 | `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). It is never modified. |
 | `--sample SAMPLE` | *(none)* | Sample subdirectory to classify; required when the run has more than one. |
-| `--output, -o OUTPUT` | *required* | Discovery output directory, outside --run-dir; must be empty, absent or a previous publication. |
+| `--output, -o OUTPUT` | *(none)* | Discovery output directory; default <run-dir>/posthoc/discovery/<sample>. Outside --run-dir or under its posthoc/ folder; must be empty, absent or a previous publication. |
 | `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
 | `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
 | `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |
