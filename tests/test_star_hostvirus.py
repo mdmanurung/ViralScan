@@ -246,6 +246,7 @@ def test_prune_keeps_only_viral_records(tmp_path):
     assert len(refs) == 8 and all(r.startswith("VIRUS|") for r in refs)
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     shutil.which("STAR") is None or shutil.which("samtools") is None, reason="needs STAR, samtools"
 )

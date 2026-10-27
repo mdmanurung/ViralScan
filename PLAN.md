@@ -87,6 +87,15 @@ completion.
   tiers. Evidence: STAR detects at <=3 spiked UMIs in both backgrounds (F-028), but host competition was not measurable
   (fates read from the pruned VIRUS|-only BAM). Revisit only after a rerun that extracts STAR fates before pruning
   (follow-up `STAR-FATE-01`).
+- [x] `STAR-05` (2026-10-27, `codex/star-ci`): STAR runs in CI. `star` added to the integration job's micromamba env
+  (`.github/workflows/ci.yml`); `test_end_to_end_viral_and_host_reads` carries `@pytest.mark.integration` beside its skipif,
+  so `pytest -m "integration and not network"` executes it there. `star_index` gained a `sa_index_nbases` passthrough
+  (default 14 unchanged) so tiny test genomes build.
+- [x] `STAR-06` (2026-10-27, `codex/star-ci`): end-to-end `viralscan run --host-filter starsolo --star-confirm` on
+  `tests/data/evidence_tiny` (`tests/integration/test_tiny_end_to_end.py::TestStarConfirmRun`): publishes
+  `results/star_support_by_virus.tsv`, `log/star_confirm.done`, `star_hostvirus/viral.bam(.bai)`; every `star_*` column is in
+  `viral_summary.tsv` and `detected` equals the plain run (labels only, STAR-GATE-01); `validate-run` is clean. Local: 4 passed
+  in 6 min with STAR 2.7.11b. The Snakefile target ladder stays as is (`test_snakefile_dag.py` execs it line-wise).
 - [ ] `STAR-FATE-01`: extract per-spike STAR fates before `prune_to_viral` (or keep the full BAM in the spike-in runner) so
   `fate_host` measures host competition; prerequisite for any future STAR tiering/gating.
   - 2026-10-23: SPIKE-01 is done (F-028): STAR arm threshold <=3 spiked UMIs in both backgrounds, 0-8 non-spike STAR reads in nulls. The decision is now the user's. `fate_host` is not a measure of host competition (pruned BAM); see F-028.
