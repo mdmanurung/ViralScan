@@ -160,3 +160,6 @@ analysis/**/*.bus
 /SESSION_RESUME.md
 /Rplots.pdf
 /viralscan-analysis
+
+# pixi environments (pixi.lock is committed once generated)
+.pixi/
