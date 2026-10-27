@@ -53,6 +53,12 @@ jobs:
       - name: Version metadata agrees (REL-12)
         run: python scripts/check_versions.py
 
+      # uv pinned to the version that wrote the lock, so the format revision matches.
+      - name: uv.lock matches pyproject.toml (REL-03)
+        run: |
+          python -m pip install uv==0.11.14
+          uv lock --check --python 3.11
+
 
   test:
     name: pytest (py${{ matrix.python-version }} on ${{ matrix.os }})
