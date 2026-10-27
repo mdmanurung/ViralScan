@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
+- `viralscan run --discover --kraken2-db DIR` runs Kraken2 discovery on every sample once the run is complete, into `posthoc/discovery/<sample>/` (PLAN `DISC-14`).
 - `viralscan discover` defaults `-o` to `<run-dir>/posthoc/discovery/<sample>`; an explicit output may sit under the run's `posthoc/` folder (PLAN `DISC-16`).
 - Added `viralscan discover-states`: candidate states for a published discovery from the run's own STAR or kb evidence (optional minimap2 read support), plus the Kraken2-only `prioritized` state (`--k`, default 3, uncalibrated). Never changes `detected` or tiers (PLAN `DISC-15`).
 - Docs: the site is cut to 13 sidebar pages. `docs/results.md` replaces `inspect_results.md` + `assess_evidence.md`; `api_reference.md` is folded into `api.md`; `reference_help.md` and `project_info.md` are removed. `v3_counting_contract.md`, `panel_integrity.md`, `workflow_comparison.md` and `reference_maintenance.md` leave the sidebar but keep their paths (PLAN `DOCS-REV-02`).
