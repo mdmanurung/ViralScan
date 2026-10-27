@@ -555,3 +555,29 @@ def test_star139_retry_clears_the_crashed_runs_leftovers(tmp_path, monkeypatch):
     monkeypatch.setattr(star_run.subprocess, "run", run)
     star_run.run_star(["STAR", "--soloCBwhitelist", "None"], tmp_path)
     assert seen == [[True, True], [False, False]]  # gone before the retry started
+
+
+@needs_samtools
+def test_read_fates_written_before_prune(tmp_path):
+    """STAR-FATE-01: per-read fates (host partners included) survive the prune."""
+    import csv
+    import gzip
+
+    from viralscan.star_hostvirus import READ_FATE_COLUMNS, _collect_viral_reads, write_read_fates
+
+    bam = _synthetic_bam(tmp_path)
+    reads = _collect_viral_reads(bam)
+    path = write_read_fates(reads, tmp_path / "star_read_fates.tsv.gz")
+    with gzip.open(path, "rt") as fh:
+        reader = csv.DictReader(fh, delimiter="\t")
+        rows = {r["read_id"]: r for r in reader}
+        assert list(reader.fieldnames or ()) == list(READ_FATE_COLUMNS)
+    assert "hostonly" not in rows  # no VIRUS| record: not a viral read
+    assert rows["mh"]["host_competing"] == "1" and rows["mh"]["viral_contigs"] == "V1"
+    assert rows["mv"]["viral_contigs"] == "V1;V2" and rows["mv"]["host_competing"] == "0"
+    assert rows["sh"]["primary"] == "HOST|chr1" and rows["sh"]["host_competing"] == "1"
+    assert rows["nocb"]["cb"] == "-" and rows["nocb"]["ub"] == "-"
+    # Same reads object feeds the summary (no second BAM pass), same numbers as before.
+    assert summarise_by_virus(bam, reads=reads) == summarise_by_virus(bam)
+    prune_to_viral(bam)
+    assert path.is_file()

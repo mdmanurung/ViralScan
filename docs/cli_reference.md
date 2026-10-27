@@ -984,28 +984,25 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 
 <!-- END GENERATED -->
 
-### viralscan discover-states
+### viralscan host-loss
 
-Assigns a state to every taxon of a published discovery and writes `candidate_states.tsv`
-plus `candidate_states.provenance.json` beside `candidates.tsv`. Route (i) corroboration
-uses the run's pruned STAR BAM when present, else kb molecule assignments
-(`--multimap-molecule-assignments`), else stays `not_assessed`; route (ii) read support
-runs only with `--minimap2`. `prioritized` is Kraken2-only with at least `--k` resolved
-called-cell groups. Nothing changes in the primary run, `detected` or tiers; cut-offs are
-documented constants, not calibrated.
+Joins a truth list (`read_id`, `label`, optional `molecule_id`) to the run's
+`host_filtered/fragment_lineage.tsv.gz` and writes `posthoc/host_loss/host_loss.json` with the
+truth-viral fragments (D15) and molecules (D16) the STAR host filter removed, and the
+host-virus-mixed boundary count with `--mixed-manifest`. The figure is a **lower bound** on the
+sensitivity cost of `--host-filter starsolo` (`HOST-05` stays open until the real-library
+harness runs): the lineage sees the filter's input only, and a truth read it never saw makes
+the row not estimable.
 
-<!-- BEGIN GENERATED: discover-states -->
+<!-- BEGIN GENERATED: host-loss -->
 
 | Flag | Default | Help |
 |------|---------|------|
-| `discovery_dir` | *required* | A published discovery output directory. |
-| `--run-dir RUN_DIR` | *(none)* | The primary run OUT was built from. |
-| `--sample SAMPLE` | *(none)* | Sample subdirectory when the run has several. |
-| `--k K` | *(none)* | Resolved called-cell groups for `prioritized` (default 3; reported, not calibrated). |
-| `--minimap2` | `False` | Route (ii): align the taxon's reads competitively (needs --run-dir, --host-fasta, --candidate-fasta). |
-| `--host-fasta HOST_FASTA` | *(none)* | Host genome/transcriptome FASTA for --minimap2. |
-| `--candidate-fasta TAXID=FASTA` | `[]` | Candidate genome for --minimap2; repeatable, at most 3. |
-| `--panel-fasta PANEL_FASTA` | *(none)* | Optional viral panel FASTA competitor. |
+| `--run-dir DIR` | *required* | A sample run directory holding host_filtered/. |
+| `--truth TSV` | *required* | read_id, label[, molecule_id] table. |
+| `--viral-label VIRAL_LABEL` | `viral` | Truth label of viral reads. Default: viral. |
+| `--mixed-manifest TSV` | *(none)* | mixed_host_virus_manifest.tsv (read_id column). |
+| `--output, -o DIR` | *(none)* | Default <run-dir>/posthoc/host_loss. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
