@@ -1645,12 +1645,16 @@ def assign_state(
             "read_supported_observation",
             "kb-independent competitive read support",
         )
-    elif int(candidate.get("groups_called", "0")) >= k:
-        out["state"], out["reason"] = "prioritized", f"prioritized(k={k}): Kraken2 only"
     else:
         why = [w for _, w in results.values() if w]
-        out["state"] = "observation"
-        out["reason"] = "; ".join(why) or "no orthogonal evidence supplied"
+        if int(candidate.get("groups_called", "0")) >= k:
+            # Blind rule on groups only (matches scripts/disc12_metrics.py); negative
+            # evidence does not demote but stays visible in ``reason``.
+            out["state"] = "prioritized"
+            out["reason"] = "; ".join([f"prioritized(k={k}): Kraken2 only", *why])
+        else:
+            out["state"] = "observation"
+            out["reason"] = "; ".join(why) or "no orthogonal evidence supplied"
     return out
 
 
