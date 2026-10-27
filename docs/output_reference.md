@@ -1065,6 +1065,8 @@ never modifies the run's own outputs (matrix, `results/`, `config.yaml`, `run_ma
 | `rerun-multimap` | `posthoc/multimap_<method>/` (a complete copy of the run; `posthoc/` itself is not copied) |
 | `rerun-programs` | `posthoc/programs/results/gene_program_{summary,cells}.tsv` |
 | `hostresponse` | `posthoc/hostresponse/` |
+| `discover` | `posthoc/discovery/<sample>/` (`candidates.tsv`, `cell_taxon.h5ad`, `qc.json`, `provenance.json`; `discover-states` adds `candidate_states.tsv`) |
+| `translated` | `posthoc/translated/<sample>/` (`counts/`, `summary.all.json`, `summary.cells.json`, `barcode_check.json`, `translated_receipt.json`, `translated_complete.json`; exploratory, never changes `detected`) |
 
 `run --hostresponse` and `--auto-evidence` are part of the run itself and still write
 `<output>/hostresponse/` and `results/evidence/<genus>/`.

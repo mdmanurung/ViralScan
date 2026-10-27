@@ -92,6 +92,15 @@ completion.
   host_competing`) before `prune_to_viral`, then feeds the same reads to `summarise_by_virus(reads=...)`. Host partners of
   viral multimappers are therefore kept per read. Ceiling: reads STAR placed on the host alone are absent (truth list +
   `host-loss`). Test `test_read_fates_written_before_prune`.
+- [x] `STAR-05` (2026-10-27, `codex/star-ci`): STAR runs in CI. `star` added to the integration job's micromamba env
+  (`.github/workflows/ci.yml`); `test_end_to_end_viral_and_host_reads` carries `@pytest.mark.integration` beside its skipif,
+  so `pytest -m "integration and not network"` executes it there. `star_index` gained a `sa_index_nbases` passthrough
+  (default 14 unchanged) so tiny test genomes build.
+- [x] `STAR-06` (2026-10-27, `codex/star-ci`): end-to-end `viralscan run --host-filter starsolo --star-confirm` on
+  `tests/data/evidence_tiny` (`tests/integration/test_tiny_end_to_end.py::TestStarConfirmRun`): publishes
+  `results/star_support_by_virus.tsv`, `log/star_confirm.done`, `star_hostvirus/viral.bam(.bai)`; every `star_*` column is in
+  `viral_summary.tsv` and `detected` equals the plain run (labels only, STAR-GATE-01); `validate-run` is clean. Local: 4 passed
+  in 6 min with STAR 2.7.11b. The Snakefile target ladder stays as is (`test_snakefile_dag.py` execs it line-wise).
   - 2026-10-23: SPIKE-01 is done (F-028): STAR arm threshold <=3 spiked UMIs in both backgrounds, 0-8 non-spike STAR reads in nulls. The decision is now the user's. `fate_host` is not a measure of host competition (pruned BAM); see F-028.
 - [x] STAR-03: `viralscan star-index` verb (branch `codex/star-confirm`): `star_hostvirus.star_index` wraps
   `write_reference` + `build_star_hostvirus_index` (reference in `<out-dir>/reference/`, index in `<out-dir>/index/`) and
@@ -586,6 +595,28 @@ port the kallisto translated-search tutorial with explicit attribution.
   PalmDB adds 344 UMIs, none EBV (PalmDB has no DNA viruses). Not a validation. Numbers: `analysis/translated_search/palmdb_provenance.json`
   and the README. **Open:** full-depth runs on all 17 libraries (jobs prepared, not submitted: the permission
   system blocked the submission) and read-level confirmation of suspicious hits.
+- [x] `AA-08` (2026-10-27, `codex/translated-verb`): `src/viralscan/translated.py` ports `summarize`, `read_proteins`,
+  `taxon_ids`, `bus_text_rows` (bustools via `validation.tool_path`), `normalize_barcode`/`read_barcodes`/`compare`
+  (`check_barcodes.py`) and `combine_palmdb` (core of `scripts/combine_palmdb_reference.py`, without the BLAST/expected
+  extras) plus `fetch_palmdb` (three sha256-pinned tutorial files via `build_reference._download`),
+  `build_translated_index` (`kb ref --aa -k 31 --workflow custom --d-list <host>`; plain nucleotide mask, AA-05; **fails
+  closed below kallisto 0.51.1**, Q155) and `count_translated` (`kb count --aa --parity single --num`, whitelist through
+  `kb_whitelist_arg`, no strand: six frames).
+- [x] `AA-09` (2026-10-27): verbs `viralscan translated-index --proteins-dir --host-mask --out-dir [--palmdb/--no-palmdb]`
+  (writes `<out-dir>/index/{index.idx,t2g.txt,proteins.tsv,translated_index.json}`, manifest last) and
+  `viralscan translated --run-dir --index-dir [--counts-dir] [--cells] [--expected-taxa] [-o]` (default
+  `posthoc/translated/<sample>`; `summary.all.json`, `summary.cells.json`, `barcode_check.json` with the 90 % abort,
+  `translated_receipt.json`, `translated_complete.json` last). `doctor --profile full` reports `kallisto_translated_ok`
+  (informational). `confirm_hits.py` stays in the repro.
+- [x] `AA-10` (2026-10-27): `tests/test_translated.py` (10: the repro summary/barcode/combine tests repointed, index version
+  gate, `kb ref`/`kb count` command shapes incl. the SW-21 `-w None` case, the verb on an existing counts dir, the barcode
+  abort).
+- [ ] `AA-11`: regression oracle in the repro (`research` marker, `ARMP_ROOT`): ported `summarize()` on 3 existing
+  `data/runs/work/trackA_round1/armP/counts/<GSM>` outputs vs `summary/<GSM>/{all,cells}` (re-analysis only; the 0.50.0
+  index itself is not consumable by the bundled 0.52.0). Deferred to the repro PR.
+- [x] `AA-12` (2026-10-27): docs (`cli_reference.md` sections + generated tables, `reference_panel.md` "Translated protein
+  index (exploratory)", `output_reference.md` posthoc rows for `discover`/`translated`), CHANGELOG. AA-02/AA-04 stay `[!]`:
+  full-depth masked re-runs on the 71 libraries and negative-control confirms are not authorised.
 - [x] `AA-07` — read-level confirmation and artefact checks for arm-P hits (`codex/translated-search-confirm`, stacked on
   `codex/translated-search-arm-p`; pilot data only, 1M pairs). `analysis/translated_search/confirm_hits.py`:
   `kallisto bus --aa --num` keeps the read number in the BUS flag (works in 0.50.0; the corrected BUS file has the same
@@ -7403,7 +7434,7 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
   `k2_viral_20260626` vs PlusPF-16; HHV-6B library by max primary unique molecules; HSV-1 Drop-seq excluded (`not_assessed`);
   spike-in truth from array 25864985 if per-read; §5 rules filled. 2026-10-23: all inputs decided (Q3', Q16-Q20); input
   manifest pinned (`docs/plans/disc12/input_manifest.tsv`); runs need `discover --called-cells` (PR #112). **Frozen 2026-10-23** (user approved PR #103; `discover --called-cells` merged as #112). Next: the benchmark run.
-- [~] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
+- [x] `DISC-13` candidate states + evidence adapter (2026-10-22, Q12; closed 2026-10-27 by `DISC-15`, constants provisional): `build_candidate_states` / `assign_state` / Route (ii) rejects kb/star sources (2026-10-22 review).
   `read_evidence_table` in `discovery.py` write `candidate_states.tsv` (`observation`, `corroborated` route i,
   `read_supported_observation` route ii; `corroboration` / `read_support` = `not_assessed|negative|positive`; viral-only DB
   and host lineage capped at `observation`). Pure functions, 4 new tests; `docs/discovery.md` "Candidate states".
@@ -7425,7 +7456,22 @@ never writes the primary run, H5AD layers, `detected` or tiers. Snakemake leaf o
     Molecule = distinct (CB, UB), `-N` CB suffix stripped; `-`/missing CB or UB dropped (Unique-mode UB: lower bound). NH rule:
     a read is taxon-best only if visible T records == `NH` (host/unseen loci invisible after pruning); molecule best when all
     its reads are. Raises on missing files, no molecule, or no called-cell overlap. Tests `tests/test_discovery_star_evidence.py`.
-  - TODO: STAR route (i) producer (STAR confirm lives on an unmerged branch).
-  - Left: no CLI (plan §7 specifies none); `prioritized` / `sequence_supported` of plan §9.2 not built; cut-offs
-    need `DISC-12`.
-- [ ] `DISC-14` optional Snakemake leaf (only on request).
+  - 2026-10-27: CLI and `prioritized` landed in `DISC-15`; `sequence_supported` and the cut-offs still wait on `DISC-12`
+    spike-in data.
+- [x] `DISC-14` (2026-10-27, `codex/disc14-run`): `viralscan run --discover --kraken2-db DIR` runs `discovery.run_discover`
+  per sample after `write_run_complete` (not a Snakefile rule: `resolve_sample_dir` needs `run_complete.json`, written after
+  Snakemake exits), with the documented defaults (confidence 0.05, min hit groups 4, poly-A trim, pinned STAR params) into
+  `posthoc/discovery/<sample>`. Requires `--host-filter`; preflight runs `discovery.check_tools()`. A discovery failure exits
+  non-zero after the run is complete. No `RunConfig` field, no DAG change, no `doctor` change. Tests in `tests/test_cli.py` (6).
+- [x] `DISC-16` (2026-10-27, `codex/disc16-posthoc`): `discover` writes to `<run>/posthoc/discovery/<sample>` by default
+  (layout v2, like `evidence`/`rerun-multimap`); `-o` is optional and may point outside the run or under its `posthoc/`.
+  `check_output_dir` admits `posthoc/` through `outputs.is_posthoc` and still refuses `results/`. Prerequisite for DISC-15
+  (`discover-states`) and DISC-14 (`run --discover`).
+- [x] `DISC-15` (2026-10-27, `codex/disc15-states`): `viralscan discover-states OUT [--run-dir RUN] [--sample S] [--k N]
+  [--minimap2 --host-fasta F --candidate-fasta TAXID=FASTA ... [--panel-fasta F]]` (`discovery.run_discover_states`). Route (i)
+  picks one source by availability (STAR pruned BAM, else kb molecule assignments, else `not_assessed`); route (ii) only with
+  `--minimap2`. Writes `evidence.tsv` (when any), `candidate_states.tsv` and `candidate_states.provenance.json`
+  (`discovery_fingerprint`, sources, `k`, constants, `calibrated: false`); refuses an unpublished OUT or a `--run-dir` whose
+  fingerprint differs from OUT's provenance. New state `prioritized` (plan §9.2, the DISC-12 blind rule: `groups_called >= k`,
+  no host lineage, not viral-only; `PRIORITIZED_MIN_GROUPS = 3`, reported not calibrated) sits between `observation` and the
+  evidence states. Tests `tests/test_discovery_states_cli.py` (5 incl. a 0..7-group sweep). `sequence_supported` deferred.

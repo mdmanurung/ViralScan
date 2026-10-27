@@ -2078,3 +2078,16 @@ drift at source.
 **Resolution**: `cards`-level receipts stay byte-exact; the combined receipt records the excused path and the scrub proof (`c00/exact_compare.json`, `C00_WAVE2_REPORT.md` section 1). Also worth knowing: the full suite at the tip passed 5,028 tests in 457.9 s, so a combined wave of two small cards is comfortably re-qualifiable in one session.
 
 **Tags**: performance, exactness, provenance, testing
+
+### [2026-10-26] st_dev is a per-host mount id; use inode alone to prove a rename
+**Category**: testing
+**What happened**: R1 tree tests failed on node exe032 ("inode changed") though the tree was the same; st_dev was 136 vs 105 at capture.
+**Why it matters**: A [dev, ino] check false-fails when the test runs on another login or compute node.
+**Resolution**: compare st_ino only (test_regression.py:36).
+**Tags**: testing, hpc, migration
+
+## L-78 (2026-10-26) Relative `Path.cwd().parents[n]` paths break silently when a tree is renamed; path-rewrite regexes never see them
+**What**: After `viralscan_work` moved under `data/runs/work`, `slurm_finish_evidence.sh:18` (`Path.cwd().parents[1]/'vs_pinned/...'`) resolved to `data/runs/vs_pinned` and the queued job failed with FileNotFoundError. The old-path scan and rewrite tools match literal path tails, so they reported the file clean.
+**Evidence**: job 25882793 log; `sibling_specific_reads.py:29` same pattern; `confirm_hits.py:411` was dangling even before the move.
+**Rule**: before and after any tree move, `grep -nE "parents\[[0-9]\]|Path\.cwd\(\)|\.\./\.\."` the live scripts and fix those by hand; add them to the per-group diff list.
+Tags: migration, paths, slurm, testing, gotcha

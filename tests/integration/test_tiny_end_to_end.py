@@ -501,3 +501,82 @@ class TestDocumentedSequence:
             report = documented_sequence[key]
             assert report["ok"] is True, (key, report["issues"])
             assert report["issues"] == []
+
+
+# ── STAR-06: --host-filter starsolo --star-confirm on the same tiny pair ───────────────
+
+
+def _star_host_index(tmp: Path) -> Path:
+    """STAR host-genome index for ``--host-filter`` (needs a GTF for geneInfo.tab)."""
+    genome = tmp / "host_genome"
+    genome.mkdir()
+    gtf = tmp / "host.gtf"
+    gtf.write_text(
+        'host_tx\tt\texon\t1\t80\t.\t+\t.\tgene_id "HOST_GENE"; transcript_id "host_tx";\n'
+    )
+    subprocess.run(
+        [
+            "STAR", "--runMode", "genomeGenerate", "--genomeDir", str(genome),
+            "--genomeFastaFiles", str(FIXTURE / "host.fasta"), "--sjdbGTFfile", str(gtf),
+            "--genomeSAindexNbases", "3", "--outFileNamePrefix", str(tmp / "gen_"),
+        ],
+        check=True,
+        capture_output=True,
+    )  # fmt: skip
+    return genome
+
+
+@pytest.fixture(scope="module")
+def star_confirm_run(tmp_path_factory) -> Path:
+    missing = have_tools(REQUIRED_TOOLS + ["STAR", "samtools"])
+    if missing:
+        pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
+    from viralscan.star_hostvirus import star_index
+
+    tmp = tmp_path_factory.mktemp("star06")
+    host_genome = _star_host_index(tmp)
+    hostvirus = star_index(
+        FIXTURE / "host.fasta",
+        tmp / "host.gtf",
+        FIXTURE / "viral.fasta",
+        FIXTURE / "viral.gtf",
+        tmp / "hostvirus",
+        threads=1,
+        sa_index_nbases=6,
+    )
+    return _run_tiny(
+        tmp,
+        "--host-filter", "starsolo", "--host-index", str(host_genome),
+        "--star-confirm", "--star-hostvirus-index", str(hostvirus),
+    )  # fmt: skip
+
+
+class TestStarConfirmRun:
+    """``--star-confirm`` publishes its table and columns without touching the call (STAR-GATE-01)."""
+
+    def test_star_confirm_publishes_support_table(self, star_confirm_run) -> None:
+        sample = _sample_dir(star_confirm_run)
+        for rel in (
+            "results/star_support_by_virus.tsv",
+            "log/star_confirm.done",
+            "star_hostvirus/viral.bam",
+            "star_hostvirus/viral.bam.bai",
+        ):
+            assert (sample / rel).is_file(), rel
+
+    def test_viral_summary_carries_star_columns(self, star_confirm_run, completed_run) -> None:
+        from viralscan.star_hostvirus import STAR_SUMMARY_COLUMNS
+
+        def rows(run: Path) -> dict[str, dict[str, str]]:
+            with (_sample_dir(run) / "results" / "viral_summary.tsv").open() as fh:
+                return {r["virus_name"]: r for r in csv.DictReader(fh, delimiter="\t")}
+
+        star, plain = rows(star_confirm_run), rows(completed_run)
+        assert star, "star-confirm run reported no virus rows"
+        for name, row in star.items():
+            assert all(col in row for col in STAR_SUMMARY_COLUMNS[1:]), name
+            assert row["detected"] == plain[name]["detected"], name  # labels only
+
+    def test_validate_run_is_clean(self, star_confirm_run, tmp_path) -> None:
+        report = _validate(star_confirm_run, tmp_path / "report.json", Path(__file__).parents[2])
+        assert report["ok"] is True, report
