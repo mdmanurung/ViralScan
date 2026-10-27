@@ -58,12 +58,13 @@ does not say the organism is present, replicating, or in that cell.
 ## Command
 
 ```bash
-viralscan discover --run-dir run/ --sample SAMPLE -o discovery/ \
+viralscan discover --run-dir run/ --sample SAMPLE \
     --kraken2-db k2_pluspf_16/ --threads 8
 ```
 
-`--sample` is required only when the run holds more than one. `-o` must be outside
-`--run-dir`, and empty, absent or a previous publication. The defaults are
+`--sample` is required only when the run holds more than one. Outputs go to
+`run/posthoc/discovery/SAMPLE` (layout version 2; `validate-run` ignores `posthoc/`), or to
+`-o DIR` outside the run. Either must be empty, absent or a previous publication. The defaults are
 `--confidence 0.05` and `--minimum-hit-groups 4` (the Cellsnake documented defaults, not
 calibrated here; Kraken2's own are 0.0 and 2) and `--polya-trim` on. See the
 [CLI reference](cli_reference.md) for every flag.

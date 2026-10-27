@@ -1,6 +1,7 @@
 """DISC-02/03/06/07: `viralscan discover` refuses unsafe inputs, never touches the source run, and
 resolves the host-unmapped pair fail-closed."""
 
+import argparse
 import gzip
 import hashlib
 import itertools
@@ -153,6 +154,34 @@ def test_refuses_output_inside_run_or_non_empty(tmp_path):
     stale = tmp_path / "stale"
     (stale / discovery.PARTIAL).mkdir(parents=True)
     discovery.check_output_dir(stale, root)
+
+
+def test_check_output_dir_admits_posthoc(tmp_path):
+    root = _run(tmp_path)
+    discovery.check_output_dir(root / "posthoc" / "discovery" / "S1", root)
+
+
+def test_check_output_dir_still_refuses_results_dir(tmp_path):
+    root = _run(tmp_path)
+    with pytest.raises(DiscoveryError, match="posthoc"):
+        discovery.check_output_dir(root / "S1" / "results" / "discovery", root)
+
+
+def test_run_discover_defaults_output_to_posthoc(tmp_path, monkeypatch):
+    root = _run(tmp_path)
+    seen = {}
+    monkeypatch.setattr(discovery, "check_tools", lambda: None)
+    monkeypatch.setattr(discovery, "resolve_sample_dir", lambda r, s: root / "S1")
+
+    def stop(output, run_root):
+        seen["output"] = output
+        raise DiscoveryError("stop here")
+
+    monkeypatch.setattr(discovery, "check_output_dir", stop)
+    args = argparse.Namespace(run_dir=root, sample=None, output=None, kraken2_db=tmp_path)
+    with pytest.raises(DiscoveryError, match="stop here"):
+        discovery.run_discover(args)
+    assert seen["output"] == root.resolve() / "posthoc" / "discovery" / "S1"
 
 
 def test_refuses_incomplete_db(tmp_path):

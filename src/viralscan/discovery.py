@@ -170,15 +170,17 @@ def resolve_sample_dir(run_root: Path, sample: str | None) -> Path:
 
 
 def check_output_dir(output: Path, run_root: Path) -> None:
-    """Refuse an output inside the run, or one that already holds unfinished results.
+    """Refuse an output inside the run (except under ``posthoc/``) or one holding unfinished results.
 
     A published output (``COMPLETE_JSON``) is allowed through; ``run_discover`` then compares
     fingerprints to decide between a no-op and a refusal.
     """
-    if output == run_root or run_root in output.parents:
+    from viralscan.outputs import is_posthoc
+
+    if output == run_root or (run_root in output.parents and not is_posthoc(output, run_root)):
         raise DiscoveryError(
-            f"--output must be outside --run-dir: {output} is inside {run_root}. "
-            "Discovery never writes into a primary run."
+            f"--output must be outside --run-dir or under its posthoc/ folder: {output} is "
+            f"inside {run_root}. Discovery never writes into a primary run's own files."
         )
     if (
         output.exists()
@@ -1865,13 +1867,18 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def run_discover(args: argparse.Namespace) -> None:
     run_root = Path(args.run_dir).resolve()
-    output = Path(args.output).resolve()
     db = Path(args.kraken2_db).resolve()
 
+    from viralscan.outputs import posthoc_dir
     from viralscan.runconfig import RunConfig
 
     check_tools()
     sample_dir = resolve_sample_dir(run_root, args.sample)
+    output = (
+        Path(args.output).resolve()
+        if getattr(args, "output", None)
+        else posthoc_dir(run_root, "discovery", sample_dir.name)
+    )
     check_output_dir(output, run_root)
     validate_kraken2_db(db)
     config = RunConfig.from_yaml(str(sample_dir / "config.yaml"))
