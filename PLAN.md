@@ -15,13 +15,13 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   section headers, the shared sections and `CAT-31`; the full pre-4e file is frozen at
   `provenance/PLAN_archive_2026-10.md` in the repro. Rehearsed with `audit/rehearse.sh 4e` (0 vanished / 0 regressed).
 
-- [~] `DISC-17` (2026-10-27, `codex/disc12-metrics` pushed for review): run `scripts/disc12_metrics.py` on the EXISTING DISC-12
-  outputs (all 182 conditions under repro `data/runs/work/disc12_run_2026-10-23/out/` are published). Two gates before any
-  `out/` value is read: (1) the user ratifies the five protocol ambiguities fixed in the script docstring; (2) the four
-  positives need `--truth LIB=TSV` per-cell UNIQUE molecules of the panel virus, which only `viralscan rerun-multimap
-  --multimap-molecule-assignments` on their existing `.bus` files can produce (compute on existing outputs; **user OK
-  needed**). Outcome it can fix: `--confidence` / `--minimum-hit-groups` defaults and `k` for `prioritized`. It cannot
-  fix the DISC-13 constants (protocol §5: spike-ins only; none exist), which stay `calibrated: false`.
+- [x] `DISC-17` (2026-10-27, repro PR #12 `codex/disc17-metrics`): `scripts/disc12_metrics.py` run on the published DISC-12
+  outputs, 182/182 arms ok. The user ratified the five docstring ambiguities ("do all above"). Truth came from each primary
+  run's `adata_multimap.h5ad` `counts_unique` layer (= the `unique` rows of `molecule_assignments.tsv.gz`), not from
+  `rerun-multimap`, which has no `--multimap-molecule-assignments` flag and cannot run on the pre-`multimap.done` primary
+  runs (the earlier row text was wrong). Outcome: rule 2 `none` for every DB/configuration (the covid positive is capture-only
+  and its panel is never reached), rule 1 `not_assessed`, rule 3 `not_assessed` (spike-in only), rule 4 reported; no default
+  changes proposed. DISC-13 constants stay `calibrated: false`. Tables: repro `docs/plans/disc12/{truth,metrics_2026-10-27}/`.
 - [ ] `DISC-18` report section for discovery (`report.html.j2`): deferred. The report is rendered by the `detection` rule
   before discovery can exist, so it needs a re-render step in the `run --discover` post-step; row only.
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
