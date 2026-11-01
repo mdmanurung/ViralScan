@@ -71,7 +71,8 @@
         "scope": {"enum": ["public", "private"]},
         "software_version": {"type": "string", "minLength": 1},
         "counting_version": {"type": "string", "minLength": 1},
-        "git_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "git_sha": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+        "size_bytes": {"type": "integer", "minimum": 0},
         "input_sha256s": {
           "type": "array",
           "items": {"$ref": "#/$defs/hash_record"}

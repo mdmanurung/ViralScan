@@ -24,6 +24,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.multimapping import select_detection_matrix
+from viralscan.outputs import found_genes_path
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.scautoqc import add_scautoqc
@@ -502,7 +503,7 @@ def main():
 
     # Load found genes
     found_genes = {}
-    with open(f"{config.output}/log/found_genes.txt") as f:
+    with open(found_genes_path(config.output)) as f:
         for line in f:
             parts = line.strip().split(";")
             if len(parts) == 2:

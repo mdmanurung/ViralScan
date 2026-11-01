@@ -61,7 +61,7 @@ from viralscan.molecule_verdict import (
     write_from_bam,
     write_umi_query_fasta,
 )
-from viralscan.outputs import posthoc_dir
+from viralscan.outputs import analysis_genes_path, posthoc_dir
 from viralscan.read_support import write_molecule_support
 from viralscan.run_safety import sha256_file, software_identity
 from viralscan.runconfig import RunConfig
@@ -352,10 +352,10 @@ def run_evidence(args: argparse.Namespace) -> None:
     if identity is not None:
         viral_ids = set(identity.viral_gene_ids())
     else:
-        analysis = run_dir / "log" / "analysis.txt"
+        analysis = analysis_genes_path(run_dir)
         if not analysis.exists():
             _die(
-                f"No results/virus_identity.tsv or log/analysis.txt in {run_dir}; was the run completed?"
+                f"No results/virus_identity.tsv or results/analysis_genes.txt in {run_dir}; was the run completed?"
             )
         with open(analysis) as fh:
             viral_ids = {line.strip() for line in fh}

@@ -39,6 +39,28 @@ the replacement named. Configuration keys, `config.yaml` and `run_fingerprint` a
 | `validate-run` | `--json-output PATH` | `--json PATH` |
 | `doctor` | `--json` (switch; the report was always printed) | `--json PATH` |
 
+### Layout v3 changes (breaking, before 3.0.0 stable)
+
+`run_manifest.json` records `layout_version: 3`. Version 1 and 2 runs still validate, and every
+reader and post-hoc verb falls back to their paths. `rerun-multimap` and `run --resume` on an older run
+copy `log/analysis.txt` to the new path first, so nothing is recomputed.
+
+| What | Before (v1/v2) | Now (v3) |
+|---|---|---|
+| Index viral gene list | `<sample>/log/analysis.txt` | `<sample>/results/analysis_genes.txt` |
+| Detected genes with counts | `<sample>/log/found_genes.txt` | `<sample>/results/found_genes.txt` |
+| Super-expressor tables | `<sample>/plots/SuperExpressor_<virus>.{tsv,json}` | `<sample>/results/superexpressor/` (the PNG stays in `plots/`) |
+| In-run host-response output | `<sample>/hostresponse/` | `<sample>/results/hostresponse/` |
+| `discover` / `run --discover` default | `<run>/posthoc/discovery/<sample>/` | `<run>/<sample>/posthoc/discovery/` |
+| `translated` default | `<run>/posthoc/translated/<sample>/` | `<run>/<sample>/posthoc/translated/` |
+
+Post-hoc verbs now have one level, `<sample>/posthoc/<verb>/`. `rerun-multimap` is the exception: it
+copies the whole run, so it stays at `<run>/posthoc/multimap_<method>/`. `log/` keeps logs and `.done`
+sentinels only. New files: `<sample>/README.txt` (what is where, and which file answers which
+question), a run-level `README.txt`, and `<sample>/results/artifact_inventory.json` (path, size, sha256
+per file). `kb-python/` and the other work dirs stay at the sample root; the README marks them as
+intermediates. Scripts that read the old paths must read the new ones, or try the new path first.
+
 ### Post-hoc outputs move to `<run-dir>/posthoc/` (layout version 2)
 
 Post-hoc verbs no longer write into, or require an output outside of, the run's own files.

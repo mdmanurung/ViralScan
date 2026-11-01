@@ -245,7 +245,7 @@ def _build_translated_parser(subparsers: Any) -> None:
         description=(
             "kb count --aa --parity single on the run's FASTQ pair (six-frame search, no strand) "
             "against a `viralscan translated-index`, then a per-virus/protein UMI summary over all "
-            "barcodes and over the run's called cells. Writes <run-dir>/posthoc/translated/<sample>/ "
+            "barcodes and over the run's called cells. Writes <run-dir>/<sample>/posthoc/translated/ "
             "(counts/, summary.all.json, summary.cells.json, barcode_check.json, "
             "translated_receipt.json, translated_complete.json). --counts-dir summarises an existing "
             "kb count --aa output instead of counting. Exploratory: never changes detected or tiers."
@@ -274,7 +274,7 @@ def _build_translated_parser(subparsers: Any) -> None:
         "--expected-taxa", default=None, help="Taxon ids to report first, e.g. 10376;37296."
     )
     p.add_argument(
-        "--output", "-o", default=None, help="Default <run-dir>/posthoc/translated/<sample>."
+        "--output", "-o", default=None, help="Default <run-dir>/<sample>/posthoc/translated."
     )
     p.add_argument("--threads", "-c", type=int, default=4, help="kb count threads. Default: 4.")
     _add_verbosity_args(p)
@@ -723,7 +723,7 @@ def _build_discover_parser(subparsers: Any) -> None:
         "-o",
         default=None,
         help=(
-            "Discovery output directory; default <run-dir>/posthoc/discovery/<sample>. Outside "
+            "Discovery output directory; default <run-dir>/<sample>/posthoc/discovery. Outside "
             "--run-dir or under its posthoc/ folder; must be empty, absent or a previous publication."
         ),
     )
@@ -885,7 +885,7 @@ def _build_discover_states_parser(subparsers: Any) -> None:
             "runs only with --minimap2. States never change the primary run, detected or tiers.\n"
             "Cut-offs are documented constants, not calibrated.\n\n"
             "Example:\n"
-            "  viralscan discover-states run/posthoc/discovery/S1 --run-dir run/"
+            "  viralscan discover-states run/S1/posthoc/discovery --run-dir run/"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1695,7 +1695,7 @@ def _build_run_parser(subparsers: Any) -> None:
         help=(
             "After the run completes, run `viralscan discover` on every sample (Kraken2 on the "
             "host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), "
-            "writing <output>/posthoc/discovery/<sample>/ (PLAN DISC-14). Requires --host-filter "
+            "writing <output>/<sample>/posthoc/discovery/ (PLAN DISC-14). Requires --host-filter "
             "and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results."
         ),
     )
@@ -2010,7 +2010,7 @@ def _build_run_parser(subparsers: Any) -> None:
             "Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). "
             "When provided, ViralScan trains per-virus logistic regression models predicting virus "
             "presence from host gene expression (Luebbert et al. 2025 approach) and writes results "
-            "to <output>/hostresponse/."
+            "to <output>/results/hostresponse/."
         ),
     )
     _add_hostresponse_evaluation_args(parser, "hostresponse-")
@@ -2094,7 +2094,7 @@ def _build_run_parser(subparsers: Any) -> None:
         default=False,
         help=(
             "Run a genome-wide depth-and-mito-adjusted differential expression test alongside "
-            "the selection-frequency model (written to <output>/hostresponse/<virus>_differential.csv)."
+            "the selection-frequency model (written to <output>/results/hostresponse/<virus>_differential.csv)."
         ),
     )
     parser.add_argument(

@@ -26,7 +26,7 @@ def _codes(report: dict) -> set[str]:
 
 def _with_artifact(run: Path) -> Path:
     sample = run / "sample"
-    (sample / "results").mkdir()
+    (sample / "results").mkdir(exist_ok=True)
     (sample / "results" / "viral_summary.tsv").write_text("virus\nA\n")
     write_run_complete(run)
     return sample

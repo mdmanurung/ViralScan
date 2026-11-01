@@ -3,7 +3,7 @@
 Ported from the reproducibility repo's ``analysis/translated_search`` scripts (PLAN AA-08).
 Method: Luebbert et al., Nature Biotechnology 2025 (doi:10.1038/s41587-025-02614-y); PalmDB:
 Edgar et al., Nature 2022 (doi:10.1038/s41586-021-04332-2). The arm is exploratory: it never
-changes ``detected``, tiers or any primary output, and writes only under ``posthoc/translated/``.
+changes ``detected``, tiers or any primary output, and writes only under ``<sample>/posthoc/translated/``.
 
 Host masking is a plain nucleotide D-list (AA-05 decision). kallisto below 0.51.1 does not
 translate the D-list, so the mask was inactive (Q155); the index builder refuses such a binary.
@@ -560,7 +560,7 @@ def run_translated(args: argparse.Namespace) -> Path:
     output = (
         Path(args.output).resolve()
         if getattr(args, "output", None)
-        else posthoc_dir(run_dir, "translated", sample_dir.name)
+        else posthoc_dir(sample_dir, "translated")
     )
     if output.exists() and any(output.iterdir()):
         raise TranslatedError(f"{output} is not empty.")

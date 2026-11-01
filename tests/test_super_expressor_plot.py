@@ -19,7 +19,7 @@ def draw(tmp_path, x, host, called):
     d.super_expressor(a, "V", ["virus"], tmp_path, host_gene_mask=host, called_mask=called)
     assert (before != a.X).nnz == 0
     assert not len(a.obs.columns)
-    stem = tmp_path / "plots" / "SuperExpressor_V"
+    stem = tmp_path / "results" / "superexpressor" / "SuperExpressor_V"
     return pd.read_csv(str(stem) + ".tsv", sep="\t"), json.loads(open(str(stem) + ".json").read())
 
 

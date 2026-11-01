@@ -75,6 +75,7 @@ from typing import Any, Union, cast
 
 from viralscan import __version__ as _VIRALSCAN_VERSION
 from viralscan import virus_catalog
+from viralscan.outputs import analysis_genes_path
 
 log = logging.getLogger(__name__)
 
@@ -948,7 +949,7 @@ def backfill_identity_table(config: Any) -> Path | None:
     Run has no ``analysis.txt``.
     """
     out = Path(config.output)
-    gene_list = out / "log" / "analysis.txt"
+    gene_list = analysis_genes_path(out)
     if (out / "results" / TABLE_FILENAME).exists() or not gene_list.is_file():
         return None
     gene_ids = {

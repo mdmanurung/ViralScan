@@ -70,12 +70,12 @@ viralscan run ... --host-filter starsolo --host-index star_hg38/ \
 ```
 
 runs the same discovery on every sample after the run completes, with the defaults below,
-into `<output>/posthoc/discovery/<sample>/`. The primary results are written and
+into `<output>/<sample>/posthoc/discovery/`. The primary results are written and
 `run_complete.json` exists before discovery starts; a discovery failure exits non-zero but
 leaves the run valid. For other settings run `viralscan discover` afterwards.
 
 `--sample` is required only when the run holds more than one. Outputs go to
-`run/posthoc/discovery/SAMPLE` (layout version 2; `validate-run` ignores `posthoc/`), or to
+`run/SAMPLE/posthoc/discovery` (layout version 3; `validate-run` ignores `posthoc/`), or to
 `-o DIR` outside the run. Either must be empty, absent or a previous publication. The defaults are
 `--confidence 0.05` and `--minimum-hit-groups 4` (the Cellsnake documented defaults, not
 calibrated here: the DISC-12 benchmark could not evaluate its default rule, see below; Kraken2's own are 0.0 and 2) and `--polya-trim` on. See the
@@ -181,7 +181,7 @@ documented constants, not calibrated.
 ### Candidate states
 
 ```bash
-viralscan discover-states run/posthoc/discovery/S1 --run-dir run/
+viralscan discover-states run/S1/posthoc/discovery --run-dir run/
 ```
 
 writes `candidate_states.tsv` beside `candidates.tsv` (`taxid`, `name`, `rank`, `state`,
