@@ -79,6 +79,7 @@ from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
     validate_null_spec,
 )
 from viralscan.kb_outputs import KbCountOutputs
+from viralscan.run_safety import sha256_file as _sha256_file
 from viralscan.run_safety import software_identity
 from viralscan.runconfig import RunConfig
 from viralscan.utils import _sparse_row_block, setup_script_logging
@@ -309,15 +310,6 @@ def _pool_viral_genes(virus_adata, viral_vars: list, viral_accessions_file: str)
         ", ".join(f"{n} ({k})" for n, k in n_genes.items()),
     )
     return out, names
-
-
-def _sha256_file(path) -> str:
-    """Hex SHA-256 of a file, streamed (input-hash provenance)."""
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def _resolve_raw_depth(adata):

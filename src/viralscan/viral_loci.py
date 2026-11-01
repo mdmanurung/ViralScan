@@ -7,11 +7,12 @@ A gene with no ``gene`` row takes the span of its CDS/exon rows. Loci are positi
 not look at counts. ``results/viral_loci.tsv`` is written by the ``analysis`` rule and read by ``detection``.
 """
 
-import gzip
 import re
 from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
+
+from viralscan.utils import open_maybe_gzip
 
 LOCI_FILENAME = "viral_loci.tsv"
 LOCI_COLUMNS = ["gene_id", "seqname", "start", "end", "locus_id"]
@@ -82,8 +83,7 @@ def write_loci(gtf_paths: Iterable[Path], gene_ids: set[str], out: Path) -> Path
     Intervals of one gene seen in several files are pooled (identical rows collapse)."""
     genes: dict[str, set[tuple[str, int, int]]] = defaultdict(set)
     for path in gtf_paths:
-        opener = gzip.open if str(path).endswith(".gz") else open
-        with opener(path, "rt", encoding="utf-8", errors="replace") as fh:
+        with open_maybe_gzip(path, encoding="utf-8", errors="replace") as fh:
             for gid, ivs in gene_intervals(fh, gene_ids).items():
                 genes[gid].update(ivs)
     if not genes:

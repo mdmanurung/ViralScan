@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass
 
 from viralscan.chemistry import cb_umi_geometry
-from viralscan.evidence import _open_maybe_gzip
+from viralscan.utils import open_maybe_gzip
 
 DEFAULT_SAMPLE = 100_000
 DEFAULT_MIN_MATCH_RATE = 0.5
@@ -32,7 +32,7 @@ def load_whitelist(path: str) -> set[str]:
     (``chemistry._barcode``), so a suffixed list is not diagnosed as the wrong chemistry (P4-04).
     """
     wl: set[str] = set()
-    with _open_maybe_gzip(path) as fh:
+    with open_maybe_gzip(path) as fh:
         for line in fh:
             bc = _GEM_GROUP.sub("", line.strip())
             if bc:
@@ -54,7 +54,7 @@ def whitelist_match_rate(
         raise ValueError("whitelist is empty")
     n = 0
     matched = 0
-    with _open_maybe_gzip(r1_fastq) as fh:
+    with open_maybe_gzip(r1_fastq) as fh:
         for i, line in enumerate(fh):
             # In a 4-line FASTQ record the sequence is the 2nd line (index % 4 == 1).
             if i % 4 != 1:

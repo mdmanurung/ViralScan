@@ -7,6 +7,16 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `HELPERS-01` (2026-11-01, user-approved scope; `codex/shared-helpers`): one definition of the shared helpers, no output change.
+  `utils.open_maybe_gzip` / `to_int` / `to_float` (`evidence` re-exports them); nine inline gzip-or-open copies and the
+  `evidence`/`discovery`/`whitelist_preflight`/`read_filter`/`host_filter` imports now use it; `star_run.plain_whitelist` gains
+  `name=` and replaces the copies in `discovery` and `scripts/multimap` (same bytes and file names); `hostresponse` uses
+  `run_safety.sha256_file`. Deleted: `utils.load_config`, `anello_align.read_accession_tsv`. Left alone: `evidence` replay
+  whitelist copy (text mode, so CRLF would change), `evidence._fasta_digests` (a sequence digest, not a file hash),
+  `gzip.open(..., "rt")` calls on always-gzip files. The `write_json` duplicate left with `reference_strategy`.
+  `reference_strategy.py` and its three test files left the package (user decision) for the reproducibility repo
+  (PR `codex/reference-strategy-move`); the package keeps no importer of it.
+
 - [x] `REPO-SPLIT-4E` (2026-10-27, batch 4e of REPO-SPLIT-01, tracker §18 D61-D77): the package tree keeps package work only.
   Removed here after a byte compare with the reproducibility repo (D65): `.living/findings` (31), `.living/log` (92),
   `.living/HANDOFF_*`, `last-session.md`, `outputs/reviews` (11), 12 `docs/plans` (the 4 cited plans stay), `docs/handoffs`,
