@@ -91,7 +91,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   - Note (2026-10-22, grilling Q8): CI now installs `scanpy[leiden]`, `sctk==0.2.0` and `pybiomart` in the py3.11 Ubuntu
     pytest job only, so `tests/test_scautoqc.py` runs in CI instead of skipping. Not py3.12: sctk 0.2.0's numpy-groupies
     pin fails to build there (`configparser.SafeConfigParser` removed), so the `[scautoqc]` extra is py<=3.11 in practice.
-- [~] `PERF-EXEC-02` (2026-10-18, branch `codex/perf-wave1-b24-b23-b04-b06`): wave-1 B24
+- [x] `PERF-EXEC-02` (2026-10-18, branch `codex/perf-wave1-b24-b23-b04-b06`): wave-1 B24
   (reference low-complexity counters once), B23 (blocked programme calls), B04 (local
   CSR column view) and B06 (row-blocked dense reduction) implemented byte-identical and
   qualified together (C00, component level). Combined vs baseline `file_manifest`
@@ -112,7 +112,8 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   remaining cards. Tracker and evidence:
   `docs/plans/2026-10-17-remaining-performance-candidates.md`,
   `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`.
-  **Next up:** review of the PR; a quiet-host second timing session; land wave 1. B08 is
+  **Closed 2026-11-01:** wave-1 code is on `main` (`cf84b36`, `2f4e2be`); the timing session and whole-run
+  measurement are benchmarking, parked with `PERF-EXEC-04`'s 2026-10-20 deferral. Historical: B08 is
   deferred on its gate and B10 plus wave 2 (B25, B27, B18) are in flight in the
   `20261018-112322-wave2-g00` packet, on `codex/perf-wave2-b25-b27-b18`; that session must re-check
   B18's oracle against `main`'s post-merge `molecule_verdict.py` before trusting it.
@@ -161,7 +162,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   receipts retain all failed runner/prototype attempts. This row remains partial
   until the gated plan work is resolved; code delivery is a separate completion claim.
   **Deferred 2026-10-20:** G02 production attribution/whole-run measurement and the B11/B30 CPU-budget follow-ups (manifest worker fields, total-admission policy) are closed as deferred: the user parked performance work behind Track A on 2026-10-19, and the Slurm measurement needs approval before any job is submitted. Row stays `[~]` for the delivered code.
-- [~] `PERF-EXEC-03` (2026-10-18, original branch `codex/perf-wave2-b25-b27-b18`,
+- [x] `PERF-EXEC-03` (2026-10-18, original branch `codex/perf-wave2-b25-b27-b18`,
   historical baseline `faf5667`; finalized on `codex/perf-wave2-final` over merged main
   `5e05a27` after PR #73): wave-2 B08/B10 gate decisions (B08 deferred, B10 no compliant fast path — no
   source edits), B27 negative (whitelist I/O dominates — no source edit), B25 (bounded
@@ -182,6 +183,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   pass. Final full-suite and CI results are recorded on the finalization PR. Historical evidence:
   `analysis/computational_bottlenecks_2026-10-17/followups/20261018-112322-wave2-g00/c00/C00_WAVE2_REPORT.md`
   and the branch's `docs/plans/2026-10-17-remaining-performance-candidates.md` card rows.
+  **Closed 2026-11-01:** wave-2 code is on `main` (`5dacb4d`); timing and wave-3 cards are parked with `PERF-EXEC-04`.
 - [~] W3-11 SW-09: the 13 parser builders moved verbatim to `src/viralscan/cli/parsers.py` (menu.py 2,530 -> 1,196 lines; `gen_cli_reference.py --check` byte-identical; `menu` re-exports every name). Handlers stay in `menu.py`: they call names the tests patch on `menu` (`_check_required_tools`, `_swap_multimap_layer`, ...), so moving them would break those patches for no gain.
   - [~] M1.3 test tool skips: no change needed. The triage showed
     `test_anellovirus_chain` fails on a stale fixture, not a missing
@@ -189,10 +191,12 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 
 ## Software backlog reconciliation (2026-10-09)
 
-- [~] `QA-02` — `ruff format` the 16 files and fix the 166 mypy errors without blanket ignores. **Format done
+- [x] `QA-02` — `ruff format` the 16 files and fix the 166 mypy errors without blanket ignores. **Format done
   2026-10-09** (15 files; `tests/test_dsr02_enumerate_calls.py` is the user's dirty file and is left
   unformatted; 1,930 unit passes after). **Left:** 166 mypy errors (`evidence.py` 81, `anello_align.py` 30,
   `chemistry.py` 25, `multimap.py` 13, ...), assigned per file to the agent that owns that file.
+  **Closed:** mypy errors cleared in `9aacbeb`, `a50eb5c`, `2d66e93`; CI gates `ruff format --check .` and
+  `mypy src/viralscan` (green on `main` 2d15473, 2026-11-01).
 - [~] `CHEM-01` (closed 2026-10-10: the bulk path stays advice-only), `DEF-05` (done: reader's matrix verified, missing host matrix rejected),
   `DEF-06`, `DSR-08`, `SW-07`, `MECH-F` (index-aware denominators, gene-role contract).
 - [~] `REL-04`/`REL-05` repeat on the finished source (clean installs, `doctor`, `validate-run`): **done 2026-10-27 on main
@@ -200,7 +204,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   clean uv venvs (Python 3.11) for each, `pip check` clean, `viralscan --version` 3.0.0rc1, `scripts/release_package_smoke.py`
   exits 0 from both (doctor `ok: true`, `validate-run` `ok: true`, `issues: []`, `viralscan` imported from site-packages).
   Still open in this row:
-  `REL-03`/`DEF-08`/`CAT-25` (review the untracked `uv.lock`); `CAT-06` (index carries its GTF and
+  `REL-03`/`DEF-08`/`CAT-25` (`uv.lock` committed and CI-checked since #141; conda lock replay open); `CAT-06` (index carries its GTF and
   catalogue); `REF-11` and `PANEL-01` WP4 bundling (deferred; the DOI stays external).
 - [~] `REF-03` (2026-10-10: `prepare_reference_inputs` now rejects a reference with no viral records when masking
   is requested, with a test; the gtf-manifest check in the NCBI-fetching builder run is network-pending),
