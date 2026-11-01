@@ -731,12 +731,12 @@ def errorhandler(args: argparse.Namespace) -> None:
     """
     if args.ncbi_accession:
         if args.reference or args.gtf or args.fasta:
-            _die("--ncbi-accession is mutually exclusive with --reference / --gtf / --fasta.")
+            _die("--ncbi-accession is mutually exclusive with --reference / --gtf / --fasta.", 2)
     elif args.reference:
         if args.gtf is None:
-            _die("--reference requires --gtf. The code has been terminated.")
+            _die("--reference requires --gtf.", 2)
         if args.fasta is None:
-            _die("--reference requires --fasta. The code has been terminated.")
+            _die("--reference requires --fasta.", 2)
         for fasta in split_comma_paths(args.fasta):
             if not os.path.exists(fasta):
                 _die(f"FASTA path does not exist: {fasta}.")
@@ -765,8 +765,7 @@ def errorhandler(args: argparse.Namespace) -> None:
                         "is no terminal to confirm. Pass --yes to continue, or drop -i/-t/-f1."
                     )
                 if answer in ("no", "n"):
-                    print("You have chosen not to continue. The code has been aborted.")
-                    sys.exit(0)
+                    _die("Not continuing: -i/-t/-f1 given with --reference.")
                 if answer not in ("yes", "y"):
                     _die(f"This is not a valid answer: {answer}.")
     else:
@@ -831,11 +830,11 @@ def errorhandler(args: argparse.Namespace) -> None:
     host_filter = getattr(args, "host_filter", None)
     host_index = getattr(args, "host_index", None)
     if host_index and not host_filter:
-        _die("--host-index requires --host-filter.")
+        _die("--host-index requires --host-filter.", 2)
     if host_filter and not host_index:
-        _die("--host-filter requires --host-index.")
+        _die("--host-filter requires --host-index.", 2)
     if getattr(args, "host_filter_star_params", None) and not host_filter:
-        _die("--host-filter-star-params requires --host-filter.")
+        _die("--host-filter-star-params requires --host-filter.", 2)
     if host_filter:
         host_index_path = str(host_index)
         if not os.path.exists(host_index_path):
@@ -860,13 +859,13 @@ def errorhandler(args: argparse.Namespace) -> None:
 
     if getattr(args, "discover", False):
         if not getattr(args, "kraken2_db", None):
-            _die("--discover requires --kraken2-db.")
+            _die("--discover requires --kraken2-db.", 2)
         if not host_filter:
             _die("--discover requires --host-filter (Kraken2 classifies the host-unmapped reads).")
         if not os.path.isdir(str(args.kraken2_db)):
             _die(f"Kraken2 database directory does not exist: {args.kraken2_db}.")
     elif getattr(args, "kraken2_db", None):
-        _die("--kraken2-db requires --discover.")
+        _die("--kraken2-db requires --discover.", 2)
 
     technology = getattr(args, "technology", None)
     if (
@@ -1396,6 +1395,14 @@ def _resolve_auto_strand(
 
 
 def main() -> None:
+    try:
+        _main()
+    except KeyboardInterrupt:
+        print("viralscan: interrupted.", file=sys.stderr)
+        sys.exit(130)
+
+
+def _main() -> None:
     args = create_help()
 
     # Dispatch to build-ref subcommand if requested.
@@ -1533,7 +1540,7 @@ def main() -> None:
         return
 
     if getattr(args, "_subcommand", None) != "run":
-        build_parser().print_help()
+        build_parser().print_help(sys.stderr)
         sys.exit(2)
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)

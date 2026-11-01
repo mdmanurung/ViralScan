@@ -7,6 +7,14 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `CLI-MATURE-01` (2026-11-01, `codex/cli-mature`, PR A of the CLI maturity batch; user approved scope): `main()` maps Ctrl-C to exit 130;
+  declining the `--reference` prompt and post-parse flag-combination errors exit 1 and 2 (usage errors); `--cores/-c` is the
+  primary thread flag on `star-index`, `translated-index`, `translated`, `discover` (`--threads` kept as alias, same dest);
+  `translated-index --output/-o` (`--out-dir` alias); `--verbose/--quiet` mutually exclusive everywhere; `--version` and the
+  Python >= 3.10 guard run before heavy imports (entry point is now `viralscan.__main__:main`); plain usage off a TTY or with
+  `NO_COLOR`; bare `viralscan` prints help to stderr, exit 2; `docs/cli_reference.md` subcommand list is generated. Skipped:
+  `evidence_run._die` (own copy, exit 1), grouped subcommand help. No analysis output changed.
+
 - [x] `REPO-SPLIT-4E` (2026-10-27, batch 4e of REPO-SPLIT-01, tracker §18 D61-D77): the package tree keeps package work only.
   Removed here after a byte compare with the reproducibility repo (D65): `.living/findings` (31), `.living/log` (92),
   `.living/HANDOFF_*`, `last-session.md`, `outputs/reviews` (11), 12 `docs/plans` (the 4 cited plans stay), `docs/handoffs`,
