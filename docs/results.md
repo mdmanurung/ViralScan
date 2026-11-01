@@ -283,7 +283,8 @@ The outputs trace the corrected molecules behind the call:
   genes, ambiguity class, assigned weight, method, tier and exclusion reason.
 - `molecule_verdicts.tsv.gz` / `molecule_verdict_summary.tsv`: one row per
   corrected `(CB, UMI)` molecule, with the best viral and host alignment score
-  and a verdict (`virus_best`, `host_best`, `tie`, `unaligned`). The default
+  and a verdict (`virus_best`, `host_best`, `tie`, `unaligned`: no read of the
+  molecule aligned to either side). The default
   `--dedup umi` keeps one deterministic representative per corrected
   `(CB, UMI, reference)` molecule; `markdup` is positional deduplication, not
   molecule evidence.

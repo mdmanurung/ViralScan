@@ -180,6 +180,14 @@ def best_scores(sam_lines: Iterable[str]) -> dict[str, dict[str, int]]:
     return scores
 
 
+def _is_unmapped(fields: list[str]) -> bool:
+    """An unmapped read's record: flag 0x4 or RNAME ``*``, not supplementary."""
+    if len(fields) < 11:
+        return False
+    flag = int(fields[1])
+    return not flag & 0x800 and (bool(flag & 0x4) or fields[2] == "*")
+
+
 def verdict_of(virus_as: int | None, host_as: int | None) -> str:
     """``virus_best`` / ``host_best`` / ``tie`` / ``unaligned`` from the best score on each side."""
     if virus_as is None and host_as is None:
@@ -202,12 +210,12 @@ class _Molecule:
 def _parse_molecules(
     sam_lines: Iterable[str], counted_reads: set[int]
 ) -> dict[tuple[str, str], _Molecule]:
-    """One pass over the SAM: per-molecule state in first *usable* alignment order.
+    """One pass over the SAM: per-molecule state in the order of the record that creates each molecule.
 
-    Fused replacement for ``best_scores`` plus a second pass over its per-read dict.
-    Only a seen-usable-QNAME set is retained per read (each read name counts once);
-    the score maxima are updated in stream order, and ``max`` being associative makes
-    the per-molecule result identical to taking each read's best before the max.
+    A record creates or joins a molecule when it has a usable score or is an unmapped read (flag 0x4 or
+    RNAME ``*``, not supplementary). An unmapped read counts in ``reads``/``counted`` but scores nothing, so a
+    molecule of unmapped reads only is ``unaligned``. Each read name counts once; the score maxima are
+    updated in stream order (``max`` is associative, so this equals each read's best before the max).
     """
     molecules: dict[tuple[str, str], _Molecule] = {}
     seen: set[str] = set()
@@ -216,7 +224,7 @@ def _parse_molecules(
             continue
         fields = line.rstrip("\n").split("\t")
         hit = side_score(fields)
-        if hit is None:
+        if hit is None and not _is_unmapped(fields):
             continue
         qname = fields[0]
         first = qname not in seen
@@ -233,6 +241,8 @@ def _parse_molecules(
         if first:
             mol.reads += 1
             mol.counted = mol.counted or _read_number(qname) in counted_reads
+        if hit is None:
+            continue
         side, score = hit
         if side == "virus":
             mol.virus_as = score if mol.virus_as is None else max(mol.virus_as, score)
