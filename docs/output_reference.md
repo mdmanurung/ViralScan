@@ -1092,6 +1092,34 @@ These are **labels, not a gate**: no call, tier, threshold or `detection_source`
 - The spike-in detection-limit experiment (PLAN `SPIKE-01`) has **not been run**, so there is no measured
   sensitivity or specificity for this arm. Gating calls on it (`STAR-GATE-01`) is undecided.
 
+### Safe to delete after a finished run
+
+Only after `run_complete.json` exists. Nothing here changes a result, but you lose `--resume`
+reuse and the post-hoc verbs that re-read BUS files or FASTQs (`rerun-multimap --multimap-method em`,
+`evidence`, `translated`). The list is generated from `SAMPLE_LAYOUT` and is printed in each
+sample's `README.txt`.
+
+| Path (under `<sample>/`) | What it is |
+|---|---|
+| `read_filtered/` | FASTQs after the read filter |
+| `host_filtered/` | STARsolo host-filter work dir and filtered FASTQs |
+| `star_hostvirus/` | STAR host+virus confirmation BAM |
+| `host_capture/` | host-capture work dir (the table is `results/host_capture.tsv`) |
+| `kb-python/` except `counts_unfiltered/` | BUS files and `run_info.json` |
+| `.kb-count.*`, `.kb-previous.*` | staging left by an interrupted `kb count` |
+
+Keep `kb-python/counts_unfiltered/`, `results/`, `plots/`, `config.yaml` and the run-root files.
+
+### README.txt
+
+`README.txt` is written at the start of a run (marked **NOT FINISHED**) and rewritten when the run
+completes, so a failed or running run explains itself. It names the ViralScan version and layout
+version, says whether the run finished, answers "where do I find ...", lists the files of the
+options you enabled (`--umap`, `--gene-programs`), explains that a missing virus means "not detected"
+and points to `results/sensitivity.tsv` for the detection limit, and lists the safe-to-delete paths.
+The run-level file adds the run fingerprint and multimap method. `report.html` builds its "Output Files"
+table from the same registry (`outputs.RESULT_FILES`).
+
 ---
 
 <!-- viralscan-claim:v3-evidence-workflow status=provenance_incomplete -->
@@ -1100,6 +1128,8 @@ These are **labels, not a gate**: no call, tier, threshold or `detection_source`
 There is one post-hoc level: `<sample>/posthoc/<verb>/`. Each verb writes there by default and
 never modifies the run's own outputs (matrix, `results/`, `config.yaml`, `run_manifest.json`,
 `run_complete.json`). `--output` overrides the location. `validate-run` ignores `posthoc/`.
+A verb refuses an `--output` that already holds files; `host-loss`, `rerun-programs` and `hostresponse` take `--force` to write into it (same-named files are replaced, nothing is deleted). `rerun-multimap` and `translated` need an empty or absent directory, and `discover` and `evidence` check their own earlier publication.
+`--run-dir` is the **run root** for `rerun-multimap`, `discover`, `translated` and `validate-run`, and a **sample directory** for `host-loss`, `rerun-programs`, `hostresponse` and `evidence`.
 The one exception is `rerun-multimap`, which copies the whole run and so writes
 `<run>/posthoc/multimap_<method>/`. Layout v2 put `discover` and `translated` under
 `<run>/posthoc/<verb>/<sample>/`; those directories are still readable.
@@ -1333,20 +1363,29 @@ print(adata)
 # Layers: counts_unique, counts_ambiguous_allocated, plus diagnostic layers
 ```
 
-Key layers:
+Every layer of `adata_multimap.h5ad`, in the order `scripts/multimap.py` writes them. Rows are
+barcodes, columns are genes; values are bustools-resolved molecules (`count_schema_version` 3.0.0).
 
-| Layer | Description | Kind |
-|-------|-------------|------|
-| `counts_unique` | Bustools-resolved one-gene molecule counts | observation |
-| `counts_ambiguous_allocated` | Selected-method ambiguous molecule allocation | model estimate |
-| `counts_multimap_equal` | Equal-split ambiguous molecule allocation | model estimate |
-| `counts_multimap_host_conservative` | Allocation of mixed host-virus molecule mass only among compatible host genes | model estimate |
-| `counts_multimap_unique_weighted` | Heuristic allocation weighted by unique-gene evidence plus pseudocount | model estimate |
-| `counts_unique_viral` | Unambiguous viral molecule evidence retained for auditing | observation |
-| `counts_host_viral_ambiguous` | Viral-compatible host-virus ambiguous signal | observation |
-| `counts_host_viral_selected` | Portion of the selected allocation assigned to viral genes from host-virus ambiguous ECs | model estimate |
+| Layer | What it holds | Kind |
+|-------|---------------|------|
+| `counts_unique` | Molecules that resolve to one gene | observation |
+| `counts_ambiguous_allocated` | Ambiguous molecules, allocated by the selected method (`uns["multimap_method"]`) | model estimate |
+| `counts_corrected` | Alias: the same matrix as `counts_ambiguous_allocated` (read by the evidence step; `rerun-multimap` swaps it) | model estimate |
+| `counts_original` | Alias: the same matrix as `counts_unique` | observation |
+| `counts_combined` | Alias: the same matrix as `adata.X` | model estimate |
+| `counts_multimap_equal` | Ambiguous molecules split equally among compatible genes | model estimate |
+| `counts_multimap_host_conservative` | Mixed host-virus molecule mass allocated only among compatible host genes | model estimate |
+| `counts_multimap_unique_weighted` | Heuristic split weighted by unique-gene evidence plus a pseudocount | model estimate |
+| `counts_multimap_sibling_weighted` | Equal split with within-group shares changed for sibling viral genes | model estimate |
+| `counts_unique_viral` | Unambiguous viral molecules, kept for auditing and layer 2 | observation |
+| `counts_host_viral_ambiguous` | Host-virus ambiguous molecules, split equally among their viral genes only | observation |
+| `counts_host_viral_selected` | Part of the selected allocation placed on viral genes from host-virus ambiguous molecules | model estimate |
+| `counts_host_viral_selected_{equal,host_conservative,unique_weighted,sibling_weighted}` | The same diagnostic per method, so a `rerun-multimap` swap keeps the evidence tiers consistent (`..._sibling_weighted` is a copy of `..._equal`) | model estimate |
+| `counts_viral_ambiguous_upper` | Upper bound: each ambiguous molecule with any viral-compatible gene, its whole mass split equally among its viral genes only | model estimate |
 
-`adata.X` = `counts_unique + counts_ambiguous_allocated` (complete selected-method matrix).
+`adata.X` = `counts_unique + counts_ambiguous_allocated` (complete selected-method matrix). Per-cell
+per-virus group matrices sit in `obsm["viral_groups_{unique,compatible,host_shared}"]` (names in
+`uns["viral_groups"]`). To load without the diagnostics, read `X` and `counts_unique` only.
 
 ---
 

@@ -885,7 +885,7 @@ the sections above add context. Do not edit between the markers.
 | Flag | Default | Help |
 |------|---------|------|
 | `--review-candidates` | `False` | Review all Anelloviridae candidates, including below-gate and STAR-only rows; write evidence_review.tsv under the output directory. |
-| `--run-dir RUN_DIR` | *required* | A completed ViralScan run output directory. |
+| `--run-dir RUN_DIR` | *required* | A completed SAMPLE directory (holds config.yaml and kb-python/), not the run root. |
 | `--output, -o OUTPUT` | *(none)* | Directory for evidence outputs (default: <run-dir>/posthoc/evidence/<virus>). |
 | `--viral-fasta VIRAL_FASTA` | *(none)* | Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). Omit for read-extraction only. |
 | `--host-fasta HOST_FASTA` | *(none)* | Full host-genome FASTA required with --viral-fasta for competitive v3 alignment and BLAST. |
@@ -930,7 +930,7 @@ the sections above add context. Do not edit between the markers.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir RUN_DIR` | *required* | Completed source run. The run's own outputs are never modified; results go to posthoc/. |
+| `--run-dir RUN_DIR` | *required* | Completed source RUN ROOT (holds run_manifest.json and one folder per sample), not a sample folder. The whole run is copied into the new result directory; the source is never modified. |
 | `--output, -o OUTPUT` | *(none)* | New result directory; must not already be non-empty (default: <run-dir>/posthoc/multimap_<method>). |
 | `--multimap-method {conservative,em,equal}` | *required* | Multimapping resolution method to apply: conservative, em or equal (see 'viralscan run --help' for what each does). |
 | `--cores, -c CORES` | `6` | Number of cores for snakemake workers. Default: 6. |
@@ -1028,11 +1028,12 @@ the row not estimable.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir DIR` | *required* | A sample run directory holding host_filtered/. |
+| `--run-dir DIR` | *required* | A completed SAMPLE directory (holds host_filtered/), not the run root. |
 | `--truth TSV` | *required* | read_id, label[, molecule_id] table. |
 | `--viral-label VIRAL_LABEL` | `viral` | Truth label of viral reads. Default: viral. |
 | `--mixed-manifest TSV` | *(none)* | mixed_host_virus_manifest.tsv (read_id column). |
 | `--output, -o DIR` | *(none)* | Default <run-dir>/posthoc/host_loss. |
+| `--force` | `False` | Write into --output although it already holds files (same-named files are replaced; nothing is deleted). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
@@ -1044,11 +1045,12 @@ the row not estimable.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir DIR` | *required* | A completed viralscan run directory (the one holding kb-python/ and results/). |
+| `--run-dir DIR` | *required* | A completed SAMPLE directory (holds config.yaml, kb-python/ and results/), not the run root. |
 | `--output, -o DIR` | *(none)* | Directory to write results/gene_program_*.tsv under (default: <run-dir>/posthoc/programs). |
 | `--programme-min-breadth N` | *(none)* | Distinct non-overlapping overlap groups required before a programme is called. Must be >= 1. Default: the run's own config (2 if it set none). |
 | `--programme-latent-min-breadth N` | *(none)* | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: the run's own config (1 if it set none). |
 | `--programme-min-umi X` | *(none)* | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: the run's own config (0.0 if it set none). |
+| `--force` | `False` | Write into --output although it already holds files (same-named files are replaced; nothing is deleted). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
@@ -1060,7 +1062,7 @@ the row not estimable.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir RUN_DIR` | *required* | Existing viralscan sample output directory (input; contains config.yaml). |
+| `--run-dir RUN_DIR` | *required* | A completed SAMPLE directory (input; holds config.yaml), not the run root. |
 | `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/posthoc/hostresponse). |
 | `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
 | `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
@@ -1076,6 +1078,7 @@ the row not estimable.
 | `--differential` | `False` | Write a genome-wide depth/%mito-adjusted differential table (<virus>_differential.csv). |
 | `--enrichment` | `False` | Run pathway enrichment via gget (requires viralscan[enrichment]). |
 | `--enrichment-db DB` | *(none)* | gget.enrichr database. Default when unset: GO_Biological_Process_2023. |
+| `--force` | `False` | Write into --output although it already holds files (same-named files are replaced; nothing is deleted). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 | `--cv CV` | *(none)* | CV scheme (default: auto). auto = group-disjoint CV on --groups, or on the one donor/sample-like obs column if there is exactly one, else cell-level CV with a leakage warning (also if group CV cannot run on that auto-selected column); cell = legacy cell-level CV (a donor can span train and test); group = group-disjoint CV, requires --groups, fails closed. |

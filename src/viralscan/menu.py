@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 from typing import Any, NoReturn, Optional
 
+from viralscan.artifact_inventory import write_start_docs
 from viralscan.cli.parsers import (  # noqa: F401  (private builders re-exported for tests and callers)
     _add_hostresponse_evaluation_args,
     _add_verbosity_args,
@@ -47,9 +48,11 @@ from viralscan.outputs import (
 from viralscan.resources import KB_WORKERS, bounded_workers
 from viralscan.run_safety import (
     RUN_MANIFEST,
+    RunSafetyError,
     clear_run_complete,
     record_strand_inference,
     recorded_strand_inference,
+    require_fresh_output,
     write_run_complete,
 )
 from viralscan.runconfig import RunConfig, check_numeric_ranges
@@ -113,6 +116,14 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
     return True
 
 
+def _require_fresh(output: Path, args: argparse.Namespace, *, forceable: bool = True) -> None:
+    """``require_fresh_output`` for a post-hoc verb: a clean ``_die`` instead of a traceback."""
+    try:
+        require_fresh_output(output, force=getattr(args, "force", False), forceable=forceable)
+    except RunSafetyError as exc:
+        _die(str(exc))
+
+
 def _run_host_loss(args: argparse.Namespace) -> None:
     """``host-loss``: D15/D16 truth loss at the host filter into ``posthoc/host_loss`` (HOST-05a)."""
     from viralscan.scripts.host_filter import lost_truth_counts
@@ -126,6 +137,7 @@ def _run_host_loss(args: argparse.Namespace) -> None:
         _die(f"--truth file does not exist: {args.truth}")
     counts = lost_truth_counts(args.truth, str(lineage), args.viral_label, args.mixed_manifest)
     out = Path(args.output).resolve() if args.output else posthoc_dir(run_dir, "host_loss")
+    _require_fresh(out, args)
     out.mkdir(parents=True, exist_ok=True)
     payload = {
         "schema_version": 1,
@@ -210,6 +222,7 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
     gp_script.config = config
     gp_script.output = str(run_dir)
     gp_script_out = Path(args.output).resolve() if args.output else posthoc_dir(run_dir, "programs")
+    _require_fresh(gp_script_out, args)
     gp_script.main(
         str(adata_path),
         str(run_dir / "results" / "viral_summary.tsv"),
@@ -301,8 +314,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     ).resolve()
     if not source_dir.is_dir():
         _die(f"Source run directory does not exist: {source_dir}")
-    if output_dir.exists() and any(output_dir.iterdir()):
-        _die(f"New rerun output must be empty or absent: {output_dir}")
+    _require_fresh(output_dir, args, forceable=False)
     if output_dir == source_dir or (
         source_dir in output_dir.parents and not is_posthoc(output_dir, source_dir)
     ):
@@ -625,6 +637,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     out_dir = str(
         Path(args.output).resolve() if args.output else posthoc_dir(output_dir, "hostresponse")
     )
+    _require_fresh(Path(out_dir), args)
     run_hostresponse(
         virus_h5ad=virus_h5ad,
         host_h5ad=args.host_h5ad,
@@ -1285,12 +1298,17 @@ def _write_sample_summary(
     n_genes: int,
 ) -> None:
     """Append per-sample runtime and reference stats to the sample's summary.txt."""
-    summary_path = os.path.join(outs, "summary.txt")
-    os.makedirs(outs, exist_ok=True)
-    with open(summary_path, "a", encoding="utf-8") as f:
-        f.write(f"\nRuntime: {elapsed:.4f} seconds.\n\n")
-        f.write(f"Amount of transcripts in data: {n_transcripts}\n")
-        f.write(f"Amount of genes in data: {n_genes}\n")
+    summary_path = Path(outs) / "summary.txt"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    text = summary_path.read_text(encoding="utf-8") if summary_path.is_file() else ""
+    # --resume appends to a summary.txt that may still hold the last attempt's footer.
+    text = text.split("\nRuntime: ")[0]
+    footer = (
+        f"\nRuntime: {elapsed:.4f} seconds.\n\n"
+        f"Amount of transcripts in data: {n_transcripts}\n"
+        f"Amount of genes in data: {n_genes}\n"
+    )
+    summary_path.write_text(text + footer, encoding="utf-8")
 
 
 def _sample_id(s1_path: str) -> str:
@@ -1653,6 +1671,7 @@ def _main() -> None:
     output = str(output_dir)
 
     _check_sample_ids(samples1)
+    write_start_docs(output_dir, [_sample_id(s1) for s1 in samples1])
 
     # Hoist loop-invariant transcript counts (they depend only on the reference).
     n_transcripts = _count_lines(transcripts)

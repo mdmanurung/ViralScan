@@ -508,17 +508,9 @@
       <table>
         <thead><tr><th>File</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>summary.txt</code></td><td>Plain-text summary (legacy, human-readable)</td></tr>
-          <tr><td><code>results/viral_summary.tsv</code></td><td>Per-virus statistics table (TSV)</td></tr>
-          <tr><td><code>results/sensitivity.tsv</code></td><td>Per-virus detection limit (LOD95) and negative-certifiability (TSV)</td></tr>
-          <tr><td><code>results/gene_program_summary.tsv</code></td><td>Per-virus gene-programme state counts and breadth (TSV, if --gene-programs)</td></tr>
-          <tr><td><code>results/gene_program_cells.tsv</code></td><td>Per-cell gene-programme assignment (TSV, if --gene-programs)</td></tr>
-          <tr><td><code>results/per_cell_viral.tsv</code></td><td>Per-barcode viral UMI annotation (TSV)</td></tr>
-          <tr><td><code>results/multimap_evidence.tsv</code></td><td>Unique and ambiguous viral evidence table (TSV)</td></tr>
-          <tr><td><code>plots/</code></td><td>UMI bar plots and super-expressor scatter plots (PNG)</td></tr>
-          <tr><td><code>plots/umap_binary.html</code></td><td>Interactive UMAP coloured by virus (if --umap)</td></tr>
-          <tr><td><code>plots/umap_continuous.html</code></td><td>Interactive UMAP coloured by viral load (if --umap)</td></tr>
-          <tr><td><code>kb-python/</code></td><td>Raw kallisto|bustools count matrices</td></tr>
+          {% for path, text in output_files %}
+          <tr><td><code>{{ path }}</code></td><td>{{ text }}</td></tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>

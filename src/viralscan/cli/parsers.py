@@ -91,6 +91,14 @@ def _multimap_method(value: str) -> str:
 _MULTIMAP_METHOD_METAVAR = "{" + ",".join(MULTIMAP_METHOD_ALIASES) + "}"
 
 
+def _add_force_arg(parser: Any) -> None:
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Write into --output although it already holds files (same-named files are replaced; nothing is deleted).",
+    )
+
+
 def _add_verbosity_args(parser: Any) -> None:
     """Add the --verbose/--quiet pair shared by every subcommand."""
     group = parser.add_mutually_exclusive_group()
@@ -488,7 +496,11 @@ def _build_evidence_parser(subparsers: Any) -> None:
         action="store_true",
         help="Review all Anelloviridae candidates, including below-gate and STAR-only rows; write evidence_review.tsv under the output directory.",
     )
-    p.add_argument("--run-dir", required=True, help="A completed ViralScan run output directory.")
+    p.add_argument(
+        "--run-dir",
+        required=True,
+        help="A completed SAMPLE directory (holds config.yaml and kb-python/), not the run root.",
+    )
     p.add_argument(
         "--output",
         "-o",
@@ -664,7 +676,7 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
     p.add_argument(
         "--run-dir",
         required=True,
-        help="Completed source run. The run's own outputs are never modified; results go to posthoc/.",
+        help="Completed source RUN ROOT (holds run_manifest.json and one folder per sample), not a sample folder. The whole run is copied into the new result directory; the source is never modified.",
     )
     p.add_argument(
         "--output",
@@ -890,7 +902,7 @@ def _build_host_loss_parser(subparsers: Any) -> None:
         "--run-dir",
         required=True,
         metavar="DIR",
-        help="A sample run directory holding host_filtered/.",
+        help="A completed SAMPLE directory (holds host_filtered/), not the run root.",
     )
     p.add_argument(
         "--truth", required=True, metavar="TSV", help="read_id, label[, molecule_id] table."
@@ -907,6 +919,7 @@ def _build_host_loss_parser(subparsers: Any) -> None:
     p.add_argument(
         "--output", "-o", default=None, metavar="DIR", help="Default <run-dir>/posthoc/host_loss."
     )
+    _add_force_arg(p)
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="host-loss")
 
@@ -971,7 +984,7 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
         "--run-dir",
         required=True,
         metavar="DIR",
-        help="A completed viralscan run directory (the one holding kb-python/ and results/).",
+        help="A completed SAMPLE directory (holds config.yaml, kb-python/ and results/), not the run root.",
     )
     p.add_argument(
         "--output",
@@ -1013,6 +1026,7 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
             f"({DEFAULTS['programme_min_umi']} if it set none)."
         ),
     )
+    _add_force_arg(p)
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="rerun-programs")
 
@@ -1116,7 +1130,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
     p.add_argument(
         "--run-dir",
         required=True,
-        help="Existing viralscan sample output directory (input; contains config.yaml).",
+        help="A completed SAMPLE directory (input; holds config.yaml), not the run root.",
     )
     p.add_argument(
         "--output",
@@ -1223,6 +1237,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         metavar="DB",
         help="gget.enrichr database. Default when unset: GO_Biological_Process_2023.",
     )
+    _add_force_arg(p)
     _add_verbosity_args(p)
     _add_hostresponse_evaluation_args(p)
     p.set_defaults(_subcommand="hostresponse")

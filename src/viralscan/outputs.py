@@ -18,9 +18,12 @@ the ``*_path`` helpers below fall back to the old locations.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
+
+from viralscan import __version__
 
 LAYOUT_VERSION = 3
 SUPPORTED_LAYOUT_VERSIONS = (1, 2, 3)
@@ -86,29 +89,133 @@ QUESTIONS = (
 )
 
 
-def sample_readme(sample: str) -> str:
-    """Text of ``<sample>/README.txt``, from ``SAMPLE_LAYOUT`` and ``QUESTIONS``."""
-    lines = [f"ViralScan sample {sample}: layout version {LAYOUT_VERSION}", "", "What is where"]
+#: Files the report lists. ``(path, what it holds, option)``: ``option`` is the run option that
+#: writes the file (``None`` = every run). The report table and the README "written by the
+#: options you enabled" block both read this, so a gated file shows up only when it exists.
+RESULT_FILES = (
+    ("summary.txt", "Plain-text summary (legacy, human-readable)", None),
+    ("results/viral_summary.tsv", "Per-virus statistics table (TSV)", None),
+    (
+        "results/sensitivity.tsv",
+        "Per-virus detection limit (LOD95) and negative-certifiability (TSV)",
+        None,
+    ),
+    (
+        "results/gene_program_summary.tsv",
+        "Per-virus gene-programme state counts and breadth (TSV)",
+        "gene_programs",
+    ),
+    (
+        "results/gene_program_cells.tsv",
+        "Per-cell gene-programme assignment (TSV)",
+        "gene_programs",
+    ),
+    ("results/per_cell_viral.tsv", "Per-barcode viral UMI annotation (TSV)", None),
+    ("results/multimap_evidence.tsv", "Unique and ambiguous viral evidence table (TSV)", None),
+    ("plots/", "UMI bar plots and super-expressor scatter plots (PNG)", None),
+    ("plots/umap_binary.html", "Interactive UMAP coloured by virus", "umap"),
+    ("plots/umap_continuous.html", "Interactive UMAP coloured by viral load", "umap"),
+    ("kb-python/", "Raw kallisto|bustools count matrices", None),
+)
+
+
+def result_files(is_on: Callable[[str], bool]) -> list[tuple[str, str]]:
+    """``(path, text)`` of the ``RESULT_FILES`` this run writes; ``is_on(option)`` gates the rest."""
+    return [(path, text) for path, text, opt in RESULT_FILES if opt is None or is_on(opt)]
+
+
+def safe_to_delete() -> list[tuple[str, str]]:
+    """What a user may remove from a sample after a finished run, from ``SAMPLE_LAYOUT``.
+
+    Every ``intermediate`` work dir except ``kb-python/`` (it holds the matrix), plus the
+    kb-python files around that matrix and the staging dirs an interrupted ``kb count`` leaves.
+    Deleting any of it costs ``--resume`` reuse and the post-hoc verbs that re-read BUS or FASTQs.
+    """
+    rows = [
+        (path, text)
+        for path, role, text in SAMPLE_LAYOUT
+        if role == "intermediate" and path != "kb-python/"
+    ]
+    rows.append(("kb-python/ except counts_unfiltered/", "BUS files and run_info.json"))
+    rows.append((".kb-count.* and .kb-previous.*", "staging left by an interrupted kb count"))
+    return rows
+
+
+def _on(options: Mapping[str, Any] | None) -> Callable[[str], bool]:
+    return lambda name: bool((options or {}).get(name))
+
+
+def _status(finished: bool) -> list[str]:
+    if finished:
+        return ["Status: finished (run_complete.json is at the run root)"]
+    return [
+        "Status: NOT FINISHED. This file was written when the run started.",
+        "  If run_complete.json is missing from the run root, the run failed or is still going;",
+        "  check <sample>/.snakemake/log/ and re-run with --resume. It is rewritten on completion.",
+    ]
+
+
+def sample_readme(
+    sample: str,
+    *,
+    finished: bool = True,
+    options: Mapping[str, Any] | None = None,
+) -> str:
+    """Text of ``<sample>/README.txt``, from ``SAMPLE_LAYOUT``, ``QUESTIONS`` and the options on.
+
+    ``options`` is the run's option map (``run_manifest.json`` ``options``); it decides which
+    gated files in ``RESULT_FILES`` are listed.
+    """
+    lines = [f"ViralScan {__version__}, sample {sample}, layout version {LAYOUT_VERSION}", ""]
+    lines += _status(finished) + ["", "What is where"]
     lines += [f"  {path:<17} {text}" for path, _role, text in SAMPLE_LAYOUT]
     lines += ["", "Where do I find ..."]
     lines += [f"  {q:<48} {path}" for q, path in QUESTIONS]
+    gated = [(p, t) for p, t, opt in RESULT_FILES if opt and _on(options)(opt)]
+    if gated:
+        lines += ["", "Also written because you enabled the matching option"]
+        lines += [f"  {path:<36} {text}" for path, text in gated]
     lines += [
+        "",
+        "How to read a negative",
+        "  A virus that is absent from results/viral_summary.tsv, or has detected=False, was",
+        "  not detected. That does not show it is absent: results/sensitivity.tsv gives each",
+        "  virus's detection limit (LOD95), and a zero below that limit says little.",
+        "",
+        "Which settings made this: config.yaml here; the whole run is in ../run_manifest.json.",
+        "",
+        "Safe to delete after a finished run (you lose --resume reuse and BUS-based post-hoc verbs)",
+    ]
+    lines += [f"  {path:<38} {text}" for path, text in safe_to_delete()]
+    lines += [
+        "  Keep kb-python/counts_unfiltered/, results/, plots/, config.yaml and the run root files.",
         "",
         "Bulky intermediates (kb-python/ and the other work dirs) are not in the inventory.",
     ]
     return "\n".join(lines) + "\n"
 
 
-def run_readme(samples: list[str]) -> str:
-    """Text of the run-level ``README.txt``."""
-    lines = [
-        "ViralScan run",
+def run_readme(
+    samples: list[str],
+    *,
+    finished: bool = True,
+    manifest: Mapping[str, Any] | None = None,
+) -> str:
+    """Text of the run-level ``README.txt``; ``manifest`` adds the fingerprint and method."""
+    manifest = manifest or {}
+    lines = [f"ViralScan {__version__} run", ""] + _status(finished) + [""]
+    if manifest.get("run_fingerprint"):
+        lines += [f"  run fingerprint   {manifest['run_fingerprint']}"]
+    if manifest.get("allocation_method"):
+        lines += [f"  multimap method   {manifest['allocation_method']}"]
+    lines += [
         "",
         "  run_manifest.json     what was run (settings, versions, inputs)",
+        "  run_complete.json     marker: the run finished; hashes of the key outputs",
+        "  combined_summary.tsv  every sample's results/viral_summary.tsv, stacked",
+        "",
+        "Samples (open report.html first; each folder has its own README.txt)",
     ]
-    lines += ["  run_complete.json     marker: the run finished; hashes of the key outputs"]
-    lines += ["  combined_summary.tsv  every sample's results/viral_summary.tsv, stacked", ""]
-    lines += ["Samples (open report.html first; each folder has its own README.txt)"]
     lines += [f"  {sample}/report.html" for sample in samples]
     return "\n".join(lines) + "\n"
 

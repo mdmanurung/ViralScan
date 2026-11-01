@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from viralscan.run_safety import sha256_file
+from viralscan.run_safety import RunSafetyError, require_fresh_output, sha256_file
 from viralscan.utils import open_maybe_gzip
 
 log = logging.getLogger(__name__)
@@ -561,8 +561,10 @@ def run_translated(args: argparse.Namespace) -> Path:
         if getattr(args, "output", None)
         else posthoc_dir(sample_dir, "translated")
     )
-    if output.exists() and any(output.iterdir()):
-        raise TranslatedError(f"{output} is not empty.")
+    try:
+        require_fresh_output(output, forceable=False)
+    except RunSafetyError as exc:
+        raise TranslatedError(str(exc)) from exc
     output.mkdir(parents=True, exist_ok=True)
     counts = Path(args.counts_dir).resolve() if getattr(args, "counts_dir", None) else None
     cmd: list[str] | None = None

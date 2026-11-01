@@ -359,6 +359,18 @@ def write_run_complete(run_root: Path) -> None:
     write_combined_summary(run_root)
 
 
+def require_fresh_output(output: Path, *, force: bool = False, forceable: bool = True) -> None:
+    """The one overwrite guard of the post-hoc verbs: refuse a non-empty ``output``.
+
+    ``force`` lets the verb write into it (same-named files are replaced, nothing is
+    deleted). ``forceable=False`` is for a verb that has no ``--force``.
+    """
+    if force or not output.exists() or (output.is_dir() and not any(output.iterdir())):
+        return
+    way = ", or pass --force to write into it (same-named files are replaced)" if forceable else ""
+    raise RunSafetyError(f"Output {output} already holds files. Use a new --output{way}.")
+
+
 def clear_run_complete(run_root: Path) -> None:
     (Path(run_root) / RUN_COMPLETE).unlink(missing_ok=True)
 
