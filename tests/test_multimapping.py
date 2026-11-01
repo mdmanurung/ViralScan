@@ -567,3 +567,18 @@ class TestEMMultimapper:
             "converged": False,
             "fallback_reason": "max_iterations_reached",
         }
+
+
+def test_get_layer_never_looks_up_a_none_key() -> None:
+    """anndata 0.13 resolves layers.get(None) to X; a name with no alias must give the default."""
+    from types import SimpleNamespace
+
+    from viralscan.utils import get_layer
+
+    class XOnNone(dict):
+        def get(self, key, default=None):
+            return "X" if key is None else super().get(key, default)
+
+    adata = SimpleNamespace(layers=XOnNone(counts_corrected="old"))
+    assert get_layer(adata, "counts_host_viral_selected_host_conservative") is None
+    assert get_layer(adata, "counts_ambiguous_allocated") == "old"

@@ -26,7 +26,11 @@ def get_layer(adata: Any, name: str, default: Any = None) -> Any:
     layers = adata.layers
     if name in layers:
         return layers[name]
-    return layers.get(OLD_LAYER_NAMES.get(name), default)
+    alias = OLD_LAYER_NAMES.get(name)
+    # Never pass None as a key: newer anndata may resolve layers[None] to X.
+    if alias is None or alias not in layers:
+        return default
+    return layers[alias]
 
 
 def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
