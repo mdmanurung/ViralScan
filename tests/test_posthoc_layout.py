@@ -144,3 +144,21 @@ def test_run_rejects_reserved_or_duplicate_sample_id(samples: list[str]) -> None
     with pytest.raises(SystemExit):
         menu._check_sample_ids(samples)
     menu._check_sample_ids(["/d/S1_R1.fastq.gz", "/d/S2_R1.fastq.gz"])
+
+
+def test_rerun_multimap_does_not_copy_sample_posthoc(tmp_path: Path) -> None:
+    source = _Rerun._source_run(tmp_path)
+    stale = source / "SAMPLE" / "posthoc" / "discover" / "old.tsv"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("old")
+    _rerun(_rerun_args(source, "host-conservative"))
+    out = source / "posthoc" / "multimap_host_conservative"
+    assert (out / "SAMPLE" / "config.yaml").is_file()
+    assert not (out / "SAMPLE" / "posthoc").exists()
+
+
+def test_rerun_manifest_records_current_layout_version(tmp_path: Path) -> None:
+    (tmp_path / "run_manifest.json").write_text(json.dumps({"layout_version": 2}))
+    assert menu._rewrite_run_manifest(tmp_path, source_dir=tmp_path / "src", new_method="equal")
+    got = json.loads((tmp_path / "run_manifest.json").read_text())
+    assert got["layout_version"] == LAYOUT_VERSION

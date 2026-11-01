@@ -47,6 +47,14 @@ def test_write_and_read_roundtrip_restricts_to_requested_genes(tmp_path):
     assert read_loci(tmp_path / "missing") == {}
 
 
+def test_rerun_without_annotation_removes_stale_loci(tmp_path):
+    out = tmp_path / "results" / "viral_loci.tsv"
+    write_loci([GTF], {"A1"}, out)
+    assert out.exists()
+    assert write_loci([GTF], {"nope"}, out) is None
+    assert not out.exists()
+
+
 class TestLockOneLocusAndPositiveCell:
     """LOCK-01 D1/D2 columns on a TEST_ONLY matrix: positive cells are a union over genes, among called barcodes."""
 

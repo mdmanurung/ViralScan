@@ -20,6 +20,12 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   `--no-multimapping`, `--multimap-em-*` with a non-`em-*` method, `--emptydrops-*` when cell calling is not emptydrops.
   Not flagged: `--umap-n-neighbors`/`--hvg-*` without `--umap` (the QC step uses them regardless). Tests: `tests/test_cli_mature.py`.
 
+- [x] `RUN-CORRECT-01` (2026-11-01, `codex/run-correctness`, adversarial-review fixes, no analysis output changed): cell-type enrichment
+  strips a one-sided `-1` barcode suffix instead of dropping cells; `--gene-programs` with `--no-multimapping` is a usage error (exit 2);
+  `write_loci` and `write_cell_type_enrichment` delete a stale `viral_loci.tsv` / `cell_type_enrichment.tsv` when a rerun yields none;
+  `rerun-multimap` skips `<sample>/posthoc/` and stamps `layout_version` = `LAYOUT_VERSION`; `kb_count` prints the tail of
+  `kb_count.log` when kb exits non-zero; the `.snakemake/log` hint names the working directory's `.snakemake` (snakemake runs in the cwd).
+
 - [x] `MOLVERDICT-01` (2026-11-01, `codex/molecule-verdict-unaligned`, user approved the output change): `molecule_verdict._parse_molecules`
   skipped unmapped records before keying the molecule, so `unaligned` was never emitted and unmapped reads were missing from
   `reads`/`counted`. Unmapped records (flag 0x4 or RNAME `*`, not supplementary) now create or join their molecule without a

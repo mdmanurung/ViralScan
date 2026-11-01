@@ -39,6 +39,7 @@ from viralscan.defaults import (
 )
 from viralscan.outputs import (
     ANALYSIS_GENES,
+    LAYOUT_VERSION,
     POSTHOC_DIRNAME,
     analysis_genes_path,
     is_posthoc,
@@ -324,11 +325,14 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
 
     if output_dir.exists():
         output_dir.rmdir()
-    # posthoc/ is never copied: a rerun must not nest other post-hoc results (or itself).
+    # posthoc/ is never copied (run level or <sample>/posthoc/): a rerun must not carry
+    # other post-hoc results, which describe the source's counts, nor nest itself.
     shutil.copytree(
         source_dir,
         output_dir,
-        ignore=lambda d, names: [POSTHOC_DIRNAME] if Path(d) == source_dir else [],
+        ignore=lambda d, names: (
+            [POSTHOC_DIRNAME] if Path(d) == source_dir or Path(d).parent == source_dir else []
+        ),
     )
     # The copy is a new, unfinished run; the source's marker must not vouch for it.
     clear_run_complete(output_dir)
@@ -428,7 +432,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
                 p.unlink()
 
         hint = (
-            f"see {sample_dir / '.snakemake' / 'log'}. The partially written result "
+            f"see {Path.cwd() / '.snakemake' / 'log'}. The partially written result "
             f"directory {output_dir} was left in place; remove it before retrying."
         )
         _run_snakemake(
@@ -500,6 +504,7 @@ def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) 
     manifest["derived_from"] = str(source_dir)
     manifest["parent_run_fingerprint"] = manifest.get("run_fingerprint")
     manifest["allocation_method"] = new_method
+    manifest["layout_version"] = LAYOUT_VERSION  # the copy is rewritten by this version
     manifest["completion_marker"] = True
     # input_paths (C-04) is run-location metadata, not part of the derived fingerprint.
     payload = {
@@ -864,6 +869,9 @@ def errorhandler(args: argparse.Namespace) -> None:
             "--called-cells-file is ignored with --cell-calling %s; use auto or external.",
             cell_calling,
         )
+
+    if getattr(args, "gene_programs", False) and not getattr(args, "multimapping", True):
+        _die("--gene-programs needs multimapping; drop --no-multimapping.", 2)
 
     host_filter = getattr(args, "host_filter", None)
     host_index = getattr(args, "host_index", None)
@@ -1773,7 +1781,7 @@ def _main() -> None:
         if args.resume:
             _migrate_gene_list(Path(outs))
             _backfill_identity_table(run_config)
-        hint = f"see {Path(outs) / '.snakemake' / 'log'}"
+        hint = f"see {Path.cwd() / '.snakemake' / 'log'}"
         _run_snakemake(
             _snakemake_run_command(snakefile_path, args.cores, config_file),
             what="snakemake",
