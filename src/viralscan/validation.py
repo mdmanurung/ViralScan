@@ -467,7 +467,9 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
     else:
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as exc:
+            if not isinstance(manifest, dict):
+                raise ValueError(f"top level is {type(manifest).__name__}, not an object")
+        except (ValueError, OSError) as exc:  # JSONDecodeError is a ValueError
             issues.append(
                 ValidationIssue("error", "invalid_manifest", str(exc), str(manifest_path))
             )
@@ -506,11 +508,21 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
     issues.extend(_sibling_manifest_issues(run_dir))
     issues.extend(_completion_issues(run_dir, manifest))
 
+    # Wrong-typed sections are reported by the schema check above; here they are only skipped.
+    def _section(name: str) -> dict[str, Any]:
+        value = manifest.get(name)
+        return value if isinstance(value, dict) else {}
+
+    options = _section("options")
     if verify_inputs and manifest:
-        options = manifest.get("options", {})
-        recorded_paths = manifest.get("input_paths") or {}
-        for key, expected in manifest.get("input_fingerprints", {}).items():
-            field, index_raw = key.split(":", 1)
+        recorded_paths = _section("input_paths")
+        for key, expected in _section("input_fingerprints").items():
+            field, _, index_raw = key.partition(":")
+            if not index_raw.isdigit():
+                issues.append(
+                    ValidationIssue("error", "invalid_manifest", f"input key {key!r}", "")
+                )
+                continue
             values = str(options.get(field, "")).split(",")
             index = int(index_raw)
             if key in recorded_paths:
@@ -532,7 +544,7 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
     # (scripts/multimap.py writes it only when config.multimapping is on); their
     # count matrix is kb's own adata.h5ad, which is not a v3-contract file, so
     # only its existence and readability are checked.
-    multimapping_enabled = bool(manifest.get("options", {}).get("multimapping", True))
+    multimapping_enabled = bool(options.get("multimapping", True))
     h5ad_name = "adata_multimap.h5ad" if multimapping_enabled else "adata.h5ad"
     h5ads = sorted(p for p in run_dir.rglob(h5ad_name) if not is_posthoc(p, run_dir))
     if not h5ads:

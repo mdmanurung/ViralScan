@@ -1095,7 +1095,12 @@ def test_build_ref_main_preflights_dustmasker_before_any_download(tmp_path):
     from viralscan.scripts.build_reference import build_ref_main
 
     args = argparse.Namespace(
-        list_species=False, no_kb_ref=True, no_mask=False, genome_dlist=None, host="human"
+        list_species=False,
+        no_kb_ref=True,
+        no_mask=False,
+        genome_dlist=None,
+        host="human",
+        virus_accessions="NC_1",
     )
     with (
         patch("viralscan.scripts.build_reference.shutil.which", return_value=None),

@@ -7,6 +7,19 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `CLI-EXIT-02` (2026-11-01, `codex/cli-exit-codes`, adversarial-review follow-up to `CLI-MATURE-01`; no analysis-output change):
+  malformed `run_manifest.json` (non-object top level, wrong-typed `options`/`input_fingerprints`/`input_paths`, bad
+  `field:index` keys) is now a `validate-run` issue, not a traceback; an unwritable `--json PATH` (`doctor`, `validate-run`,
+  `check-chemistry`) and a missing `evidence-plot` directory print one error and exit 2. Flag errors that were exit 1 now exit 2
+  (`--cores 0` and the other numeric ranges, `--cell-calling external` without its file, the `--star-confirm`/`--discover`/
+  `--auto-evidence` combinations, `--r1`/`--r2` count mismatch, `build-ref` without `--host`/`--virus-accessions`, now checked
+  before the tool preflight). `run` now applies RunConfig's own validation (`_precheck_run_config`) right after `errorhandler`,
+  before the chemistry sniff, the output directory and any NCBI download; it used to raise a traceback after them.
+  `--ncbi-accession` with `-i`/`-t`/`-f1` exits 2. New `_warn_ignored_flags`: one WARNING for `--ncbi-email`/`--ncbi-api-key`
+  without `--ncbi-accession`, `--host-fasta`/`--viral-fasta` without `--auto-evidence`/`--host-capture`, `--multimap-*` with
+  `--no-multimapping`, `--multimap-em-*` with a non-`em-*` method, `--emptydrops-*` when cell calling is not emptydrops.
+  Not flagged: `--umap-n-neighbors`/`--hvg-*` without `--umap` (the QC step uses them regardless). Tests: `tests/test_cli_mature.py`.
+
 - [x] `RUN-CORRECT-01` (2026-11-01, `codex/run-correctness`, adversarial-review fixes, no analysis output changed): cell-type enrichment
   strips a one-sided `-1` barcode suffix instead of dropping cells; `--gene-programs` with `--no-multimapping` is a usage error (exit 2);
   `write_loci` and `write_cell_type_enrichment` delete a stale `viral_loci.tsv` / `cell_type_enrichment.tsv` when a rerun yields none;
