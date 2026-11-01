@@ -7,6 +7,16 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `MOLVERDICT-01` (2026-11-01, `codex/molecule-verdict-unaligned`, user approved the output change): `molecule_verdict._parse_molecules`
+  skipped unmapped records before keying the molecule, so `unaligned` was never emitted and unmapped reads were missing from
+  `reads`/`counted`. Unmapped records (flag 0x4 or RNAME `*`, not supplementary) now create or join their molecule without a
+  score. Output change: `molecule_verdicts.tsv.gz` gains `unaligned` rows and row order follows the first scored-or-unmapped
+  record; `tier_measures` `n_excluded_unaligned` becomes non-zero and the support fraction can move (a molecule counted only
+  through an unmapped read). The B18 frozen oracle (faf5667) still holds on every case without unmapped reads; the three
+  unmapped cases are pinned to explicit rows. Tests `test_a_counted_unmapped_read_is_an_unaligned_molecule`,
+  `test_unmapped_cases_keep_unaligned_molecules`. **Open (user):** pinned repro evidence dirs stay self-consistent (per-dir
+  manifest hash), but any evidence re-run changes these bytes; re-pin after.
+
 - [x] `HELPERS-01` (2026-11-01, user-approved scope; `codex/shared-helpers`): one definition of the shared helpers, no output change.
   `utils.open_maybe_gzip` / `to_int` / `to_float` (`evidence` re-exports them); nine inline gzip-or-open copies and the
   `evidence`/`discovery`/`whitelist_preflight`/`read_filter`/`host_filter` imports now use it; `star_run.plain_whitelist` gains
