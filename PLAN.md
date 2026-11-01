@@ -7,6 +7,12 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `RUN-CORRECT-01` (2026-11-01, `codex/run-correctness`, adversarial-review fixes, no analysis output changed): cell-type enrichment
+  strips a one-sided `-1` barcode suffix instead of dropping cells; `--gene-programs` with `--no-multimapping` is a usage error (exit 2);
+  `write_loci` and `write_cell_type_enrichment` delete a stale `viral_loci.tsv` / `cell_type_enrichment.tsv` when a rerun yields none;
+  `rerun-multimap` skips `<sample>/posthoc/` and stamps `layout_version` = `LAYOUT_VERSION`; `kb_count` prints the tail of
+  `kb_count.log` when kb exits non-zero; the `.snakemake/log` hint names the working directory's `.snakemake` (snakemake runs in the cwd).
+
 - [x] `LAYOUT-V3-01` (2026-11-01, `codex/layout-v3`, user-approved breaking moves before 3.0.0 stable): `LAYOUT_VERSION` 3
   (supported 1, 2, 3). `log/analysis.txt` -> `results/analysis_genes.txt`, `log/found_genes.txt` -> `results/found_genes.txt`,
   `plots/SuperExpressor_*.{tsv,json}` -> `results/superexpressor/`, in-run `hostresponse/` -> `results/hostresponse/`;

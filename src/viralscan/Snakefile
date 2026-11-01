@@ -222,11 +222,17 @@ rule kb_count:
         # Native workers = rule threads = min(legacy 8, --cores). Numerical libraries stay
         # at one worker, as before (Snakemake would export OMP etc = threads).
         export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
-        if [ -z "$WL" ]; then
-            kb count -t {threads} -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
-        else
-            kb count -t {threads} -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
-        fi
+        {{
+            if [ -z "$WL" ]; then
+                kb count -t {threads} -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            else
+                kb count -t {threads} -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            fi
+        }} || {{
+            echo -e "\033[0;31mERROR: kb count failed. Last kb_count.log lines:\033[0m" >&2
+            tail -40 "$KB_LOG" >&2
+            exit 1
+        }}
 
         [ -n "$WL_PLAIN" ] && rm -f "$WL_PLAIN"
 
