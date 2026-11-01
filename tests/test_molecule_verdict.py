@@ -50,7 +50,32 @@ def test_unmapped_and_supplementary_alignments_do_not_score() -> None:
             _sam("AAA_U2_2|r", 2048, "HOST|chr1", 99),  # supplementary: a partial hit, ignored
         ]
     )
-    assert got == {("AAA", "U2"): "virus_best"}  # the unmapped read leaves no molecule
+    assert got == {("AAA", "U1"): "unaligned", ("AAA", "U2"): "virus_best"}
+
+
+def test_a_counted_unmapped_read_is_an_unaligned_molecule() -> None:
+    """A read the call counted that minimap2 aligned to neither side is kept, not dropped."""
+    rows = list(mv.molecule_rows([_sam("AAA_U1_7|r", 4, "*", None)], {7}))
+    assert rows == [
+        {
+            "cb": "AAA",
+            "ub": "U1",
+            "reads": 1,
+            "counted": True,
+            "virus_as": None,
+            "host_as": None,
+            "verdict": "unaligned",
+        }
+    ]
+
+
+def test_an_unmapped_read_adds_to_a_scored_molecule() -> None:
+    rows = list(
+        mv.molecule_rows(
+            [_sam("AAA_U1_1|r", 0, "HOST|chr1", 60), _sam("AAA_U1_2|r", 4, "*", None)], {2}
+        )
+    )
+    assert [(r["reads"], r["counted"], r["verdict"]) for r in rows] == [(2, True, "host_best")]
 
 
 def test_a_molecule_takes_its_best_score_over_its_reads() -> None:
