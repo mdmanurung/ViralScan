@@ -4,7 +4,7 @@ It also checks whether the user has created the index itself, and if so, it
 adds the gene IDs as well.
 
 It then builds the Run's Virus Identity table from the index t2g and writes it
-to ``results/virus_identity.tsv`` (PLAN ``MECH-A``). ``log/analysis.txt`` is
+to ``results/virus_identity.tsv`` (PLAN ``MECH-A``). ``results/analysis_genes.txt`` is
 kept, unchanged, while consumers move to the table.
 
 The module is importable without Snakemake: the magic-global wiring runs only
@@ -155,7 +155,9 @@ def obtain_gtf(config: RunConfig) -> set[str]:
     )
 
     # write list to file
-    with open(Path(config.output) / "log" / "analysis.txt", "w") as f:
+    genes_file = Path(config.output) / "results" / "analysis_genes.txt"
+    genes_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(genes_file, "w") as f:
         for v in sorted(viral_accessions):
             f.write(v + "\n")
     return viral_accessions

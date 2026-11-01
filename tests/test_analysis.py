@@ -313,7 +313,7 @@ class TestAnalysisScriptDataCache:
         )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
-        ids = set((output / "log" / "analysis.txt").read_text().split())
+        ids = set((output / "results" / "analysis_genes.txt").read_text().split())
         assert "NC_USER" in ids
         # The expanded anellovirus panel is always included; see obtain_gtf.
         assert any(i.endswith("_gene1") for i in ids)
@@ -340,7 +340,7 @@ class TestAnalysisScriptDataCache:
         )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
-        ids = set((output / "log" / "analysis.txt").read_text().split())
+        ids = set((output / "results" / "analysis_genes.txt").read_text().split())
         assert "NC_CACHE" in ids
         assert any(i.endswith("_gene1") for i in ids)
 
@@ -382,7 +382,7 @@ class TestAnalysisScriptDataCache:
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
         assert seen_cache_dirs == [str(cache_root)]
-        ids = set((output / "log" / "analysis.txt").read_text().split())
+        ids = set((output / "results" / "analysis_genes.txt").read_text().split())
         assert "NC_SHARED" in ids
         assert any(i.endswith("_gene1") for i in ids)
 
@@ -413,7 +413,7 @@ class TestAnalysisScriptDataCache:
         )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
-        ids = set((output / "log" / "analysis.txt").read_text().split())
+        ids = set((output / "results" / "analysis_genes.txt").read_text().split())
         assert {"NC_A", "NC_B"} <= ids
         # Both custom GTFs are parsed, and the anellovirus panel is added too.
         assert any(i.endswith("_gene1") for i in ids)
@@ -467,7 +467,7 @@ class TestAnalysisReadsTheBuildManifest:
         )
 
     def _ids(self, tmp_path: Path) -> list[str]:
-        return (tmp_path / "out" / "log" / "analysis.txt").read_text().split()
+        return (tmp_path / "out" / "results" / "analysis_genes.txt").read_text().split()
 
     def test_manifest_supplies_ids_with_versions_and_skips_the_panel(
         self, tmp_path: Path, no_panel
@@ -484,7 +484,7 @@ class TestAnalysisReadsTheBuildManifest:
         assert self._ids(tmp_path) == ["NC_007605.1_gene1", "VIRUS_G.2"]
 
     def test_output_dir_without_trailing_separator(self, tmp_path: Path, no_panel) -> None:
-        """A-13: log/analysis.txt is joined with pathlib, not by string concatenation."""
+        """A-13: results/analysis_genes.txt is joined with pathlib, not by string concatenation."""
         from types import SimpleNamespace
 
         from viralscan.scripts import analysis

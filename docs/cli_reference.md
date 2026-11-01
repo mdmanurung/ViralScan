@@ -112,7 +112,7 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 Associate viral presence with host gene expression by providing a host h5ad.
 When `--host-h5ad` is supplied, ViralScan trains per-virus L2 logistic
 regression models (Luebbert et al. 2025) and runs a randomized Lasso selection-frequency
-ranking (uncalibrated); results are written to `<output>/hostresponse/`. Pathway enrichment
+ranking (uncalibrated); results are written to `<output>/results/hostresponse/`. Pathway enrichment
 requires `pip install "viralscan[enrichment]"`.
 
 | Flag | Default | Description |
@@ -307,7 +307,7 @@ viralscan data fetch
 
 Exploratory protein-level arm (Luebbert et al. 2025, doi:10.1038/s41587-025-02614-y). It never
 changes `detected`, tiers or any primary output; it writes only under
-`<run-dir>/posthoc/translated/<sample>/`.
+`<run-dir>/<sample>/posthoc/translated/`.
 
 `translated-index` runs `kb ref --aa` over the annotated viral proteins written by
 `scripts/prepare_viral_proteins.py`, optionally combined with the PalmDB RdRP set (three
@@ -345,7 +345,7 @@ the translated matrix), a receipt and a completion marker. `--counts-dir` summar
 | `--counts-dir DIR` | *(none)* | Existing kb count --aa output to summarise. |
 | `--cells FILE` | *(none)* | Called-cell list; default results/called_cells.tsv. |
 | `--expected-taxa EXPECTED_TAXA` | *(none)* | Taxon ids to report first, e.g. 10376;37296. |
-| `--output, -o OUTPUT` | *(none)* | Default <run-dir>/posthoc/translated/<sample>. |
+| `--output, -o OUTPUT` | *(none)* | Default <run-dir>/<sample>/posthoc/translated. |
 | `--cores, -c, --threads N` | `4` | kb count threads. Default: 4. (--threads is an alias.) |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
@@ -772,7 +772,7 @@ the sections above add context. Do not edit between the markers.
 | `--anello-align, --no-anello-align` | `False` | Anellovirus alignment branch (PLAN ANDET-09): align every host-unmapped read to the panel's anellovirus genomes with STARsolo, independent of kallisto, and add alignment_* evidence columns plus detection_source to viral_summary.tsv. Runs only with --host-filter starsolo and an anello_star/ index next to the kb index (built by scripts/build_bundled_panel_ref.py); otherwise alignment_status records why it was skipped. The columns are labels, never filters. Default: False. |
 | `--star-confirm, --no-star-confirm` | `False` | STARsolo confirmation arm (PLAN STAR-04): align the host-filtered reads to the host+virus index given by --star-hostvirus-index (built by `viralscan star-index`) and add star_* per-virus support columns to viral_summary.tsv, plus results/star_support_by_virus.tsv. Labels only: no call, tier or threshold changes. Requires --host-filter starsolo and STAR/samtools on PATH. Default: False. |
 | `--star-hostvirus-index PATH` | *(none)* | Directory of a finished `viralscan star-index` index (must hold star_hostvirus_index.json). Required by --star-confirm. |
-| `--discover` | `False` | After the run completes, run `viralscan discover` on every sample (Kraken2 on the host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), writing <output>/posthoc/discovery/<sample>/ (PLAN DISC-14). Requires --host-filter and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results. |
+| `--discover` | `False` | After the run completes, run `viralscan discover` on every sample (Kraken2 on the host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), writing <output>/<sample>/posthoc/discovery/ (PLAN DISC-14). Requires --host-filter and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results. |
 | `--kraken2-db DIR` | *(none)* | Kraken2 database directory for --discover (hash.k2d, opts.k2d, taxo.k2d). |
 | `--auto-evidence, --no-auto-evidence` | *(none)* | After detection, run `viralscan evidence` with host confirmation (minimap2 against host + viral) for every detected Anelloviridae genus, writing results/evidence/<genus>/. Needs --host-fasta, a viral-only FASTA (--viral-fasta, or viral.fa next to the index, as written by scripts/build_bundled_panel_ref.py), minimap2 and samtools, and multimapping. Re-reads the FASTQs once per genus. Opt-in, and stays so until ANELLO-PRIOR.3 closes. Default: off. |
 | `--host-capture, --no-host-capture` | *(none)* | Split each virus's reads by host compatibility: replay the quantified FASTQs through `kallisto bus -n`, capture the reads that touch a viral transcript, then `bustools capture --complement` the host transcripts. Writes results/host_capture.tsv with reads_virus_only (no host transcript in the read's equivalence class), reads_also_host and reads_total per virus. Needs an index that holds host transcripts (a combined host + virus index); on a virus-only index every count is 'not_applicable', never 0. Counts reads, not molecules. Needs kallisto and bustools. Opt-in. Default: off. |
@@ -802,7 +802,7 @@ the sections above add context. Do not edit between the markers.
 | `--read-filter READ_FILTER` | *(none)* | Read-artefact filter before kb count (after --host-filter, if any). 'off' (the default) counts every read. 'artefact' drops pairs whose R1 carries the 10x TSO in the barcode/UMI span, whose R2 is reagent (TSO\|poly-T, TruSeq chimera), or whose R2 has no complex body before its first >=15 nt homopolymer in either orientation. It also drops genuine low-complexity viral reads. 'tso-trim' keeps every pair but cuts the 10x TSO (30 nt) from the start of R2, because TSO-led host reads that STAR's host filter misses pseudoalign to viral CAG tracts (F-028). Writes read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz. |
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | *(none)* | STAR filter parameter set for --host-filter starsolo. 'pinned' (the default) removes only near-identical, near-full-length host alignments (at most 4 mismatches, 90% of the read aligned, up to 20 loci). 'star-default' uses STAR's own defaults (10 mismatches, 66% aligned, up to 10 loci). Both are passed explicitly and recorded in host_filter_audit.tsv. |
 | `--host-index PATH` | *(none)* | Path to the STAR host-genome directory required by --host-filter, built with STAR --runMode genomeGenerate. |
-| `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2025 approach) and writes results to <output>/hostresponse/. |
+| `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2025 approach) and writes results to <output>/results/hostresponse/. |
 | `--hostresponse-cv HOSTRESPONSE_CV` | *(none)* | CV scheme (default: auto). auto = group-disjoint CV on --groups, or on the one donor/sample-like obs column if there is exactly one, else cell-level CV with a leakage warning (also if group CV cannot run on that auto-selected column); cell = legacy cell-level CV (a donor can span train and test); group = group-disjoint CV, requires --groups, fails closed. |
 | `--hostresponse-groups HOSTRESPONSE_GROUPS` | *(none)* | obs column declaring donor/sample groups; used by --cv group and --cv auto (ignored, with a warning, under --cv cell). |
 | `--hostresponse-cv-folds HOSTRESPONSE_CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
@@ -823,7 +823,7 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-label HOSTRESPONSE_LABEL` | *(none)* | Virus-support labeling strategy for hostresponse (default: raw = selected-method molecule estimate >= detection_threshold). 'cpm'/'fraction' normalize by measured host molecule depth but do not remove all depth confounding. |
 | `--hostresponse-depth-match` | `False` | Restrict hostresponse to a depth-matched cohort (removes depth as a design-level confounder). Recommended when depth_alone_auc is close to model_auc. |
 | `--hostresponse-mito-control, --no-hostresponse-mito-control` | `True` | Include %mito as a covariate in hostresponse depth-adjusted E-values (default: on). Disable with --no-hostresponse-mito-control if the host h5ad has no mitochondrial genes. |
-| `--hostresponse-differential` | `False` | Run a genome-wide depth-and-mito-adjusted differential expression test alongside the selection-frequency model (written to <output>/hostresponse/<virus>_differential.csv). |
+| `--hostresponse-differential` | `False` | Run a genome-wide depth-and-mito-adjusted differential expression test alongside the selection-frequency model (written to <output>/results/hostresponse/<virus>_differential.csv). |
 | `--enrichment` | `False` | Run pathway enrichment on above-threshold host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]'). |
 | `--enrichment-db DB` | *(none)* | Enrichment database for gget.enrichr. Default when unset: GO_Biological_Process_2023. |
 | `--resume` | `False` | Resume only when run_manifest.json exactly matches this invocation. |
@@ -953,7 +953,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 |------|---------|------|
 | `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). It is never modified. |
 | `--sample SAMPLE` | *(none)* | Sample subdirectory to classify; required when the run has more than one. |
-| `--output, -o OUTPUT` | *(none)* | Discovery output directory; default <run-dir>/posthoc/discovery/<sample>. Outside --run-dir or under its posthoc/ folder; must be empty, absent or a previous publication. |
+| `--output, -o OUTPUT` | *(none)* | Discovery output directory; default <run-dir>/<sample>/posthoc/discovery. Outside --run-dir or under its posthoc/ folder; must be empty, absent or a previous publication. |
 | `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
 | `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
 | `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |

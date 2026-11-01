@@ -2,6 +2,7 @@ import os
 import yaml
 
 from viralscan.chemistry import kb_whitelist_arg
+from viralscan.outputs import ANALYSIS_GENES
 from viralscan.resources import KB_WORKERS, bounded_workers
 
 
@@ -151,7 +152,7 @@ if _STAR_CONFIRM:
 
 def _detection_inputs(wildcards):
     inputs = {
-        "file_viral_accessions": f"{config['output']}log/analysis.txt",
+        "file_viral_accessions": f"{config['output']}{ANALYSIS_GENES}",
         "virus_identity": f"{config['output']}results/virus_identity.tsv",
         "multimap_done": f"{config['output']}log/multimap.done",
     }
@@ -265,7 +266,7 @@ rule analysis:
         f"{config['output']}config.yaml",
         f"{config['output']}log/kb.done"
     output:
-        f"{config['output']}log/analysis.txt",
+        f"{config['output']}{ANALYSIS_GENES}",
         f"{config['output']}results/virus_identity.tsv"
     params:
         configfile = lambda wildcards: f"{config['output']}config.yaml"
@@ -274,7 +275,7 @@ rule analysis:
 
 rule multimap:
     input:
-        file_viral_accessions = f"{config['output']}log/analysis.txt",
+        file_viral_accessions = f"{config['output']}{ANALYSIS_GENES}",
         virus_identity = f"{config['output']}results/virus_identity.tsv"
     output:
         f"{config['output']}log/multimap.done"
@@ -382,7 +383,7 @@ if config.get("host_h5ad"):
     rule hostresponse:
         input:
             umap_done = f"{config['output']}log/umap.done",
-            analysis  = f"{config['output']}log/analysis.txt",
+            analysis  = f"{config['output']}{ANALYSIS_GENES}",
             virus_identity = f"{config['output']}results/virus_identity.tsv",
         output:
             f"{config['output']}log/hostresponse.done",

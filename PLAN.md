@@ -7,6 +7,19 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `LAYOUT-V3-01` (2026-11-01, `codex/layout-v3`, user-approved breaking moves before 3.0.0 stable): `LAYOUT_VERSION` 3
+  (supported 1, 2, 3). `log/analysis.txt` -> `results/analysis_genes.txt`, `log/found_genes.txt` -> `results/found_genes.txt`,
+  `plots/SuperExpressor_*.{tsv,json}` -> `results/superexpressor/`, in-run `hostresponse/` -> `results/hostresponse/`;
+  `discover`/`translated` default to `<sample>/posthoc/<verb>/` (rerun-multimap stays run-level: it copies the whole run).
+  Paths are defined once in `outputs.py` (`SAMPLE_LAYOUT`, `V3Outputs`, `analysis_genes_path`/`found_genes_path` with v1/v2
+  fallback); `rerun-multimap`/`--resume` copy the old gene list forward. New `<sample>/README.txt`, run `README.txt` and
+  `results/artifact_inventory.json` (`artifact_inventory.py`, written by `write_run_complete`). Docs tree synced.
+  Decision: `kb-python/`, `read_filtered/`, `host_filtered/`, `star_hostvirus/`, `host_capture/` stay at the sample root, not
+  `intermediate/` (~200 path strings, frozen oracles, kb staging shell block; `kb-python/` holds the matrix users load).
+  **Open (user):** the `output-reference-doc` row of `analysis/v3_artifact_inventory.tsv` in the reproducibility repo pins
+  `docs/output_reference.md` to a commit; re-pin it there after this merges (three fields: commit, sha256, `git show` command).
+  Note: CI integration `TestManifestRunWithoutGtf` still read `log/analysis.txt`; it now uses `analysis_genes_path`.
+
 - [x] `CLI-MATURE-01` (2026-11-01, `codex/cli-mature`, PR A of the CLI maturity batch; user approved scope): `main()` maps Ctrl-C to exit 130;
   declining the `--reference` prompt and post-parse flag-combination errors exit 1 and 2 (usage errors); `--cores/-c` is the
   primary thread flag on `star-index`, `translated-index`, `translated`, `discover` (`--threads` kept as alias, same dest);

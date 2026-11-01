@@ -37,7 +37,13 @@ from viralscan.cli.parsers import (  # noqa: F401  (private builders re-exported
 from viralscan.defaults import (
     DEFAULTS,
 )
-from viralscan.outputs import POSTHOC_DIRNAME, is_posthoc, posthoc_dir
+from viralscan.outputs import (
+    ANALYSIS_GENES,
+    POSTHOC_DIRNAME,
+    analysis_genes_path,
+    is_posthoc,
+    posthoc_dir,
+)
 from viralscan.resources import KB_WORKERS, bounded_workers
 from viralscan.run_safety import (
     RUN_MANIFEST,
@@ -405,6 +411,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         # the FASTQs. The sentinels below choose what reruns.
         run_config = RunConfig.from_snakemake_config(cfg)
         _write_run_config(run_config, keep_mtime=True)
+        _migrate_gene_list(sample_dir)
         _backfill_identity_table(run_config)
 
         # Drop sentinels so snakemake re-runs the right rules.
@@ -444,6 +451,18 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     else:
         write_run_complete(output_dir)
     log.info("rerun-multimap complete in new result directory %s.", output_dir)
+
+
+def _migrate_gene_list(sample_dir: Path) -> None:
+    """Copy a v1/v2 ``log/analysis.txt`` to ``results/analysis_genes.txt`` (mtime kept).
+
+    The rules now take the gene list from the new path; without the copy snakemake would
+    rerun ``analysis`` and everything after it on a resumed or re-run older run.
+    """
+    legacy, new = sample_dir / "log" / "analysis.txt", sample_dir / ANALYSIS_GENES
+    if legacy.is_file() and not new.exists():
+        new.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(legacy, new)
 
 
 def _backfill_identity_table(run_config: RunConfig) -> None:
@@ -558,10 +577,10 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     if not config_yaml.exists():
         _die(f"config.yaml not found in {output_dir}. Is this a viralscan output directory?")
 
-    analysis_txt = output_dir / "log" / "analysis.txt"
+    analysis_txt = analysis_genes_path(output_dir)
     if not analysis_txt.exists():
         _die(
-            f"log/analysis.txt not found in {output_dir}. "
+            f"results/analysis_genes.txt not found in {output_dir}. "
             "The viralscan run must be complete (at least through the analysis step)."
         )
 
@@ -1650,6 +1669,7 @@ def _main() -> None:
         run_config = _build_run_config(sample_args, outs, index, transcripts, f1, s1, s2)
         config_file = _write_run_config(run_config)
         if args.resume:
+            _migrate_gene_list(Path(outs))
             _backfill_identity_table(run_config)
         hint = f"see {Path(outs) / '.snakemake' / 'log'}"
         _run_snakemake(
@@ -1674,7 +1694,7 @@ def _main() -> None:
 
 
 def _discover_after_run(args: argparse.Namespace, output_dir: Path, samples: list[str]) -> None:
-    """``--discover``: Kraken2 discovery per sample into ``posthoc/discovery/<sample>`` (DISC-14).
+    """``--discover``: Kraken2 discovery per sample into ``<sample>/posthoc/discovery`` (DISC-14).
 
     Runs after ``run_complete.json`` exists because discovery resolves a completed run. A failure
     leaves the primary run valid (``validate-run`` ignores ``posthoc/``) and exits non-zero.

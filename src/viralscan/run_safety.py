@@ -346,7 +346,10 @@ def write_combined_summary(run_root: Path) -> bool:
 
 def write_run_complete(run_root: Path) -> None:
     """Atomically (re)write ``run_complete.json`` at the run root."""
+    from viralscan.artifact_inventory import write_layout_docs
+
     run_root = Path(run_root)
+    write_layout_docs(run_root)  # README.txt files + results/artifact_inventory.json per sample
     staging = run_root / f".{RUN_COMPLETE}.tmp"
     staging.write_text(
         json.dumps(build_run_complete(run_root), indent=2, sort_keys=True) + "\n",

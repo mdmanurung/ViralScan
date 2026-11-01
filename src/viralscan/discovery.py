@@ -172,7 +172,7 @@ def resolve_sample_dir(run_root: Path, sample: str | None) -> Path:
 
 
 def check_output_dir(output: Path, run_root: Path) -> None:
-    """Refuse an output inside the run (except under ``posthoc/``) or one holding unfinished results.
+    """Refuse an output inside the run (except under a ``posthoc/`` folder) or one holding unfinished results.
 
     A published output (``COMPLETE_JSON``) is allowed through; ``run_discover`` then compares
     fingerprints to decide between a no-op and a refusal.
@@ -1969,7 +1969,7 @@ def run_discover(args: argparse.Namespace) -> None:
     output = (
         Path(args.output).resolve()
         if getattr(args, "output", None)
-        else posthoc_dir(run_root, "discovery", sample_dir.name)
+        else posthoc_dir(sample_dir, "discovery")
     )
     check_output_dir(output, run_root)
     validate_kraken2_db(db)

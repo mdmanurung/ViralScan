@@ -4,6 +4,20 @@ For the guided path through the main files and how to weigh a candidate, see
 [Results](results.md). This page is the exact file, column and AnnData-layer
 dictionary.
 
+## Where do I find ...
+
+| Question | File |
+|---|---|
+| Is virus X present? | `<sample>/results/viral_summary.tsv` (and `report.html`) |
+| Which viral genes were detected, with counts? | `<sample>/results/found_genes.txt` |
+| Which genes of the index are viral? | `<sample>/results/analysis_genes.txt` |
+| Which cells carry virus, and how much? | `<sample>/results/per_cell_viral.tsv` |
+| Which barcodes were called as cells? | `<sample>/results/called_cells.tsv` |
+| The per-cell counts matrix (AnnData)? | `<sample>/kb-python/counts_unfiltered/adata_multimap.h5ad` |
+| Is the call robust to multimapping? | `<sample>/results/multimap_evidence.tsv` |
+| Which files does the run hold, with checksums? | `<sample>/results/artifact_inventory.json` |
+| What does each folder hold? | `<sample>/README.txt` (run root: `README.txt` lists the samples) |
+
 Runs record `software_identity` in the root `run_manifest.json` and in
 `results/reference_provenance.json`: the executing package's content digest, plus Git
 commit and dirty-source status when run from its own checkout.
@@ -67,63 +81,92 @@ underscore. For `sample_R1.fastq.gz`, the run directory is `output/sample/`.
 
 ```
 output/
+├── README.txt                                    # lists the samples, points at each report.html
 ├── run_manifest.json
 ├── run_complete.json
 ├── combined_summary.tsv
+├── posthoc/                                      # only rerun-multimap: <run>/posthoc/multimap_<method>/
 └── sample/
+    ├── report.html                               # first stop
+    ├── summary.txt                               # first stop
+    ├── README.txt                                # what is where; generated from outputs.SAMPLE_LAYOUT
     ├── config.yaml
-    ├── summary.txt
-    ├── report.html
-    ├── log/
-    │   ├── analysis.txt
-    │   ├── detection.done
-    │   ├── kb.done
-    │   ├── kb_count.log
-    │   ├── multimap.done
-    │   ├── scautoqc.done                         # only with --scautoqc
-    │   └── umap.done
-    ├── kb-python/
-    │   ├── counts_unfiltered/
-    │   │   ├── adata.h5ad
-    │   │   └── adata_multimap.h5ad
-    │   ├── output.bus
-    │   ├── output.resolved.sorted.bus
-    │   ├── output.resolved.sorted.bus.txt
-    │   ├── run_info.json
-    │   └── ...
-    ├── plots/
+    ├── results/                                  # user-facing tables
+    │   ├── artifact_inventory.json               # path, size, sha256 of every file below (see below)
+    │   ├── analysis_genes.txt                    # viral gene IDs of the index (v1/v2: log/analysis.txt)
+    │   ├── found_genes.txt                       # detected genes with counts (v1/v2: log/found_genes.txt)
+    │   ├── count_audit.tsv
+    │   ├── virus_identity.tsv
+    │   ├── scautoqc_gene_annotations.tsv         # only with --scautoqc
+    │   ├── viral_summary.tsv
+    │   ├── viral_summary_by_species.tsv
+    │   ├── viral_summary_by_genus.tsv
+    │   ├── sensitivity.tsv
+    │   ├── positive_control.json
+    │   ├── gene_program_summary.tsv
+    │   ├── gene_program_cells.tsv
+    │   ├── per_cell_viral.tsv
+    │   ├── called_cells.tsv
+    │   ├── host_called_cells.tsv                 # host cells of an EmptyDrops / external call
+    │   ├── multimap_evidence.tsv
+    │   ├── molecule_assignments.tsv.gz
+    │   ├── anello_alignment_by_accession.tsv
+    │   ├── anello_alignment_by_virus.tsv
+    │   ├── star_support_by_virus.tsv             # only with --star-confirm
+    │   ├── host_capture.tsv                      # only with --host-capture
+    │   ├── cell_type_enrichment.tsv
+    │   ├── reference_provenance.json
+    │   ├── superexpressor/                       # SuperExpressor_<virus>.{tsv,json} (v1/v2: plots/)
+    │   ├── hostresponse/                         # only with --host-h5ad (v1/v2: <sample>/hostresponse/)
+    │   └── evidence/<genus>/                     # only with --auto-evidence
+    ├── plots/                                    # images and interactive HTML only
     │   ├── <virus>_histogram.png
     │   ├── SuperExpressor_<virus>.png
-    │   ├── SuperExpressor_<virus>.tsv
-    │   ├── SuperExpressor_<virus>.json
     │   ├── umap_binary.html
     │   └── umap_continuous.html
-    └── results/
-        ├── count_audit.tsv
-        ├── virus_identity.tsv
-        ├── scautoqc_gene_annotations.tsv         # only with --scautoqc
-        ├── viral_summary.tsv
-        ├── viral_summary_by_species.tsv
-        ├── viral_summary_by_genus.tsv
-        ├── sensitivity.tsv
-        ├── positive_control.json
-        ├── gene_program_summary.tsv
-        ├── gene_program_cells.tsv
-        ├── per_cell_viral.tsv
-        ├── called_cells.tsv
-        ├── multimap_evidence.tsv
-        ├── molecule_assignments.tsv.gz
-        ├── anello_alignment_by_accession.tsv
-        ├── anello_alignment_by_virus.tsv
-        ├── star_support_by_virus.tsv
-        ├── cell_type_enrichment.tsv
-        └── reference_provenance.json
+    ├── posthoc/<verb>/                           # post-hoc verbs; the single post-hoc level
+    ├── log/                                      # logs and .done sentinels only
+    │   ├── kb.done, kb_count.log
+    │   ├── host_filter.done, read_filter.done    # only with --host-filter / --read-filter
+    │   ├── multimap.done, detection.done, umap.done
+    │   ├── scautoqc.done                         # only with --scautoqc
+    │   ├── anello_align.done                     # only with --anello-align
+    │   ├── star_confirm.done                     # only with --star-confirm
+    │   ├── host_capture.done                     # only with --host-capture
+    │   ├── gene_programs.done                    # only with --gene-programs
+    │   ├── auto_evidence.done                    # only with --auto-evidence
+    │   └── hostresponse.done                     # only with --host-h5ad
+    │
+    │   # intermediates: bulky, machine-only, skipped by the inventory (except *.h5ad)
+    ├── kb-python/                                # kb count work dir
+    │   ├── counts_unfiltered/
+    │   │   ├── adata.h5ad
+    │   │   └── adata_multimap.h5ad               # the matrix to load
+    │   ├── output.bus, output.resolved.sorted.bus(.txt), run_info.json
+    │   └── ...
+    ├── read_filtered/                            # FASTQs after the read filter (--read-filter)
+    ├── host_filtered/                            # STARsolo host-filter work dir (--host-filter starsolo)
+    ├── star_hostvirus/                           # STAR host+virus BAM (--star-confirm)
+    └── host_capture/                             # host-capture work dir (--host-capture)
 ```
 
-The sample directory keeps the files the original ViralScan 2.2.0 wrote (`config.yaml`,
-`summary.txt`, `log/`, `kb-python/`, `plots/`, same names); everything v3 added lives under
-`results/` (and `read_filtered/`, `report.html`). `layout_version` in `run_manifest.json` (outside
-`run_fingerprint`) is bumped whenever a published path moves; this layout is version 2 (version 1 runs, which lack the `posthoc/` folder below, still validate).
+
+Each sample folder has one job per sub-folder: `results/` holds user-facing tables, `plots/`
+images and HTML only, `log/` logs and `.done` sentinels only, `posthoc/<verb>/` the post-hoc
+verbs, and the bulky machine-only work dirs (`kb-python/`, `read_filtered/`, `host_filtered/`,
+`star_hostvirus/`, `host_capture/`) are the intermediates. They stay at the sample root, not under an
+`intermediate/` folder, because `kb-python/adata_multimap.h5ad` is the matrix users load and the
+other tools read these paths; the sample `README.txt` and this tree mark which are intermediates.
+`layout_version` in `run_manifest.json` (outside `run_fingerprint`) is bumped whenever a published
+path moves; this layout is **version 3**. Versions 1 and 2 still validate, and every reader falls
+back to their paths (`log/analysis.txt`, `log/found_genes.txt`, `plots/SuperExpressor_<virus>.{tsv,json}`,
+`<sample>/hostresponse/`, `<run>/posthoc/<verb>/<sample>/`). See "Layout v3 changes" in
+[Migrating](migration.md).
+
+`results/artifact_inventory.json` lists every file of the sample with its path, size and sha256
+(schema `schemas/v3/artifact_inventory.schema.json`; entries carry `"unspecified"` for the claim fields
+the governance schema requires). It is written with `run_complete.json` and skips itself, `posthoc/`,
+`.snakemake/`, `.done` sentinels and the intermediate work dirs above (their `*.h5ad` matrices are listed).
 `combined_summary.tsv` at the run root stacks every sample's `results/viral_summary.tsv` under a
 leading `sample` column; it is rewritten with `run_complete.json` and holds no recomputed value.
 `summary.txt` opens with the original's block (`Found viral Gene IDs including the count:`,
@@ -142,7 +185,7 @@ PLAN `PROG-17`).
 `cell_type_enrichment.tsv` is present only when `--cell-type-labels` is supplied.
 `multimap_evidence.tsv` is present only when multimapping is enabled.
 `molecule_assignments.tsv.gz` is present only with `--multimap-molecule-assignments`.
-`log/analysis.txt` lists the viral gene IDs of the index, one per line, sorted, with version
+`results/analysis_genes.txt` (v1/v2: `log/analysis.txt`) lists the viral gene IDs of the index, one per line, sorted, with version
 suffixes as stored. They come from the index build manifest (`<index>.build_manifest.json`,
 `viral_gene_ids`) when it exists, plus any `--gtf` gene IDs and the anellovirus candidate IDs;
 only an index with no build manifest falls back to the bundled GTF panel
@@ -1052,24 +1095,27 @@ These are **labels, not a gate**: no call, tier, threshold or `detection_source`
 ---
 
 <!-- viralscan-claim:v3-evidence-workflow status=provenance_incomplete -->
-## `posthoc/` — post-hoc verb outputs (layout version 2)
+## `posthoc/` — post-hoc verb outputs (layout version 3)
 
-`<run-dir>/posthoc/` is reserved for the post-hoc verbs; each writes there by default and
+There is one post-hoc level: `<sample>/posthoc/<verb>/`. Each verb writes there by default and
 never modifies the run's own outputs (matrix, `results/`, `config.yaml`, `run_manifest.json`,
 `run_complete.json`). `--output` overrides the location. `validate-run` ignores `posthoc/`.
+The one exception is `rerun-multimap`, which copies the whole run and so writes
+`<run>/posthoc/multimap_<method>/`. Layout v2 put `discover` and `translated` under
+`<run>/posthoc/<verb>/<sample>/`; those directories are still readable.
 
 | Verb | Default output |
 |---|---|
-| `evidence` | `posthoc/evidence/<virus>/` (`posthoc/evidence/review_candidates/` with `--review-candidates`) |
+| `evidence` | `<sample>/posthoc/evidence/<virus>/` (`.../evidence/review_candidates/` with `--review-candidates`) |
 | `evidence-plot` | inside each `--evidence-dir` (unchanged) |
-| `rerun-multimap` | `posthoc/multimap_<method>/` (a complete copy of the run; `posthoc/` itself is not copied) |
-| `rerun-programs` | `posthoc/programs/results/gene_program_{summary,cells}.tsv` |
-| `hostresponse` | `posthoc/hostresponse/` |
-| `discover` | `posthoc/discovery/<sample>/` (`candidates.tsv`, `cell_taxon.h5ad`, `qc.json`, `provenance.json`; `discover-states` adds `candidate_states.tsv`) |
-| `translated` | `posthoc/translated/<sample>/` (`counts/`, `summary.all.json`, `summary.cells.json`, `barcode_check.json`, `translated_receipt.json`, `translated_complete.json`; exploratory, never changes `detected`) |
+| `rerun-multimap` | `<run>/posthoc/multimap_<method>/` (a complete copy of the run; `posthoc/` itself is not copied) |
+| `rerun-programs` | `<sample>/posthoc/programs/results/gene_program_{summary,cells}.tsv` |
+| `hostresponse` | `<sample>/posthoc/hostresponse/` |
+| `discover` | `<sample>/posthoc/discovery/` (`candidates.tsv`, `cell_taxon.h5ad`, `qc.json`, `provenance.json`; `discover-states` adds `candidate_states.tsv`) |
+| `translated` | `<sample>/posthoc/translated/` (`counts/`, `summary.all.json`, `summary.cells.json`, `barcode_check.json`, `translated_receipt.json`, `translated_complete.json`; exploratory, never changes `detected`) |
 
 `run --hostresponse` and `--auto-evidence` are part of the run itself and still write
-`<output>/hostresponse/` and `results/evidence/<genus>/`.
+`<sample>/results/hostresponse/` and `results/evidence/<genus>/`.
 
 ## `viralscan evidence` output
 
@@ -1207,14 +1253,14 @@ Reference: [Single-cell best practices: shifted logarithm](https://www.sc-best-p
 ## `hostresponse/` — host-response outputs
 
 Written by `viralscan hostresponse` (or a main run with `--host-h5ad`) under
-`<output>/hostresponse/` (the post-hoc command: `<run-dir>/posthoc/hostresponse/`). See the CLI reference for the flags; the key point is
+`<sample>/results/hostresponse/` (the post-hoc command: `<sample>/posthoc/hostresponse/`; layout v1/v2 runs wrote `<sample>/hostresponse/`). See the CLI reference for the flags; the key point is
 that the raw candidate-support label can be **depth-confounded**, so interpret
 the model AUC together with the depth baseline, cohort balance, and sensitivity
 metrics.
 
 Each virus is one feature: the viral gene columns of the run are pooled (summed) per
 virus before anything else, using the run's `virus_identity.tsv` (or, for a legacy
-`log/analysis.txt`, the name rule), so another gene of the same virus never counts as a
+`results/analysis_genes.txt`, the name rule), so another gene of the same virus never counts as a
 negative. `virus` below is therefore the pooled virus **display name** (for example
 `Human herpesvirus 1`), not a gene or accession ID, and the per-virus file names use it
 with characters other than letters, digits, `_` and `-` replaced by `_`
