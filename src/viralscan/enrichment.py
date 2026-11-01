@@ -77,24 +77,23 @@ def cell_type_enrichment(
     if labels.empty:
         return pd.DataFrame()
 
-    labels["barcode"] = labels["barcode"].astype(str)
+    # A 10x "-1" suffix on only one side must not drop cells (RUN-CORRECT-01).
+    labels["barcode"] = labels["barcode"].astype(str).str.removesuffix("-1")
     labels["cell_type"] = labels["cell_type"].astype(str)
     labels = labels.drop_duplicates()
     conflicts = labels.loc[labels["barcode"].duplicated(keep=False), "barcode"].unique()
     if len(conflicts):
         raise ValueError(f"Conflicting cell_type labels for barcode(s): {conflicts[:5].tolist()}")
 
-    obs_labels = pd.DataFrame({"barcode": adata.obs_names.astype(str)})
+    obs_labels = pd.DataFrame(
+        {"barcode": adata.obs_names.astype(str).str.removesuffix("-1"), "idx": range(adata.n_obs)}
+    )
     merged = obs_labels.merge(labels, on="barcode", how="left")
     merged = merged[merged["cell_type"].notna()].copy()
     if merged.empty:
         log.warning("No barcodes overlap between AnnData and cell_types CSV; skipping.")
         return pd.DataFrame()
 
-    barcode_to_idx = {bc: i for i, bc in enumerate(adata.obs_names.astype(str))}
-    merged["idx"] = merged["barcode"].map(barcode_to_idx)
-    merged = merged[merged["idx"].notna()].copy()
-    merged["idx"] = merged["idx"].astype(int)
     if merged.empty:
         return pd.DataFrame()
 
@@ -155,12 +154,15 @@ def cell_type_enrichment(
 
 def write_cell_type_enrichment(cell_type_df: pd.DataFrame, outputpath: str) -> str | None:
     """Write cell-type enrichment table when data are available."""
+    results_dir = os.path.join(outputpath, "results")
+    out_path = os.path.join(results_dir, "cell_type_enrichment.tsv")
     if cell_type_df is None or cell_type_df.empty:
+        # A rerun that finds nothing must not leave the previous run's table behind.
+        if os.path.exists(out_path):
+            os.remove(out_path)
         return None
 
-    results_dir = os.path.join(outputpath, "results")
     os.makedirs(results_dir, exist_ok=True)
-    out_path = os.path.join(results_dir, "cell_type_enrichment.tsv")
     cell_type_df.to_csv(out_path, sep="\t", index=False)
     log.info("Wrote results/cell_type_enrichment.tsv")
     return out_path

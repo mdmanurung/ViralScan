@@ -205,6 +205,25 @@ class TestCellTypeEnrichment:
             result = cell_type_enrichment(adata, {"VirusA": ["virus_a"]}, cfg)
             assert result["n_total"].sum() == 2
 
+    @pytest.mark.parametrize("obs_suffix, label_suffix", [("-1", ""), ("", "-1")])
+    def test_suffix_mismatch_keeps_cells(self, tmp_path, obs_suffix, label_suffix):
+        import anndata as ad
+
+        names = ["AAAC", "CCCG", "GGGT", "TTTA"]
+        adata = ad.AnnData(
+            X=np.array([[3.0], [1.0], [0.0], [0.0]]),
+            obs=pd.DataFrame(index=[n + obs_suffix for n in names]),
+            var=pd.DataFrame(index=["virus_a"]),
+        )
+        csv_path = tmp_path / "cell_types.csv"
+        pd.DataFrame(
+            {"barcode": [n + label_suffix for n in names], "cell_type": ["T", "T", "B", "B"]}
+        ).to_csv(csv_path, index=False)
+        result = cell_type_enrichment(
+            adata, {"VirusA": ["virus_a"]}, RunConfig(cell_types=str(csv_path))
+        )
+        assert result["n_total"].sum() == 4
+
     def test_enrichment_outputs_expected_columns(self, tmp_path) -> None:
         import anndata as ad
 
@@ -569,3 +588,13 @@ class TestVirusLevelThreshold:
         assert _detect_genes(var, counts, acc) == {}
         found = _detect_genes(var, counts, acc, groups={"Virus C": var})
         assert set(found) == {"c1", "c2", "c3", "c4"}  # EM bleed gene included
+
+
+def test_enrichment_table_removed_when_rerun_has_no_rows(tmp_path) -> None:
+    from viralscan.enrichment import write_cell_type_enrichment
+
+    (tmp_path / "results").mkdir()
+    stale = tmp_path / "results" / "cell_type_enrichment.tsv"
+    stale.write_text("old\n")
+    assert write_cell_type_enrichment(pd.DataFrame(), str(tmp_path)) is None
+    assert not stale.exists()
