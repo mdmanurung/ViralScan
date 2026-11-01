@@ -18,6 +18,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   `intermediate/` (~200 path strings, frozen oracles, kb staging shell block; `kb-python/` holds the matrix users load).
   **Open (user):** the `output-reference-doc` row of `analysis/v3_artifact_inventory.tsv` in the reproducibility repo pins
   `docs/output_reference.md` to a commit; re-pin it there after this merges (three fields: commit, sha256, `git show` command).
+  Note: CI integration `TestManifestRunWithoutGtf` still read `log/analysis.txt`; it now uses `analysis_genes_path`.
 
 - [x] `REPO-SPLIT-4E` (2026-10-27, batch 4e of REPO-SPLIT-01, tracker §18 D61-D77): the package tree keeps package work only.
   Removed here after a byte compare with the reproducibility repo (D65): `.living/findings` (31), `.living/log` (92),

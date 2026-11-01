@@ -61,6 +61,7 @@ from pathlib import Path
 import pytest
 
 from viralscan.evidence import have_tools
+from viralscan.outputs import analysis_genes_path
 from viralscan.validation import tool_path
 
 pytestmark = pytest.mark.integration
@@ -243,7 +244,7 @@ class TestManifestRunWithoutGtf:
         sample = _sample_dir(manifest_run)
         for relative in EXPECTED_ARTIFACTS:
             assert (sample / relative).is_file(), relative
-        assert "VIRUS_TARGET" in (sample / "log" / "analysis.txt").read_text().split()
+        assert "VIRUS_TARGET" in analysis_genes_path(sample).read_text().split()
         with open(sample / "results" / "viral_summary.tsv", encoding="utf-8") as fh:
             rows = list(csv.DictReader(fh, delimiter="\t"))
         assert sum(float(r["viral_molecules_total_est"]) for r in rows) > 0
