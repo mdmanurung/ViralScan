@@ -9,6 +9,16 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 
 - [x] `FINDABILITY-01` (2026-11-01, `codex/output-findability`, on top of `codex/layout-v3`): run `README.txt` and each sample `README.txt` are written at run start (NOT FINISHED) and rewritten at completion, with version, fingerprint, enabled-option files only, how to read a negative and a safe-to-delete list (`outputs.RESULT_FILES`, `safe_to_delete()`); `report.html` file table generated from the same registry; `docs/output_reference.md` has a full multimap-h5ad layer table; `summary.txt` runtime footer idempotent on `--resume`; `run_safety.require_fresh_output` guards `host-loss`, `rerun-programs`, `hostresponse` (new `--force`), `rerun-multimap`, `translated`; `--run-dir` help says run root vs sample dir. Not changed: `discover`/`evidence` (own publication-aware guards). No layer dropped. **Open (user):** alias layers `counts_original` and `counts_combined` are never read and could go; `counts_corrected` is read by `multimapping.py` and the `rerun-multimap` swap (switch them to `counts_ambiguous_allocated` first); `counts_host_viral_selected_sibling_weighted` is a copy of `..._equal`.
 
+- [x] `MOLVERDICT-01` (2026-11-01, `codex/molecule-verdict-unaligned`, user approved the output change): `molecule_verdict._parse_molecules`
+  skipped unmapped records before keying the molecule, so `unaligned` was never emitted and unmapped reads were missing from
+  `reads`/`counted`. Unmapped records (flag 0x4 or RNAME `*`, not supplementary) now create or join their molecule without a
+  score. Output change: `molecule_verdicts.tsv.gz` gains `unaligned` rows and row order follows the first scored-or-unmapped
+  record; `tier_measures` `n_excluded_unaligned` becomes non-zero and the support fraction can move (a molecule counted only
+  through an unmapped read). The B18 frozen oracle (faf5667) still holds on every case without unmapped reads; the three
+  unmapped cases are pinned to explicit rows. Tests `test_a_counted_unmapped_read_is_an_unaligned_molecule`,
+  `test_unmapped_cases_keep_unaligned_molecules`. **Open (user):** pinned repro evidence dirs stay self-consistent (per-dir
+  manifest hash), but any evidence re-run changes these bytes; re-pin after.
+
 - [x] `LAYOUT-V3-01` (2026-11-01, `codex/layout-v3`, user-approved breaking moves before 3.0.0 stable): `LAYOUT_VERSION` 3
   (supported 1, 2, 3). `log/analysis.txt` -> `results/analysis_genes.txt`, `log/found_genes.txt` -> `results/found_genes.txt`,
   `plots/SuperExpressor_*.{tsv,json}` -> `results/superexpressor/`, in-run `hostresponse/` -> `results/hostresponse/`;

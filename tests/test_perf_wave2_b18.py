@@ -118,6 +118,24 @@ CASES: dict[str, list[str]] = {
 }
 
 
+#: MOLVERDICT-01 keeps unmapped reads as ``unaligned`` molecules; the faf5667 baseline dropped them, so
+#: these cases are pinned to explicit rows instead of the baseline. Every other case still equals it.
+UNMAPPED_ROWS: dict[str, list[tuple[str, str, int, str]]] = {
+    "supplementary-and-unmapped-only": [
+        ("AAA", "U1", 1, "unaligned"),
+        ("AAA", "U2", 1, "virus_best"),
+        ("AAA", "U4", 1, "unaligned"),
+    ],
+    "unmapped-reference-star": [("AAA", "U1", 1, "unaligned")],
+    "first-raw-occurrence-unusable": [
+        ("YYY", "U9", 1, "unaligned"),
+        ("AAA", "U1", 1, "virus_best"),
+        ("ZZZ", "U9", 1, "host_best"),
+    ],
+}
+BASELINE_CASES = [c for c in CASES if c not in UNMAPPED_ROWS]
+
+
 def _counted(case: str) -> set[int]:
     if case == "counted-boundaries":
         return {1, 3}
@@ -155,7 +173,13 @@ def lineage(tmp_path: Path) -> Path:
     )
 
 
-@pytest.mark.parametrize("case", list(CASES), ids=list(CASES))
+@pytest.mark.parametrize("case", list(UNMAPPED_ROWS), ids=list(UNMAPPED_ROWS))
+def test_unmapped_cases_keep_unaligned_molecules(case):
+    rows = cand.molecule_rows(CASES[case], set())
+    assert [(r["cb"], r["ub"], r["reads"], r["verdict"]) for r in rows] == UNMAPPED_ROWS[case]
+
+
+@pytest.mark.parametrize("case", BASELINE_CASES, ids=BASELINE_CASES)
 def test_rows_identical_to_frozen_baseline(case):
     lines = CASES[case]
     counted = _counted(case)
@@ -167,7 +191,7 @@ def test_rows_identical_to_frozen_baseline(case):
 
 @pytest.mark.parametrize("case", list(CASES), ids=list(CASES))
 def test_declared_molecule_order_is_first_usable_alignment(case):
-    """The card's rule: order follows the first usable scored alignment."""
+    """Order follows the first usable scored alignment or unmapped-read record (MOLVERDICT-01)."""
     lines = CASES[case]
     rows = list(cand.molecule_rows(lines, set()))
     order = [(r["cb"], r["ub"]) for r in rows]
@@ -176,7 +200,7 @@ def test_declared_molecule_order_is_first_usable_alignment(case):
         if not line or line.startswith("@"):
             continue
         fields = line.rstrip("\n").split("\t")
-        if cand.side_score(fields) is None:
+        if cand.side_score(fields) is None and not cand._is_unmapped(fields):
             continue
         parts = fields[0].split("_")
         if len(parts) < 3 or not parts[0] or not parts[1]:
@@ -187,7 +211,7 @@ def test_declared_molecule_order_is_first_usable_alignment(case):
     assert order == expected
 
 
-@pytest.mark.parametrize("case", list(CASES), ids=list(CASES))
+@pytest.mark.parametrize("case", BASELINE_CASES, ids=BASELINE_CASES)
 def test_writer_is_byte_identical(case, tmp_path, lineage):
     sam = CASES[case]
     for arm in ("cand", "base"):
@@ -214,13 +238,13 @@ def test_molecule_groups_and_read_counts(lineage, tmp_path):
         _sam("AAA_U1_1|r", 256, "HOST|chr1", 40),  # same read name: counted once
         _sam("AAA_U1_2|r", 0, "HOST|chr1", 60),  # a second read of the same molecule
         _sam("AAA_U2_3|r", 0, "HOST|chr1", 60),
-        _sam("BBB_U1_4|r", 4, "*", None),  # no usable alignment: no molecule
+        _sam("BBB_U1_4|r", 4, "*", None),  # unmapped: an unaligned molecule (MOLVERDICT-01)
     ]
     rows = list(cand.molecule_rows(sam, {1, 3}))
-    assert rows == list(base.molecule_rows(sam, {1, 3}))
     assert [(r["cb"], r["ub"], r["reads"], r["counted"]) for r in rows] == [
         ("AAA", "U1", 2, True),
         ("AAA", "U2", 1, True),
+        ("BBB", "U1", 1, False),
     ]
     summary = cand.write_molecule_verdicts(sam, lineage, tmp_path)
     got = {(r["scope"], r["verdict"]): r["molecules"] for r in summary}
