@@ -116,7 +116,8 @@ def test_evidence_cache_budget_falls_back_without_submatrix_allocation(monkeypat
     a = ad.AnnData(
         sparse.csr_matrix(np.ones((3, 32))), var=pd.DataFrame(index=[f"g{i}" for i in range(32)])
     )
-    a.layers["counts_corrected"] = a.X.copy()
+    # the frozen oracle reads the old alias name, the package the canonical one: set both
+    a.layers["counts_corrected"] = a.layers["counts_ambiguous_allocated"] = a.X.copy()
     groups = {"v": ["g0", "g1"]}
     expected = ORIGINAL["summarize_multimap_evidence"](a, groups, RunConfig())
     calls = []
@@ -135,7 +136,7 @@ def test_evidence_cache_budget_falls_back_without_submatrix_allocation(monkeypat
 
 def test_evidence_generator_groups_remain_single_pass():
     a = ad.AnnData(sparse.csr_matrix([[1.0, 2.0]]), var=pd.DataFrame(index=["a", "b"]))
-    a.layers["counts_corrected"] = a.X.copy()
+    a.layers["counts_corrected"] = a.layers["counts_ambiguous_allocated"] = a.X.copy()
     expected = ORIGINAL["summarize_multimap_evidence"](
         a, {"v": (g for g in ["a", "b"])}, RunConfig()
     )
@@ -175,7 +176,8 @@ def test_evidence_exact_columns_bytes_and_input_immutability(tmp_path, dtype, la
     a = ad.AnnData(matrix, var=pd.DataFrame(index=[f"g{i}" for i in range(32)]))
     for name in (
         "counts_unique_viral",
-        "counts_corrected",
+        "counts_corrected",  # frozen oracle reads this name
+        "counts_ambiguous_allocated",
         "counts_host_viral_ambiguous",
         "counts_host_viral_selected",
         "counts_viral_ambiguous_upper",

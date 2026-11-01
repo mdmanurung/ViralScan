@@ -139,26 +139,26 @@ class TestViralNeighborEnrichmentReproducibility:
 
 
 class TestLayerMergeNoDoubleCount:
-    """Task 1: counts_corrected + counts_original must not double-count unique reads.
+    """Task 1: counts_ambiguous_allocated + counts_unique must not double-count unique reads.
 
     multimap.py skips unique-mapping ECs (len(genes_in_ec)==1) so
-    counts_corrected only carries the redistributed multimapper share.
+    counts_ambiguous_allocated only carries the redistributed multimapper share.
     The sum is therefore: unique reads + multimapper share — no duplication.
     """
 
     def test_unique_mapping_reads_not_duplicated(self) -> None:
         """
-        GIVEN: counts_original has unique reads; counts_corrected has
+        GIVEN: counts_unique has unique reads; counts_ambiguous_allocated has
                multimapper fractions only (zeros for all unique-mapping genes).
-        WHEN:  adata.X = counts_original + counts_corrected
+        WHEN:  adata.X = counts_unique + counts_ambiguous_allocated
         THEN:  adata.X equals the element-wise sum (no duplication).
         """
         import numpy as np
         import scipy.sparse as sp
 
-        # Simulate: gene0 = host (no viral), gene1 = unique viral (counts_corrected=0),
+        # Simulate: gene0 = host (no viral), gene1 = unique viral (counts_ambiguous_allocated=0),
         #           gene2 = multimapper viral gene
-        counts_original = sp.csr_matrix(
+        counts_unique = sp.csr_matrix(
             np.array(
                 [
                     [10.0, 3.0, 0.0],
@@ -166,7 +166,7 @@ class TestLayerMergeNoDoubleCount:
                 ]
             )
         )
-        counts_corrected = sp.csr_matrix(
+        counts_ambiguous_allocated = sp.csr_matrix(
             np.array(
                 [
                     [0.0, 0.0, 1.5],  # multimapper share for gene2, cell 0
@@ -175,7 +175,7 @@ class TestLayerMergeNoDoubleCount:
             )
         )
 
-        merged = counts_original + counts_corrected
+        merged = counts_unique + counts_ambiguous_allocated
         expected = np.array(
             [
                 [10.0, 3.0, 1.5],
@@ -184,17 +184,17 @@ class TestLayerMergeNoDoubleCount:
         )
         np.testing.assert_array_almost_equal(merged.toarray(), expected)
 
-    def test_no_counts_corrected_layer_leaves_original_intact(self) -> None:
-        """When only counts_original is present, X must not be modified."""
+    def test_no_counts_ambiguous_allocated_layer_leaves_original_intact(self) -> None:
+        """When only counts_unique is present, X must not be modified."""
         import numpy as np
         import scipy.sparse as sp
 
-        counts_original = sp.csr_matrix(np.array([[1.0, 2.0], [3.0, 4.0]]))
-        # Simulate the guard: "counts_corrected" not in layers → skip
-        has_both = "counts_corrected" in {} and "counts_original" in {}
-        assert not has_both, "Guard must be False when counts_corrected is absent"
-        # X stays as counts_original unchanged
-        x = counts_original
+        counts_unique = sp.csr_matrix(np.array([[1.0, 2.0], [3.0, 4.0]]))
+        # Simulate the guard: "counts_ambiguous_allocated" not in layers → skip
+        has_both = "counts_ambiguous_allocated" in {} and "counts_unique" in {}
+        assert not has_both, "Guard must be False when counts_ambiguous_allocated is absent"
+        # X stays as counts_unique unchanged
+        x = counts_unique
         np.testing.assert_array_equal(x.toarray(), np.array([[1.0, 2.0], [3.0, 4.0]]))
 
 

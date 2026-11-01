@@ -12,6 +12,13 @@ import pandas as pd
 import pytest
 from scipy import sparse
 
+ALIAS_LAYERS = {
+    "counts_corrected",
+    "counts_original",
+    "counts_combined",
+    "counts_host_viral_selected_sibling_weighted",
+}
+
 
 def _make_multimap_h5ad(path: Path) -> None:
     """Write a minimal multimap h5ad with all three pre-stored non-EM layers."""
@@ -34,7 +41,7 @@ def _make_multimap_h5ad(path: Path) -> None:
         obs=pd.DataFrame(index=[f"cell{i}" for i in range(n_cells)]),
         var=pd.DataFrame(index=[f"gene{i}" for i in range(n_genes)]),
     )
-    adata.layers["counts_corrected"] = base.copy()
+    adata.layers["counts_ambiguous_allocated"] = base.copy()
     adata.layers["counts_unique"] = base.copy()
     adata.layers["counts_multimap_equal"] = equal
     adata.layers["counts_multimap_host_conservative"] = hc
@@ -59,8 +66,7 @@ class TestSwapMultimapLayer:
 
         assert result is True
         adata = ad.read_h5ad(str(h5ad))
-        # counts_corrected must now contain the host-conservative data (sentinel = 2.0)
-        assert adata.layers["counts_corrected"].toarray().max() == pytest.approx(2.0)
+        # the allocation must now hold the host-conservative data (sentinel = 2.0)
         assert adata.layers["counts_ambiguous_allocated"].toarray().max() == pytest.approx(2.0)
         assert adata.X.toarray().max() == pytest.approx(2.0)
         # B3: the method-dependent host-viral evidence layer must swap too
@@ -78,7 +84,7 @@ class TestSwapMultimapLayer:
 
         assert result is True
         adata = ad.read_h5ad(str(h5ad))
-        assert adata.layers["counts_corrected"].toarray().max() == pytest.approx(1.0)
+        assert adata.layers["counts_ambiguous_allocated"].toarray().max() == pytest.approx(1.0)
         assert adata.uns["multimap_method"] == "equal"
 
     def test_swap_to_unique_weighted(self, tmp_path: Path) -> None:
@@ -91,7 +97,7 @@ class TestSwapMultimapLayer:
 
         assert result is True
         adata = ad.read_h5ad(str(h5ad))
-        assert adata.layers["counts_corrected"].toarray().max() == pytest.approx(3.0)
+        assert adata.layers["counts_ambiguous_allocated"].toarray().max() == pytest.approx(3.0)
         assert adata.layers["counts_host_viral_selected"].toarray().max() == pytest.approx(6.0)
         assert adata.uns["multimap_method"] == "unique-weighted"
 
@@ -116,6 +122,59 @@ class TestSwapMultimapLayer:
         adata2 = ad.read_h5ad(h5ad)
         assert adata2.uns["multimap_method"] == "equal"
 
+    def test_swap_writes_no_alias_layers(self, tmp_path: Path) -> None:
+        from viralscan.menu import _swap_multimap_layer
+
+        h5ad = tmp_path / "multimap.h5ad"
+        _make_multimap_h5ad(h5ad)
+        assert _swap_multimap_layer(h5ad, "host-conservative") is True
+        assert not ALIAS_LAYERS & set(ad.read_h5ad(h5ad).layers)
+
+    def test_old_run_with_only_alias_names_still_swaps(self, tmp_path: Path) -> None:
+        """An earlier version wrote counts_original / counts_corrected / counts_combined
+        and a sibling-weighted copy of the equal layer, and may lack the canonical names."""
+        from viralscan.menu import _swap_multimap_layer
+
+        h5ad = tmp_path / "multimap.h5ad"
+        _make_multimap_h5ad(h5ad)
+        adata = ad.read_h5ad(h5ad)
+        adata.layers["counts_original"] = adata.layers.pop("counts_unique")
+        adata.layers["counts_corrected"] = adata.layers.pop("counts_ambiguous_allocated")
+        adata.layers["counts_combined"] = adata.X.copy()
+        adata.layers["counts_host_viral_selected_sibling_weighted"] = adata.layers.pop(
+            "counts_host_viral_selected_equal"
+        )
+        adata.uns["multimap_diagnostics"] = {"sibling_identity_available": True}
+        adata.write_h5ad(h5ad)
+
+        assert _swap_multimap_layer(h5ad, "host-conservative") is True
+        out = ad.read_h5ad(h5ad)
+        assert out.layers["counts_ambiguous_allocated"].toarray().max() == pytest.approx(2.0)
+        assert "counts_corrected" not in out.layers and "counts_combined" not in out.layers
+        assert out.X.toarray().max() == pytest.approx(2.0)
+
+        assert _swap_multimap_layer(h5ad, "sibling-weighted") is False  # no sibling layer here
+        adata = ad.read_h5ad(h5ad)
+        adata.layers["counts_multimap_sibling_weighted"] = adata.layers["counts_multimap_equal"]
+        adata.write_h5ad(h5ad)
+        assert _swap_multimap_layer(h5ad, "sibling-weighted") is True
+        out = ad.read_h5ad(h5ad)
+        assert out.layers["counts_host_viral_selected"].toarray().max() == pytest.approx(4.0)
+
+    def test_sibling_weighted_uses_the_equal_host_viral_layer(self, tmp_path: Path) -> None:
+        from viralscan.menu import _swap_multimap_layer
+
+        h5ad = tmp_path / "multimap.h5ad"
+        _make_multimap_h5ad(h5ad)
+        adata = ad.read_h5ad(h5ad)
+        adata.layers["counts_multimap_sibling_weighted"] = adata.layers["counts_multimap_equal"]
+        adata.uns["multimap_diagnostics"] = {"sibling_identity_available": True}
+        adata.write_h5ad(h5ad)
+        assert _swap_multimap_layer(h5ad, "sibling-weighted") is True
+        out = ad.read_h5ad(h5ad)
+        assert out.layers["counts_host_viral_selected"].toarray().max() == pytest.approx(4.0)
+        assert out.uns["multimap_method"] == "sibling-weighted"
+
     def test_returns_false_when_layer_missing(self, tmp_path: Path) -> None:
         from viralscan.menu import _swap_multimap_layer
 
@@ -132,9 +191,9 @@ class TestSwapMultimapLayer:
         result = _swap_multimap_layer(h5ad, "host-conservative")
 
         assert result is False
-        # File must be unchanged (no counts_corrected written).
+        # File must be unchanged (no counts_ambiguous_allocated written).
         adata2 = ad.read_h5ad(str(h5ad))
-        assert "counts_corrected" not in adata2.layers
+        assert "counts_ambiguous_allocated" not in adata2.layers
 
     def test_pre_v3_h5ad_is_not_numerically_migrated(self, tmp_path: Path) -> None:
         from viralscan.menu import _swap_multimap_layer

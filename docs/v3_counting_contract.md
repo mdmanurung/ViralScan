@@ -51,8 +51,8 @@ the protocol's `multimap_allocation` grid includes EM (max-iter 100, tol 1e-6) a
 post-G5 default follow the selected engine, re-evaluate it before a G5 selection could make `em-global` the default.
 
 `counts_unique` contains one unit for each resolved singleton. The selected
-method's ambiguous mass is in `counts_ambiguous_allocated` (`counts_corrected`
-is its legacy alias); their sum is `X`. `counts_multimap_sibling_weighted` is
+method's ambiguous mass is in `counts_ambiguous_allocated` (runs before
+2026-11-01 also wrote it as `counts_corrected`, no longer written); their sum is `X`. `counts_multimap_sibling_weighted` is
 the diagnostic ambiguous-only layer for the opt-in variant. None of these
 layers includes unresolved collisions, discarded barcode records or PCR
 multiplicity.

@@ -1370,9 +1370,6 @@ barcodes, columns are genes; values are bustools-resolved molecules (`count_sche
 |-------|---------------|------|
 | `counts_unique` | Molecules that resolve to one gene | observation |
 | `counts_ambiguous_allocated` | Ambiguous molecules, allocated by the selected method (`uns["multimap_method"]`) | model estimate |
-| `counts_corrected` | Alias: the same matrix as `counts_ambiguous_allocated` (read by the evidence step; `rerun-multimap` swaps it) | model estimate |
-| `counts_original` | Alias: the same matrix as `counts_unique` | observation |
-| `counts_combined` | Alias: the same matrix as `adata.X` | model estimate |
 | `counts_multimap_equal` | Ambiguous molecules split equally among compatible genes | model estimate |
 | `counts_multimap_host_conservative` | Mixed host-virus molecule mass allocated only among compatible host genes | model estimate |
 | `counts_multimap_unique_weighted` | Heuristic split weighted by unique-gene evidence plus a pseudocount | model estimate |
@@ -1380,12 +1377,14 @@ barcodes, columns are genes; values are bustools-resolved molecules (`count_sche
 | `counts_unique_viral` | Unambiguous viral molecules, kept for auditing and layer 2 | observation |
 | `counts_host_viral_ambiguous` | Host-virus ambiguous molecules, split equally among their viral genes only | observation |
 | `counts_host_viral_selected` | Part of the selected allocation placed on viral genes from host-virus ambiguous molecules | model estimate |
-| `counts_host_viral_selected_{equal,host_conservative,unique_weighted,sibling_weighted}` | The same diagnostic per method, so a `rerun-multimap` swap keeps the evidence tiers consistent (`..._sibling_weighted` is a copy of `..._equal`) | model estimate |
+| `counts_host_viral_selected_{equal,host_conservative,unique_weighted}` | The same diagnostic per method, so a `rerun-multimap` swap keeps the evidence tiers consistent | model estimate |
 | `counts_viral_ambiguous_upper` | Upper bound: each ambiguous molecule with any viral-compatible gene, its whole mass split equally among its viral genes only | model estimate |
 
 `adata.X` = `counts_unique + counts_ambiguous_allocated` (complete selected-method matrix). Per-cell
 per-virus group matrices sit in `obsm["viral_groups_{unique,compatible,host_shared}"]` (names in
 `uns["viral_groups"]`). To load without the diagnostics, read `X` and `counts_unique` only.
+
+Four alias layers written by earlier versions are gone (output change, 2026-11-01): `counts_original` is `counts_unique`, `counts_corrected` is `counts_ambiguous_allocated`, `counts_combined` is `adata.X`, and `counts_host_viral_selected_sibling_weighted` is `counts_host_viral_selected_equal` (`rerun-multimap --multimap-method sibling-weighted` reads the latter). Older h5ads keep the old names; the package reads the new name and falls back to the old one.
 
 ---
 

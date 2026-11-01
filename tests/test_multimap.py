@@ -277,8 +277,8 @@ class TestBuildMultimapMatrix:
     """Verify UMI count conservation properties of the multimapping matrix.
 
     Audit trace A confirms: unique-mapping ECs (len==1) are SKIPPED so that
-    counts_corrected holds only the redistributed multimapper fraction.
-    The final X = counts_corrected + counts_original is NOT double-counting.
+    counts_ambiguous_allocated holds only the redistributed multimapper fraction.
+    The final X = counts_ambiguous_allocated + counts_unique is NOT double-counting.
 
     Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/audits/2026-05-08-full-pipeline.md §3.4
     """
@@ -288,7 +288,7 @@ class TestBuildMultimapMatrix:
         GIVEN: a BUS record mapping to a single gene (EC with len==1)
         WHEN:  build_multimap_layers processes it
         THEN:  the corrected matrix has 0.0 for that gene (unique reads go
-               into counts_original, not counts_corrected)
+               into counts_unique, not counts_ambiguous_allocated)
         """
         bus_df = pd.DataFrame(
             [
@@ -299,7 +299,7 @@ class TestBuildMultimapMatrix:
         ec_map = {0: [0]}  # EC0 maps to gene_A only
         corrected = _corrected(bus_df, barcode_to_idx, ec_map, n_cells=1, n_genes=2)
         assert corrected[0, 0] == 0.0, (
-            f"Unique-mapping EC must contribute 0 to counts_corrected; got {corrected[0, 0]}"
+            f"Unique-mapping EC must contribute 0 to counts_ambiguous_allocated; got {corrected[0, 0]}"
         )
 
     def test_multi_ec_redistributed_equally(self) -> None:
@@ -323,7 +323,7 @@ class TestBuildMultimapMatrix:
     def test_final_x_not_double_counting_unique_reads(self) -> None:
         """
         GIVEN: one unique molecule and one multi-mapping molecule, with PCR duplicates
-        WHEN:  counts_corrected + counts_original is computed
+        WHEN:  counts_ambiguous_allocated + counts_unique is computed
         THEN:  gene_A total is 1.5, gene_B total is 0.5, and total
                molecule mass is exactly 2
 
@@ -339,9 +339,9 @@ class TestBuildMultimapMatrix:
 
         corrected = _corrected(bus_df, barcode_to_idx, ec_map, n_cells, n_genes)
 
-        counts_original = sparse.csr_matrix(np.array([[1.0, 0.0]]))
+        counts_unique = sparse.csr_matrix(np.array([[1.0, 0.0]]))
 
-        final_x = corrected + counts_original
+        final_x = corrected + counts_unique
 
         assert final_x[0, 0] == 1.5
         assert final_x[0, 1] == 0.5

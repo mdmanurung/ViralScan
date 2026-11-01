@@ -13,6 +13,25 @@ import numpy as np
 # Module-level logger for scripts that import this module.
 logger = logging.getLogger("viralscan")
 
+# Canonical multimap layer -> alias that runs before 2026-11-01 wrote instead of (or as well as) it.
+OLD_LAYER_NAMES = {
+    "counts_ambiguous_allocated": "counts_corrected",
+    "counts_unique": "counts_original",
+    "counts_host_viral_selected_equal": "counts_host_viral_selected_sibling_weighted",
+}
+
+
+def get_layer(adata: Any, name: str, default: Any = None) -> Any:
+    """Return layer ``name``, else its pre-2026-11-01 alias, else ``default``."""
+    layers = adata.layers
+    if name in layers:
+        return layers[name]
+    alias = OLD_LAYER_NAMES.get(name)
+    # Never pass None as a key: newer anndata may resolve layers[None] to X.
+    if alias is None or alias not in layers:
+        return default
+    return layers[alias]
+
 
 def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
     """Configure the root *viralscan* logger.

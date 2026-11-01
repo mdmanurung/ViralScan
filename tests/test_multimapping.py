@@ -300,7 +300,7 @@ class TestMultimapEvidenceSummary:
         adata.layers["counts_unique_viral"] = sparse.csr_matrix(
             np.array([[2.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
         )
-        adata.layers["counts_corrected"] = sparse.csr_matrix(
+        adata.layers["counts_ambiguous_allocated"] = sparse.csr_matrix(
             np.array([[0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
         )
         adata.layers["counts_host_viral_ambiguous"] = sparse.csr_matrix(
@@ -336,7 +336,7 @@ class TestMultimapEvidenceSummary:
             var=pd.DataFrame(index=["virus_low"]),
         )
         adata.layers["counts_unique_viral"] = sparse.csr_matrix([[0.0]])
-        adata.layers["counts_corrected"] = sparse.csr_matrix([[2.0]])
+        adata.layers["counts_ambiguous_allocated"] = sparse.csr_matrix([[2.0]])
         adata.layers["counts_host_viral_ambiguous"] = sparse.csr_matrix([[4.0]])
         adata.layers["counts_host_viral_selected"] = sparse.csr_matrix([[2.0]])
         result = summarize_multimap_evidence(
@@ -345,6 +345,25 @@ class TestMultimapEvidenceSummary:
             RunConfig(multimap_method="equal", detection_threshold=2),
         )
         assert result.loc[0, "evidence_tier"] == "candidate_host_virus_ambiguous"
+
+    def test_old_run_with_only_counts_corrected_still_reads(self) -> None:
+        import anndata as ad
+
+        adata = ad.AnnData(
+            X=sparse.csr_matrix([[0.0]]),
+            obs=pd.DataFrame(index=["BC1"]),
+            var=pd.DataFrame(index=["virus_low"]),
+        )
+        adata.layers["counts_unique_viral"] = sparse.csr_matrix([[0.0]])
+        adata.layers["counts_corrected"] = sparse.csr_matrix([[2.0]])  # pre-2026-11-01 name only
+        adata.layers["counts_host_viral_ambiguous"] = sparse.csr_matrix([[0.0]])
+        adata.layers["counts_host_viral_selected"] = sparse.csr_matrix([[0.0]])
+        result = summarize_multimap_evidence(
+            adata,
+            {"LowVirus": ["virus_low"]},
+            RunConfig(multimap_method="equal", detection_threshold=2),
+        )
+        assert result.loc[0, "evidence_tier"] == "candidate_virus_ambiguous"
 
 
 class TestDetectionMatrixSelection:
@@ -548,3 +567,18 @@ class TestEMMultimapper:
             "converged": False,
             "fallback_reason": "max_iterations_reached",
         }
+
+
+def test_get_layer_never_looks_up_a_none_key() -> None:
+    """anndata 0.13 resolves layers.get(None) to X; a name with no alias must give the default."""
+    from types import SimpleNamespace
+
+    from viralscan.utils import get_layer
+
+    class XOnNone(dict):
+        def get(self, key, default=None):
+            return "X" if key is None else super().get(key, default)
+
+    adata = SimpleNamespace(layers=XOnNone(counts_corrected="old"))
+    assert get_layer(adata, "counts_host_viral_selected_host_conservative") is None
+    assert get_layer(adata, "counts_ambiguous_allocated") == "old"

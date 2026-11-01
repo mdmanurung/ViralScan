@@ -206,6 +206,13 @@ def test_gene_role_catalogue_and_count_audit_roundtrip(tmp_path, monkeypatch):
     )
     audit = pd.read_csv(tmp_path / "results" / "count_audit.tsv", sep="\t")
     assert audit.loc[0, "host_virus_ambiguous_molecules"] == 1
+    # the four alias layers of earlier versions are gone
+    assert not {
+        "counts_corrected",
+        "counts_original",
+        "counts_combined",
+        "counts_host_viral_selected_sibling_weighted",
+    } & set(loaded.layers)
 
 
 def test_gene_identity_requires_every_indexed_gene_and_consistent_partition():

@@ -61,6 +61,17 @@ question), a run-level `README.txt`, and `<sample>/results/artifact_inventory.js
 per file). `kb-python/` and the other work dirs stay at the sample root; the README marks them as
 intermediates. Scripts that read the old paths must read the new ones, or try the new path first.
 
+### Alias layers dropped from `adata_multimap.h5ad`
+
+Four layers duplicated another matrix and are no longer written. Existing h5ads keep them. Scripts that read a new run must use the new name; the package itself reads the new name and falls back to the old one.
+
+| Old layer | New name |
+|---|---|
+| `counts_original` | `counts_unique` |
+| `counts_corrected` | `counts_ambiguous_allocated` |
+| `counts_combined` | `adata.X` |
+| `counts_host_viral_selected_sibling_weighted` | `counts_host_viral_selected_equal` |
+
 ### Post-hoc outputs move to `<run-dir>/posthoc/` (layout version 2)
 
 Post-hoc verbs no longer write into, or require an output outside of, the run's own files.
