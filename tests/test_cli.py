@@ -951,3 +951,12 @@ def test_run_discover_failure_dies_after_completion(tmp_path: Path, monkeypatch,
     with pytest.raises(SystemExit) as exc:
         menu._discover_after_run(argparse.Namespace(kraken2_db="/db", cores=1), tmp_path, ["A"])
     assert exc.value.code != 0 and "primary run is complete" in caplog.text
+
+
+def test_gene_programs_with_no_multimapping_is_usage_error(tmp_path: Path, caplog) -> None:
+    from viralscan import menu
+
+    with patch("os.path.exists", return_value=True), pytest.raises(SystemExit) as exc:
+        menu.errorhandler(_discover_args(tmp_path, gene_programs=True, multimapping=False))
+    assert exc.value.code == 2
+    assert "--gene-programs" in caplog.text and "--no-multimapping" in caplog.text

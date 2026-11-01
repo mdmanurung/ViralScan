@@ -87,6 +87,7 @@ def write_loci(gtf_paths: Iterable[Path], gene_ids: set[str], out: Path) -> Path
             for gid, ivs in gene_intervals(fh, gene_ids).items():
                 genes[gid].update(ivs)
     if not genes:
+        out.unlink(missing_ok=True)  # a file from an earlier run would be read as current
         return None
     pooled = {gid: sorted(ivs) for gid, ivs in genes.items()}
     locus = assign_loci(pooled)
