@@ -33,6 +33,7 @@ from viralscan.multimapping import (
     summarize_multimap_evidence,
     write_multimap_evidence,
 )
+from viralscan.outputs import result_files
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.cellcalling import COMPARABLE_CELL_MIN_UMI, _strip_suffix
@@ -2156,6 +2157,7 @@ def generate_html_report(
         else [],
         "sensitivity_statement": sensitivity_statement or "",
         "control_line": control_line or "",
+        "output_files": result_files(lambda option: bool(getattr(config, option, False))),
     }
 
     html = template.render(**ctx)
