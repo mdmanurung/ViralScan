@@ -7,6 +7,14 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `CLI-MATURE-01` (2026-11-01, `codex/cli-mature`, PR A of the CLI maturity batch; user approved scope): `main()` maps Ctrl-C to exit 130;
+  declining the `--reference` prompt and post-parse flag-combination errors exit 1 and 2 (usage errors); `--cores/-c` is the
+  primary thread flag on `star-index`, `translated-index`, `translated`, `discover` (`--threads` kept as alias, same dest);
+  `translated-index --output/-o` (`--out-dir` alias); `--verbose/--quiet` mutually exclusive everywhere; `--version` and the
+  Python >= 3.10 guard run before heavy imports (entry point is now `viralscan.__main__:main`); plain usage off a TTY or with
+  `NO_COLOR`; bare `viralscan` prints help to stderr, exit 2; `docs/cli_reference.md` subcommand list is generated. Skipped:
+  `evidence_run._die` (own copy, exit 1), grouped subcommand help. No analysis output changed.
+
 - [x] `HELPERS-01` (2026-11-01, user-approved scope; `codex/shared-helpers`): one definition of the shared helpers, no output change.
   `utils.open_maybe_gzip` / `to_int` / `to_float` (`evidence` re-exports them); nine inline gzip-or-open copies and the
   `evidence`/`discovery`/`whitelist_preflight`/`read_filter`/`host_filter` imports now use it; `star_run.plain_whitelist` gains

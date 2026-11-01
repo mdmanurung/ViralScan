@@ -6,6 +6,7 @@ build_parser`` (and the tests that import the private builders) keep working.
 """
 
 import argparse
+import os
 import sys
 from collections.abc import Sequence
 from typing import Any
@@ -92,10 +93,11 @@ _MULTIMAP_METHOD_METAVAR = "{" + ",".join(MULTIMAP_METHOD_ALIASES) + "}"
 
 def _add_verbosity_args(parser: Any) -> None:
     """Add the --verbose/--quiet pair shared by every subcommand."""
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "--verbose", action="store_true", default=False, help="Enable DEBUG-level logging."
     )
-    parser.add_argument(
+    group.add_argument(
         "--quiet", action="store_true", default=False, help="Suppress INFO messages."
     )
 
@@ -185,7 +187,16 @@ def _build_star_index_parser(subparsers: Any) -> None:
     )
     for name in ("host-fasta", "host-gtf", "viral-fasta", "viral-gtf", "out-dir"):
         p.add_argument(f"--{name}", required=True, metavar="PATH")
-    p.add_argument("--threads", "-c", type=int, default=8, help="STAR threads. Default: 8.")
+    p.add_argument(
+        "--cores",
+        "-c",
+        "--threads",
+        dest="threads",
+        metavar="N",
+        type=int,
+        default=8,
+        help="STAR threads. Default: 8. (--threads is an alias.)",
+    )
     p.add_argument(
         "--ram-bytes",
         type=int,
@@ -225,14 +236,23 @@ def _build_translated_index_parser(subparsers: Any) -> None:
     p.add_argument(
         "--host-mask", required=True, metavar="FASTA", help="Host cDNA/DNA FASTA for the D-list"
     )
-    p.add_argument("--out-dir", required=True, metavar="DIR")
+    p.add_argument("--output", "-o", "--out-dir", dest="out_dir", required=True, metavar="DIR")
     p.add_argument(
         "--palmdb",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Add the PalmDB RdRP proteins (downloaded, sha256-pinned). Default: on.",
     )
-    p.add_argument("--threads", "-c", type=int, default=4, help="kb ref threads. Default: 4.")
+    p.add_argument(
+        "--cores",
+        "-c",
+        "--threads",
+        dest="threads",
+        metavar="N",
+        type=int,
+        default=4,
+        help="kb ref threads. Default: 4. (--threads is an alias.)",
+    )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="translated-index")
 
@@ -276,7 +296,16 @@ def _build_translated_parser(subparsers: Any) -> None:
     p.add_argument(
         "--output", "-o", default=None, help="Default <run-dir>/posthoc/translated/<sample>."
     )
-    p.add_argument("--threads", "-c", type=int, default=4, help="kb count threads. Default: 4.")
+    p.add_argument(
+        "--cores",
+        "-c",
+        "--threads",
+        dest="threads",
+        metavar="N",
+        type=int,
+        default=4,
+        help="kb count threads. Default: 4. (--threads is an alias.)",
+    )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="translated")
 
@@ -799,7 +828,16 @@ def _build_discover_parser(subparsers: Any) -> None:
             "matching output is a no-op and a differing one is refused."
         ),
     )
-    p.add_argument("--threads", type=int, default=4, help="Kraken2 and STAR threads. Default: 4.")
+    p.add_argument(
+        "--cores",
+        "-c",
+        "--threads",
+        dest="threads",
+        metavar="N",
+        type=int,
+        default=4,
+        help="Kraken2 and STAR threads. Default: 4. (--threads is an alias.)",
+    )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="discover")
 
@@ -1183,7 +1221,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         "--enrichment-db",
         default=None,
         metavar="DB",
-        help="gget.enrichr database (default: GO_Biological_Process_2023).",
+        help="gget.enrichr database. Default when unset: GO_Biological_Process_2023.",
     )
     _add_verbosity_args(p)
     _add_hostresponse_evaluation_args(p)
@@ -1269,12 +1307,18 @@ def _build_check_chemistry_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="check-chemistry")
 
 
+def _usage() -> str:
+    """Figlet banner on a colour TTY; plain usage when piped or NO_COLOR is set."""
+    if not (sys.stdout.isatty() and sys.stderr.isatty()) or os.environ.get("NO_COLOR"):
+        return "viralscan <subcommand> [options]  (viralscan <subcommand> --help)"
+    banner = figlet_format("Welcome to ViralScan", font="big", width=200)
+    return f"\n\033[96m{banner}\033[0m"
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the full argument parser (all subcommands) without parsing."""
     parser = argparse.ArgumentParser(
-        usage="\n\033[96m"
-        + figlet_format("Welcome to ViralScan", font="big", width=200)
-        + "\033[0m",
+        usage=_usage(),
         prog="viralscan",
         allow_abbrev=False,
         description=(
@@ -1318,6 +1362,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(
         dest="_subcommand",
+        prog="viralscan",
+        title="subcommands",
+        metavar="<subcommand>",
         parser_class=_NoAbbrevParser,
     )
     _build_run_parser(subparsers)
@@ -2107,7 +2154,7 @@ def _build_run_parser(subparsers: Any) -> None:
         "--enrichment-db",
         default=None,
         metavar="DB",
-        help="Enrichment database for gget.enrichr (default: GO_Biological_Process_2023).",
+        help="Enrichment database for gget.enrichr. Default when unset: GO_Biological_Process_2023.",
     )
 
     output_mode = parser.add_mutually_exclusive_group()
@@ -2131,19 +2178,7 @@ def _build_run_parser(subparsers: Any) -> None:
         help="Answer the --overwrite confirmation; does not imply overwrite or resume.",
     )
 
-    verbosity = parser.add_mutually_exclusive_group()
-    verbosity.add_argument(
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="Enable DEBUG-level logging.",
-    )
-    verbosity.add_argument(
-        "--quiet",
-        action="store_true",
-        default=False,
-        help="Suppress INFO messages; only show warnings and errors.",
-    )
+    _add_verbosity_args(parser)
     parser.set_defaults(_subcommand="run")
 
 

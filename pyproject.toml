@@ -79,7 +79,7 @@ docs = [
 ]
 
 [project.scripts]
-viralscan = "viralscan.menu:main"
+viralscan = "viralscan.__main__:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "viralscan.__version__"}
