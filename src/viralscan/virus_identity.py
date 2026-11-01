@@ -61,7 +61,6 @@ Virus key (what one "virus" row of the outputs is):
 from __future__ import annotations
 
 import csv
-import gzip
 import json
 import logging
 import os
@@ -76,6 +75,7 @@ from typing import Any, Union, cast
 from viralscan import __version__ as _VIRALSCAN_VERSION
 from viralscan import virus_catalog
 from viralscan.outputs import analysis_genes_path
+from viralscan.utils import open_maybe_gzip
 
 log = logging.getLogger(__name__)
 
@@ -432,9 +432,8 @@ def manifest_path_for_index(index: PathLike) -> Path:
 
 def gtf_gene_ids(path: PathLike) -> set[str]:
     """Every ``gene_id`` of a GTF (plain or ``.gz``)."""
-    opener = gzip.open if str(path).endswith(".gz") else open
     ids: set[str] = set()
-    with opener(path, "rt", encoding="utf-8", errors="replace") as handle:
+    with open_maybe_gzip(path, encoding="utf-8", errors="replace") as handle:
         for line in handle:
             if line.startswith("#"):
                 continue

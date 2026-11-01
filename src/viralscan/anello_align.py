@@ -819,16 +819,6 @@ def write_accession_tsv(
         writer.writerows(rows)
 
 
-def read_accession_tsv(path: Path) -> tuple[dict[str, Any], list[dict[str, str]]]:
-    with open(path, encoding="utf-8") as fh:
-        first = fh.readline()
-        meta = json.loads(first[2:]) if first.startswith("# ") else {}
-        if not first.startswith("# "):
-            fh.seek(0)
-        rows = list(csv.DictReader(fh, delimiter="\t"))
-    return meta, rows
-
-
 # ── Merge into viral_summary.tsv ──────────────────────────────────────────────
 def merge_summary_rows(
     rows: list[dict[str, object]],

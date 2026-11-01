@@ -19,6 +19,7 @@ import anndata as ad
 import pandas as pd
 from scipy import sparse
 
+from viralscan import star_run
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.multimapping import build_multimap_layers, viral_group_matrices
 from viralscan.outputs import V3Outputs, analysis_genes_path
@@ -196,12 +197,12 @@ def prepare_resolved_bus(
             whitelist_path = Path(whitelist)
             tool_whitelist = whitelist_path
             if whitelist_path.suffix == ".gz":
-                plain_whitelist = sorted_path.with_name("v3_whitelist.txt")
-                with (
-                    gzip.open(whitelist_path, "rb") as source,
-                    plain_whitelist.open("wb") as target,
-                ):
-                    shutil.copyfileobj(source, target)
+                plain_whitelist = Path(
+                    star_run.plain_whitelist(
+                        str(whitelist_path), sorted_path.parent, name="v3_whitelist.txt"
+                    )
+                    or whitelist_path
+                )
                 tool_whitelist = plain_whitelist
             corrected_stage = corrected_path.with_suffix(corrected_path.suffix + ".tmp")
             subprocess.run(

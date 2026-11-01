@@ -36,7 +36,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from viralscan.evidence import _open_maybe_gzip, cb_umi_geometry
+from viralscan.evidence import cb_umi_geometry
+from viralscan.utils import open_maybe_gzip
 from viralscan.runconfig import RunConfig
 from viralscan.star_run import plain_whitelist
 from viralscan.utils import setup_script_logging
@@ -87,7 +88,7 @@ def canonical_read_id(header: str) -> str:
 
 def iter_paired_fastq_ids(r1_path: str, r2_path: str):
     """Yield synchronized fragment IDs, failing on truncation or mate mismatch."""
-    with _open_maybe_gzip(r1_path) as fq1, _open_maybe_gzip(r2_path) as fq2:
+    with open_maybe_gzip(r1_path) as fq1, open_maybe_gzip(r2_path) as fq2:
         record = 0
         while True:
             lines1 = [fq1.readline() for _ in range(4)]

@@ -2,9 +2,13 @@
 
 Run `viralscan --help` or `viralscan <subcommand> --help` to see options for
 the installed version. This page documents the public CLI as of ViralScan
-**3.0.0rc1**. Available subcommands: `build-ref`, `data fetch`, `evidence`, `evidence-plot`,
-`rerun-multimap`, `star-index`, `doctor`, `validate-run`, `hostresponse`, and
-`check-whitelist`.
+**3.0.0rc1**. Available subcommands:
+
+<!-- BEGIN GENERATED: subcommands -->
+
+`run`, `data`, `data fetch`, `build-ref`, `star-index`, `translated-index`, `translated`, `evidence`, `evidence-plot`, `rerun-multimap`, `rerun-programs`, `host-loss`, `discover`, `discover-collapse`, `discover-states`, `doctor`, `validate-run`, `hostresponse`, `check-whitelist`, `check-chemistry`
+
+<!-- END GENERATED -->
 
 ---
 
@@ -316,9 +320,9 @@ refuses a kallisto below 0.51.1, which does not translate the D-list.
 |------|---------|------|
 | `--proteins-dir DIR` | *required* | prepare_viral_proteins output |
 | `--host-mask FASTA` | *required* | Host cDNA/DNA FASTA for the D-list |
-| `--out-dir DIR` | *required* |  |
+| `--output, -o, --out-dir DIR` | *required* |  |
 | `--palmdb, --no-palmdb` | `True` | Add the PalmDB RdRP proteins (downloaded, sha256-pinned). Default: on. |
-| `--threads, -c THREADS` | `4` | kb ref threads. Default: 4. |
+| `--cores, -c, --threads N` | `4` | kb ref threads. Default: 4. (--threads is an alias.) |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
@@ -342,7 +346,7 @@ the translated matrix), a receipt and a completion marker. `--counts-dir` summar
 | `--cells FILE` | *(none)* | Called-cell list; default results/called_cells.tsv. |
 | `--expected-taxa EXPECTED_TAXA` | *(none)* | Taxon ids to report first, e.g. 10376;37296. |
 | `--output, -o OUTPUT` | *(none)* | Default <run-dir>/<sample>/posthoc/translated. |
-| `--threads, -c THREADS` | `4` | kb count threads. Default: 4. |
+| `--cores, -c, --threads N` | `4` | kb count threads. Default: 4. (--threads is an alias.) |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
@@ -821,12 +825,12 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-mito-control, --no-hostresponse-mito-control` | `True` | Include %mito as a covariate in hostresponse depth-adjusted E-values (default: on). Disable with --no-hostresponse-mito-control if the host h5ad has no mitochondrial genes. |
 | `--hostresponse-differential` | `False` | Run a genome-wide depth-and-mito-adjusted differential expression test alongside the selection-frequency model (written to <output>/results/hostresponse/<virus>_differential.csv). |
 | `--enrichment` | `False` | Run pathway enrichment on above-threshold host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]'). |
-| `--enrichment-db DB` | *(none)* | Enrichment database for gget.enrichr (default: GO_Biological_Process_2023). |
+| `--enrichment-db DB` | *(none)* | Enrichment database for gget.enrichr. Default when unset: GO_Biological_Process_2023. |
 | `--resume` | `False` | Resume only when run_manifest.json exactly matches this invocation. |
 | `--overwrite` | `False` | Explicitly replace a non-empty output directory after confirmation. |
 | `--yes, -y` | `False` | Answer the --overwrite confirmation; does not imply overwrite or resume. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
-| `--quiet` | `False` | Suppress INFO messages; only show warnings and errors. |
+| `--quiet` | `False` | Suppress INFO messages. |
 
 <!-- END GENERATED -->
 
@@ -960,7 +964,7 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 | `--memory-mapping` | `False` | Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage). |
 | `--polya-trim, --no-polya-trim` | `True` | Cut a 3' polyA tail (first run of >= 15 A) and a 5' polyT head (leading run of >= 15 T) from R2 before Kraken2 (reads.tsv.gz records r2_trim). Default: on. |
 | `--force` | `False` | Replace a previously published --output whose fingerprint differs. Without it a matching output is a no-op and a differing one is refused. |
-| `--threads THREADS` | `4` | Kraken2 and STAR threads. Default: 4. |
+| `--cores, -c, --threads N` | `4` | Kraken2 and STAR threads. Default: 4. (--threads is an alias.) |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
@@ -1071,7 +1075,7 @@ the row not estimable.
 | `--gene-symbols` | `False` | Annotate output CSVs with HGNC symbols from Ensembl IDs via mygene.info (network). |
 | `--differential` | `False` | Write a genome-wide depth/%mito-adjusted differential table (<virus>_differential.csv). |
 | `--enrichment` | `False` | Run pathway enrichment via gget (requires viralscan[enrichment]). |
-| `--enrichment-db DB` | *(none)* | gget.enrichr database (default: GO_Biological_Process_2023). |
+| `--enrichment-db DB` | *(none)* | gget.enrichr database. Default when unset: GO_Biological_Process_2023. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 | `--cv CV` | *(none)* | CV scheme (default: auto). auto = group-disjoint CV on --groups, or on the one donor/sample-like obs column if there is exactly one, else cell-level CV with a leakage warning (also if group CV cannot run on that auto-selected column); cell = legacy cell-level CV (a donor can span train and test); group = group-disjoint CV, requires --groups, fails closed. |
@@ -1137,7 +1141,7 @@ the row not estimable.
 | `--viral-fasta PATH` | *required* |  |
 | `--viral-gtf PATH` | *required* |  |
 | `--out-dir PATH` | *required* |  |
-| `--threads, -c THREADS` | `8` | STAR threads. Default: 8. |
+| `--cores, -c, --threads N` | `8` | STAR threads. Default: 8. (--threads is an alias.) |
 | `--ram-bytes RAM_BYTES` | `85000000000` | STAR --limitGenomeGenerateRAM in bytes. GRCh38 + 2,343 viral genomes needed about 77 GB RAM and ~50 min. Default: 85000000000. |
 | `--force` | `False` | Rebuild over an existing <out-dir>/index (only if it holds a star-index manifest). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |

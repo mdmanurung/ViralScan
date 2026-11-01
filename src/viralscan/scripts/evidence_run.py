@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from viralscan.competitive_plot import plot_competitive_alignment
+from viralscan.utils import to_int
 from viralscan.evidence import (
     _KALLISTO_STRAND_FLAGS,
     COMPETITOR_BLAST_FIELDS,
@@ -47,7 +48,6 @@ from viralscan.evidence import (
     replay_ec_path,
     replay_exact_target_bus,
     resolve_viral_target,
-    to_int,
     validate_competitor_manifest,
     write_competitive_fasta,
     write_competitor_fasta,

@@ -35,8 +35,10 @@ from typing import Any
 import numpy as np
 
 from viralscan.chemistry import cb_umi_geometry, kb_whitelist_arg, onlist_path
-from viralscan.evidence import _canonical_fastq_id, _open_maybe_gzip, _run
+from viralscan.evidence import _canonical_fastq_id, _run
 from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file, sha256_path
+from viralscan.star_run import plain_whitelist
+from viralscan.utils import open_maybe_gzip
 
 log = logging.getLogger(__name__)
 
@@ -437,8 +439,8 @@ def stream_reads(
     digests = array("Q")
     rf_rows = _read_filter_rows(read_filter_lineage) if read_filter_lineage else None
     with (
-        _open_maybe_gzip(r1) as fq1,
-        _open_maybe_gzip(r2) as fq2,
+        open_maybe_gzip(r1) as fq1,
+        open_maybe_gzip(r2) as fq2,
         _gzip_out(out_dir / KRAKEN_INPUT) as fasta,
         _gzip_out(out_dir / READS_TSV) as reads,
     ):
@@ -754,11 +756,7 @@ def bustools_barcodes(out_dir: Path, onlist: str | None, threads: int) -> Path:
     try:
         _run([bustools, "fromtext", "-o", str(raw), str(work / "fragments.txt")])
         if onlist is not None:
-            plain = Path(onlist)
-            if plain.suffix == ".gz":
-                plain = work / "onlist.txt"
-                with gzip.open(onlist, "rb") as src, plain.open("wb") as dst:
-                    shutil.copyfileobj(src, dst)
+            plain = Path(plain_whitelist(onlist, work, name="onlist.txt") or onlist)
             _run([bustools, "sort", "-t", str(threads), "-o", str(work / "sorted.bus"), str(raw)])
             _run(
                 [
@@ -782,8 +780,7 @@ def bustools_barcodes(out_dir: Path, onlist: str | None, threads: int) -> Path:
 
 
 def _tsv_rows(path: Path) -> Iterator[dict[str, str]]:
-    opener = gzip.open if path.suffix == ".gz" else open
-    with opener(path, "rt", newline="") as handle:
+    with open_maybe_gzip(path, newline="") as handle:
         yield from csv.DictReader(handle, delimiter="\t")
 
 
@@ -1435,11 +1432,10 @@ def _best_scores_from_bam(bam: str) -> dict[str, dict[str, int]]:
 
 def _prefixed_fasta(sources: list[tuple[str, Path]], output: Path) -> Path:
     """Concatenate FASTAs, prefixing each record name with its source label (keeps roles apart)."""
-    from viralscan.evidence import _open_maybe_gzip
 
     with output.open("w") as out:
         for label, src in sources:
-            with _open_maybe_gzip(str(src)) as handle:
+            with open_maybe_gzip(str(src)) as handle:
                 for line in handle:
                     out.write(f">{label}_{line[1:]}" if line.startswith(">") else line)
     return output
