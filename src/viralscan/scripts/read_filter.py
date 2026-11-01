@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING, Any
 
 from viralscan import anello_align as aa
 from viralscan.chemistry import cb_umi_geometry
-from viralscan.evidence import _open_maybe_gzip
+from viralscan.utils import open_maybe_gzip
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.host_filter import canonical_read_id
 from viralscan.utils import setup_script_logging
@@ -118,8 +118,8 @@ def filter_pairs(
     if mode == "tso-trim":
         counts["tso_trimmed"] = 0
     with (
-        _open_maybe_gzip(r1_in) as fq1,
-        _open_maybe_gzip(r2_in) as fq2,
+        open_maybe_gzip(r1_in) as fq1,
+        open_maybe_gzip(r2_in) as fq2,
         gzip.open(out_dir / "R1.fastq.gz", "wt", compresslevel=GZIP_LEVEL) as out1,
         gzip.open(out_dir / "R2.fastq.gz", "wt", compresslevel=GZIP_LEVEL) as out2,
         gzip.open(

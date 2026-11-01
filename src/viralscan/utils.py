@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import gzip
 import logging
+import os
 import sys
-from pathlib import Path
-from typing import Any, Union, cast
+from typing import IO, Any, cast
 
 import numpy as np
-import yaml
 
 # Module-level logger for scripts that import this module.
 logger = logging.getLogger("viralscan")
@@ -166,15 +166,18 @@ def infected_masks(per_cell: Any, min_molecules: float) -> tuple[Any, Any]:
     return infected, (weight > 0) & ~infected
 
 
-def load_config(path: Union[str, Path]) -> dict[str, Any]:
-    """Read a YAML config file and return it as a plain ``dict``.
+def open_maybe_gzip(path: str | os.PathLike[str], mode: str = "rt", **kwargs: Any) -> IO[str]:
+    """Open *path* with ``gzip.open`` when it ends in ``.gz``, else with ``open``."""
+    if str(path).endswith(".gz"):
+        return cast(IO[str], gzip.open(path, mode, **kwargs))
+    return open(path, mode, **kwargs)
 
-    Centralised so every script can use the same loader (and so we have
-    one place to evolve the boolean-normalisation work tracked in
-    PLAN §1.6).
-    """
-    with open(path, encoding="utf-8") as f:
-        loaded = cast(Any, yaml.safe_load(f))
-    if not isinstance(loaded, dict):
-        raise ValueError(f"Config file {path} did not contain a YAML mapping.")
-    return cast(dict[str, Any], loaded)
+
+def to_int(value: object, default: int = 0) -> int:
+    """``int(value)`` for the number-or-numeric-string cells of a result row."""
+    return int(value) if isinstance(value, (int, float, str)) else default
+
+
+def to_float(value: object, default: float = 0.0) -> float:
+    """``float(value)`` for the number-or-numeric-string cells of a result row."""
+    return float(value) if isinstance(value, (int, float, str)) else default

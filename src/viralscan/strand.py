@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gzip
 import itertools
 import json
 import subprocess
@@ -10,6 +9,8 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Optional
+
+from viralscan.utils import open_maybe_gzip
 
 PILOT_READS = 1_000_000
 #: A strand wins if it keeps >= TAU of the reads the unstranded run pseudoaligns.
@@ -37,8 +38,7 @@ def infer_strand(rates: dict[str, float], tau: float = TAU) -> str:
 
 def head_fastq(src: str, dest: Path, n_reads: int) -> None:
     """Copy the first ``n_reads`` records of a (gzipped or plain) FASTQ to ``dest``."""
-    opener = gzip.open if str(src).endswith(".gz") else open
-    with opener(src, "rt") as fin, open(dest, "w") as fout:
+    with open_maybe_gzip(src) as fin, open(dest, "w") as fout:
         fout.writelines(itertools.islice(fin, 4 * n_reads))
 
 

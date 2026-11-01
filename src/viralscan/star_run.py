@@ -17,11 +17,13 @@ _MAPPED_LINE = re.compile(
 )
 
 
-def plain_whitelist(whitelist: str | None, work_dir: Path) -> str | None:
+def plain_whitelist(
+    whitelist: str | None, work_dir: Path, name: str = "whitelist.txt"
+) -> str | None:
     """Return a plain-text copy of a gzipped *whitelist*; STAR cannot read .gz."""
     if not whitelist or not whitelist.endswith(".gz"):
         return whitelist
-    plain = work_dir / "whitelist.txt"
+    plain = work_dir / name
     with gzip.open(whitelist, "rb") as source, open(plain, "wb") as target:
         shutil.copyfileobj(source, target)
     return str(plain)

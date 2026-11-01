@@ -26,8 +26,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from viralscan.evidence import reference_class, to_int
+from viralscan.evidence import reference_class
 from viralscan.molecule_verdict import VERDICTS, deduplicate_competitive_alignments, verdict_of
+from viralscan.utils import to_int
 
 log = logging.getLogger("viralscan")
 

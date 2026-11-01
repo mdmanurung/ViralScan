@@ -323,44 +323,6 @@ class TestYamlRoundTrip:
 
 
 # ---------------------------------------------------------------------------
-# load_config utility
-# ---------------------------------------------------------------------------
-
-
-class TestLoadConfig:
-    """viralscan.utils.load_config must read the YAML back correctly."""
-
-    def test_load_config_returns_dict(self, tmp_path: Path) -> None:
-        from viralscan.utils import load_config
-
-        cfg = _build_cfg(_minimal_cfg_in())
-        p = tmp_path / "config.yaml"
-        with open(p, "w") as f:
-            yaml.dump(cfg, f)
-        loaded = load_config(str(p))
-        assert loaded["output"] == "/out/"
-        assert loaded["visual"] is True
-        assert loaded["detection_threshold"] == 1
-
-    def test_load_config_preserves_booleans(self, tmp_path: Path) -> None:
-        from viralscan.utils import load_config
-
-        cfg = _build_cfg(_minimal_cfg_in(visual=False, multimapping=True))
-        p = tmp_path / "config.yaml"
-        with open(p, "w") as f:
-            yaml.dump(cfg, f)
-        loaded = load_config(str(p))
-        assert loaded["visual"] is False
-        assert loaded["multimapping"] is True
-
-    def test_load_config_missing_file_raises(self, tmp_path: Path) -> None:
-        from viralscan.utils import load_config
-
-        with pytest.raises(FileNotFoundError):
-            load_config(str(tmp_path / "nonexistent.yaml"))
-
-
-# ---------------------------------------------------------------------------
 # Audit §3.3 — detection_threshold must be >= 1
 # ---------------------------------------------------------------------------
 

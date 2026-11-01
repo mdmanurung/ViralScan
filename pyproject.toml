@@ -201,8 +201,6 @@ module = [
     "viralscan.scripts.hostresponse",
     "viralscan.scripts.cellcalling",
     "viralscan.scripts.scautoqc",
-    # research/benchmark tooling, not core pipeline — same relaxed treatment
-    "viralscan.reference_strategy",
 ]
 # Type-checked for real errors (arg-type, return-value, assignment, union-attr, …)
 # instead of blanket-ignored. Tolerate the injected untyped `snakemake` global and
