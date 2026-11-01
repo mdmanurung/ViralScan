@@ -66,7 +66,7 @@ FASTQ_SUFFIXES = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
 
 def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
-    """Swap counts_corrected in a multimap h5ad to a pre-stored layer for new_method.
+    """Swap counts_ambiguous_allocated in a multimap h5ad to a pre-stored layer for new_method.
 
     All non-EM layers are computed on every multimap run and stored as named layers.
     This updates the complete v3 matrix and its two compositional layers without
@@ -77,6 +77,8 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
     should fall back to a full multimap rerun when False is returned.
     """
     import anndata as _ad  # heavy import; keep lazy
+
+    from viralscan.utils import get_layer
 
     layer_name = {
         "equal": "counts_multimap_equal",
@@ -91,26 +93,29 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
         "equal": "counts_host_viral_selected_equal",
         "host-conservative": "counts_host_viral_selected_host_conservative",
         "unique-weighted": "counts_host_viral_selected_unique_weighted",
-        "sibling-weighted": "counts_host_viral_selected_sibling_weighted",
+        # Mixed host-virus molecules keep equal splits under sibling-weighted.
+        "sibling-weighted": "counts_host_viral_selected_equal",
     }[new_method]
     adata = _ad.read_h5ad(str(adata_path))
     if new_method == "sibling-weighted" and not (
         adata.uns.get("multimap_diagnostics", {}).get("sibling_identity_available", False)
     ):
         return False
+    unique = get_layer(adata, "counts_unique")
+    selected = adata.layers.get(layer_name)
+    host_viral = get_layer(adata, host_viral_layer_name)
     if (
         adata.uns.get("count_schema_version") != "3.0.0"
-        or "counts_unique" not in adata.layers
-        or layer_name not in adata.layers
-        or host_viral_layer_name not in adata.layers
+        or unique is None
+        or selected is None
+        or host_viral is None
     ):
         return False
-    selected = adata.layers[layer_name]
     adata.layers["counts_ambiguous_allocated"] = selected
-    adata.layers["counts_corrected"] = selected
-    adata.X = adata.layers["counts_unique"] + selected
-    adata.layers["counts_combined"] = adata.X
-    adata.layers["counts_host_viral_selected"] = adata.layers[host_viral_layer_name]
+    adata.X = unique + selected
+    for stale in ("counts_corrected", "counts_combined"):  # aliases of an older run go stale
+        adata.layers.pop(stale, None)
+    adata.layers["counts_host_viral_selected"] = host_viral
     adata.uns["multimap_method"] = new_method
     adata.write_h5ad(str(adata_path))
     return True
@@ -394,7 +399,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             use_em = True
 
         if not use_em:
-            # Fast path: layers pre-stored; just overwrite counts_corrected in h5ad.
+            # Fast path: layers pre-stored; just overwrite counts_ambiguous_allocated in h5ad.
             # Resolve the h5ad inside the *copy*. The copied config.yaml still
             # names the source run as `output` until it is rewritten below, so
             # reading the path from it swapped the SOURCE run's h5ad (SW-19).

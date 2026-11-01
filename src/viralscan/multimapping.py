@@ -19,6 +19,7 @@ from viralscan.defaults import (
     MULTIMAP_METHODS,
 )
 from viralscan.runconfig import RunConfig
+from viralscan.utils import get_layer
 
 MOLECULE_ASSIGNMENT_COLUMNS = (
     "barcode",
@@ -1023,7 +1024,7 @@ def summarize_multimap_evidence(
     n_cells, n_genes = adata.n_obs, adata.n_vars
     zero = _empty_matrix(n_cells, n_genes)
     unique = adata.layers.get("counts_unique_viral", zero)
-    corrected = adata.layers.get("counts_corrected", zero)
+    corrected = get_layer(adata, "counts_ambiguous_allocated", zero)
     host_viral = adata.layers.get("counts_host_viral_ambiguous", zero)
     host_viral_selected = adata.layers.get("counts_host_viral_selected", zero)
     upper = adata.layers.get("counts_viral_ambiguous_upper", corrected)

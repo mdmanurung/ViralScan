@@ -77,9 +77,9 @@ def test_plot_preserves_exact_counts_layers_and_serialized_detection(tmp_path):
     a = ad.AnnData(sparse.csr_matrix([[1.0, 10.0], [3.0, 0.3], [100.0, 20.0]]))
     a.var_names = ["host", "virus"]
     a.obs_names = ["A", "B", "C"]
-    a.layers["counts_original"] = a.X.copy()
+    a.layers["counts_unique"] = a.X.copy()
     called = np.array([True, True, False])
-    matrices = [a.X, a.layers["counts_original"]]
+    matrices = [a.X, a.layers["counts_unique"]]
     before = [
         (m.dtype.str, m.data.tobytes(), m.indices.tobytes(), m.indptr.tobytes()) for m in matrices
     ]

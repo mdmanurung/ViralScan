@@ -463,8 +463,9 @@ def final_results(
     total_viral_molecules = viral_counts.sum()
 
     # V3 count contract: X is the complete selected-method molecule matrix and
-    # these two non-overlapping layers sum to it. Legacy layer names remain only
-    # as explicit aliases during the development cycle.
+    # these two non-overlapping layers sum to it. The old alias layers
+    # (counts_corrected, counts_original, counts_combined and
+    # counts_host_viral_selected_sibling_weighted) are no longer written.
     adata.layers["counts_unique"] = layers.unique
     adata.layers["counts_ambiguous_allocated"] = layers.corrected
     adata.X = adata.layers["counts_unique"] + adata.layers["counts_ambiguous_allocated"]
@@ -474,9 +475,6 @@ def final_results(
     # .copy() (8 extra full-size sparse copies = a major peak-RSS spike on deep
     # samples). adata.var_names is, by construction, adata_orig.var_names in the
     # same order, so the v3 molecule layers need no reindex/copy.
-    adata.layers["counts_corrected"] = layers.corrected
-    adata.layers["counts_original"] = layers.unique
-    adata.layers["counts_combined"] = adata.X
     adata.layers["counts_multimap_equal"] = layers.equal
     adata.layers["counts_multimap_host_conservative"] = layers.host_conservative
     adata.layers["counts_multimap_unique_weighted"] = layers.unique_weighted
@@ -494,8 +492,6 @@ def final_results(
     adata.layers["counts_host_viral_selected_unique_weighted"] = (
         layers.host_viral_selected_unique_weighted
     )
-    # Mixed host-virus molecules retain equal splits under sibling-weighted.
-    adata.layers["counts_host_viral_selected_sibling_weighted"] = layers.host_viral_selected_equal
     adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper
     adata.uns["multimap_method"] = config.multimap_method
     adata.uns["multimap_pseudocount"] = config.multimap_pseudocount
