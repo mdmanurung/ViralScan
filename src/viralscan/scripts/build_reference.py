@@ -2647,6 +2647,18 @@ def build_ref_main(args: argparse.Namespace) -> None:
             print(f"  {key:<16} ({ens}, {asm})")
         sys.exit(0)
 
+    # Usage errors (exit 2) come before the tool preflight, which is an environment error.
+    if getattr(args, "reference_panel", None) != "anellovirus":
+        if not args.host:
+            log.error(
+                "--host is required (e.g. --host human). "
+                "Use --reference-panel anellovirus for an anellovirus-only reference."
+            )
+            sys.exit(2)
+        if not args.virus_accessions:
+            log.error("--virus-accessions is required")
+            sys.exit(2)
+
     # Fail before any download if the requested index cannot be constructed.
     if not getattr(args, "no_kb_ref", False) and shutil.which("kb") is None:
         log.error(
@@ -2712,17 +2724,6 @@ def build_ref_main(args: argparse.Namespace) -> None:
         else:
             print("  kallisto index : not built (run 'kb ref' manually if needed)")
         return
-
-    if not args.host:
-        log.error(
-            "--host is required (e.g. --host human). "
-            "Use --reference-panel anellovirus for an anellovirus-only reference."
-        )
-        sys.exit(1)
-
-    if not args.virus_accessions:
-        log.error("--virus-accessions is required")
-        sys.exit(1)
 
     include_anello = getattr(args, "anellovirus", False)
     if include_anello:

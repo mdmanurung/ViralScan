@@ -172,7 +172,9 @@ def test_kb_count_rerun_preserves_metadata_and_previous_counts(tmp_path, whiteli
             counts.mkdir(exist_ok=True)
             if os.environ.get('FAKE_KB_MODE') != 'empty':
                 (counts / 'adata.h5ad').write_text(os.environ['FAKE_KB_GENERATION'])
-        sys.exit(1 if os.environ.get('FAKE_KB_MODE') == 'error' else 0)
+        if os.environ.get('FAKE_KB_MODE') == 'error':
+            print('FAKE_KB_BOOM: kb exploded', file=sys.stderr)
+            sys.exit(1)
         """)
     )
     fake_kb.chmod(0o755)
@@ -231,6 +233,8 @@ def test_kb_count_rerun_preserves_metadata_and_previous_counts(tmp_path, whiteli
             text=True,
         )
         assert result.returncode != 0, result.stdout + result.stderr
+        if mode == "error":  # the user sees kb's own error, not just a bare snakemake failure
+            assert "FAKE_KB_BOOM" in result.stdout + result.stderr
         assert (out / "kb-python/counts_unfiltered/adata.h5ad").read_text() == "second"
         assert (out / "kb-python/output.bus").read_text() == "second"
         assert (out / "log/kb_count.log").exists()

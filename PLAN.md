@@ -11,6 +11,25 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 
 - [x] `FINDABILITY-01` (2026-11-01, `codex/output-findability`, on top of `codex/layout-v3`): run `README.txt` and each sample `README.txt` are written at run start (NOT FINISHED) and rewritten at completion, with version, fingerprint, enabled-option files only, how to read a negative and a safe-to-delete list (`outputs.RESULT_FILES`, `safe_to_delete()`); `report.html` file table generated from the same registry; `docs/output_reference.md` has a full multimap-h5ad layer table; `summary.txt` runtime footer idempotent on `--resume`; `run_safety.require_fresh_output` guards `host-loss`, `rerun-programs`, `hostresponse` (new `--force`), `rerun-multimap`, `translated`; `--run-dir` help says run root vs sample dir. Not changed: `discover`/`evidence` (own publication-aware guards). No layer dropped. **Open (user):** alias layers `counts_original` and `counts_combined` are never read and could go; `counts_corrected` is read by `multimapping.py` and the `rerun-multimap` swap (switch them to `counts_ambiguous_allocated` first); `counts_host_viral_selected_sibling_weighted` is a copy of `..._equal`.
 
+- [x] `CLI-EXIT-02` (2026-11-01, `codex/cli-exit-codes`, adversarial-review follow-up to `CLI-MATURE-01`; no analysis-output change):
+  malformed `run_manifest.json` (non-object top level, wrong-typed `options`/`input_fingerprints`/`input_paths`, bad
+  `field:index` keys) is now a `validate-run` issue, not a traceback; an unwritable `--json PATH` (`doctor`, `validate-run`,
+  `check-chemistry`) and a missing `evidence-plot` directory print one error and exit 2. Flag errors that were exit 1 now exit 2
+  (`--cores 0` and the other numeric ranges, `--cell-calling external` without its file, the `--star-confirm`/`--discover`/
+  `--auto-evidence` combinations, `--r1`/`--r2` count mismatch, `build-ref` without `--host`/`--virus-accessions`, now checked
+  before the tool preflight). `run` now applies RunConfig's own validation (`_precheck_run_config`) right after `errorhandler`,
+  before the chemistry sniff, the output directory and any NCBI download; it used to raise a traceback after them.
+  `--ncbi-accession` with `-i`/`-t`/`-f1` exits 2. New `_warn_ignored_flags`: one WARNING for `--ncbi-email`/`--ncbi-api-key`
+  without `--ncbi-accession`, `--host-fasta`/`--viral-fasta` without `--auto-evidence`/`--host-capture`, `--multimap-*` with
+  `--no-multimapping`, `--multimap-em-*` with a non-`em-*` method, `--emptydrops-*` when cell calling is not emptydrops.
+  Not flagged: `--umap-n-neighbors`/`--hvg-*` without `--umap` (the QC step uses them regardless). Tests: `tests/test_cli_mature.py`.
+
+- [x] `RUN-CORRECT-01` (2026-11-01, `codex/run-correctness`, adversarial-review fixes, no analysis output changed): cell-type enrichment
+  strips a one-sided `-1` barcode suffix instead of dropping cells; `--gene-programs` with `--no-multimapping` is a usage error (exit 2);
+  `write_loci` and `write_cell_type_enrichment` delete a stale `viral_loci.tsv` / `cell_type_enrichment.tsv` when a rerun yields none;
+  `rerun-multimap` skips `<sample>/posthoc/` and stamps `layout_version` = `LAYOUT_VERSION`; `kb_count` prints the tail of
+  `kb_count.log` when kb exits non-zero; the `.snakemake/log` hint names the working directory's `.snakemake` (snakemake runs in the cwd).
+
 - [x] `MOLVERDICT-01` (2026-11-01, `codex/molecule-verdict-unaligned`, user approved the output change): `molecule_verdict._parse_molecules`
   skipped unmapped records before keying the molecule, so `unaligned` was never emitted and unmapped reads were missing from
   `reads`/`counted`. Unmapped records (flag 0x4 or RNAME `*`, not supplementary) now create or join their molecule without a

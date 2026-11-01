@@ -40,6 +40,7 @@ from viralscan.defaults import (
 )
 from viralscan.outputs import (
     ANALYSIS_GENES,
+    LAYOUT_VERSION,
     POSTHOC_DIRNAME,
     analysis_genes_path,
     is_posthoc,
@@ -188,11 +189,11 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
             "enable --gene-programs on the original run."
         )
     if args.programme_min_breadth is not None and args.programme_min_breadth < 1:
-        _die("--programme-min-breadth must be >= 1.")
+        _die("--programme-min-breadth must be >= 1.", 2)
     if args.programme_latent_min_breadth is not None and args.programme_latent_min_breadth < 1:
-        _die("--programme-latent-min-breadth must be >= 1.")
+        _die("--programme-latent-min-breadth must be >= 1.", 2)
     if args.programme_min_umi is not None and args.programme_min_umi < 0:
-        _die("--programme-min-umi must be >= 0.")
+        _die("--programme-min-umi must be >= 0.", 2)
 
     with config_path.open() as handle:
         loaded = _yaml.safe_load(handle)
@@ -341,11 +342,14 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
 
     if output_dir.exists():
         output_dir.rmdir()
-    # posthoc/ is never copied: a rerun must not nest other post-hoc results (or itself).
+    # posthoc/ is never copied (run level or <sample>/posthoc/): a rerun must not carry
+    # other post-hoc results, which describe the source's counts, nor nest itself.
     shutil.copytree(
         source_dir,
         output_dir,
-        ignore=lambda d, names: [POSTHOC_DIRNAME] if Path(d) == source_dir else [],
+        ignore=lambda d, names: (
+            [POSTHOC_DIRNAME] if Path(d) == source_dir or Path(d).parent == source_dir else []
+        ),
     )
     # The copy is a new, unfinished run; the source's marker must not vouch for it.
     clear_run_complete(output_dir)
@@ -445,7 +449,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
                 p.unlink()
 
         hint = (
-            f"see {sample_dir / '.snakemake' / 'log'}. The partially written result "
+            f"see {Path.cwd() / '.snakemake' / 'log'}. The partially written result "
             f"directory {output_dir} was left in place; remove it before retrying."
         )
         _run_snakemake(
@@ -517,6 +521,7 @@ def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) 
     manifest["derived_from"] = str(source_dir)
     manifest["parent_run_fingerprint"] = manifest.get("run_fingerprint")
     manifest["allocation_method"] = new_method
+    manifest["layout_version"] = LAYOUT_VERSION  # the copy is rewritten by this version
     manifest["completion_marker"] = True
     # input_paths (C-04) is run-location metadata, not part of the derived fingerprint.
     payload = {
@@ -570,7 +575,7 @@ def _check_hostresponse_evaluation(args: argparse.Namespace) -> None:
             panel_in_fold=bool(getattr(args, "hostresponse_panel_in_fold", None)),
         )
     except ValueError as exc:
-        _die(f"Invalid host-response evaluation settings: {exc}")
+        _die(f"Invalid host-response evaluation settings: {exc}", 2)
 
 
 def _hostresponse_viral_file(output_dir: Path, analysis_txt: Path) -> Path:
@@ -744,7 +749,7 @@ def _run_check_chemistry_subcommand(args: argparse.Namespace) -> None:
     for line in report["advice"]:
         print(f"advice:    {line}")
     if args.json:
-        Path(args.json).write_text(json.dumps(report, indent=2))
+        _write_json_report(args.json, json.dumps(report, indent=2))
     sys.exit(0 if ok else 1)
 
 
@@ -758,6 +763,14 @@ def _die(message: str, code: int = 1) -> NoReturn:
     sys.exit(code)
 
 
+def _write_json_report(path: str, text: str) -> None:
+    """Write a ``--json`` report; an unwritable path is a usage error, not a traceback."""
+    try:
+        Path(path).write_text(text, encoding="utf-8")
+    except OSError as exc:
+        _die(f"Cannot write --json {path}: {exc}", 2)
+
+
 def _has_valid_fastq_suffix(path: str) -> bool:
     return any(path.endswith(suf) for suf in FASTQ_SUFFIXES)
 
@@ -769,6 +782,17 @@ def errorhandler(args: argparse.Namespace) -> None:
     if args.ncbi_accession:
         if args.reference or args.gtf or args.fasta:
             _die("--ncbi-accession is mutually exclusive with --reference / --gtf / --fasta.", 2)
+        given = [
+            flag
+            for flag, value in (("-i", args.index), ("-t", args.transcripts), ("-f1", args.f1))
+            if value is not None
+        ]
+        if given:
+            _die(
+                f"--ncbi-accession builds its own reference, so {'/'.join(given)} "
+                "cannot be combined with it.",
+                2,
+            )
     elif args.reference:
         if args.gtf is None:
             _die("--reference requires --gtf.", 2)
@@ -814,7 +838,7 @@ def errorhandler(args: argparse.Namespace) -> None:
     samples1 = split_comma_paths(args.sample1)
     samples2 = split_comma_paths(args.sample2)
     if len(samples1) != len(samples2):
-        _die("--r1 and --r2 must have the same number of comma-separated entries.")
+        _die("--r1 and --r2 must have the same number of comma-separated entries.", 2)
     for s1, s2 in zip(samples1, samples2):
         if not os.path.exists(s1) or not os.path.exists(s2):
             _die(f"Sample path does not exist: {s1} or {s2}.")
@@ -840,7 +864,7 @@ def errorhandler(args: argparse.Namespace) -> None:
             }
         )
     except ValueError as exc:
-        _die(str(exc))
+        _die(str(exc), 2)
     _check_hostresponse_evaluation(args)
 
     # C-09: fail before kb count, not after it.
@@ -857,12 +881,15 @@ def errorhandler(args: argparse.Namespace) -> None:
     cell_calling = getattr(args, "cell_calling", None)
     called_cells_file = getattr(args, "called_cells_file", None)
     if cell_calling == "external" and not called_cells_file:
-        _die("--cell-calling external requires --called-cells-file.")
+        _die("--cell-calling external requires --called-cells-file.", 2)
     if called_cells_file and cell_calling not in (None, "auto", "external"):
         log.warning(
             "--called-cells-file is ignored with --cell-calling %s; use auto or external.",
             cell_calling,
         )
+
+    if getattr(args, "gene_programs", False) and not getattr(args, "multimapping", True):
+        _die("--gene-programs needs multimapping; drop --no-multimapping.", 2)
 
     host_filter = getattr(args, "host_filter", None)
     host_index = getattr(args, "host_index", None)
@@ -880,9 +907,9 @@ def errorhandler(args: argparse.Namespace) -> None:
     star_index_path = getattr(args, "star_hostvirus_index", None)
     if getattr(args, "star_confirm", False):
         if not star_index_path:
-            _die("--star-confirm requires --star-hostvirus-index.")
+            _die("--star-confirm requires --star-hostvirus-index.", 2)
         if not host_filter:
-            _die("--star-confirm requires --host-filter (it aligns the host-filtered reads).")
+            _die("--star-confirm requires --host-filter (it aligns the host-filtered reads).", 2)
         from viralscan import star_hostvirus
 
         problems = star_hostvirus.validate_index_manifest(star_index_path)
@@ -892,13 +919,16 @@ def errorhandler(args: argparse.Namespace) -> None:
                 f"star-index: {'; '.join(problems)}."
             )
     elif star_index_path:
-        _die("--star-hostvirus-index requires --star-confirm.")
+        _die("--star-hostvirus-index requires --star-confirm.", 2)
 
     if getattr(args, "discover", False):
         if not getattr(args, "kraken2_db", None):
             _die("--discover requires --kraken2-db.", 2)
         if not host_filter:
-            _die("--discover requires --host-filter (Kraken2 classifies the host-unmapped reads).")
+            _die(
+                "--discover requires --host-filter (Kraken2 classifies the host-unmapped reads).",
+                2,
+            )
         if not os.path.isdir(str(args.kraken2_db)):
             _die(f"Kraken2 database directory does not exist: {args.kraken2_db}.")
     elif getattr(args, "kraken2_db", None):
@@ -932,7 +962,7 @@ def errorhandler(args: argparse.Namespace) -> None:
         host_fasta = getattr(args, "host_fasta", None)
         viral_fasta = getattr(args, "viral_fasta", None)
         if not host_fasta:
-            _die("--auto-evidence requires --host-fasta.")
+            _die("--auto-evidence requires --host-fasta.", 2)
         if not os.path.isfile(host_fasta):
             _die(f"Host FASTA does not exist: {host_fasta}.")
         if viral_fasta and not os.path.isfile(viral_fasta):
@@ -943,14 +973,88 @@ def errorhandler(args: argparse.Namespace) -> None:
             os.path.join(os.path.dirname(os.path.abspath(args.index)), "viral.fa")
         )
         if not viral_fasta and not beside_index:
-            _die("--auto-evidence requires --viral-fasta (no viral.fa next to the index).")
+            _die("--auto-evidence requires --viral-fasta (no viral.fa next to the index).", 2)
         if not args.multimapping:
-            _die("--auto-evidence needs multimapping; drop --no-multimapping.")
+            _die("--auto-evidence needs multimapping; drop --no-multimapping.", 2)
         missing = [t for t in ("minimap2", "samtools") if shutil.which(t) is None]
         if missing:
             _die(f"--auto-evidence needs {', '.join(missing)} on PATH.")
 
     log.info("All input data has been checked and is correct.")
+
+
+def _warn_ignored_flags(args: argparse.Namespace) -> None:
+    """One WARNING per option that has no effect in this mode (ponytail: non-default values only)."""
+
+    def changed(*names: str) -> list[str]:
+        return [
+            "--" + n.replace("_", "-")
+            for n in names
+            if getattr(args, n, DEFAULTS.get(n)) != DEFAULTS.get(n)
+        ]
+
+    def warn(flags: list[str], why: str) -> None:
+        if flags:
+            log.warning("%s ignored: %s.", ", ".join(flags), why)
+
+    warn(
+        [
+            f
+            for f, v in (("--ncbi-email", args.ncbi_email), ("--ncbi-api-key", args.ncbi_api_key))
+            if v
+        ]
+        if not args.ncbi_accession
+        else [],
+        "they only apply with --ncbi-accession",
+    )
+    if not (getattr(args, "auto_evidence", None) or getattr(args, "host_capture", None)):
+        warn(
+            [
+                f
+                for f, v in (("--host-fasta", args.host_fasta), ("--viral-fasta", args.viral_fasta))
+                if v
+            ],
+            "they only apply with --auto-evidence or --host-capture",
+        )
+    method = getattr(args, "multimap_method", DEFAULTS["multimap_method"])
+    multimap_flags = (
+        "multimap_method",
+        "multimap_pseudocount",
+        "multimap_primary_call",
+        "multimap_em_max_iter",
+        "multimap_em_tol",
+        "multimap_molecule_assignments",
+    )
+    if not args.multimapping:
+        warn(changed(*multimap_flags), "--no-multimapping skips the multimap step")
+    elif not str(method).startswith("em-"):
+        warn(
+            changed("multimap_em_max_iter", "multimap_em_tol"),
+            f"they only apply to --multimap-method em-*, not {method}",
+        )
+    resolved = _resolve_cell_calling(
+        getattr(args, "cell_calling", DEFAULTS["cell_calling"]),
+        getattr(args, "called_cells_file", None),
+    )
+    if resolved != "emptydrops":
+        warn(
+            changed("emptydrops_seed", "emptydrops_niters"),
+            f"cell calling is {resolved}, not emptydrops",
+        )
+
+
+def _precheck_run_config(args: argparse.Namespace) -> None:
+    """Run RunConfig's validation on the parsed flags now, before any network or FASTQ read.
+
+    The probe skips the two checks that need the built index (anello_align, auto_evidence;
+    ``errorhandler`` covers auto_evidence), which do not exist yet with --reference.
+    """
+    probe = argparse.Namespace(**{**vars(args), "anello_align": False, "auto_evidence": None})
+    s1, s2 = split_comma_paths(args.sample1)[0], split_comma_paths(args.sample2)[0]
+    try:
+        _build_run_config(probe, "", args.index or "", args.transcripts or "", args.f1, s1, s2)
+    except ValueError as exc:
+        _die(str(exc), 2)
 
 
 def _resolve_chemistry(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
@@ -1499,7 +1603,11 @@ def _main() -> None:
     if getattr(args, "_subcommand", None) == "evidence-plot":
         from viralscan.competitive_plot import run_evidence_plot
 
-        run_evidence_plot(args)
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        try:
+            run_evidence_plot(args)
+        except (ValueError, FileNotFoundError) as exc:  # bad flags or a missing evidence dir
+            _die(str(exc), 2)
         return
 
     if getattr(args, "_subcommand", None) == "rerun-programs":
@@ -1563,7 +1671,7 @@ def _main() -> None:
             report = validate_run(Path(args.run_dir), verify_inputs=not args.no_verify_inputs)
         rendered = _json.dumps(report, indent=2, sort_keys=True) + "\n"
         if args.json:
-            Path(args.json).write_text(rendered, encoding="utf-8")
+            _write_json_report(args.json, rendered)
         print(rendered, end="")
         if not report["ok"]:
             sys.exit(1)
@@ -1588,6 +1696,8 @@ def _main() -> None:
     configure_logging(verbose=args.verbose, quiet=args.quiet)
     _check_required_tools()
     errorhandler(args)
+    _precheck_run_config(args)
+    _warn_ignored_flags(args)
 
     if args.host_filter:
         _check_host_filter_tools(args.host_filter)
@@ -1695,7 +1805,7 @@ def _main() -> None:
         if args.resume:
             _migrate_gene_list(Path(outs))
             _backfill_identity_table(run_config)
-        hint = f"see {Path(outs) / '.snakemake' / 'log'}"
+        hint = f"see {Path.cwd() / '.snakemake' / 'log'}"
         _run_snakemake(
             _snakemake_run_command(snakefile_path, args.cores, config_file),
             what="snakemake",

@@ -79,7 +79,7 @@ class TestNcbiAccessionMutualExclusion:
     def test_ncbi_alone_passes(self) -> None:
         """When only ncbi_accession is set (no reference/gtf/fasta), skip sample check too."""
         # Note: errorhandler still checks samples even in ncbi_accession mode.
-        args = _args(ncbi_accession="NC_002021.3")
+        args = _args(ncbi_accession="NC_002021.3", index=None, transcripts=None)
         with patch("os.path.exists", side_effect=_always_exists):
             errorhandler(args)  # should not raise
 
