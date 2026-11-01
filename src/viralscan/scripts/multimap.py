@@ -22,7 +22,7 @@ from scipy import sparse
 from viralscan import star_run
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.multimapping import build_multimap_layers, viral_group_matrices
-from viralscan.outputs import V3Outputs
+from viralscan.outputs import V3Outputs, analysis_genes_path
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.validation import require_schema_valid, tool_path
@@ -56,18 +56,18 @@ def viral_gene_partition(run_output: str) -> set[str]:
 
     Read from the Virus Identity table's ``viral`` column (PLAN ``MECH-A``).
     A run directory with no table (made before it existed) falls back to
-    ``log/analysis.txt``, the GTF gene set. With neither there is no partition
+    ``results/analysis_genes.txt`` (v1/v2: ``log/analysis.txt``), the GTF gene set. With neither there is no partition
     and every gene is treated as host, as before, but loudly.
     """
     table = load_run_identity(run_output)
     if table is not None:
         return set(table.viral_gene_ids())
-    legacy = os.path.join(run_output, "log", "analysis.txt")
+    legacy = str(analysis_genes_path(run_output))
     if os.path.exists(legacy):
-        log.warning("No results/virus_identity.tsv in %s: using log/analysis.txt.", run_output)
+        log.warning("No results/virus_identity.tsv in %s: using %s.", run_output, legacy)
         with open(legacy) as handle:
             return {line.strip() for line in handle}
-    log.warning("No virus identity table or analysis.txt in %s: no viral genes.", run_output)
+    log.warning("No virus identity table or analysis_genes.txt in %s: no viral genes.", run_output)
     return set()
 
 
@@ -407,7 +407,7 @@ def stamp_gene_identity(adata, gene_ids, table: Optional[VirusIdentityTable]) ->
         viral = list(adata.var["is_viral"])
         adata.var["gene_role"] = ["unknown" if is_viral else "host" for is_viral in viral]
         source = (
-            "legacy_analysis" if Path(output, "log", "analysis.txt").is_file() else "unavailable"
+            "legacy_analysis" if analysis_genes_path(output).is_file() else "unavailable"
         )
     adata.uns["gene_identity_source"] = source
     adata.uns["index_kind"] = (

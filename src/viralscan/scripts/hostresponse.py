@@ -28,7 +28,7 @@ the identical split, and per-gene depth-adjusted E-values (Ding & VanderWeele
 2016) on the genes above the selection-frequency threshold. If the depth-alone AUC approaches the model
 AUC, the headline number should be read as depth-confounded.
 
-Outputs (per virus, under <output>/hostresponse/):
+Outputs (per virus, under <output>/results/hostresponse/):
   - <virus>_gene_weights.csv   — mean/SD of L2 coefficients (per-fold-HVG: genes
     selected in >=1 fold, with n_folds_selected)
   - <virus>_stability.csv      — per-gene UNCALIBRATED selection frequency (stab_prob;
@@ -79,6 +79,7 @@ from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
     validate_null_spec,
 )
 from viralscan.kb_outputs import KbCountOutputs
+from viralscan.outputs import V3Outputs, analysis_genes_path
 from viralscan.run_safety import sha256_file as _sha256_file
 from viralscan.run_safety import software_identity
 from viralscan.runconfig import RunConfig
@@ -3347,9 +3348,9 @@ if "snakemake" in globals():
     _virus_h5ad = str(kb.current_adata(multimapping=cfg.multimapping))
     _identity_file = identity_path(cfg.output)
     _viral_acc_file = (
-        str(_identity_file) if _identity_file.is_file() else f"{cfg.output}log/analysis.txt"
+        str(_identity_file) if _identity_file.is_file() else str(analysis_genes_path(cfg.output))
     )
-    _out_dir = os.path.join(cfg.output, "hostresponse")
+    _out_dir = str(V3Outputs(Path(cfg.output)).hostresponse_dir)
     _seeds = resolve_seeds(cfg.hostresponse_n_seeds)
 
     assert cfg.host_h5ad is not None, "hostresponse runs only when host_h5ad is set"
@@ -3409,7 +3410,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--viral-accessions",
         required=True,
         metavar="PATH",
-        help="Path to analysis.txt from the same viralscan run.",
+        help="Path to analysis_genes.txt (v1/v2: analysis.txt) from the same viralscan run.",
     )
     p.add_argument(
         "--output", "-o", required=True, metavar="DIR", help="Output directory for results."

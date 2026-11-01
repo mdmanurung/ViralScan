@@ -385,7 +385,10 @@ def super_expressor(
     folder = Path(outputpath) / "plots"
     folder.mkdir(parents=True, exist_ok=True)
     stem = folder / f"SuperExpressor_{virus}"
-    table.to_csv(str(stem) + ".tsv", sep="\t", index=False)
+    # Layout v3: the data files live in results/superexpressor/, only the PNG stays in plots/.
+    data_stem = Path(outputpath) / "results" / "superexpressor" / stem.name
+    data_stem.parent.mkdir(parents=True, exist_ok=True)
+    table.to_csv(str(data_stem) + ".tsv", sep="\t", index=False)
     n = len(viral_umi)
     cap = 50_000 if n > 50_000 else None
     se_threshold = config.se_threshold
@@ -415,7 +418,7 @@ def super_expressor(
         if called_file.is_file() and called_mask is not None
         else None,
     }
-    Path(str(stem) + ".json").write_text(json.dumps(metadata, indent=2) + "\n")
+    Path(str(data_stem) + ".json").write_text(json.dumps(metadata, indent=2) + "\n")
     observed = np.sort(viral_umi.values)[::-1][:50_000]
     ranks = np.arange(1, len(observed) + 1)
     figure, axis = plt.subplots(figsize=(7, 6))
@@ -458,7 +461,8 @@ def super_expressor(
 
 
 #: Filename patterns detection owns inside ``plots/``. The directory is shared
-#: with umap.py, so only these are cleared — never the whole directory.
+#: with umap.py, so only these are cleared — never the whole directory. The TSV/JSON
+#: patterns match only layout v1/v2 runs (v3 writes them to ``results/superexpressor/``).
 _OWNED_PLOT_PATTERNS = (
     "*_histogram.png",
     "SuperExpressor_*.png",
@@ -481,13 +485,15 @@ def clear_stale_virus_plots(outputpath) -> list[str]:
     the owned patterns and are left alone.
     """
     plots_dir = Path(outputpath) / "plots"
-    if not plots_dir.is_dir():
-        return []
+    se_dir = Path(outputpath) / "results" / "superexpressor"
     removed = []
-    for pattern in _OWNED_PLOT_PATTERNS:
-        for path in sorted(plots_dir.glob(pattern)):
-            path.unlink()
-            removed.append(str(path))
+    for folder, patterns in ((plots_dir, _OWNED_PLOT_PATTERNS), (se_dir, ("SuperExpressor_*",))):
+        if not folder.is_dir():
+            continue
+        for pattern in patterns:
+            for path in sorted(folder.glob(pattern)):
+                path.unlink()
+                removed.append(str(path))
     if removed:
         log.info("cleared %d stale per-virus plot(s) before regenerating", len(removed))
     return removed
@@ -2407,9 +2413,11 @@ def main():
     found_genes_sorted = dict(sorted(found_genes.items()))
     total_viral_genes = 0
     counts_per_virus: dict = {}
+    found_genes_out = Path(config.output) / "results" / "found_genes.txt"
+    found_genes_out.parent.mkdir(parents=True, exist_ok=True)
     with (
         open(f"{config.output}/summary.txt", "w") as summary,
-        open(Path(config.output) / "log" / "found_genes.txt", "w") as found_genes_file,
+        open(found_genes_out, "w") as found_genes_file,
     ):
         # First block: evonk's ViralScan 2.2.0 summary.txt, same wording and order, so
         # parsers written for the original keep working. The v3 block follows it.

@@ -43,6 +43,7 @@ import numpy as np
 
 from viralscan.utils import open_maybe_gzip
 from viralscan.defaults import DEFAULTS
+from viralscan.outputs import analysis_genes_path
 
 #: Total-UMI floor for the strategy-independent denominator, in host molecules
 #: per barcode. Chosen to sit above the empty-droplet mode and below the knee of
@@ -238,7 +239,7 @@ def emptydrops_cells(
 def viral_partition(run_output, matrix_genes=None) -> tuple[set[str], Path]:
     """The Run's viral gene IDs and the file they came from.
 
-    Source: the Virus Identity table, else ``log/analysis.txt``. Unlike
+    Source: the Virus Identity table, else ``results/analysis_genes.txt`` (v1/v2: ``log/analysis.txt``). Unlike
     ``multimap.viral_gene_partition`` this fails closed: cell calling must never
     quietly fall back to every column of the kb matrix. With *matrix_genes* and a
     Virus Identity table, a matrix column the table does not list also fails: the
@@ -264,13 +265,13 @@ def viral_partition(run_output, matrix_genes=None) -> tuple[set[str], Path]:
                     f"{exc} Or pass --called-cells-file / use two-step --host-filter starsolo."
                 ) from exc
     else:
-        source = Path(run_output) / "log" / "analysis.txt"
+        source = analysis_genes_path(run_output)
         if source.is_file():
             ids = {line.strip() for line in source.read_text().splitlines() if line.strip()}
     if not ids:
         raise CellCallingError(
             f"cannot call cells on the host genes only: no viral gene partition in {run_output} "
-            "(neither results/virus_identity.tsv nor log/analysis.txt lists viral genes). "
+            "(neither results/virus_identity.tsv nor results/analysis_genes.txt lists viral genes). "
             "Refusing to call cells on every column, which would count viral reads. "
             "Re-run the analysis step, or pass --called-cells-file / use two-step "
             "--host-filter starsolo."

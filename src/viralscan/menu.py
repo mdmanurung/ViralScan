@@ -37,7 +37,13 @@ from viralscan.cli.parsers import (  # noqa: F401  (private builders re-exported
 from viralscan.defaults import (
     DEFAULTS,
 )
-from viralscan.outputs import POSTHOC_DIRNAME, is_posthoc, posthoc_dir
+from viralscan.outputs import (
+    ANALYSIS_GENES,
+    POSTHOC_DIRNAME,
+    analysis_genes_path,
+    is_posthoc,
+    posthoc_dir,
+)
 from viralscan.resources import KB_WORKERS, bounded_workers
 from viralscan.run_safety import (
     RUN_MANIFEST,
@@ -405,6 +411,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         # the FASTQs. The sentinels below choose what reruns.
         run_config = RunConfig.from_snakemake_config(cfg)
         _write_run_config(run_config, keep_mtime=True)
+        _migrate_gene_list(sample_dir)
         _backfill_identity_table(run_config)
 
         # Drop sentinels so snakemake re-runs the right rules.
@@ -444,6 +451,18 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     else:
         write_run_complete(output_dir)
     log.info("rerun-multimap complete in new result directory %s.", output_dir)
+
+
+def _migrate_gene_list(sample_dir: Path) -> None:
+    """Copy a v1/v2 ``log/analysis.txt`` to ``results/analysis_genes.txt`` (mtime kept).
+
+    The rules now take the gene list from the new path; without the copy snakemake would
+    rerun ``analysis`` and everything after it on a resumed or re-run older run.
+    """
+    legacy, new = sample_dir / "log" / "analysis.txt", sample_dir / ANALYSIS_GENES
+    if legacy.is_file() and not new.exists():
+        new.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(legacy, new)
 
 
 def _backfill_identity_table(run_config: RunConfig) -> None:
@@ -558,10 +577,10 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     if not config_yaml.exists():
         _die(f"config.yaml not found in {output_dir}. Is this a viralscan output directory?")
 
-    analysis_txt = output_dir / "log" / "analysis.txt"
+    analysis_txt = analysis_genes_path(output_dir)
     if not analysis_txt.exists():
         _die(
-            f"log/analysis.txt not found in {output_dir}. "
+            f"results/analysis_genes.txt not found in {output_dir}. "
             "The viralscan run must be complete (at least through the analysis step)."
         )
 
@@ -731,12 +750,12 @@ def errorhandler(args: argparse.Namespace) -> None:
     """
     if args.ncbi_accession:
         if args.reference or args.gtf or args.fasta:
-            _die("--ncbi-accession is mutually exclusive with --reference / --gtf / --fasta.")
+            _die("--ncbi-accession is mutually exclusive with --reference / --gtf / --fasta.", 2)
     elif args.reference:
         if args.gtf is None:
-            _die("--reference requires --gtf. The code has been terminated.")
+            _die("--reference requires --gtf.", 2)
         if args.fasta is None:
-            _die("--reference requires --fasta. The code has been terminated.")
+            _die("--reference requires --fasta.", 2)
         for fasta in split_comma_paths(args.fasta):
             if not os.path.exists(fasta):
                 _die(f"FASTA path does not exist: {fasta}.")
@@ -765,8 +784,7 @@ def errorhandler(args: argparse.Namespace) -> None:
                         "is no terminal to confirm. Pass --yes to continue, or drop -i/-t/-f1."
                     )
                 if answer in ("no", "n"):
-                    print("You have chosen not to continue. The code has been aborted.")
-                    sys.exit(0)
+                    _die("Not continuing: -i/-t/-f1 given with --reference.")
                 if answer not in ("yes", "y"):
                     _die(f"This is not a valid answer: {answer}.")
     else:
@@ -831,11 +849,11 @@ def errorhandler(args: argparse.Namespace) -> None:
     host_filter = getattr(args, "host_filter", None)
     host_index = getattr(args, "host_index", None)
     if host_index and not host_filter:
-        _die("--host-index requires --host-filter.")
+        _die("--host-index requires --host-filter.", 2)
     if host_filter and not host_index:
-        _die("--host-filter requires --host-index.")
+        _die("--host-filter requires --host-index.", 2)
     if getattr(args, "host_filter_star_params", None) and not host_filter:
-        _die("--host-filter-star-params requires --host-filter.")
+        _die("--host-filter-star-params requires --host-filter.", 2)
     if host_filter:
         host_index_path = str(host_index)
         if not os.path.exists(host_index_path):
@@ -860,13 +878,13 @@ def errorhandler(args: argparse.Namespace) -> None:
 
     if getattr(args, "discover", False):
         if not getattr(args, "kraken2_db", None):
-            _die("--discover requires --kraken2-db.")
+            _die("--discover requires --kraken2-db.", 2)
         if not host_filter:
             _die("--discover requires --host-filter (Kraken2 classifies the host-unmapped reads).")
         if not os.path.isdir(str(args.kraken2_db)):
             _die(f"Kraken2 database directory does not exist: {args.kraken2_db}.")
     elif getattr(args, "kraken2_db", None):
-        _die("--kraken2-db requires --discover.")
+        _die("--kraken2-db requires --discover.", 2)
 
     technology = getattr(args, "technology", None)
     if (
@@ -1396,6 +1414,14 @@ def _resolve_auto_strand(
 
 
 def main() -> None:
+    try:
+        _main()
+    except KeyboardInterrupt:
+        print("viralscan: interrupted.", file=sys.stderr)
+        sys.exit(130)
+
+
+def _main() -> None:
     args = create_help()
 
     # Dispatch to build-ref subcommand if requested.
@@ -1533,7 +1559,7 @@ def main() -> None:
         return
 
     if getattr(args, "_subcommand", None) != "run":
-        build_parser().print_help()
+        build_parser().print_help(sys.stderr)
         sys.exit(2)
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
@@ -1643,6 +1669,7 @@ def main() -> None:
         run_config = _build_run_config(sample_args, outs, index, transcripts, f1, s1, s2)
         config_file = _write_run_config(run_config)
         if args.resume:
+            _migrate_gene_list(Path(outs))
             _backfill_identity_table(run_config)
         hint = f"see {Path(outs) / '.snakemake' / 'log'}"
         _run_snakemake(
@@ -1667,7 +1694,7 @@ def main() -> None:
 
 
 def _discover_after_run(args: argparse.Namespace, output_dir: Path, samples: list[str]) -> None:
-    """``--discover``: Kraken2 discovery per sample into ``posthoc/discovery/<sample>`` (DISC-14).
+    """``--discover``: Kraken2 discovery per sample into ``<sample>/posthoc/discovery`` (DISC-14).
 
     Runs after ``run_complete.json`` exists because discovery resolves a completed run. A failure
     leaves the primary run valid (``validate-run`` ignores ``posthoc/``) and exits non-zero.

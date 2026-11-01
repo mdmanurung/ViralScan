@@ -72,6 +72,8 @@ def tables() -> dict[str, str]:
             walk(key, sub)
 
     walk("", root)
+    # Top-level list of subcommands, including the nested `data fetch` style ones.
+    out["subcommands"] = ", ".join(f"`{k}`" for k in out) + "\n"
     return out
 
 

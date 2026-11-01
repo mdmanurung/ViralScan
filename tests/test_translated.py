@@ -229,7 +229,7 @@ def test_translated_verb_counts_dir_publishes_posthoc(tmp_path, monkeypatch):
         cells=None, expected_taxa="1", output=None, threads=1,
     )  # fmt: skip
     out = translated.run_translated(args)
-    assert out == run / "posthoc" / "translated" / "S1"
+    assert out == run / "S1" / "posthoc" / "translated"
     names = sorted(p.name for p in out.iterdir())
     assert names == [
         "barcode_check.json",
@@ -267,4 +267,4 @@ def test_translated_verb_aborts_on_barcode_format_mismatch(tmp_path, monkeypatch
     )  # fmt: skip
     with pytest.raises(TranslatedError, match="barcode formats differ"):
         translated.run_translated(args)
-    assert (run / "posthoc" / "translated" / "S1" / "barcode_check.json").is_file()
+    assert (run / "S1" / "posthoc" / "translated" / "barcode_check.json").is_file()

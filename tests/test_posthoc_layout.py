@@ -1,4 +1,4 @@
-"""CLI-UNIFY-02: post-hoc verbs write under <run-dir>/posthoc/; layout_version 1 and 2 both read."""
+"""CLI-UNIFY-02: post-hoc verbs write under <run-dir>/posthoc/; layout_version 1, 2 and 3 all read."""
 
 from __future__ import annotations
 
@@ -46,8 +46,8 @@ def _rerun(args: argparse.Namespace) -> None:
         menu._run_rerun_multimap(args)
 
 
-def test_layout_version_is_2_and_posthoc_path(tmp_path: Path) -> None:
-    assert LAYOUT_VERSION == 2
+def test_layout_version_is_3_and_posthoc_path(tmp_path: Path) -> None:
+    assert LAYOUT_VERSION == 3
     assert V3Outputs(tmp_path).posthoc_dir == tmp_path / "posthoc"
     assert posthoc_dir(tmp_path, "evidence", "EBV") == tmp_path / "posthoc" / "evidence" / "EBV"
 
@@ -83,7 +83,7 @@ def test_rerun_multimap_output_overrides_and_must_stay_out_of_run(tmp_path: Path
 
 
 @pytest.mark.parametrize(
-    ("version", "unsupported"), [(1, False), (2, False), (None, False), (3, True)]
+    ("version", "unsupported"), [(1, False), (2, False), (3, False), (None, False), (4, True)]
 )
 def test_validate_run_layout_versions(tmp_path: Path, version, unsupported) -> None:
     manifest = {"schema_version": "3.0.0"}
