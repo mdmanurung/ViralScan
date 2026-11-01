@@ -41,6 +41,7 @@ from typing import TypedDict
 
 import numpy as np
 
+from viralscan.utils import open_maybe_gzip
 from viralscan.defaults import DEFAULTS
 
 #: Total-UMI floor for the strategy-independent denominator, in host molecules
@@ -137,10 +138,7 @@ def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> np.ndarra
 
 
 def _external_barcodes(path: Path) -> set[str]:
-    import gzip
-
-    opener = gzip.open if path.suffix == ".gz" else open
-    with opener(path, "rt") as fh:
+    with open_maybe_gzip(path) as fh:
         wanted = {_strip_suffix(line.strip()) for line in fh if line.strip()}
     if not wanted:
         raise CellCallingError(f"cell_calling=external: the called-cell list {path} is empty")

@@ -35,7 +35,7 @@ import tempfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import IO, Any, Optional, cast
+from typing import IO, Any, Optional
 
 from viralscan.anello_align import (
     Alignment,
@@ -46,22 +46,14 @@ from viralscan.anello_align import (
 )
 from viralscan.anellovirus import anello_name_map
 from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
+from viralscan.utils import open_maybe_gzip as _open_maybe_gzip  # noqa: F401  (re-exported)
+from viralscan.utils import to_float, to_int  # noqa: F401  (re-exported)
 from viralscan.validation import tool_path
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_virus
 from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
 
 log = logging.getLogger("viralscan")
-
-
-def to_int(value: object, default: int = 0) -> int:
-    """``int(value)`` for the number-or-numeric-string cells of a result row."""
-    return int(value) if isinstance(value, (int, float, str)) else default
-
-
-def to_float(value: object, default: float = 0.0) -> float:
-    """``float(value)`` for the number-or-numeric-string cells of a result row."""
-    return float(value) if isinstance(value, (int, float, str)) else default
 
 
 #: Selector aliases -> every display name that virus can resolve to, in
@@ -266,12 +258,6 @@ def viral_assigned_keys(bus_text: Iterable[str], viral_ecs: set[int]) -> set[tup
         if ec in viral_ecs:
             keys.add((parts[0], parts[1]))
     return keys
-
-
-def _open_maybe_gzip(path: str | Path, mode: str = "rt") -> IO[str]:
-    if str(path).endswith(".gz"):
-        return cast(IO[str], gzip.open(path, mode))
-    return open(path, mode)
 
 
 @dataclass

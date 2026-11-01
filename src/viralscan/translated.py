@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import gzip
 import json
 import logging
 import re
@@ -27,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from viralscan.run_safety import sha256_file
+from viralscan.utils import open_maybe_gzip
 
 log = logging.getLogger(__name__)
 
@@ -68,8 +68,7 @@ def read_barcodes(path: Path) -> list[str]:
             return [str(b) for b in adata.obs_names]
         finally:
             adata.file.close()
-    opener = gzip.open if str(path).endswith(".gz") else open
-    with opener(path, "rt") as handle:
+    with open_maybe_gzip(path) as handle:
         return [
             line.split("\t")[0].strip()
             for line in handle

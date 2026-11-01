@@ -26,10 +26,11 @@ of v2, close to the 9.3 % seen on v2 reads).
 
 from __future__ import annotations
 
-import gzip
 from collections import Counter
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional, TextIO
+from typing import IO, Any, Optional
+
+from viralscan.utils import open_maybe_gzip
 
 
 @dataclass(frozen=True)
@@ -174,8 +175,8 @@ def kb_whitelist_arg(technology: str, whitelist: Optional[str]) -> str:
     return "None" if chem is not None and chem.onlist is None else ""
 
 
-def _open(path: str) -> TextIO:
-    return gzip.open(path, "rt") if str(path).endswith(".gz") else open(path)
+def _open(path: str) -> IO[str]:
+    return open_maybe_gzip(path)
 
 
 def sample_r1(path: str, n: int = SAMPLE_READS) -> list[str]:
