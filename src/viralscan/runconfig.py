@@ -66,6 +66,12 @@ def _opt(value: Any) -> Union[str, None]:
     return s
 
 
+def _num(cfg_in: dict, key: str, cast):
+    """``cast(cfg_in[key])``, or the default when absent. ``or`` would swallow an explicit 0."""
+    value = cfg_in.get(key)
+    return cast(DEFAULTS[key] if value is None else value)
+
+
 def check_numeric_ranges(
     *,
     cores: int,
@@ -78,6 +84,11 @@ def check_numeric_ranges(
     infected_min_molecules: float = DEFAULTS["infected_min_molecules"],
     detection_min_cells: int = DEFAULTS["detection_min_cells"],
     hostresponse_min_umi: int = DEFAULTS["hostresponse_min_umi"],
+    emptydrops_fdr: float = DEFAULTS["emptydrops_fdr"],
+    emptydrops_niters: int = DEFAULTS["emptydrops_niters"],
+    hostresponse_n_stab_iter: int = DEFAULTS["hostresponse_n_stab_iter"],
+    hostresponse_top_n_genes: int = DEFAULTS["hostresponse_top_n_genes"],
+    knee_min_umi: float = DEFAULTS["knee_min_umi"],
 ) -> None:
     """Reject numeric options that snakemake/scanpy would accept and then misbehave on (C-10)."""
     for name, value, floor in (
@@ -88,12 +99,20 @@ def check_numeric_ranges(
         ("min_genes", min_genes, 0),
         ("detection_min_cells", detection_min_cells, 1),
         ("hostresponse_min_umi", hostresponse_min_umi, 1),
+        ("emptydrops_niters", emptydrops_niters, 1),
+        ("hostresponse_n_stab_iter", hostresponse_n_stab_iter, 1),
+        ("hostresponse_top_n_genes", hostresponse_top_n_genes, 1),
     ):
         if value < floor:
             raise ValueError(f"{name} must be >= {floor}, got {value}.")
     # A cut-off of 0 (or NaN) would make every cell with any weight, or none, infected.
     if not infected_min_molecules > 0:
         raise ValueError(f"infected_min_molecules must be > 0, got {infected_min_molecules}.")
+    if not 0 < emptydrops_fdr < 1:
+        raise ValueError(f"emptydrops_fdr must be in (0, 1), got {emptydrops_fdr}.")
+    # knee_cells takes log10 of every barcode at or above the floor, so 0 would hit log10(0).
+    if not knee_min_umi > 0:
+        raise ValueError(f"knee_min_umi must be > 0, got {knee_min_umi}.")
     if not hvg_min_mean < hvg_max_mean:
         raise ValueError(f"hvg_min_mean ({hvg_min_mean}) must be < hvg_max_mean ({hvg_max_mean}).")
 
@@ -511,6 +530,11 @@ class RunConfig:
             infected_min_molecules=infected_min_molecules,
             detection_min_cells=detection_min_cells,
             hostresponse_min_umi=hostresponse_min_umi,
+            emptydrops_fdr=_num(cfg_in, "emptydrops_fdr", float),
+            emptydrops_niters=_num(cfg_in, "emptydrops_niters", int),
+            hostresponse_n_stab_iter=_num(cfg_in, "hostresponse_n_stab_iter", int),
+            hostresponse_top_n_genes=_num(cfg_in, "hostresponse_top_n_genes", int),
+            knee_min_umi=_num(cfg_in, "knee_min_umi", float),
         )
 
         host_index = _opt(cfg_in.get("host_index"))
@@ -594,20 +618,14 @@ class RunConfig:
             hostresponse_min_negative_cells=hr_min_negative,
             hostresponse_min_groups=hr_min_groups,
             hostresponse_n_seeds=hr_n_seeds,
-            hostresponse_n_stab_iter=int(
-                cfg_in.get("hostresponse_n_stab_iter") or DEFAULTS["hostresponse_n_stab_iter"]
-            ),
+            hostresponse_n_stab_iter=_num(cfg_in, "hostresponse_n_stab_iter", int),
             hostresponse_use_hvg=_coerce_bool(
                 cfg_in.get("hostresponse_use_hvg", True)
                 if cfg_in.get("hostresponse_use_hvg") is not None
                 else True
             ),
-            hostresponse_stab_min_prob=float(
-                cfg_in.get("hostresponse_stab_min_prob") or DEFAULTS["hostresponse_stab_min_prob"]
-            ),
-            hostresponse_top_n_genes=int(
-                cfg_in.get("hostresponse_top_n_genes") or DEFAULTS["hostresponse_top_n_genes"]
-            ),
+            hostresponse_stab_min_prob=_num(cfg_in, "hostresponse_stab_min_prob", float),
+            hostresponse_top_n_genes=_num(cfg_in, "hostresponse_top_n_genes", int),
             hostresponse_enrichment=_coerce_bool(cfg_in.get("hostresponse_enrichment", False)),
             hostresponse_enrichment_db=cfg_in.get("hostresponse_enrichment_db")
             or "GO_Biological_Process_2023",
@@ -623,16 +641,16 @@ class RunConfig:
             ),
             cell_calling=cfg_in.get("cell_calling") or DEFAULTS["cell_calling"],
             called_cells_file=_opt(cfg_in.get("called_cells_file")),
-            emptydrops_fdr=float(cfg_in.get("emptydrops_fdr") or DEFAULTS["emptydrops_fdr"]),
-            emptydrops_lower=int(cfg_in.get("emptydrops_lower") or DEFAULTS["emptydrops_lower"]),
-            emptydrops_niters=int(cfg_in.get("emptydrops_niters") or DEFAULTS["emptydrops_niters"]),
+            emptydrops_fdr=_num(cfg_in, "emptydrops_fdr", float),
+            emptydrops_lower=_num(cfg_in, "emptydrops_lower", int),
+            emptydrops_niters=_num(cfg_in, "emptydrops_niters", int),
             # `or` would swallow a legitimate seed of 0, so test for absence.
             emptydrops_seed=int(
                 DEFAULTS["emptydrops_seed"]
                 if cfg_in.get("emptydrops_seed") is None
                 else cfg_in["emptydrops_seed"]
             ),
-            knee_min_umi=float(cfg_in.get("knee_min_umi") or DEFAULTS["knee_min_umi"]),
+            knee_min_umi=_num(cfg_in, "knee_min_umi", float),
             cell_caller_rscript=cfg_in.get("cell_caller_rscript")
             or DEFAULTS["cell_caller_rscript"],
             positive_control_gene=positive_control_gene,
