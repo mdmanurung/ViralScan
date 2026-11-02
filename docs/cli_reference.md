@@ -224,20 +224,20 @@ comparing three ways of removing host signal before viral quantification:
 | | no filter | `--genome-dlist` | `--host-filter starsolo` |
 |---|---:|---:|---:|
 | reads reaching viral quant | 1,203,332,091 | 1,203,332,091 | 120,405,696 |
-| `p_pseudoaligned` | 6.4 % | 4.5 % | 5.8 % |
-| **`p_unique`** | **2.1 %** | **0.6 %** | **4.4 %** |
+| `p_pseudoaligned` | measured | lower than no filter | between the two |
+| **`p_unique`** | middle | **lowest** | **highest** |
 | quantified molecules | 21,613,840 | 8,404,326 | 5,308,302 |
 | called cells | 143,243 | 28,922 | 28,921 |
 
-D-list masking left most of the anellovirus artifact in place (the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus is not excluded) while cutting
-`p_unique` **3.5x** (2.1 % → 0.6 %), i.e. it destroyed uniquely-placed molecules
+D-list masking left most of the anellovirus artifact in place (the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (most) and host-homologous reads (the rest) (F-005, F-019); low-level divergent anellovirus is not excluded) while cutting
+`p_unique` to the lowest of the three arms (one sample; magnitudes not registered), i.e. it destroyed uniquely-placed molecules
 to achieve very little. The reason is mechanical: a kallisto D-list masks shared
 k-mers by *exact match*, so it cannot see host sequence that has diverged even
 slightly. Divergent host sequence is exactly the case that produces the artifact
 in the first place.
 
 In the table above, `--host-filter starsolo` gave the highest `p_unique`
-(4.4 %) and `--genome-dlist` the lowest (0.6 %). The table does not include a
+and `--genome-dlist` the lowest. The table does not include a
 combined host+virus *genome* reference arm, so this page does not rank that
 option against the other two; no ordering beyond the measured three is claimed.
 Prefer `--host-filter starsolo` over `--genome-dlist` for host subtraction, and
@@ -588,7 +588,7 @@ barcode geometry, and report the fraction that match the whitelist. A low match
 rate means `--technology` / `--whitelist` do **not** match the library chemistry —
 in which case `bustools` silently discards most reads and `kb count` produces an
 all-empty-droplet matrix with no error. (In one real case a GEM-X 5′ library
-mislabeled as `10xv3` lost 96.5% of its reads before this was caught.)
+mislabeled as `10xv3` lost most of its reads before this was caught.)
 
 Run this before a long quantification job when you are unsure of the chemistry.
 The main `viralscan` run also performs this check automatically as a **warning**

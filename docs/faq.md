@@ -149,7 +149,7 @@ of infection.
 EmptyDrops always calls cells on the host transcriptome, never on viral reads. In combined
 mode it sees the host gene columns of the kb matrix (viral columns are dropped before the
 call; the `total` column of `emptydrops_cells.tsv` is host UMIs). Those columns depend on the
-reference's D-list (`cat42b` to `cat42d` moved calls by -22 % on the HPV16 rafts, `REF-06`);
+reference's D-list (`cat42b` to `cat42d` moved calls on the HPV16 rafts, `REF-06`; size of the shift not registered);
 the two-step STARsolo `GeneFull` matrix and an external list do not. If the viral gene
 partition is missing, or the Virus Identity table does not list every matrix column, the run
 stops instead of calling cells on every column. A virus-only index (every column viral) always
@@ -240,9 +240,9 @@ Alternatively, align the reads to the target directly with `viralscan evidence`.
 [Results](results.md) lists the full negative checklist.
 
 A concrete reference case: the bundled 20-genome Torque teno virus panel shares
-**1.36 %** of the 31-mer space of the 2,042 real human anellovirus genomes (the
+only a small part of the 31-mer space of the 2,042 real human anellovirus genomes (the
 panel as measured; one duplicate has since been dropped, leaving 2,041), and
-85.8 % of those genomes share *zero* 31-mers with it. A TTV negative from that
+most of those genomes share *zero* 31-mers with it (single measurement, exact shares not registered). A TTV negative from that
 panel is not a statement about the sample. Build with
 `viralscan build-ref --anellovirus` and the panel captures the whole anellovirus
 sequence space (1.21x index inflation, 6 MB).
@@ -449,7 +449,7 @@ ViralScan uses kallisto pseudo-alignment, which is k-mer based. Any 31-mer share
 between a host transcript and a viral genome will cause host reads to land on the
 viral feature. The main culprits are:
 
-- **Endogenous viral elements (EVEs/HERVs)** — about 8 % of the human genome is
+- **Endogenous viral elements (EVEs/HERVs)** — a literature-reported minority of the human genome (not cited or verified here) is
   ancient integrated retroviral sequence, which shares k-mers with many exogenous
   viruses (especially retroviruses).
 - **Low-complexity / poly-A regions** — repetitive sequences produce shared
