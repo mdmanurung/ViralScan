@@ -118,6 +118,14 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
         adata.layers.pop(stale, None)
     adata.layers["counts_host_viral_selected"] = host_viral
     adata.uns["multimap_method"] = new_method
+    # new_method is deterministic: write what a fresh run writes (EM-only fields drop out).
+    diagnostics = dict(adata.uns.get("multimap_diagnostics", {}))
+    diagnostics.update(
+        method=new_method, model_scope="deterministic", max_iter=None, tolerance=None
+    )
+    for em_only in ("global_model", "cell_models"):
+        diagnostics.pop(em_only, None)
+    adata.uns["multimap_diagnostics"] = diagnostics
     adata.write_h5ad(str(adata_path))
     return True
 

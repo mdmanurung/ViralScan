@@ -81,6 +81,9 @@ class MoleculeAudit:
     ambiguous_molecules: int
     unresolved_molecules: int
     ignored_read_multiplicity: int
+    # CB-UMIs of barcodes absent from the on-list: not molecules of this run, so outside the
+    # conservation identity above, but counted so they do not vanish from the audit.
+    offlist_barcode_molecules: int = 0
 
     def validate(self, allocated_mass: float) -> None:
         if self.resolved_molecules != self.unique_molecules + self.ambiguous_molecules:
@@ -106,6 +109,7 @@ class _AuditCounter:
     ambiguous_molecules: int = 0
     unresolved_molecules: int = 0
     ignored_read_multiplicity: int = 0
+    offlist_barcode_molecules: int = 0
 
     def freeze(self) -> MoleculeAudit:
         return MoleculeAudit(**vars(self))
@@ -139,7 +143,8 @@ def iter_cb_umi_molecules(
 
     ``on_molecule(barcode, umi, cell, ec_ids, genes)`` is called once for every molecule of an
     on-list barcode, resolved or not (``genes`` is empty for an unresolved collision). Records of
-    barcodes absent from ``barcode_to_idx`` are not molecules of this run and are never reported.
+    barcodes absent from ``barcode_to_idx`` are not molecules of this run and are never reported to ``on_molecule``;
+    ``audit.offlist_barcode_molecules`` counts their distinct CB-UMIs.
     """
     current_key: tuple[str, str] | None = None
     current_cell: int | None = None
@@ -163,11 +168,15 @@ def iter_cb_umi_molecules(
         return current_cell, genes
 
     previous_key: tuple[str, str] | None = None
+    offlist_key: tuple[str, str] | None = None
     for barcode, umi, ec, count in records:
         if count < 1:
             raise ValueError("BUS record multiplicity must be a positive integer.")
         cell = barcode_to_idx.get(barcode)
         if cell is None:
+            if (barcode, umi) != offlist_key:
+                audit.offlist_barcode_molecules += 1
+                offlist_key = (barcode, umi)
             continue
         key = (barcode, umi)
         if previous_key is not None and key < previous_key:
@@ -352,6 +361,14 @@ def em_gene_abundances(
     return theta
 
 
+def unsupported_ecs(
+    ec_counts: dict[tuple[int, ...], float], unique_per_gene: np.ndarray
+) -> set[tuple[int, ...]]:
+    """ECs of one cell whose genes all have zero cell-local unique support."""
+    unique = np.asarray(unique_per_gene, dtype=float).reshape(-1)
+    return {genes for genes in ec_counts if float(unique[list(genes)].sum()) <= 0.0}
+
+
 def em_cell_abundances(
     ec_counts: dict[tuple[int, ...], float],
     unique_per_gene: np.ndarray,
@@ -364,18 +381,20 @@ def em_cell_abundances(
     """Fit one cell-local abundance model shrunk toward the sample model."""
     unique = np.asarray(unique_per_gene, dtype=float).reshape(-1)
     global_theta = np.asarray(global_theta, dtype=float).reshape(-1)
-    compatible = sorted({gene for genes in ec_counts for gene in genes})
-    if compatible and float(unique[np.asarray(compatible, dtype=int)].sum()) <= 0.0:
+    # An EC whose genes have no cell-local unique support stays out of the fit. The caller gives
+    # it an equal split (see unsupported_ecs), so a sample prior never decides a molecule.
+    unsupported = unsupported_ecs(ec_counts, unique)
+    if len(unsupported) == len(ec_counts) and ec_counts:
         if diagnostics is not None:
             diagnostics.update(
                 iterations=0,
                 converged=True,
                 fallback_reason="no_local_compatible_unique_support",
             )
-        # A positive sample prior alone is not cell-local evidence. Returning
-        # zero weights makes the caller retain these molecules as explicit
-        # equal-split ambiguity while preserving one unit of molecule mass.
+        # Zero weights make the caller keep these molecules as equal-split ambiguity
+        # while preserving one unit of molecule mass.
         return np.zeros_like(unique)
+    ec_counts = {genes: n for genes, n in ec_counts.items() if genes not in unsupported}
     prior = prior_strength * global_theta / (float(global_theta.sum()) or 1.0)
     theta = unique + prior
     for iteration in range(1, int(max_iter) + 1):
@@ -798,7 +817,7 @@ def build_multimap_layers(
         # EMC-01: keep each cell's fitted abundance only at the genes its ambiguous molecules are
         # compatible with (sorted genes, values). Those are the only entries the allocation reads;
         # a dense n_genes vector per cell was ~130 GB at 793k cells x 20k genes.
-        cell_theta: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+        cell_theta: dict[int, tuple[np.ndarray, np.ndarray, set[tuple[int, ...]]]] = {}
         em_theta, em_cell_theta = theta, cell_theta  # the SW-03 weights read the fitted state
         if method == "em-cell":
             per_cell_ec: dict[int, dict[tuple[int, ...], float]] = {}
@@ -821,7 +840,11 @@ def build_multimap_layers(
                 compatible = np.fromiter(
                     sorted({gene for genes in counts for gene in genes}), dtype=np.intp
                 )
-                cell_theta[cell_idx] = (compatible, fitted[compatible])
+                cell_theta[cell_idx] = (
+                    compatible,
+                    fitted[compatible],
+                    unsupported_ecs(counts, row),
+                )
                 cell_diagnostics.append(diagnostic)
             method_diagnostics["cell_models"] = {
                 "n_cells": len(cell_diagnostics),
@@ -841,8 +864,10 @@ def build_multimap_layers(
         for cell_idx, ec_genes, count in ambiguous_records:
             gidx = np.asarray(ec_genes, dtype=int)
             if method == "em-cell":
-                compatible, fitted = cell_theta[cell_idx]
+                compatible, fitted, unsupported = cell_theta[cell_idx]
                 w = fitted[np.searchsorted(compatible, gidx)]
+                if ec_genes in unsupported:
+                    w = np.zeros(len(gidx))
             else:
                 w = theta[gidx]
             s = float(w.sum())
@@ -907,7 +932,9 @@ def build_multimap_layers(
                 return equal_weights(genes)
             if method == "em-global":
                 return fitted_weights(em_theta[np.asarray(genes, dtype=np.intp)], genes)
-            compatible, fitted = em_cell_theta[cell]
+            compatible, fitted, unsupported = em_cell_theta[cell]
+            if genes in unsupported:
+                return equal_weights(genes)
             return fitted_weights(fitted[np.searchsorted(compatible, genes)], genes)
 
         method_diagnostics["molecule_assignments"] = _write_molecule_assignments(
