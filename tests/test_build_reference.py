@@ -286,6 +286,59 @@ _HPV_GTF = (
 _HPV_FASTA = ">NC_001526.4 Human papillomavirus type 16\nACGTACGTAC\n"
 
 
+def test_emitted_viral_gtf_is_normalised_for_kb(tmp_path):
+    """REF-13: kb ignores CDS rows, so an exon-less CDS-only gene must get an exon."""
+    from viralscan.scripts.build_reference import _emit_viral_gtf
+
+    fasta = tmp_path / "v.fa"
+    fasta.write_text(">NC_X.1\n" + "ACGT" * 50 + "\n")
+    cds_only = (
+        'NC_X.1\tNCBI\tgene\t10\t99\t.\t+\t.\tgene_id "g1";\n'
+        'NC_X.1\tNCBI\tCDS\t10\t99\t.\t+\t0\tgene_id "g1"; transcript_id "unassigned_transcript_1";'
+    )
+    out = tmp_path / "v.gtf"
+    _emit_viral_gtf(fasta, out, real_gtf_blocks={"NC_X.1": [cds_only]})
+    features = [line.split("\t")[2] for line in out.read_text().splitlines()]
+    assert "exon" in features
+    assert 'transcript_id "g1"' in out.read_text()
+
+
+def test_reference_path_indexes_a_normalised_gtf_copy(tmp_path, monkeypatch):
+    """REF-13: `--reference` gives kb a normalised copy; host rows and the user file stay put."""
+    from viralscan import menu
+    from viralscan.scripts import build_reference as br
+
+    host = (
+        'ENST1\tEnsembl_cDNA\tgene\t1\t50\t.\t+\t.\tgene_id "ENSG1"; transcript_id "ENST1";\n'
+        'ENST1\tEnsembl_cDNA\texon\t1\t50\t.\t+\t.\tgene_id "ENSG1"; transcript_id "ENST1";\n'
+        'ENST2\tEnsembl_cDNA\tCDS\t1\t30\t.\t+\t0\tgene_id "ENSG2"; transcript_id "ENST2";\n'
+    )
+    viral = (
+        'V1\tNCBI\tgene\t10\t99\t.\t+\t.\tgene_id "g1";\n'
+        'V1\tNCBI\tCDS\t10\t99\t.\t+\t0\tgene_id "g1"; transcript_id "unassigned_transcript_1";\n'
+    )
+    gtf = tmp_path / "user.gtf"
+    gtf.write_text(host + viral)
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">V1\nACGT\n")
+    seen = {}
+    monkeypatch.setattr(br, "_run_kb_ref", lambda cmd, out: seen.update(cmd=cmd) or {})
+    monkeypatch.setattr(
+        br,
+        "prepare_reference_inputs",
+        lambda f, g, *a, **k: seen.update(gtf=g) or (fasta, tmp_path / "m.json"),
+    )
+    monkeypatch.setattr(br, "record_reference_build", lambda *a, **k: seen.update(rec=k))
+    monkeypatch.setattr(menu, "_write_reference_manifest", lambda *a: None)
+    menu._build_kb_ref(tmp_path / "out", str(fasta), str(gtf))
+    kb_gtf = Path(seen["cmd"][-1])
+    assert kb_gtf == seen["gtf"] == seen["rec"]["normalised_gtf"]
+    assert gtf.read_text() == host + viral
+    out = kb_gtf.read_text()
+    assert out.startswith(host)  # host rows byte-identical, even the CDS-only host gene
+    assert "exon\t10\t99" in out and 'transcript_id "g1"' in out
+
+
 class TestIndexGtfBySeqname:
     """The merged NCBI GTF splits per accession so each block can be reused."""
 

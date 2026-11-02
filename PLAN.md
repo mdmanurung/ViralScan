@@ -1156,7 +1156,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
 - [!] `REF-10` — an orthogonally confirmed anellovirus-positive sample is needed
   for real sensitivity claims; without it, ship screening support only and label
   every result accordingly.
-- [~] `REF-13` — **new, 2026-09-26.** Detection-side reference visibility and
+- [x] `REF-13` — **new, 2026-09-26.** Detection-side reference visibility and
   - 2026-10-10 (wave 4 audit): a fresh `scripts/panel_integrity.py` run reports **2,626** errors (2,469 transcripts with no exon,
     103 HHV-6B CDS rows with no `transcript_id`, 54 reused `unassigned_transcript_N`) plus 47 catalogue gaps; the drop from 2,629 is the
     removed duplicate `NC_002076.2` GTF. **5** genes (not 6) have neither CDS nor exon (`TTV3_gp6`, `D1P65_gp2`, `EPSTEIN_HHV4_BARF0`,
@@ -1181,6 +1181,17 @@ No open rows; done rows are in the PLAN archive (see Next action).
     UL111A intron retention not verified (Jenkins 2004 abstract says only "different splicing pattern"): span transcript kept.
     **Open:** `gene_programs.tsv` not regenerated (overlap groups change: EBV 5 -> 2 independent groups); HBV P/S first part still
     unindexed; the unpinned `build-reference` path was not wired.
+  - 2026-11-02 (user decision, `codex/ref13-build-reference`): **wired into `build-reference`.** `build_reference._emit_viral_gtf` now runs
+    `normalise_gtf_file` on the viral GTF it writes (combined-reference and anellovirus builds), so `kb ref` sees exon rows for CDS-only
+    genes. Test: `test_emitted_viral_gtf_is_normalised_for_kb`. Shipped GTFs untouched. `gene_programs.tsv` regenerated from the 393 local
+    GTFs with `extras/build_gene_programs.py`: output byte-identical to the committed file (it already carries the REF-13 groups, so the
+    10-10 "not regenerated" note was stale).
+  - 2026-11-02 (user decision, same PR): **`viralscan --reference <fasta> <gtf>` wired too.** `menu._normalise_kb_ref_gtf` writes
+    `index/reference.normalised.gtf` and kb indexes that; the user's file is never modified. Host cDNA rows (seqname == transcript_id !=
+    gene_id) are copied verbatim; only the other rows are normalised. `content_files.gtf` still hashes the user's GTF; new
+    `content_files.normalised_gtf` hashes the indexed copy (schema allows extra keys, so no schema change; a changed user GTF still changes
+    both hashes and `content_sha256`). Test: `test_reference_path_indexes_a_normalised_gtf_copy`; mutation check (normalise call removed)
+    fails both new tests. **Remaining:** HBV P/S origin-wrapping first part stays unindexed (ngs_tools limit, no package fix).
   - 2026-10-10 (wave 3): astrovirus `NC_001943.1` column-3 `Non structural gene` fixed to `CDS`
     (`scripts/fix_thin_gtfs.py`; integrity count 2,628 -> 2,629 because those two CDS rows are now visible and
     exon-less like the other legacy records). **Duplicate `NC_002076.2` resolved (user decision, 2026-10-10):** the builder consumes

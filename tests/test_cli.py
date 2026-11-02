@@ -467,7 +467,10 @@ class TestBuildKbRefInputs:
         assert "kb" in receipt["tools"]
         materialized_fasta = tmp_path / "out" / "index" / "reference.prepared.fa"
         materialized_gtf = tmp_path / "out" / "index" / "input.gtf"
-        assert cmd[-2:] == [str(materialized_fasta), str(materialized_gtf)]
+        assert cmd[-2:] == [
+            str(materialized_fasta),
+            str(materialized_gtf.with_name("reference.normalised.gtf")),
+        ]
         assert materialized_fasta.read_text() == ">A\nAAAA\n>B\nBBBB\n"
         assert materialized_gtf.read_text() == (
             'A\t.\tgene\t1\t4\t.\t+\t.\tgene_id "A";\nB\t.\tgene\t1\t4\t.\t+\t.\tgene_id "B";\n'

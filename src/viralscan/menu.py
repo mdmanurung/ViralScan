@@ -1541,6 +1541,36 @@ def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> Non
     log.info("Index build manifest: %s", path)
 
 
+def _normalise_kb_ref_gtf(gtf: str, out: Path) -> Path:
+    """Write the REF-13 normalised copy of *gtf* to *out*; the user's file is never touched.
+
+    Host cDNA rows (seqname == transcript_id != gene_id, the rule ``prepare_reference_inputs``
+    uses) are copied verbatim; only the remaining rows go through ``normalise_viral_gtf``.
+    """
+    import tempfile
+
+    from viralscan.gtf_normalise import normalise_gtf_file
+    from viralscan.utils import open_maybe_gzip
+
+    host_re = re.compile(r'transcript_id "([^"]+)"')
+    host: list[str] = []
+    rest: list[str] = []
+    with open_maybe_gzip(gtf, encoding="utf-8", errors="replace") as handle:
+        for line in handle.read().splitlines():
+            cols = line.split("\t")
+            tx = host_re.search(cols[8]) if len(cols) >= 9 else None
+            is_host = (
+                tx is not None and cols[0] == tx.group(1) and f'gene_id "{cols[0]}"' not in line
+            )
+            (host if is_host else rest).append(line)
+    with tempfile.TemporaryDirectory(dir=out.parent) as work:
+        viral = Path(work) / "viral.gtf"
+        viral.write_text("\n".join(rest) + "\n" if rest else "")
+        normalised = normalise_gtf_file(viral) if rest else []
+    out.write_text("\n".join(host + normalised) + "\n")
+    return out
+
+
 def _build_kb_ref(
     output_dir: Path, fasta: str, gtf: str, cores: int | None = None
 ) -> tuple[str, str, str]:
@@ -1555,9 +1585,11 @@ def _build_kb_ref(
     index_dir = output_dir / "index"
     index_dir.mkdir(parents=True, exist_ok=True)
     fasta_input, gtf_input = _prepare_kb_ref_inputs(output_dir, fasta, gtf)
+    # REF-13: kb ignores CDS rows; index a normalised copy and keep the user's GTF as given.
+    kb_gtf = _normalise_kb_ref_gtf(gtf_input, index_dir / "reference.normalised.gtf")
     prepared, sequence_manifest = prepare_reference_inputs(
         Path(fasta_input),
-        Path(gtf_input),
+        kb_gtf,
         index_dir,
         viral_gene_ids=gtf_gene_ids(gtf_input),
         mask=True,
@@ -1579,13 +1611,14 @@ def _build_kb_ref(
         f1,
         "--overwrite",
         str(prepared),
-        gtf_input,
+        str(kb_gtf),
     ]
     resources = _run_kb_ref(command, index_dir)
     record_reference_build(
         sequence_manifest,
         fasta=prepared,
         gtf=Path(gtf_input),
+        normalised_gtf=kb_gtf,
         t2g=Path(transcripts),
         command=command,
         resources=resources,
