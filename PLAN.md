@@ -7,6 +7,7 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `PLAN-RECON-01` (2026-11-02, `codex/plan-recon`, user: finish the package before analysis): open rows checked against the code. Closed: `SENS-CORR-02`, `ANDET-04` (opt-in). Stale notes corrected: `CAT-41`, `DOC-01`, `DEF-08`, `MECH-E`. Package code still open without a user decision: `AUD3-02-OPEN` (viral-free test miscalibrated), `CAT-04` (ciHHV-6 flag is name-based). Open on a user decision: `REF-13` CDS normaliser, `DEF-04`, `SCAUTOQC-01` defaults, `DLIST-02`, `CAT-30`, `DOC-10`, `PATHS-01`. Every other open row needs real data, the cluster, the network or maintainer infrastructure.
 - [x] `HOSTLOSS-IT-01` (2026-11-02, `codex/hostloss-starsolo-it`, HANDOFF open item from `REVIEW-FIX-E`; test only): `tests/integration/test_host_filter_star.py::test_host_loss_on_a_real_starsolo_run_and_its_primary_tree_guard` runs `viralscan run --host-filter starsolo` on the tiny fixture (STAR genome from `host.fasta`, `--tchem off`), then `host-loss` on that sample: the default output lands in `posthoc/host_loss/` (D15 0/1), and `--output` under `<sample>/results/` or the run root is refused, `--force` included, with nothing created. Disabling `refuse_primary_tree` makes it fail. The STAR genome build moved to a `_star_genome` helper shared with the SW-07 test.
 - [x] `SIGTERM-GROUP-01` (2026-11-02, `codex/sigterm-group`, HANDOFF open item from `REVIEW-FIX-D`): the process-group forwarding in `menu._run_snakemake` moved to `run_safety.run_in_group` (own session, SIGINT/SIGTERM forwarded to the group, SIGTERM exits 143, `check`/`capture_output` like `subprocess.run`). `kb ref` (`build_reference._run_kb_ref`) and the `--strand auto` pilot (`strand._kb_pilot`) now use it, so a SIGTERM during the index build or pilot no longer orphans kb/kallisto. STAR and other native tools still use `subprocess.run`. Tests: `tests/test_run_lifecycle.py` (existing SIGTERM test now runs through the helper, plus a capture/raise test); kb-ref test patches moved from `subprocess.run` to `run_in_group`.
 - [x] `CORES-AFFINITY-01` (2026-11-02, `codex/cores-affinity`, HANDOFF open item): the `--cores` clamp in `errorhandler` uses `len(os.sched_getaffinity(0))` (the CPUs this process may use, e.g. a Slurm allocation) and falls back to `os.cpu_count()` where the call is missing (macOS). Before, a job given 8 of 24 CPUs kept `--cores 24`. Test: `tests/test_config_zero_and_cores.py::test_cores_clamped_to_affinity_not_node`.
@@ -562,6 +563,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     for Alphapapillomavirus 4, HPV14 for 14D, HPV68 for 68a, HPV6 for 6b,
     "Human enterovirus 68, 70" for Enterovirus D.
   Re-run the scan in `CAT-41` after any catalogue merge.
+  - 2026-11-02 (`PLAN-RECON-01`): the first three "Still open" items are stale. The catalogue now shows Influenza D per segment, NC_001664 "Human herpesvirus 6A" and KC138720 "Human papillomavirus type XS2". Only the smaller exemplar-name mismatches remain unreviewed.
 - [~] `MECH-D` — **tracked under `DEF-02` (reconciled 2026-10-04): one module, one row;
   this closes with DEF-02.** (module landed 2026-10-03) Chemistry module: one geometry for kb, STARsolo and the
   preflight, plus an R1-length / polyT check. The 10x v2 run as `-x 10xv3`
@@ -570,6 +572,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
   masking → GTF emitter → index with a recorded D-list. The prototype is
   `viral_panel_max_2026-09-28/01–04`.
   Software side done under `AUD-15` (2026-10-11/12): source adapters, `_prepare_viral_fasta` masking gate, `_emit_viral_gtf` emitter, `_finish_reference_build` index boundary with `genome_dlist_applied` in the manifest. Left: governance re-pin and a real (non-mock) index build.
+  - 2026-11-02 (`PLAN-RECON-01`): the governance re-pin is done (repro PR #19 pins package 9e31c65, `reference-manifest-schema` included). Only the real (non-mock) index build is left.
 - [~] `MECH-F` — the corrected-BUS boundary, index-aware denominators, and one
   - 2026-10-04 (1203250): **off-list drops are now counted.** The count audit gains:
     - `barcode_correction`;
@@ -756,6 +759,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     lock is `environment.explicit.txt` (see REL-03). `tests/test_snakefile_dag.py`
     passes 13/13 (incl. the 9 integration-marked dry-runs) with that env's
     snakemake 9.23.1. The CI-runner result of `snakemake9-dryrun` stays the user's.
+  - 2026-11-02 (`PLAN-RECON-01`): the CI job `Snakemake 9 dry-run (DEF-08)` runs and passes on every PR. Only the `viralscan_test_full` lock is left.
 - [ ] `CMP-06` (WP6B) — same-input comparison with evonk's original
   ViralScan 2.2.0 on the **same latest reference** as v3, so only the
   implementation differs (user request 2026-09-30).
@@ -1244,7 +1248,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
   `docs/vignettes/` or integration with `VAL-01`'s generator, after which
   `E8`/`D17` LOD95 can be estimated by the preregistered probit fit rather than
   reported as an analytic floor.
-- [~] `SENS-CORR-02` — exact substitution-only model. **Done (2026-10-06):**
+- [x] `SENS-CORR-02` — exact substitution-only model. **Done (2026-10-06):**
   `sensitivity.fragment_capture_exact` (O(Lk) DP, absorbing-state mass, validated
   inputs) now *is* the capture model: `fragment_capture` is a thin deprecated alias
   that delegates to it, so every caller moved to the corrected curve (90 bp, k=31:
@@ -1266,6 +1270,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
   commit; I did not edit it, to keep `test_artifact_inventory` green. Also stale:
   `SESSION_RESUME.md:230` (not mine). `substitution_only_kmer_survival` alias name
   from the audit was not added (no consumer).
+  - 2026-11-02 (`PLAN-RECON-01`): done. `docs/output_reference.md:502` gives the exact values (0.708 / 0.254 / 0.063 / 0.013) and `:515-540` documents the `positive_control.json` fields.
 - [~] `SENS-CORR-01` — scoped capture. **Done (2026-10-06):** `CaptureScope`,
   `PositiveControl`, `scoped_capture` are wired. `build_sensitivity_table` applies
   the control's capture only to rows in scope (`detection.row_capture`); every other
@@ -1447,7 +1452,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     reference manifest, `results/host_homology_loci.tsv` with `eve_risk`); what was missing was the output
     documentation, now `output_reference.md` section `host_homology_loci.tsv` with a test that every column is
     documented. Still open and **not implemented on purpose**: demotion (blocked on `REF-08`'s threshold).
-- [~] `ANDET-04` — evidence replay reads the raw FASTQs (`evidence_run.py:154-155`,
+- [x] `ANDET-04` — evidence replay reads the raw FASTQs (`evidence_run.py:154-155`,
   `:176`) instead of the host-filtered `kb_r1`/`kb_r2`; `--virus ttv` resolves to
   the 185 unclassified genomes only (`evidence.py:64`). Fix both; auto-run
   read-level host confirmation for detected anellovirus genera.
@@ -1477,6 +1482,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     - Cost: one `evidence` run per genus (host FASTA copied, FASTQs re-read); `ponytail:` comment in the script.
     - Tests: `tests/test_auto_evidence.py`, `test_cli.py::TestBuildRunConfig`, `test_snakefile_dag.py::TestAutoEvidenceDag`.
       Proposed `output_reference.md` text (hash-pinned, not edited) is in the wave 4 report.
+  - 2026-11-02 (`PLAN-RECON-01`): done as an opt-in rule (`--auto-evidence`, Snakefile `rule auto_evidence`). Default-on stays the user's call under `ANELLO-PRIOR.3`.
 - [ ] `ANDET-07` — make the expanded panel the default quantification reference,
   - 2026-10-12 (grill, user-confirmed): expanded panel stays opt-in until `ANDET-08` measures the genus-level LOD95.
   **only after `ANDET-01`–`ANDET-04` land**. `protocol.yaml`'s
@@ -2738,6 +2744,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
         build still has 37 pre-existing warnings: `csv` lexer, PLAN
         cross-refs in docs/plans, header jumps.
       - pip/full tier text (REL-01/02) and the data-fetch wording (REF-11).
+  - 2026-11-02 (`PLAN-RECON-01`): Sphinx `-W` now runs in CI (`.github/workflows/docs.yml:33`). Only the REF-11 data-fetch wording (user) is left.
 - [~] `DOC-05` — execute clean-install quickstart commands and validate the
   resulting run using only documented steps.
   - 2026-10-12 (`codex/docs-pass`): executed in a fresh venv (`python -m venv`, no system
