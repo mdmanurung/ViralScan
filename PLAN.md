@@ -748,7 +748,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
       `runs/combined_sw21/`). Pass: detection → dropseq, kb log shows
       `-w None`, and barcodes/HSV-1 molecules return to ~1.8M / ~32k (vs
       5,468 / 23,170 with the knee allowlist, job 25666447).
-- [~] `DEF-04` — *(2026-10-10: no shipped GTF carries a `whole_genome` gene any more, `panel_integrity.py` reports 0; the gene-level exclusion code is deferred: it only affects FASTA-only user references where the whole-genome gene is the virus's only unit, so it needs a design call, not plumbing.)* `whole_genome` tag in the catalogue and its exclusions (Q12).
+- [x] `DEF-04` — *(2026-10-10: no shipped GTF carries a `whole_genome` gene any more, `panel_integrity.py` reports 0; the gene-level exclusion code is deferred: it only affects FASTA-only user references where the whole-genome gene is the virus's only unit, so it needs a design call, not plumbing.)* `whole_genome` tag in the catalogue and its exclusions (Q12). **Closed 2026-11-02 (user decision: keep + warn, `codex/def04-warn`):** the whole-genome gene is kept, since it can be the virus's only unit and excluding it would hide the virus. `prepare_reference_inputs` now logs one warning naming accessions that have only a whole-genome unit; their counts are whole-genome, not per-gene. Pinned by `test_whole_genome_only_virus_is_kept_and_warned`.
   - 2026-10-12 (grill, user-confirmed): deferred past the exploratory public-dataset runs; no shipped reference is affected.
 - [~] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
   - 2026-10-04: CI gains a `snakemake9-dryrun` job (`snakemake>=9,<10` +

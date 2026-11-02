@@ -242,3 +242,24 @@ def test_reference_warns_when_gtf_looks_like_a_host_genome(
     with caplog.at_level("WARNING", logger="viralscan"):
         builder.prepare_reference_inputs(fasta, gtf, tmp_path / "out", viral_gene_ids={"ENSG1"})
     assert any("host genome annotation" in r.message for r in caplog.records) is warns
+
+
+def test_whole_genome_only_virus_is_kept_and_warned(tmp_path, monkeypatch, caplog):
+    # DEF-04: a whole_genome unit stays (it may be the virus's only gene) but is announced.
+    fasta, gtf = _inputs(tmp_path)
+    gtf.write_text(
+        gtf.read_text().replace(
+            'transcript_id "V1_tx";', 'transcript_id "V1_tx"; gene_biotype "whole_genome";'
+        )
+    )
+
+    def fake_mask(source, output):
+        builder._write_fasta(output, builder.validate_reference_records(source))
+        return True
+
+    monkeypatch.setattr(builder, "mask_low_complexity", fake_mask)
+    with caplog.at_level("WARNING", logger="viralscan"):
+        builder.prepare_reference_inputs(
+            fasta, gtf, tmp_path / "out", viral_gene_ids={"ENSG1", "V1_g"}
+        )
+    assert any("whole-genome, not per-gene" in m and "V1" in m for m in caplog.messages)

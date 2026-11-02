@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
+- Feat (PLAN `DEF-04`): a reference where some viruses have only a whole-genome unit (`gene_biotype whole_genome`) now logs one warning naming them. The unit is kept; their counts are whole-genome, not per-gene.
 - Docs (PLAN `AUD3-02-OPEN`): the report no longer says the neighbour-enrichment null is uncalibrated. On the host-only graph it holds its nominal false-positive rate when positive cells are random; a new test pins that rate.
 - Fix (PLAN `SIGTERM-GROUP-01`): SIGTERM or Ctrl-C during the `kb ref` index build or the `--strand auto` pilot now stops kb and kallisto too; before, only a running snakemake got the signal.
 - Fix (PLAN `CORES-AFFINITY-01`): `--cores` is clamped to the CPUs the process may use (a Slurm allocation), not every CPU on the node.
