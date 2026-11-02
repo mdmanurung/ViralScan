@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
+- Fix `--scautoqc`: sctk 0.2.0 crashed with `TypeError: ... unexpected keyword argument 'warm_start'` when a QC Gaussian fit did not converge; ViralScan now patches that retry (PLAN `SCAUTOQC-01`).
 - Feat (PLAN `DEF-04`): a reference where some viruses have only a whole-genome unit (`gene_biotype whole_genome`) now logs one warning naming them. The unit is kept; their counts are whole-genome, not per-gene.
 - Reference (PLAN `REF-13`): `build-reference` normalises the viral GTF before `kb ref`. CDS-only genes get exon rows, single-protein spliced genes lose their introns, and HHV-6B repeat copies get one transcript each, so target counts of user-built references change. `viralscan --reference` does the same on a copy (`index/reference.normalised.gtf`, hashed as `content_files.normalised_gtf`); your GTF is never modified and host cDNA rows are copied unchanged. Shipped GTFs are untouched.
 - Docs (PLAN `DOC-10`): unbacked quantitative wording is removed or softened in `cli_reference.md`, `reference_panel.md`, `faq.md`, `output_reference.md` and this file (host-filter `p_unique` table, "3.5x", "lost 96.5%", TTV k-mer share, "~3x faster / ~6x lower memory"); the claim checker lives in ViralScan-reproducibility and becomes a failing gate there. Registered markers added where an existing claim covers the number.
