@@ -140,7 +140,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   - 2026-10-23: tag `v3.0.0rc1` (on `87591c4`) pushed; release run 40000132978 built and `twine check`ed both
     distributions, then failed at `check_ship_scope.py` (`jsonschema` missing in the release job; nothing published).
     Fix: release.yml installs `jsonschema`. Re-tag needed (the release runs only on a tag push of a CI-green commit).
-- [~] `PATHS-01` (2026-10-22, `codex/strip-institutional-paths`): `PLAN.md` site paths replaced by `$SITE_ROOT` (archive work root), `$SITE_SCRATCH` (scratch checkout root) and `$COLLAB_ROOT` (collaborator root); 10 lines. **Open:** about 190 more hits in `.living/` and about 300 in tracked analysis outputs, manifests, docs and Slurm scripts (`git grep -c -E "/exports/|lumc"`); scope of a repo-wide scrub is the user's call. **Done (2026-10-22, `codex/strip-paths-docs-scripts`):** tracked `docs/`, `scripts/` and `covid_viralscan/` now use `$SITE_ROOT`/`$SITE_SCRATCH`/`$COLLAB_ROOT` placeholders in prose and the fail-fast env vars `VIRALSCAN_SITE_ROOT`, `VIRALSCAN_SITE_SCRATCH`, `VIRALSCAN_COLLAB_ROOT` in scripts (`#SBATCH` log paths are now relative; `--chdir` lines dropped, submit from the repo root). `.living/`, `analysis/`, `results/` and other outputs deliberately untouched; no history rewrite.
+- [x] `PATHS-01` (2026-10-22, `codex/strip-institutional-paths`): `PLAN.md` site paths replaced by `$SITE_ROOT` (archive work root), `$SITE_SCRATCH` (scratch checkout root) and `$COLLAB_ROOT` (collaborator root); 10 lines. **Open:** about 190 more hits in `.living/` and about 300 in tracked analysis outputs, manifests, docs and Slurm scripts (`git grep -c -E "/exports/|lumc"`); scope of a repo-wide scrub is the user's call. **Done (2026-10-22, `codex/strip-paths-docs-scripts`):** tracked `docs/`, `scripts/` and `covid_viralscan/` now use `$SITE_ROOT`/`$SITE_SCRATCH`/`$COLLAB_ROOT` placeholders in prose and the fail-fast env vars `VIRALSCAN_SITE_ROOT`, `VIRALSCAN_SITE_SCRATCH`, `VIRALSCAN_COLLAB_ROOT` in scripts (`#SBATCH` log paths are now relative; `--chdir` lines dropped, submit from the repo root). `.living/`, `analysis/`, `results/` and other outputs deliberately untouched; no history rewrite. **Closed 2026-11-02 (user decision):** no repo-wide scrub. Shipped code and docs are already clean; `.living/` and analysis outputs do not ship.
 - [~] `DOCS-PAGES-01` (2026-10-20, `codex/docs-pages`): publish the Sphinx docs on GitHub Pages (user choice over
   Read the Docs). `.github/workflows/docs.yml` builds on push to `main` (and by hand), installs pandoc for nbsphinx
   and `.[docs]`, and deploys with `actions/upload-pages-artifact` v5.0.0 / `actions/deploy-pages` v5.0.1 (SHA-pinned,
@@ -748,7 +748,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
       `runs/combined_sw21/`). Pass: detection → dropseq, kb log shows
       `-w None`, and barcodes/HSV-1 molecules return to ~1.8M / ~32k (vs
       5,468 / 23,170 with the knee allowlist, job 25666447).
-- [~] `DEF-04` — *(2026-10-10: no shipped GTF carries a `whole_genome` gene any more, `panel_integrity.py` reports 0; the gene-level exclusion code is deferred: it only affects FASTA-only user references where the whole-genome gene is the virus's only unit, so it needs a design call, not plumbing.)* `whole_genome` tag in the catalogue and its exclusions (Q12).
+- [x] `DEF-04` — *(2026-10-10: no shipped GTF carries a `whole_genome` gene any more, `panel_integrity.py` reports 0; the gene-level exclusion code is deferred: it only affects FASTA-only user references where the whole-genome gene is the virus's only unit, so it needs a design call, not plumbing.)* `whole_genome` tag in the catalogue and its exclusions (Q12). **Closed 2026-11-02 (user decision: keep + warn, `codex/def04-warn`):** the whole-genome gene is kept, since it can be the virus's only unit and excluding it would hide the virus. `prepare_reference_inputs` now logs one warning naming accessions that have only a whole-genome unit; their counts are whole-genome, not per-gene. Pinned by `test_whole_genome_only_virus_is_kept_and_warned`.
   - 2026-10-12 (grill, user-confirmed): deferred past the exploratory public-dataset runs; no shipped reference is affected.
 - [~] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
   - 2026-10-04: CI gains a `snakemake9-dryrun` job (`snakemake>=9,<10` +
@@ -1584,7 +1584,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     (`viral_ref_cat42b/anello_acceptance.sbatch`).
 ## WP4H — Comprehensive human-virus catalogue (new 2026-09-27)
 
-- [~] `CAT-04` — risk classes: exclude human endogenous retroviruses; flag
+- [x] `CAT-04` — risk classes: exclude human endogenous retroviruses; flag
   integrated ciHHV-6, `EVE_RISK_GENERA`, and vector/reagent contaminants.
   - 2026-10-10 (wave 4 reconcile): the **flags are done** in `f4320d2`: catalogue `role` (`contaminant` AAV1-8 and SV40,
     `decoy` MLV/XMRV, `endogenous` HERV-K113) and `risk_class` feed `reference_risk_flags`
@@ -1592,6 +1592,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     `iciHHV6_possible`) into `viral_summary.tsv` and the report. **Open, needs a decision/data:** HERV exclusion (HERV-K113 is
     `broad`, not shipped, so nothing to exclude yet), a CAR-T/lentiviral vector filter (no vector sequences in the repo), and a
     real ciHHV-6 integration test (today the flag is name-based).
+  - Closed as deferred (user, 2026-11-02): reopen when a ciHHV-6 carrier library / vector sequences exist. No data-driven rule now; the name-based `iciHHV6_possible` flag stays (pinned in `tests/test_panel_integrity_contract.py`). HERV exclusion and the vector filter wait for data too.
 - [ ] `CAT-07` — diversity-aware representatives for high-diversity families,
   chosen by leave-one-out k-mer capture (the `REF-01` method), not one exemplar.
 - [ ] `CAT-08` — build with native `viralscan build-ref` and measure leave-one-out

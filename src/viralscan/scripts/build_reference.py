@@ -768,6 +768,19 @@ def _warn_if_host_like(gtf: Path, viral_ids: set[str], n_genes: int) -> None:
     )
 
 
+def _warn_whole_genome_only(whole: set[str], annotated: set[str]) -> None:
+    """DEF-04: say which viruses are counted as one whole-genome unit (kept, never dropped)."""
+    only = sorted(whole - annotated)
+    if not only:
+        return
+    log.warning(
+        "%d viral accession(s) have only a whole-genome unit (gene_biotype whole_genome): %s. "
+        "Their counts are whole-genome, not per-gene.",
+        len(only),
+        ", ".join(only[:10]) + (" ..." if len(only) > 10 else ""),
+    )
+
+
 def prepare_reference_inputs(
     fasta: Path,
     gtf: Path,
@@ -782,6 +795,8 @@ def prepare_reference_inputs(
     viral_ids: set[str] = set()
     host_ids: set[str] = set()
     viral_genes_seen: set[str] = set()
+    whole_genome_ids: set[str] = set()
+    annotated_ids: set[str] = set()
     for line in gtf.read_text().splitlines():
         if not line or line.startswith("#"):
             continue
@@ -797,7 +812,10 @@ def prepare_reference_inputs(
         elif gene.group(1) in viral_gene_ids:
             viral_ids.add(fields[0])
             viral_genes_seen.add(gene.group(1))
+            whole = 'gene_biotype "whole_genome"' in fields[8]
+            (whole_genome_ids if whole else annotated_ids).add(fields[0])
     _warn_if_host_like(gtf, viral_ids, len(viral_genes_seen))
+    _warn_whole_genome_only(whole_genome_ids, annotated_ids)
     if host_ids & viral_ids:
         raise ValueError("Reference seqnames mix host cDNA and viral gene identities")
     if mask and not viral_ids:
