@@ -612,28 +612,17 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     if not Path(virus_h5ad).exists():
         _die(f"Virus h5ad not found at {virus_h5ad}. Ensure the multimap step has completed.")
 
-    from viralscan.defaults import DEFAULTS
 
     n_seeds = args.n_seeds if args.n_seeds is not None else cfg.hostresponse_n_seeds
     try:
         seeds = resolve_seeds(n_seeds)
     except ValueError as exc:
         _die(str(exc))
-    n_stab_iter = (
-        args.n_stab_iter
-        if args.n_stab_iter is not None
-        else cfg.hostresponse_n_stab_iter
-    )
+    n_stab_iter = args.n_stab_iter if args.n_stab_iter is not None else cfg.hostresponse_n_stab_iter
     stab_min_prob = (
-        args.stab_min_prob
-        if args.stab_min_prob is not None
-        else cfg.hostresponse_stab_min_prob
+        args.stab_min_prob if args.stab_min_prob is not None else cfg.hostresponse_stab_min_prob
     )
-    top_n_genes = (
-        args.top_n_genes
-        if args.top_n_genes is not None
-        else cfg.hostresponse_top_n_genes
-    )
+    top_n_genes = args.top_n_genes if args.top_n_genes is not None else cfg.hostresponse_top_n_genes
     # B-16: the per-cell positive label has its own threshold; the sample gate
     # (cfg.detection_threshold) is never used for it.
     if args.hostresponse_min_umi is not None:
@@ -872,7 +861,9 @@ def errorhandler(args: argparse.Namespace) -> None:
         _die(str(exc), 2)
     max_cores = os.cpu_count() or 1
     if getattr(args, "cores", 6) > max_cores:
-        log.warning("--cores %d exceeds the %d CPUs here; using %d.", args.cores, max_cores, max_cores)
+        log.warning(
+            "--cores %d exceeds the %d CPUs here; using %d.", args.cores, max_cores, max_cores
+        )
         args.cores = max_cores
     _check_hostresponse_evaluation(args)
 

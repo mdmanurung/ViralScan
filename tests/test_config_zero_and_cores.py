@@ -4,8 +4,8 @@ import os
 from unittest.mock import patch
 
 import pytest
-from test_errorhandler import _always_exists, _args
 
+from tests.test_errorhandler import _always_exists, _args
 from viralscan.menu import errorhandler
 from viralscan.runconfig import RunConfig
 
