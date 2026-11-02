@@ -488,7 +488,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     log.info("rerun-multimap complete in new result directory %s.", output_dir)
 
 
-def _apply_rerun_overrides(cfg: dict, args: argparse.Namespace) -> None:
+def _apply_rerun_overrides(cfg: dict[str, Any], args: argparse.Namespace) -> None:
     """Set the rerun's method, cores and EM options on a sample's config dict."""
     cfg["multimap_method"] = args.multimap_method
     cfg["cores"] = args.cores
