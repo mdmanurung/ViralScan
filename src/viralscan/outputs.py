@@ -151,7 +151,8 @@ def _status(finished: bool) -> list[str]:
     return [
         "Status: NOT FINISHED. This file was written when the run started.",
         "  If run_complete.json is missing from the run root, the run failed or is still going;",
-        "  check <sample>/.snakemake/log/ and re-run with --resume. It is rewritten on completion.",
+        "  check .snakemake/log/ in the directory you ran viralscan from, then re-run with",
+        "  --resume. It is rewritten on completion.",
     ]
 
 

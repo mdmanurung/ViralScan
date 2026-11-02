@@ -32,7 +32,7 @@ INVENTORY_REL = "results/artifact_inventory.json"
 def is_ignored(rel: str) -> bool:
     """True when the sample-relative path ``rel`` is deliberately left out of the inventory."""
     top = Path(rel).parts[0]
-    if rel == INVENTORY_REL or rel.endswith(".done") or top in ("posthoc", ".snakemake"):
+    if rel == INVENTORY_REL or rel.endswith((".done", ".tmp")) or top in ("posthoc", ".snakemake"):
         return True
     return top in INTERMEDIATE_DIRS and not rel.endswith(KEEP_SUFFIXES)
 

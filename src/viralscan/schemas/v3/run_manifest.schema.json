@@ -14,6 +14,18 @@
     "quantification_unit"
   ],
   "properties": {
+    "resume_attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["at"],
+        "properties": {
+          "at": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "schema_version": {
       "const": "3.0.0"
     },

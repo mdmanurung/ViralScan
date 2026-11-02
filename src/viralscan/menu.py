@@ -9,7 +9,9 @@ import argparse
 import json
 import logging
 import os
+import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -50,7 +52,9 @@ from viralscan.resources import KB_WORKERS, bounded_workers
 from viralscan.run_safety import (
     RUN_MANIFEST,
     RunSafetyError,
+    acquire_run_lock,
     clear_run_complete,
+    record_resume_attempt,
     record_strand_inference,
     recorded_strand_inference,
     require_fresh_output,
@@ -296,11 +300,34 @@ def _snakemake_unlock_command(snakefile_path: str, config_file: str | Path) -> l
 
 
 def _run_snakemake(command: list[str], *, what: str, hint: str) -> None:
-    """Run a snakemake command; a non-zero exit is a clean error, not a traceback (C-08)."""
+    """Run a snakemake command; a non-zero exit is a clean error, not a traceback (C-08).
+
+    snakemake runs in its own session. SIGINT/SIGTERM reaching viralscan is forwarded to
+    that whole process group (snakemake and the kb it started), so none is orphaned.
+    """
+    proc = subprocess.Popen(command, start_new_session=True)
+
+    def _on_sigterm(_signum: int, _frame: Any) -> NoReturn:
+        sys.exit(143)
+
+    previous = signal.signal(signal.SIGTERM, _on_sigterm)
     try:
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as exc:
-        _die(f"{what} failed (exit {exc.returncode}); {hint}")
+        returncode = proc.wait()
+    except (KeyboardInterrupt, SystemExit) as exc:
+        sent = signal.SIGINT if isinstance(exc, KeyboardInterrupt) else signal.SIGTERM
+        try:
+            os.killpg(proc.pid, sent)
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()
+        except ProcessLookupError:
+            pass
+        raise
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+    if returncode:
+        _die(f"{what} failed (exit {returncode}); {hint}")
 
 
 def _run_rerun_multimap(args: argparse.Namespace) -> None:
@@ -1411,7 +1438,10 @@ def _write_sample_summary(
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     text = summary_path.read_text(encoding="utf-8") if summary_path.is_file() else ""
     # --resume appends to a summary.txt that may still hold the last attempt's footer.
-    text = text.split("\nRuntime: ")[0]
+    # Runtime is cumulative over finished attempts, so a no-op resume cannot erase it.
+    text, _, old_footer = text.partition("\nRuntime: ")
+    if match := re.match(r"([\d.]+) seconds", old_footer):
+        elapsed += float(match.group(1))
     footer = (
         f"\nRuntime: {elapsed:.4f} seconds.\n\n"
         f"Amount of transcripts in data: {n_transcripts}\n"
@@ -1733,8 +1763,11 @@ def _main() -> None:
 
     chemistry_blocks = _resolve_chemistry(args)
     output_dir = Path(args.output).resolve()
+    samples1 = split_comma_paths(args.sample1)
+    _check_sample_ids(samples1)
     try:
-        prepare_output_directory(
+        acquire_run_lock(output_dir)  # before prepare: --overwrite must not wipe a live run
+        status = prepare_output_directory(
             output_dir,
             build_run_manifest(args),
             resume=args.resume,
@@ -1743,12 +1776,21 @@ def _main() -> None:
         )
     except RunSafetyError as exc:
         _die(str(exc))
-    for sample, block in chemistry_blocks.items():
-        record_manifest_block(output_dir, "chemistry_detection", sample, block)
+    # The marker is gone (resume) or never existed: say NOT FINISHED now, not after the
+    # NCBI fetch / index build / strand pilot below, which can fail.
+    write_start_docs(output_dir, [_sample_id(s1) for s1 in samples1])
     # REL-16: same-version kallisto/bustools binaries differ, so record which ran.
     from viralscan.validation import tool_provenance
 
-    record_manifest_block(output_dir, "tool_binaries", "run", tool_provenance())
+    tool_block = {"run": tool_provenance()}
+    if status == "resume":
+        record_resume_attempt(
+            output_dir, {"chemistry_detection": chemistry_blocks, "tool_binaries": tool_block}
+        )
+    else:
+        for sample, block in chemistry_blocks.items():
+            record_manifest_block(output_dir, "chemistry_detection", sample, block)
+        record_manifest_block(output_dir, "tool_binaries", "run", tool_block["run"])
 
     if args.ncbi_accession:
         from viralscan.scripts.ncbi_fetch import NCBIFetchError, fetch_reference
@@ -1781,12 +1823,8 @@ def _main() -> None:
         f1 = args.f1
 
     snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
-    samples1 = split_comma_paths(args.sample1)
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
-
-    _check_sample_ids(samples1)
-    write_start_docs(output_dir, [_sample_id(s1) for s1 in samples1])
 
     # Hoist loop-invariant transcript counts (they depend only on the reference).
     n_transcripts = _count_lines(transcripts)
@@ -1806,6 +1844,14 @@ def _main() -> None:
             _migrate_gene_list(Path(outs))
             _backfill_identity_table(run_config)
         hint = f"see {Path.cwd() / '.snakemake' / 'log'}"
+        if args.resume:
+            # We hold the run lock, so no live viralscan run owns snakemake's lock: a lock
+            # left by a killed run is stale. Clear it instead of failing with LockException.
+            _run_snakemake(
+                _snakemake_unlock_command(snakefile_path, config_file),
+                what="snakemake --unlock",
+                hint=hint,
+            )
         _run_snakemake(
             _snakemake_run_command(snakefile_path, args.cores, config_file),
             what="snakemake",
