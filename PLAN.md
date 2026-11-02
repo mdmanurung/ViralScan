@@ -113,6 +113,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
+  - 2026-11-02 split: the package code and fixtures are done; the real-directory qualification moved to the repro tracker as `REVIEW-C-RUN`. Flip this row to `[x]` when that row closes.
   - Note: real Track A BAMs (`VIRUS|U31784.1`) vs a bare-accession GTF gave `annotation_mismatch`;
     `resolve_reference_annotation` now also accepts `ACC` for viral-class references only and
     records `annotation_seqid` / `annotation_seqid_normalised` in the coverage-map JSON.
@@ -130,7 +131,8 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   the target's multimapper QNAMEs go to a file, one `samtools view -N` pass collects their other records, and the same precedence
   applies (any `HOST|` partner, else another `VIRUS|` contig, else unique; same-contig hits stay unique). Streams records; memory is the
   multimapper QNAME set. Tested on a synthetic NH/HI BAM.
-  **Open:** layout review by the user, a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1, a `environment.coverage.yml` solve in CI.
+  **Open (package):** layout review by the user, a `environment.coverage.yml` solve in CI.
+  **Moved 2026-11-02 to the reproducibility tracker as `COVMAP-01-RUN`:** a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1. Flip this row to `[x]` when the package items and that row close.
 - [~] `REF-11-PREP` (2026-10-23, `codex/panel-archive-script`, user: keep the script): `scripts/make_panel_archive.py` builds the
   deterministic viral-annotation panel archive for Zenodo (zip in the `viralscan data fetch` layout + `PANEL_MANIFEST.json`,
   `SHA256SUMS`, DRAFT `zenodo_metadata.draft.json` with TODO values). Preparation only: nothing uploaded, no DOI reserved.
@@ -311,7 +313,8 @@ packaging, release and CI. An ID in this list that appears elsewhere in this fil
 - Catalogue and reference measurements: `CAT-07`, `CAT-08`, `CAT-10`, `CAT-14`, `CAT-15`, `CAT-16`, `CAT-19`, `CAT-40`.
 - Gene programmes: `PROG-15`, `PROG-16`, `PROG-18`.
 - Translated search (arm P): `AA-02`, `AA-04`, `AA-05`.
-- Split rows: `SCAUTOQC-01` stays here (code done); its real-data gate is `SCAUTOQC-01-RUN` in the repro tracker.
+- Split rows: `SCAUTOQC-01` stays here (code done); its real-data gate is `SCAUTOQC-01-RUN` in the repro tracker. Likewise `COVMAP-01` (real-library pyGenomeTracks run: `COVMAP-01-RUN`) and `REVIEW-C` (real-directory qualification: `REVIEW-C-RUN`).
+- Checked and not split: `AUD3-REF08-DIVERGED` has no run part. It is a deferral of the homology threshold to `REF-08` (already in the repro tracker), so it stays here as written.
 
 ## How to use this tracker
 
