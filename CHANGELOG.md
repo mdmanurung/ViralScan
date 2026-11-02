@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
+- Fix (PLAN `CORES-AFFINITY-01`): `--cores` is clamped to the CPUs the process may use (a Slurm allocation), not every CPU on the node.
 - Fixes (PLAN `REVIEW-FIX-E`): post-hoc verbs refuse an `--output` inside a run's own tree (outside `posthoc/`), `--force` included; `rerun-multimap` validates its options before copying and leaves a NOT FINISHED tree if it fails midway; `hostresponse --force` restores the old results when the run fails and `too_few_shared_barcodes` exits 1; auto-evidence drops folders of genera no longer detected. No scientific output changed.
 - Run lifecycle (PLAN `REVIEW-FIX-D`): `run` holds `<output>/.viralscan.lock`, so a second run on the same output is refused; `--resume` clears snakemake's stale lock itself; SIGTERM/Ctrl-C stop snakemake and kb (SIGTERM exits 143); READMEs say NOT FINISHED as soon as a resume starts; crash `.tmp` files no longer make an output look non-empty; a file or unwritable path as `--output` gives one error; `summary.txt` Runtime is cumulative across resumes and `--resume` logs `resume_attempts` in `run_manifest.json` instead of overwriting the first attempt's chemistry and tool blocks.
 - Fixes (PLAN `REVIEW-FIX-G`): bad inputs (truncated `.gz`, a directory where a file is expected, unwritable paths) end in one `ERROR` line and exit 1 instead of a traceback; `translated-index` checks its input paths before downloading PalmDB.
