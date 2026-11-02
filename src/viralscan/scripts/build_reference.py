@@ -2400,6 +2400,11 @@ def _emit_viral_gtf(
                 blocks.append(block)
         text = "\n".join(blocks) + ("\n" if blocks else "")
     gtf_path.write_text(text)
+    # REF-13: kb ignores CDS rows, so give CDS-only genes exon/transcript rows (build-time).
+    from viralscan.gtf_normalise import normalise_gtf_file
+
+    lines = normalise_gtf_file(gtf_path)
+    gtf_path.write_text("\n".join(lines) + "\n" if lines else "")
     return sources, placeholders
 
 

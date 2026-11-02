@@ -1181,6 +1181,12 @@ No open rows; done rows are in the PLAN archive (see Next action).
     UL111A intron retention not verified (Jenkins 2004 abstract says only "different splicing pattern"): span transcript kept.
     **Open:** `gene_programs.tsv` not regenerated (overlap groups change: EBV 5 -> 2 independent groups); HBV P/S first part still
     unindexed; the unpinned `build-reference` path was not wired.
+  - 2026-11-02 (user decision, `codex/ref13-build-reference`): **wired into `build-reference`.** `build_reference._emit_viral_gtf` now runs
+    `normalise_gtf_file` on the viral GTF it writes (combined-reference and anellovirus builds), so `kb ref` sees exon rows for CDS-only
+    genes. Test: `test_emitted_viral_gtf_is_normalised_for_kb`. Shipped GTFs untouched. `gene_programs.tsv` regenerated from the 393 local
+    GTFs with `extras/build_gene_programs.py`: output byte-identical to the committed file (it already carries the REF-13 groups, so the
+    10-10 "not regenerated" note was stale). **Still open:** the local `viralscan --reference <fasta> <gtf>` path (`menu._build_kb_ref`) passes
+    the user's GTF to kb unchanged; HBV P/S first part unindexed.
   - 2026-10-10 (wave 3): astrovirus `NC_001943.1` column-3 `Non structural gene` fixed to `CDS`
     (`scripts/fix_thin_gtfs.py`; integrity count 2,628 -> 2,629 because those two CDS rows are now visible and
     exon-less like the other legacy records). **Duplicate `NC_002076.2` resolved (user decision, 2026-10-10):** the builder consumes

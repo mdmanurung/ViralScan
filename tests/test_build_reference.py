@@ -286,6 +286,23 @@ _HPV_GTF = (
 _HPV_FASTA = ">NC_001526.4 Human papillomavirus type 16\nACGTACGTAC\n"
 
 
+def test_emitted_viral_gtf_is_normalised_for_kb(tmp_path):
+    """REF-13: kb ignores CDS rows, so an exon-less CDS-only gene must get an exon."""
+    from viralscan.scripts.build_reference import _emit_viral_gtf
+
+    fasta = tmp_path / "v.fa"
+    fasta.write_text(">NC_X.1\n" + "ACGT" * 50 + "\n")
+    cds_only = (
+        'NC_X.1\tNCBI\tgene\t10\t99\t.\t+\t.\tgene_id "g1";\n'
+        'NC_X.1\tNCBI\tCDS\t10\t99\t.\t+\t0\tgene_id "g1"; transcript_id "unassigned_transcript_1";'
+    )
+    out = tmp_path / "v.gtf"
+    _emit_viral_gtf(fasta, out, real_gtf_blocks={"NC_X.1": [cds_only]})
+    features = [line.split("\t")[2] for line in out.read_text().splitlines()]
+    assert "exon" in features
+    assert 'transcript_id "g1"' in out.read_text()
+
+
 class TestIndexGtfBySeqname:
     """The merged NCBI GTF splits per accession so each block can be reused."""
 
