@@ -827,9 +827,10 @@ Blank flags are retained only for `detection_source = alignment_only` rows.
 With `--scautoqc`, the H5AD objects also store `scautoqc_*` per-cell QC metrics,
 cellwise/clusterwise flags, QC cluster labels, and
 `obsm['scautoqc_X_umap_qc']`. The generated `umap_scautoqc_*.html` plots use
-that QC-space embedding and include every cell in the H5AD (all barcodes, since the step
-runs before cell calling; the count is stored in `uns['scautoqc']['n_cells_scored']` and in
-the JSON `log/scautoqc.done`). The legacy UMAP count/gene filter is unchanged. Ensembl-indexed
+that QC-space embedding and show only the called cells. The step runs after detection and
+scores the barcodes in `results/called_cells.tsv`; other barcodes keep NA flags and NaN
+coordinates. The scored count is stored in `uns['scautoqc']['n_cells_scored']` and in
+the JSON `log/scautoqc.done`. The legacy UMAP count/gene filter is unchanged. Ensembl-indexed
 features are annotated through Scanpy's Ensembl BioMart queries; the resulting
 gene symbols and mitochondrial membership are cached in
 `results/scautoqc_gene_annotations.tsv`.

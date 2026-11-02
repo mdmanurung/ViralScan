@@ -79,7 +79,7 @@ def test_flag_off_adds_no_config_key_and_no_rule(tmp_path):
     cfg.to_yaml(tmp_path / "config.yaml")
     assert RunConfig.from_yaml(tmp_path / "config.yaml").scautoqc is False
     snakefile = Path(__file__).parent.parent / "src" / "viralscan" / "Snakefile"
-    # the rule and the detection input are both guarded by the typed config value
+    # the rule and the umap input are both guarded by the typed config value
     assert snakefile.read_text().count('config.get("scautoqc", False)') == 2
 
 
@@ -148,7 +148,36 @@ def test_flags_only_n_obs_and_cell_set_recorded():
     add_scautoqc(adata, random_state=1)
     assert adata.n_obs == 5 and adata.obs_names.equals(names)
     assert adata.uns["scautoqc"]["n_cells_scored"] == 5
-    assert "before cell calling" in adata.uns["scautoqc"]["cell_set"]
+    assert "all barcodes" in adata.uns["scautoqc"]["cell_set"]
+
+
+def test_only_called_barcodes_are_scored(monkeypatch):
+    """Non-called barcodes (empty droplets) must not enter SCTK: NA flags, NaN coords."""
+    ad = pytest.importorskip("anndata")
+    sctk = pytest.importorskip("sctk")
+    pytest.importorskip("leidenalg")
+
+    from viralscan.scautoqc import add_scautoqc
+
+    adata = _toy(ad, 40)
+    called = np.arange(40) < 30
+    seen = []
+    real = sctk.calculate_qc
+
+    def spy(host_adata, **kw):
+        seen.append(list(host_adata.obs_names))
+        return real(host_adata, **kw)
+
+    monkeypatch.setattr(sctk, "calculate_qc", spy)
+    add_scautoqc(adata, random_state=1, cells=called)
+    assert seen == [list(adata.obs_names[:30])]
+    assert adata.n_obs == 40
+    assert adata.obs["scautoqc_cell_passed_qc"].iloc[30:].isna().all()
+    assert adata.obs["scautoqc_cell_passed_qc"].iloc[:30].notna().all()
+    assert np.isnan(adata.obsm["scautoqc_X_umap_qc"][30:]).all()
+    assert np.isfinite(adata.obsm["scautoqc_X_umap_qc"][:30]).all()
+    assert adata.uns["scautoqc"]["n_cells_scored"] == 30
+    assert "called cells" in adata.uns["scautoqc"]["cell_set"]
 
 
 def test_host_only_metrics_and_curated_globins_without_leiden():

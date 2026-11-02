@@ -575,9 +575,39 @@ class TestScAutoQcDag(TestAutoEvidenceDag):
         # match the plan's rule row, not the substring: a checkout path may contain "scautoqc"
         assert not re.search(r"^\s*scautoqc\s", self._plan(tmp_path, []), re.MULTILINE)
 
-    def test_rule_runs_after_multimap_and_before_detection_when_enabled(self, tmp_path) -> None:
+    def _rule_edges(self, tmp_path: Path, extra: list[str]) -> set[tuple[str, str]]:
+        missing = have_tools(["snakemake"])
+        if missing:
+            pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
+        configfile = _configfile(
+            tmp_path,
+            [
+                "sample1=/fake/R1.fastq.gz",
+                "sample2=/fake/R2.fastq.gz",
+                "kb_r1=/fake/R1.fastq.gz",
+                "kb_r2=/fake/R2.fastq.gz",
+                *extra,
+            ],
+        )
+        cmd = [
+            "snakemake",
+            "--snakefile",
+            str(SNAKEFILE),
+            "--rulegraph",
+            "--configfile",
+            configfile,
+        ]
+        out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+        names = dict(re.findall(r'^\s*(\d+)\[label = "([^"]+)"', out, re.MULTILINE))
+        return {(names[a], names[b]) for a, b in re.findall(r"(\d+) -> (\d+)", out)}
+
+    def test_rule_runs_after_detection_and_before_umap_when_enabled(self, tmp_path) -> None:
         output = self._plan(tmp_path, ["scautoqc=true"])
         assert re.search(r"^\s*scautoqc\s+1\s", output, re.MULTILINE), output
+        # edges of the rule graph: detection -> scautoqc -> umap
+        edges = self._rule_edges(tmp_path, ["scautoqc=true"])
+        assert ("detection", "scautoqc") in edges and ("scautoqc", "umap") in edges, edges
+        assert ("multimap", "scautoqc") not in edges and ("scautoqc", "detection") not in edges
 
 
 class TestStarConfirmDag(TestAutoEvidenceDag):
