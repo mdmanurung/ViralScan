@@ -1,13 +1,11 @@
 # Importing packages
-from typing import Optional, Union
-import gzip
 import json
 import logging
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Optional, Union
 
 if "snakemake" in globals():
     # Snakemake exports OMP etc = rule threads. Only bustools gets those; numerical
