@@ -12,6 +12,7 @@ import scanpy as sc
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.run_context import RunContext
 from viralscan.scautoqc import add_scautoqc
+from viralscan.scripts.cellcalling import load_called_mask
 from viralscan.virus_grouping import load_run_identity
 
 
@@ -34,7 +35,8 @@ def run(ctx: RunContext, done_file: str | Path) -> None:
     for path in paths:
         adata = sc.read_h5ad(str(path))
         shape, obs_names, var_names = adata.shape, adata.obs_names.copy(), adata.var_names.copy()
-        add_scautoqc(adata, identity, gene_annotations=gene_annotations)
+        called = load_called_mask(adata, config, config.output)  # written by detection
+        add_scautoqc(adata, identity, gene_annotations=gene_annotations, cells=called)
         if gene_annotations is None:
             gene_annotations = adata.var[
                 ["gene_symbol", "scautoqc_mito"]
@@ -54,7 +56,7 @@ def run(ctx: RunContext, done_file: str | Path) -> None:
             raise RuntimeError(
                 f"scAutoQC unexpectedly changed the matrix dimensions or indices: {path}"
             )
-        scored[path.name] = {"n_cells_scored": int(adata.n_obs), **adata.uns["scautoqc"]}
+        scored[path.name] = dict(adata.uns["scautoqc"])
         fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".h5ad", dir=path.parent)
         os.close(fd)
         try:

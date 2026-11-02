@@ -148,20 +148,22 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   Source "GitHub Actions", push, merge; `[x]` once the first deploy is live. `.readthedocs.yaml` is kept.
 - [~] `SCAUTOQC-01` (2026-10-19, branch `codex/scautoqc`, ported from `codex/scautoqc-wip` 92dd88e): optional 2026-10-22: rebased onto origin/main via tmp/wave2-base-2026-10-22; tests adapted to the `run` subcommand.
   `--scautoqc` SCTK cell/cluster QC flags added in place to the count H5ADs and UMAP outputs; cells are flagged,
-  never removed. Opt-in rule/flag/config key are absent when off. Conservative defaults on the two open design
-  questions (user to confirm): (a) the legacy n_counts/n_genes filter in `umap.py` is UNCHANGED with the flag
-  (the WIP skipped it); (b) the rule runs after multimap and before cell calling, so it scores every barcode in
-  the kb H5AD, and that cell set is recorded in `adata.uns['scautoqc']` and `log/scautoqc.done` (JSON).
+  never removed. Opt-in rule/flag/config key are absent when off. Design questions decided by the user 2026-11-02:
+  (a) the legacy n_counts/n_genes filter in `umap.py` is UNCHANGED with the flag; (b) the rule now runs AFTER
+  detection (which calls the cells and writes `results/called_cells.tsv`) and BEFORE umap, and scores only called
+  cells (`add_scautoqc(cells=mask)`); other barcodes keep NA flags and NaN coordinates, and the called-cell count
+  is recorded in `adata.uns['scautoqc']` and `log/scautoqc.done` (JSON).
   SCTK ships as the optional extra `viralscan[scautoqc]`, not in `full`. Tests: flag-off, all-cells-fail guard,
-  flags-only, missing-sctk error, DAG dry-run. **Open gate:** real FASTQ-to-UMAP validation on SRR8315713 (needs
+  flags-only, missing-sctk error, DAG rule graph (detection -> scautoqc -> umap), called-only scoring. **Open gate (the only item left):** real FASTQ-to-UMAP validation on SRR8315713 (needs
   kb/kallisto/bustools env, reference and user-approved compute) is NOT done; clusterwise multi-resolution QC
   (absent in SCTK 0.2.0) and ribo/globin marker sensitivity are untested. Flip to `[x]` only after that gate.
   Rebased onto origin/main + shifted-log + tchem (wave-2 prep stack, not upstream): `viralscan.scautoqc` is under mypy
   strict and `viralscan.scripts.scautoqc` under the relaxed Snakemake-script override; legacy filter kept.
-  Review follow-up: scoring all barcodes (empty droplets included) is a KNOWN LIMITATION, not mitigated; flags on a
-  raw 10x matrix are not meaningful and clustering may be slow until the rule is moved after cell calling (gated
-  on the real run). Added BioMart failure handling + low-mapping warning, case-insensitive `MT-`, extra tests;
+  Review follow-up: scoring all barcodes (empty droplets included) was a known flaw; fixed 2026-11-02 by moving the
+  rule after cell calling (see the decision above). Added BioMart failure handling + low-mapping warning, case-insensitive `MT-`, extra tests;
   virus-only/no-host index still hard-fails (documented). Clustering path needs `scanpy[leiden]` (the extra).
+  - Note (2026-11-02, user decision a + b): legacy filter kept; rule moved after detection, called cells only. Only
+    the real-data gate (SRR8315713 FASTQ-to-UMAP, user's run) remains. Detection no longer waits for scautoqc.
   - Note (2026-10-22, PR #100 review): globin markers matched human symbols only, so every mouse `--scautoqc` run
     aborted on the mandatory hb check; `GLOBIN_PATTERN` now also covers mouse (Hba-a1/a2, Hba-x, Hbb-bs/bt/b1/b2,
     Hbb-bh1, Hbb-y, Hbq1a/b), with a regex test that needs no SCTK.

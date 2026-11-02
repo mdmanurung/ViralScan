@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
+- Change (PLAN `SCAUTOQC-01`): `--scautoqc` now runs after detection and scores only the called cells (`results/called_cells.tsv`); empty droplets no longer shape the SCTK distributions. Other barcodes keep NA flags and NaN QC coordinates. The legacy UMAP count/gene filter is unchanged.
 - Docs (PLAN `AUD3-02-OPEN`): the report no longer says the neighbour-enrichment null is uncalibrated. On the host-only graph it holds its nominal false-positive rate when positive cells are random; a new test pins that rate.
 - Fix (PLAN `SIGTERM-GROUP-01`): SIGTERM or Ctrl-C during the `kb ref` index build or the `--strand auto` pilot now stops kb and kallisto too; before, only a running snakemake got the signal.
 - Fix (PLAN `CORES-AFFINITY-01`): `--cores` is clamped to the CPUs the process may use (a Slurm allocation), not every CPU on the node.
