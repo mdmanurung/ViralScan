@@ -705,8 +705,20 @@ No open rows; done rows are in the PLAN archive (see Next action).
     (codecov condition updated). No apt packages, hard-coded tool paths or Python versions elsewhere in
     `ci.yml`/`release.yml`; the other jobs stay on `ubuntu-latest` (3.11/3.12 and micromamba/docker on 26.04 cannot
     be verified before the migration; watch the first run after 2026-10-19).
-- [ ] `REL-13` — make release publication depend on green CI for the exact tagged
+  - 2026-11-02 (`codex/rel12-13-ci`): re-checked, all 48 `uses:` (incl. the new attest step) in `ci.yml`, `release.yml`, `docs.yml` and
+    `lock-audit.yml` are 40-hex SHAs with `# vX.Y.Z` (`check_actions_pinned.py` clean; `ci-gate` also runs it).
+    Added GitHub build-provenance attestations for the wheel, sdist and `SHA256SUMS` in the `publish` job
+    (`actions/attest-build-provenance` v4.2.2, `attestations: write`; workflow permissions only, no repo setting).
+    Still `[~]`: OCI image, SIF and lock attestations are not added (the image digest exists only in the `container`
+    job; needs a tag run to verify), and the attest step is untested until a tag run. Maintainer: verify with
+    `gh attestation verify` after the first release; the Node 20 action majors stay as noted above.
+- [x] `REL-13` — make release publication depend on green CI for the exact tagged
   SHA; build distributions once and make all downstream jobs consume them.
+  - 2026-11-02 (`codex/rel12-13-ci`): already in `release.yml` (landed with the release-CI work; row was stale). `ci-gate`
+    runs `scripts/check_release_ci.py` (latest `ci.yml` push run on `main` for `git rev-parse HEAD` must be
+    completed/success, run id uploaded as `release-ci.json`); `build` builds and tests wheel+sdist once; `container`,
+    `publish` and `release-assets` consume the `dist` artifact after `sha256sum -c`. Pinned by
+    `tests/test_release_static.py`. Limit: the gate needs a CI run on the tagged SHA, so tag a commit already on `main`.
 - [ ] `REL-14` — add protected TestPyPI/PyPI environments, stable approval, GitHub
   release assets, and separate RC/stable container tag behavior.
 - [!] `REL-15` — maintainers must provide final author, licence-holder,
