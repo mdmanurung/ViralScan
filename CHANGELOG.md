@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
+- **Output change (REVIEW-FIX-C):** `read_support_summary.tsv` `n_human_equal_or_better` counts only molecules with the `human_equal_or_better` flag; it used to include host-only and unaligned molecules. Cell-type enrichment now raises `ValueError` when obs barcodes such as `AAAC-1` and `AAAC` collide after the `-1` strip. The support fraction S is unchanged (host-only and unaligned molecules stay outside it, now documented).
 - Fixes (PLAN `REVIEW-FIX-B`): an explicit `0` for `emptydrops_lower` or `hostresponse_stab_min_prob` is no longer replaced by the default. `emptydrops_fdr` outside (0,1), `emptydrops_niters`, `hostresponse_n_stab_iter` or `hostresponse_top_n_genes` below 1, and `knee_min_umi` <= 0 now exit 2. `--cores` above the CPU count is clamped with a warning.
 - **Output change (REVIEW-FIX-H):** a run whose R1 and R2 have different read counts now fails with `R1 has N reads, R2 has M` (new `fastq_pair_check` rule); before, kallisto paired by position and silently dropped reads. The pair count goes to `log/fastq_pair_check.json` (`"pairs": null` when an old run resumes after its FASTQs were deleted).
 - Dependencies (PLAN `REVIEW-FIX-H`): `scanpy>=1.10` is now required (`sc.pp.pca(mask_var=...)`); the deprecated `use_highly_variable=True` is gone; `sctk` (`scautoqc` extra) installs on Python < 3.12 only; `scipy.io.mmread` results are wrapped so scipy 1.20 `coo_array` works.

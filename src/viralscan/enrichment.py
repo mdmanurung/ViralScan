@@ -88,6 +88,13 @@ def cell_type_enrichment(
     obs_labels = pd.DataFrame(
         {"barcode": adata.obs_names.astype(str).str.removesuffix("-1"), "idx": range(adata.n_obs)}
     )
+    # "AAAC-1" and "AAAC" in obs would merge into one cell here and inflate n_total.
+    distinct = obs_labels.assign(raw=adata.obs_names.astype(str)).drop_duplicates("raw")
+    collide = distinct.loc[distinct["barcode"].duplicated(keep=False), "barcode"].unique()
+    if len(collide):
+        raise ValueError(
+            f"obs barcodes collide after stripping the 10x '-1' suffix: {collide[:5].tolist()}"
+        )
     merged = obs_labels.merge(labels, on="barcode", how="left")
     merged = merged[merged["cell_type"].notna()].copy()
     if merged.empty:

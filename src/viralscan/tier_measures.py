@@ -156,7 +156,9 @@ def support_fraction(
 
     *called_barcodes* are the sample's called cells. The population is every counted molecule (>= 1 read with
     ``assigned_weight > 0``) of a called cell that has a viral alignment; a molecule aligned only to host is
-    outside it. ``S = virus_best / (virus_best + host_best + tie)``, pooled over cells, a molecule counting once
+    outside it (it is counted in ``n_excluded_host_only``, an all-unmapped one in ``n_excluded_unaligned``; the
+    frozen protocol keeps S this way, although ``verdict_of`` still labels a host-only molecule ``host_best``).
+    ``S = virus_best / (virus_best + host_best + tie)``, pooled over cells, a molecule counting once
     whatever its weight or read count.
 
     Raises :class:`EvidenceMismatch` when the manifest names another target, or when counted molecules exist and
@@ -178,8 +180,9 @@ def support_fraction(
         raise EvidenceMismatch(f"{path} does not match the hash in {MANIFEST_FILE}")
 
     called = set(called_barcodes)
+    obs_set = set(obs_names) if obs_names is not None else None
     counted = {k: v for k, v in _molecules(path).items() if v[0]}
-    if obs_names is not None and counted and not any(cb in set(obs_names) for cb, _ in counted):
+    if obs_set is not None and counted and not any(cb in obs_set for cb, _ in counted):
         raise EvidenceMismatch(
             f"none of the {len(counted)} counted molecules in {path} has a barcode in the matrix; "
             "the evidence belongs to another sample or uses another barcode format"
