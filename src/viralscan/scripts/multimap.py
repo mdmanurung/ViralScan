@@ -12,7 +12,12 @@ from pathlib import Path
 if "snakemake" in globals():
     # Snakemake exports OMP etc = rule threads. Only bustools gets those; numerical
     # libraries stay at one worker (total_budget_v1), pinned before numpy loads.
-    for _name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    for _name in (
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
         os.environ[_name] = "1"
 
 import anndata as ad
@@ -411,9 +416,7 @@ def stamp_gene_identity(adata, gene_ids, table: Optional[VirusIdentityTable]) ->
     else:
         viral = list(adata.var["is_viral"])
         adata.var["gene_role"] = ["unknown" if is_viral else "host" for is_viral in viral]
-        source = (
-            "legacy_analysis" if analysis_genes_path(output).is_file() else "unavailable"
-        )
+        source = "legacy_analysis" if analysis_genes_path(output).is_file() else "unavailable"
     adata.uns["gene_identity_source"] = source
     adata.uns["index_kind"] = (
         "combined" if any(viral) and not all(viral) else "virus_only" if any(viral) else "host_only"
