@@ -41,9 +41,9 @@ from typing import TypedDict
 
 import numpy as np
 
-from viralscan.utils import open_maybe_gzip
 from viralscan.defaults import DEFAULTS
 from viralscan.outputs import analysis_genes_path
+from viralscan.utils import open_maybe_gzip
 
 #: Total-UMI floor for the strategy-independent denominator, in host molecules
 #: per barcode. Chosen to sit above the empty-droplet mode and below the knee of
