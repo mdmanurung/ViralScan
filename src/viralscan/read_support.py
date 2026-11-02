@@ -349,7 +349,7 @@ def summarise_support(rows: list[dict[str, object]], evidence_dir: str = "") -> 
         "fraction_pass_all_gates": round(passed / n, 4) if n else "",
         "n_fail_aligned_length": sum(not r["gate_aligned_length"] for r in rows),
         "n_fail_dust": sum(not r["gate_dust"] for r in rows),
-        "n_human_equal_or_better": sum(not r["gate_competitive"] for r in rows),
+        "n_human_equal_or_better": sum("human_equal_or_better" in r["flags"].split(";") for r in rows),
         "n_hotspot_only": sum(bool(r["hotspot_only"]) for r in rows),
         "n_aligned_AT_warning": sum(bool(r["aligned_AT_warning"]) for r in rows),
         "n_host_decoy": sum(bool(r["host_decoy"]) for r in rows),
