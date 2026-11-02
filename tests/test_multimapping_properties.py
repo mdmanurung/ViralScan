@@ -248,9 +248,11 @@ def dense_em_cell_reference(fixture, em_max_iter=100, em_tol=1e-6):
         fitted = em_cell_abundances(
             counts, oracle.unique[cell], theta, PSEUDOCOUNT, em_max_iter, em_tol
         )
+        no_support = {g for g in counts if oracle.unique[cell][list(g)].sum() <= 0}
         for genes in molecules:
             idx = np.asarray(genes)
-            w = fitted[idx]
+            # An EC with no cell-local unique support keeps the equal split (REVIEW-FIX-A).
+            w = np.zeros(len(idx)) if genes in no_support else fitted[idx]
             out[cell, idx] += w / w.sum() if w.sum() > 0 else 1 / len(idx)
     return out
 
