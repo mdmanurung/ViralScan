@@ -218,6 +218,7 @@ def test_build_ref_main_threads_cores_to_every_native_tool(tmp_path, monkeypatch
     host.write_text(">chr1\n" + dna(200, 1) + "\n")
     commands: list[list[str]] = []
     monkeypatch.setattr(br.subprocess, "run", _recording_native_run(commands))
+    monkeypatch.setattr(br, "run_in_group", _recording_native_run(commands))
     monkeypatch.setattr(br.shutil, "which", lambda tool: f"/native/{tool}")
     monkeypatch.setattr(br, "record_reference_build", lambda *a, **kw: None)
     monkeypatch.setattr(br, "_write_index_manifest", lambda *a, **kw: None)

@@ -52,9 +52,8 @@ def test_kb_ref_scratch_is_unique_and_cleaned_even_on_failure(tmp_path, monkeypa
     scratch = []
     command = ["kb", "ref", "-i", str(out / "index.idx"), "reference.fa", "reference.gtf"]
 
-    def fake_run(cmd, check):
+    def fake_run(cmd):
         path = Path(cmd[cmd.index("--tmp") + 1])
-        assert check is True
         assert path.parent.parent == out and not path.exists()
         assert path not in scratch
         scratch.append(path)
@@ -64,7 +63,7 @@ def test_kb_ref_scratch_is_unique_and_cleaned_even_on_failure(tmp_path, monkeypa
         if fails:
             raise subprocess.CalledProcessError(2, cmd)
 
-    monkeypatch.setattr("viralscan.scripts.build_reference.subprocess.run", fake_run)
+    monkeypatch.setattr("viralscan.scripts.build_reference.run_in_group", fake_run)
     for _ in range(2):
         if fails:
             with pytest.raises(subprocess.CalledProcessError):
@@ -80,8 +79,8 @@ def test_kb_ref_always_passes_overwrite_exactly_once(tmp_path, monkeypatch):
     """C-05: without --overwrite kb keeps a stale index/t2g when the output dir is reused."""
     seen = []
     monkeypatch.setattr(
-        "viralscan.scripts.build_reference.subprocess.run",
-        lambda cmd, check: seen.append(list(cmd)),
+        "viralscan.scripts.build_reference.run_in_group",
+        lambda cmd: seen.append(list(cmd)),
     )
     _run_kb_ref(["kb", "ref", "-i", "i.idx", "a.fa", "a.gtf"], tmp_path)
     _run_kb_ref(["kb", "ref", "--overwrite", "-i", "i.idx", "a.fa", "a.gtf"], tmp_path)

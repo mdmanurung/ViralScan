@@ -164,7 +164,7 @@ def test_reference_receipt_resources_and_index_do_not_change_content_hash(tmp_pa
 
 
 def test_kb_ref_resources_record_child_peak_rss(tmp_path, monkeypatch):
-    monkeypatch.setattr(builder.subprocess, "run", lambda *a, **k: None)
+    monkeypatch.setattr(builder, "run_in_group", lambda *a, **k: None)
     resources = builder._run_kb_ref(["kb", "ref", "x"], tmp_path)
     assert resources["peak_rss_kib"] > 0
     assert resources["peak_rss_scope"] == "max_over_all_child_processes"

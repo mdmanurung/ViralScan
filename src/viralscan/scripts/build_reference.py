@@ -59,7 +59,7 @@ from viralscan.resources import (
     bounded_workers,
     cdhit_threads,
 )
-from viralscan.run_safety import sha256_file, software_identity
+from viralscan.run_safety import run_in_group, sha256_file, software_identity
 from viralscan.sensitivity import DEFAULT_K
 from viralscan.validation import require_schema_valid, tool_provenance
 
@@ -1662,7 +1662,7 @@ def _run_kb_ref(cmd: list[str], out_dir: Path) -> dict[str, object]:
             extra.append("--overwrite")
         command = cmd[:2] + extra + cmd[2:]
         log.info("Running: %s", " ".join(command))
-        subprocess.run(command, check=True)
+        run_in_group(command)
     after = os.times()
     return {
         "elapsed_seconds": time.perf_counter() - started,
