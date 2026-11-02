@@ -196,6 +196,11 @@ def call(r1: str, r2: Optional[str], *, binary: str, whitelists: Optional[str]) 
     return parse_report(report, emit)
 
 
+def _slug(name: Optional[str]) -> str:
+    """Lower-case letters and digits only: "Drop-seq" and "dropseq" both give "dropseq"."""
+    return "".join(c for c in (name or "").lower() if c.isalnum())
+
+
 def compare(technology: Optional[str], tc: TchemCall) -> Opinion:
     """Compare ``tchem``'s call with the technology the run will use (``-x``).
 
@@ -205,6 +210,11 @@ def compare(technology: Optional[str], tc: TchemCall) -> Opinion:
     if tc.verdict != "match":
         return Opinion("no_call", f"tchem: {tc.verdict} ({tc.reason})", tc)
     if not tc.technology:
+        # kb takes no Drop-seq command, so tchem emits none: agree by name when -x is the same chemistry.
+        if technology and _slug(tc.layout) == _slug(technology):
+            return Opinion(
+                "agree", f"tchem: {tc.layout} ({tc.confidence}); same chemistry as -x by name", tc
+            )
         return Opinion(
             "no_call",
             f"tchem names {tc.layout} but gives no kb technology for it, so the geometry "

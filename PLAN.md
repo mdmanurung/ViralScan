@@ -7,6 +7,7 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `TCHEM-DROPSEQ-01` (2026-11-02, `codex/tchem-dropseq`, user decision, found by the HSV-1 SRR8315713 run): `tchem.compare` returned `no_call` for Drop-seq (tchem layout `Drop-seq` has no kb command), so the default `--tchem auto` stopped a run with `-x dropseq`. It now returns `agree` when the layout name and `-x` match after lower-casing and dropping punctuation. Every other layout without a kb technology stays `no_call`. Test: `tests/test_tchem.py::TestCompare::test_layout_without_kb_command_agrees_only_by_name`.
 - [x] `PLAN-SPLIT-EXP-01` (2026-11-02, `codex/plan-split-experiments`, user decision: experiment work lives only in the reproducibility repo): 64 open experiment rows
   (64 row blocks, 62 IDs) moved to the repro `PLAN.md`; the list is in "Moved to the reproducibility tracker". `SCAUTOQC-01` split: code stays, its real-data gate is repro `SCAUTOQC-01-RUN`.
   `CLAUDE.md` "Sibling repository" now names these rows. No code or test change.
