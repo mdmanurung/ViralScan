@@ -149,7 +149,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   and `.[docs]`, and deploys with `actions/upload-pages-artifact` v5.0.0 / `actions/deploy-pages` v5.0.1 (SHA-pinned,
   `check_actions_pinned.py` clean). Not built locally (no env has `scanpydoc`). Left for the user: Settings -> Pages ->
   Source "GitHub Actions", push, merge; `[x]` once the first deploy is live. `.readthedocs.yaml` is kept.
-- [~] `SCAUTOQC-01` (2026-10-19, branch `codex/scautoqc`, ported from `codex/scautoqc-wip` 92dd88e): optional 2026-10-22: rebased onto origin/main via tmp/wave2-base-2026-10-22; tests adapted to the `run` subcommand.
+- [~] `SCAUTOQC-01` *(2026-11-02 fix: sctk 0.2.0 `fit_gaussian` retries a non-converged GMM with `gmm.fit(x, warm_start=True)`, which sklearn rejects (TypeError; main CI red at de55424). `viralscan.scautoqc._patch_sctk_gmm` swaps in a GMM whose `fit` honours it; `test_sctk_gmm_retry_accepts_warm_start` fails without the shim.)* (2026-10-19, branch `codex/scautoqc`, ported from `codex/scautoqc-wip` 92dd88e): optional 2026-10-22: rebased onto origin/main via tmp/wave2-base-2026-10-22; tests adapted to the `run` subcommand.
   `--scautoqc` SCTK cell/cluster QC flags added in place to the count H5ADs and UMAP outputs; cells are flagged,
   never removed. Opt-in rule/flag/config key are absent when off. Design questions decided by the user 2026-11-02:
   (a) the legacy n_counts/n_genes filter in `umap.py` is UNCHANGED with the flag; (b) the rule now runs AFTER
