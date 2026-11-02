@@ -225,3 +225,16 @@ def test_globin_pattern_matches_human_and_mouse_but_not_lookalikes():
     misses = ["HBEGF", "HBP1", "HBS1L", "HBB-FOO", "HBA-A3"]
     assert all(re.match(GLOBIN_PATTERN, s) for s in hits)
     assert not any(re.match(GLOBIN_PATTERN, s) for s in misses)
+
+
+def test_sctk_gmm_retry_accepts_warm_start():
+    # sctk 0.2.0 retries a non-converged GMM with fit(x, warm_start=True); sklearn's fit has no such kwarg.
+    pytest.importorskip("sctk")
+    from sctk import _pipeline
+
+    from viralscan.scautoqc import _patch_sctk_gmm
+
+    _patch_sctk_gmm()
+    gmm = _pipeline.GaussianMixture(n_components=1, random_state=0)
+    gmm.fit(np.arange(20.0).reshape(-1, 1), warm_start=True)
+    assert gmm.warm_start is True

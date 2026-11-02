@@ -102,6 +102,30 @@ def _add_scautoqc_called(adata: Any, cells: Any, **kwargs: Any) -> None:
     }
 
 
+def _patch_sctk_gmm() -> None:
+    """sctk 0.2.0 ``fit_gaussian`` retries a non-converged GMM with ``gmm.fit(x, warm_start=True)``.
+
+    sklearn's ``fit`` takes no such argument, so that branch always raised TypeError. Swap in a
+    GaussianMixture whose ``fit`` honours it (sets ``self.warm_start``), which is what sctk meant.
+    ponytail: patches sctk's module global; drop once sctk ships a fix.
+    """
+    from sctk import _pipeline
+    from sklearn.mixture import GaussianMixture
+
+    if getattr(_pipeline.GaussianMixture, "_viralscan_warm_start", False):
+        return
+
+    class _WarmStartGMM(GaussianMixture):  # type: ignore[misc]
+        _viralscan_warm_start = True
+
+        def fit(self, X, y=None, warm_start=None):  # type: ignore[no-untyped-def]
+            if warm_start is not None:
+                self.warm_start = warm_start
+            return super().fit(X, y)
+
+    _pipeline.GaussianMixture = _WarmStartGMM
+
+
 def add_scautoqc(
     adata: Any,
     identity: Any = None,
@@ -133,6 +157,7 @@ def add_scautoqc(
             "scAutoQC requires the optional full-workflow dependency sctk; "
             "install it with `pip install 'viralscan[scautoqc]'`."
         ) from exc
+    _patch_sctk_gmm()
 
     if "gene_role" in adata.var:
         host = adata.var["gene_role"].astype(str).eq("host").to_numpy()
