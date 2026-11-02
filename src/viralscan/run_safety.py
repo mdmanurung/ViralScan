@@ -365,7 +365,9 @@ def refuse_primary_tree(output: Path) -> None:
 
     out = Path(output).resolve()
     for root in (out, *out.parents):
-        if (root / "config.yaml").is_file() or (root / RUN_MANIFEST).is_file():
+        # A bare config.yaml is common in any project dir; a sample also has kb-python/.
+        sample = (root / "config.yaml").is_file() and (root / "kb-python").is_dir()
+        if sample or (root / RUN_MANIFEST).is_file():
             if POSTHOC_DIRNAME not in out.relative_to(root).parts:
                 raise RunSafetyError(
                     f"Output {output} is inside the ViralScan run {root}. Post-hoc results go "

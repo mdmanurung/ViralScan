@@ -82,6 +82,11 @@ def test_guard_refuses_primary_tree_even_with_force(tmp_path):
     require_fresh_output(tmp_path / "elsewhere")
 
 
+def test_guard_ignores_a_project_config_yaml(tmp_path):
+    (tmp_path / "config.yaml").write_text("x: 1\n")
+    require_fresh_output(tmp_path / "results" / "hr")
+
+
 def test_em_tol_zero_rejected_by_parser():
     argv = ["rerun-multimap", "--run-dir", "r", "--multimap-method", "em-global"]
     with pytest.raises(SystemExit):
