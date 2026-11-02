@@ -455,6 +455,33 @@ def _completion_issues(run_dir: Path, manifest: dict[str, Any]) -> list[Validati
     return issues
 
 
+def _inventory_issues(run_dir: Path) -> list[ValidationIssue]:
+    """Check every file a per-sample ``results/artifact_inventory.json`` lists.
+
+    Listed paths are relative to the sample directory (the parent of ``results/``).
+    Runs that predate the inventory have none and are not flagged.
+    """
+    issues: list[ValidationIssue] = []
+    found = sorted(
+        p for p in run_dir.rglob("artifact_inventory.json") if not is_posthoc(p, run_dir)
+    )
+    for path in found:
+        sample_dir = path.parent.parent.resolve()
+        try:
+            entries = json.loads(path.read_text(encoding="utf-8"))["artifacts"]
+            listed = {e["path"]: e["artifact_sha256"] for e in entries}
+        except (ValueError, OSError, KeyError, TypeError) as exc:
+            issues.append(ValidationIssue("error", "invalid_manifest", str(exc), str(path)))
+            continue
+        for rel, expected in listed.items():
+            target = (sample_dir / rel).resolve()
+            if sample_dir not in target.parents or not target.is_file():
+                issues.append(ValidationIssue("error", "inventory_artifact_missing", rel, str(path)))
+            elif sha256_file(target) != expected:
+                issues.append(ValidationIssue("error", "inventory_hash_mismatch", rel, str(path)))
+    return issues
+
+
 def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
     import anndata as ad
 
@@ -507,6 +534,7 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
 
     issues.extend(_sibling_manifest_issues(run_dir))
     issues.extend(_completion_issues(run_dir, manifest))
+    issues.extend(_inventory_issues(run_dir))
 
     # Wrong-typed sections are reported by the schema check above; here they are only skipped.
     def _section(name: str) -> dict[str, Any]:

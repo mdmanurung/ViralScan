@@ -157,6 +157,33 @@ def _no_multimapping_run(tmp_path: Path) -> Path:
     return run
 
 
+def _run_with_inventory(tmp_path: Path) -> Path:
+    from viralscan.artifact_inventory import write_artifact_inventory
+
+    run = _valid_run(tmp_path)
+    results = run / "sample" / "results"
+    results.mkdir(exist_ok=True)
+    (results / "count_audit.tsv").write_text("a\tb\n1\t2\n")
+    (results / "per_cell_viral.tsv").write_text("cell\tn\nBC1\t3\n")
+    (run / "sample" / "posthoc").mkdir()
+    (run / "sample" / "posthoc" / "late.tsv").write_text("x")
+    write_artifact_inventory(run / "sample")
+    return run
+
+
+def test_validate_run_checks_inventory_artifacts(tmp_path: Path) -> None:
+    run = _run_with_inventory(tmp_path)
+    assert validate_run(run)["ok"] is True
+    results = run / "sample" / "results"
+    (results / "per_cell_viral.tsv").write_text("")
+    codes = {i["code"] for i in validate_run(run)["issues"]}
+    assert codes == {"inventory_hash_mismatch"}
+    (results / "count_audit.tsv").unlink()
+    report = validate_run(run)
+    assert report["ok"] is False
+    assert "inventory_artifact_missing" in {i["code"] for i in report["issues"]}
+
+
 def test_validate_run_accepts_no_multimapping_run(tmp_path: Path) -> None:
     """B4: --no-multimapping runs have no adata_multimap.h5ad by design."""
     report = validate_run(_no_multimapping_run(tmp_path))
