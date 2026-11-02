@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 
-def _count_reads(path) -> int:
+def _count_reads(path: str | Path) -> int:
     opener = gzip.open if str(path).endswith(".gz") else open
     with opener(path, "rt") as fh:
         n_lines = sum(1 for _ in fh)  # constant memory
@@ -21,7 +21,7 @@ def _count_reads(path) -> int:
     return n_lines // 4
 
 
-def check_pairs(r1, r2) -> int:
+def check_pairs(r1: str | Path, r2: str | Path) -> int:
     n1, n2 = _count_reads(r1), _count_reads(r2)
     if n1 != n2:
         raise ValueError(f"R1 has {n1} reads, R2 has {n2} ({r1} vs {r2})")
@@ -29,10 +29,11 @@ def check_pairs(r1, r2) -> int:
 
 
 if "snakemake" in globals():
-    r1, r2 = snakemake.config["sample1"], snakemake.config["sample2"]  # noqa: F821
-    result = {"pairs": None, "skipped": "raw FASTQs missing"}
+    smk = snakemake  # type: ignore[name-defined]  # noqa: F821
+    r1, r2 = smk.config["sample1"], smk.config["sample2"]
+    result: dict[str, object] = {"pairs": None, "skipped": "raw FASTQs missing"}
     if Path(r1).exists() and Path(r2).exists():
         result = {"pairs": check_pairs(r1, r2)}
     else:
         print(f"WARNING fastq_pair_check skipped: {r1} or {r2} no longer exists.")
-    Path(snakemake.output[0]).write_text(json.dumps(result) + "\n")  # noqa: F821
+    Path(smk.output[0]).write_text(json.dumps(result) + "\n")
