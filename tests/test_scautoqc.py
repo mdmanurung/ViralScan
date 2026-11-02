@@ -225,3 +225,21 @@ def test_globin_pattern_matches_human_and_mouse_but_not_lookalikes():
     misses = ["HBEGF", "HBP1", "HBS1L", "HBB-FOO", "HBA-A3"]
     assert all(re.match(GLOBIN_PATTERN, s) for s in hits)
     assert not any(re.match(GLOBIN_PATTERN, s) for s in misses)
+
+
+def test_sctk_gmm_retry_accepts_warm_start():
+    # sctk 0.2.0 retries a non-converged GMM with fit(x, warm_start=True); sklearn's fit has no such kwarg.
+    pytest.importorskip("sctk")
+    from sctk import _pipeline
+
+    from viralscan.scautoqc import _patch_sctk_gmm
+
+    _patch_sctk_gmm()
+    x = np.random.default_rng(0).normal(size=(200, 1))
+    # max_iter=1, tol=0: the first fit cannot converge, so sctk would retry forever.
+    gmm = _pipeline.GaussianMixture(n_components=2, max_iter=1, tol=0.0, random_state=0)
+    gmm.fit(x)
+    assert not gmm.converged_
+    gmm.fit(x, warm_start=True)
+    assert gmm.warm_start is True
+    assert gmm.converged_  # one warm-started round, then accepted: the loop ends
