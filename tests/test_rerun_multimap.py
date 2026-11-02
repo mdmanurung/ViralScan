@@ -315,7 +315,7 @@ class TestRerunLeavesSourceUntouched:
         with (
             patch.object(menu, "_check_required_tools"),
             patch.object(menu, "_check_cell_caller_tools"),
-            patch.object(menu.subprocess, "run") as run,
+            patch.object(menu, "_run_snakemake") as run,
         ):
             menu._run_rerun_multimap(args)
 
@@ -361,7 +361,7 @@ class TestRerunLeavesSourceUntouched:
         with (
             patch.object(menu, "_check_required_tools"),
             patch.object(menu, "_check_cell_caller_tools"),
-            patch.object(menu.subprocess, "run"),
+            patch.object(menu, "_run_snakemake"),
         ):
             menu._run_rerun_multimap(args)
 
@@ -397,7 +397,7 @@ class TestRerunLeavesSourceUntouched:
         with (
             patch.object(menu, "_check_required_tools"),
             patch.object(menu, "_check_cell_caller_tools"),
-            patch.object(menu.subprocess, "run"),
+            patch.object(menu, "_run_snakemake"),
             patch.object(menu, "_swap_multimap_layer", wraps=menu._swap_multimap_layer) as swap,
         ):
             menu._run_rerun_multimap(args)

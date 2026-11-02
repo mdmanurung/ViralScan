@@ -41,7 +41,7 @@ def _rerun(args: argparse.Namespace) -> None:
     with (
         patch.object(menu, "_check_required_tools"),
         patch.object(menu, "_check_cell_caller_tools"),
-        patch.object(menu.subprocess, "run"),
+        patch.object(menu, "_run_snakemake"),
     ):
         menu._run_rerun_multimap(args)
 

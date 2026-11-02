@@ -9,7 +9,9 @@ import argparse
 import json
 import logging
 import os
+import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -52,7 +54,9 @@ from viralscan.run_safety import (
     COMBINED_SUMMARY,
     RUN_MANIFEST,
     RunSafetyError,
+    acquire_run_lock,
     clear_run_complete,
+    record_resume_attempt,
     record_strand_inference,
     recorded_strand_inference,
     require_fresh_output,
@@ -120,6 +124,14 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
         adata.layers.pop(stale, None)
     adata.layers["counts_host_viral_selected"] = host_viral
     adata.uns["multimap_method"] = new_method
+    # new_method is deterministic: write what a fresh run writes (EM-only fields drop out).
+    diagnostics = dict(adata.uns.get("multimap_diagnostics", {}))
+    diagnostics.update(
+        method=new_method, model_scope="deterministic", max_iter=None, tolerance=None
+    )
+    for em_only in ("global_model", "cell_models"):
+        diagnostics.pop(em_only, None)
+    adata.uns["multimap_diagnostics"] = diagnostics
     adata.write_h5ad(str(adata_path))
     return True
 
@@ -298,11 +310,34 @@ def _snakemake_unlock_command(snakefile_path: str, config_file: str | Path) -> l
 
 
 def _run_snakemake(command: list[str], *, what: str, hint: str) -> None:
-    """Run a snakemake command; a non-zero exit is a clean error, not a traceback (C-08)."""
+    """Run a snakemake command; a non-zero exit is a clean error, not a traceback (C-08).
+
+    snakemake runs in its own session. SIGINT/SIGTERM reaching viralscan is forwarded to
+    that whole process group (snakemake and the kb it started), so none is orphaned.
+    """
+    proc = subprocess.Popen(command, start_new_session=True)
+
+    def _on_sigterm(_signum: int, _frame: Any) -> NoReturn:
+        sys.exit(143)
+
+    previous = signal.signal(signal.SIGTERM, _on_sigterm)
     try:
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as exc:
-        _die(f"{what} failed (exit {exc.returncode}); {hint}")
+        returncode = proc.wait()
+    except (KeyboardInterrupt, SystemExit) as exc:
+        sent = signal.SIGINT if isinstance(exc, KeyboardInterrupt) else signal.SIGTERM
+        try:
+            os.killpg(proc.pid, sent)
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()
+        except ProcessLookupError:
+            pass
+        raise
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+    if returncode:
+        _die(f"{what} failed (exit {returncode}); {hint}")
 
 
 def _run_rerun_multimap(args: argparse.Namespace) -> None:
@@ -651,28 +686,16 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     if not Path(virus_h5ad).exists():
         _die(f"Virus h5ad not found at {virus_h5ad}. Ensure the multimap step has completed.")
 
-    from viralscan.defaults import DEFAULTS
-
     n_seeds = args.n_seeds if args.n_seeds is not None else cfg.hostresponse_n_seeds
     try:
         seeds = resolve_seeds(n_seeds)
     except ValueError as exc:
         _die(str(exc))
-    n_stab_iter = (
-        args.n_stab_iter
-        if args.n_stab_iter is not None
-        else (cfg.hostresponse_n_stab_iter or DEFAULTS["hostresponse_n_stab_iter"])
-    )
+    n_stab_iter = args.n_stab_iter if args.n_stab_iter is not None else cfg.hostresponse_n_stab_iter
     stab_min_prob = (
-        args.stab_min_prob
-        if args.stab_min_prob is not None
-        else (cfg.hostresponse_stab_min_prob or DEFAULTS["hostresponse_stab_min_prob"])
+        args.stab_min_prob if args.stab_min_prob is not None else cfg.hostresponse_stab_min_prob
     )
-    top_n_genes = (
-        args.top_n_genes
-        if args.top_n_genes is not None
-        else (cfg.hostresponse_top_n_genes or DEFAULTS["hostresponse_top_n_genes"])
-    )
+    top_n_genes = args.top_n_genes if args.top_n_genes is not None else cfg.hostresponse_top_n_genes
     # B-16: the per-cell positive label has its own threshold; the sample gate
     # (cfg.detection_threshold) is never used for it.
     if args.hostresponse_min_umi is not None:
@@ -905,9 +928,14 @@ def errorhandler(args: argparse.Namespace) -> None:
     try:
         check_numeric_ranges(
             **{
-                key: getattr(args, key, default)
+                key: default if getattr(args, key, None) is None else getattr(args, key)
                 for key, default in (
                     ("cores", 6),
+                    ("emptydrops_fdr", DEFAULTS["emptydrops_fdr"]),
+                    ("emptydrops_niters", DEFAULTS["emptydrops_niters"]),
+                    ("hostresponse_n_stab_iter", DEFAULTS["hostresponse_n_stab_iter"]),
+                    ("hostresponse_top_n_genes", DEFAULTS["hostresponse_top_n_genes"]),
+                    ("knee_min_umi", DEFAULTS["knee_min_umi"]),
                     ("se_threshold", DEFAULTS["se_threshold"]),
                     ("umap_n_neighbors", DEFAULTS["umap_n_neighbors"]),
                     ("min_counts", DEFAULTS["min_counts"]),
@@ -919,6 +947,12 @@ def errorhandler(args: argparse.Namespace) -> None:
         )
     except ValueError as exc:
         _die(str(exc), 2)
+    max_cores = os.cpu_count() or 1
+    if getattr(args, "cores", None) is not None and args.cores > max_cores:
+        log.warning(
+            "--cores %d exceeds the %d CPUs here; using %d.", args.cores, max_cores, max_cores
+        )
+        args.cores = max_cores
     _check_hostresponse_evaluation(args)
 
     # C-09: fail before kb count, not after it.
@@ -1465,7 +1499,10 @@ def _write_sample_summary(
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     text = summary_path.read_text(encoding="utf-8") if summary_path.is_file() else ""
     # --resume appends to a summary.txt that may still hold the last attempt's footer.
-    text = text.split("\nRuntime: ")[0]
+    # Runtime is cumulative over finished attempts, so a no-op resume cannot erase it.
+    text, _, old_footer = text.partition("\nRuntime: ")
+    if match := re.match(r"([\d.]+) seconds", old_footer):
+        elapsed += float(match.group(1))
     footer = (
         f"\nRuntime: {elapsed:.4f} seconds.\n\n"
         f"Amount of transcripts in data: {n_transcripts}\n"
@@ -1600,6 +1637,14 @@ def main() -> None:
     except KeyboardInterrupt:
         print("viralscan: interrupted.", file=sys.stderr)
         sys.exit(130)
+    except (
+        OSError,
+        EOFError,
+    ) as exc:  # bad path, permissions, truncated gz (BadGzipFile is OSError)
+        print(f"ERROR  {exc}", file=sys.stderr)
+        if log.isEnabledFor(logging.DEBUG):  # --verbose
+            raise
+        sys.exit(1)
 
 
 def _main() -> None:
@@ -1787,8 +1832,11 @@ def _main() -> None:
 
     chemistry_blocks = _resolve_chemistry(args)
     output_dir = Path(args.output).resolve()
+    samples1 = split_comma_paths(args.sample1)
+    _check_sample_ids(samples1)
     try:
-        prepare_output_directory(
+        acquire_run_lock(output_dir)  # before prepare: --overwrite must not wipe a live run
+        status = prepare_output_directory(
             output_dir,
             build_run_manifest(args),
             resume=args.resume,
@@ -1797,12 +1845,21 @@ def _main() -> None:
         )
     except RunSafetyError as exc:
         _die(str(exc))
-    for sample, block in chemistry_blocks.items():
-        record_manifest_block(output_dir, "chemistry_detection", sample, block)
+    # The marker is gone (resume) or never existed: say NOT FINISHED now, not after the
+    # NCBI fetch / index build / strand pilot below, which can fail.
+    write_start_docs(output_dir, [_sample_id(s1) for s1 in samples1])
     # REL-16: same-version kallisto/bustools binaries differ, so record which ran.
     from viralscan.validation import tool_provenance
 
-    record_manifest_block(output_dir, "tool_binaries", "run", tool_provenance())
+    tool_block = {"run": tool_provenance()}
+    if status == "resume":
+        record_resume_attempt(
+            output_dir, {"chemistry_detection": chemistry_blocks, "tool_binaries": tool_block}
+        )
+    else:
+        for sample, block in chemistry_blocks.items():
+            record_manifest_block(output_dir, "chemistry_detection", sample, block)
+        record_manifest_block(output_dir, "tool_binaries", "run", tool_block["run"])
 
     if args.ncbi_accession:
         from viralscan.scripts.ncbi_fetch import NCBIFetchError, fetch_reference
@@ -1835,12 +1892,8 @@ def _main() -> None:
         f1 = args.f1
 
     snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
-    samples1 = split_comma_paths(args.sample1)
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
-
-    _check_sample_ids(samples1)
-    write_start_docs(output_dir, [_sample_id(s1) for s1 in samples1])
 
     # Hoist loop-invariant transcript counts (they depend only on the reference).
     n_transcripts = _count_lines(transcripts)
@@ -1860,6 +1913,14 @@ def _main() -> None:
             _migrate_gene_list(Path(outs))
             _backfill_identity_table(run_config)
         hint = f"see {Path.cwd() / '.snakemake' / 'log'}"
+        if args.resume:
+            # We hold the run lock, so no live viralscan run owns snakemake's lock: a lock
+            # left by a killed run is stale. Clear it instead of failing with LockException.
+            _run_snakemake(
+                _snakemake_unlock_command(snakefile_path, config_file),
+                what="snakemake --unlock",
+                hint=hint,
+            )
         _run_snakemake(
             _snakemake_run_command(snakefile_path, args.cores, config_file),
             what="snakemake",

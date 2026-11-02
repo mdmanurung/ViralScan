@@ -52,6 +52,8 @@ def _evidence(
             n += 1
             qname = f"{cb}_{ub}_{n}|r{n}"
             lineage.append([n, f"r{n}", cb, ub, "1.0" if counted else "0.0"])
+            if virus_as is None and host_as is None:  # all-unmapped read
+                sam.append("\t".join([qname, "4", "*", "0", "0", "*", "*", "0", "0", "A", "I"]))
             for flag, ref, score in ((0, "VIRUS|x", virus_as), (256, "HOST|chr1", host_as)):
                 if score is not None:
                     sam.append(
@@ -301,3 +303,20 @@ def test_detection_exposes_f_and_index_gene_count() -> None:
         index_genes_by_virus={"A": ["a1", "a2", "a3"]},
     )
     assert stats["A"]["n_features_supported"] == 1 and stats["A"]["n_index_genes"] == 3
+
+
+def test_s_excludes_host_only_and_unaligned_by_protocol(tmp_path: Path) -> None:
+    """Frozen protocol: S ignores host-only and all-unmapped molecules and reports them separately."""
+    ev = _evidence(
+        tmp_path / "ev",
+        [
+            ("AAA", "U0", 1, True, 90, 60),  # virus_best
+            ("AAA", "U1", 1, True, 70, 70),  # tie
+            *[("AAA", f"H{i}", 1, True, None, 80) for i in range(99)],  # host-only
+            ("AAA", "N", 1, True, None, None),  # unaligned
+        ],
+    )
+    s = tm.support_fraction(ev, "A", {"AAA"})
+    assert (s.n_virus_best, s.n_tie) == (1, 1)
+    assert (s.n_excluded_host_only, s.n_excluded_unaligned) == (99, 1)
+    assert s.value == 0.5

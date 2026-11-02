@@ -51,6 +51,7 @@ from viralscan.star_hostvirus import STAR_SUMMARY_COLUMNS
 from viralscan.tier_measures import features_supported
 from viralscan.utils import (
     INFECTED_RELATIVE_TOLERANCE,
+    get_layer,
     infected_masks,
     matrix_for_genes,
     resolve_count_matrix,
@@ -546,7 +547,7 @@ def _headline_totals(
 
     selected_matrix = resolve_count_matrix(viral_count_matrix, adata)
     selected = matrix_for_genes(adata, selected_matrix, genes)
-    unique_layer = adata.layers.get("counts_unique")
+    unique_layer = get_layer(adata, "counts_unique")
     unique = matrix_for_genes(adata, unique_layer, genes) if unique_layer is not None else None
 
     infected_any = np.zeros(n_cells, dtype=bool)
@@ -1060,17 +1061,22 @@ def compute_stats(
         # High fraction indicates reads originating from host genomic regions
         # (e.g. EVE integrations in expressed host genes).
         host_viral_ambig_fraction = None
-        if "counts_host_viral_ambiguous" in adata.layers and total_umi_raw > 0:
+        unique_layer = get_layer(adata, "counts_unique")
+        if "counts_host_viral_ambiguous" in adata.layers:
             ambig_matrix = adata[:, valid_genes].layers["counts_host_viral_ambiguous"]
             if hasattr(ambig_matrix, "toarray"):
                 ambig_matrix = ambig_matrix.toarray()
-            ambiguity_denominator = float(matrix_for_genes(adata, adata.X, valid_genes).sum())
+            mixed = float(np.asarray(ambig_matrix).sum())
+            # mixed / (unique viral + mixed): both terms are method-independent. The selected
+            # matrix X drops mixed mass under host-conservative, so it cannot be the denominator.
+            unique_viral = (
+                float(matrix_for_genes(adata, unique_layer, valid_genes).sum())
+                if unique_layer is not None
+                else float(matrix_for_genes(adata, adata.X, valid_genes).sum())
+            )
+            ambiguity_denominator = unique_viral + mixed
             host_viral_ambig_fraction = (
-                # Clamp to [0,1]: the ambiguous layer is not a strict subset of the
-                # full-matrix viral counts, so the raw ratio can slightly exceed 1.
-                round(min(1.0, float(np.asarray(ambig_matrix).sum()) / ambiguity_denominator), 4)
-                if ambiguity_denominator > 0
-                else None
+                round(mixed / ambiguity_denominator, 4) if ambiguity_denominator > 0 else None
             )
 
         if ambient_ctx.reason is not None:

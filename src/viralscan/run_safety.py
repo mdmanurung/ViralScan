@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import atexit
 import csv
 import hashlib
 import json
+import logging
+import os
 import shutil
+import socket
 import subprocess
 from collections.abc import Callable
 from contextlib import suppress
@@ -16,8 +20,11 @@ from typing import Any, Optional
 from viralscan import __version__
 from viralscan.outputs import LAYOUT_VERSION
 
+log = logging.getLogger(__name__)
+
 RUN_MANIFEST = "run_manifest.json"
 RUN_COMPLETE = "run_complete.json"
+LOCK_NAME = ".viralscan.lock"
 COMBINED_SUMMARY = "combined_summary.tsv"
 #: Per-sample artifacts whose sha256 the completion marker records (each only if
 #: present). Deliberately narrow: the headline tables and the count matrix, not
@@ -429,6 +436,23 @@ def record_manifest_block(output_dir: Path, key: str, sample: str, block: dict[s
     _write_manifest_atomic(output_dir, manifest)
 
 
+def record_resume_attempt(output_dir: Path, blocks: dict[str, dict[str, Any]]) -> None:
+    """Log a ``--resume`` in ``resume_attempts`` and keep the first attempt's per-sample blocks.
+
+    ``blocks`` maps a manifest key (``chemistry_detection``, ``tool_binaries``) to
+    ``{sample: block}``. A block is only written where the manifest has none yet.
+    """
+    output_dir = Path(output_dir)
+    manifest = json.loads((output_dir / RUN_MANIFEST).read_text(encoding="utf-8"))
+    for key, per_sample in blocks.items():
+        for sample, block in per_sample.items():
+            manifest.setdefault(key, {}).setdefault(sample, block)
+    manifest.setdefault("resume_attempts", []).append(
+        {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), **blocks}
+    )
+    _write_manifest_atomic(output_dir, manifest)
+
+
 def record_fetched_reference(
     output_dir: Path, accessions: list[str], fasta: Path, gtf: Path
 ) -> None:
@@ -461,6 +485,66 @@ def record_strand_inference(output_dir: Path, sample: str, block: dict[str, Any]
     record_manifest_block(output_dir, "strand_inference", sample, block)
 
 
+def _is_litter(path: Path) -> bool:
+    """Our own bookkeeping: the run lock and ``.<name>.tmp`` staging files left by a crash."""
+    return path.name == LOCK_NAME or (path.name.startswith(".") and path.name.endswith(".tmp"))
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def acquire_run_lock(output_dir: Path) -> None:
+    """Take ``<output_dir>/.viralscan.lock`` (pid + host); removed again at interpreter exit.
+
+    A lock whose pid is dead on this host is replaced with a warning; any other existing
+    lock is refused. A lock held by this very process is taken over (tests, re-entry).
+    ponytail: a stale lock from another host needs a manual delete; no network liveness check.
+    """
+    output_dir = Path(output_dir)
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise RunSafetyError(f"Cannot create output directory {output_dir}: {exc}") from exc
+    lock = output_dir / LOCK_NAME
+    host = socket.gethostname()
+    for _attempt in range(2):
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            holder = lock.read_text(encoding="utf-8", errors="replace").split()
+            pid = int(holder[0]) if holder and holder[0].isdigit() else None
+            same_host = len(holder) > 1 and holder[1] == host
+            if pid is not None and same_host and (pid == os.getpid() or not _pid_alive(pid)):
+                if pid != os.getpid():
+                    log.warning("Replacing stale lock %s (pid %d is not running).", lock, pid)
+                lock.unlink(missing_ok=True)
+                continue
+            raise RunSafetyError(
+                f"Another viralscan run holds {lock} ({' on '.join(holder[:2]) or 'unreadable'}). "
+                f"If no run is active, delete that file and retry."
+            ) from None
+        except OSError as exc:
+            raise RunSafetyError(f"Cannot lock output directory {output_dir}: {exc}") from exc
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(f"{os.getpid()}\n{host}\n")
+        atexit.register(_release_run_lock, lock, os.getpid())
+        return
+    raise RunSafetyError(f"Cannot take {lock}: it keeps reappearing.")
+
+
+def _release_run_lock(lock: Path, pid: int) -> None:
+    with suppress(OSError, IndexError):
+        if lock.read_text(encoding="utf-8").split()[0] == str(pid):
+            lock.unlink()
+
+
 def prepare_output_directory(
     output_dir: Path,
     manifest: dict[str, Any],
@@ -472,13 +556,16 @@ def prepare_output_directory(
 ) -> str:
     """Create, resume, or explicitly replace one resolved output directory."""
     output_dir = output_dir.resolve()
-    if resume and overwrite:
-        raise RunSafetyError("--resume and --overwrite are mutually exclusive.")
+    if output_dir.exists() and not output_dir.is_dir():
+        raise RunSafetyError(f"--output {output_dir} is a file, not a directory.")
 
-    nonempty = output_dir.is_dir() and any(output_dir.iterdir())
+    nonempty = output_dir.is_dir() and any(not _is_litter(p) for p in output_dir.iterdir())
     if not nonempty:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        _write_manifest_atomic(output_dir, manifest)
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            _write_manifest_atomic(output_dir, manifest)
+        except OSError as exc:
+            raise RunSafetyError(f"Cannot write to output directory {output_dir}: {exc}") from exc
         return "new"
 
     if resume:
@@ -554,6 +641,8 @@ def prepare_output_directory(
             raise RunSafetyError("Overwrite cancelled; output directory was not changed.")
 
     for child in output_dir.iterdir():
+        if child.name == LOCK_NAME:
+            continue
         if child.is_dir() and not child.is_symlink():
             shutil.rmtree(child)
         else:
