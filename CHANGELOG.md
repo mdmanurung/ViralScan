@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased (after 3.0.0rc1)
+## 3.0.0rc1 (release candidate; date set when tagged)
+
+The `v3.0.0rc1` tag of 2026-10-23 never produced a release (its three release runs failed before publication), so everything since is part of this candidate and the tag will be moved when rc1 is cut (PLAN `RC-03`).
 
 - Feat (PLAN `DEF-04`): a reference where some viruses have only a whole-genome unit (`gene_biotype whole_genome`) now logs one warning naming them. The unit is kept; their counts are whole-genome, not per-gene.
 - Reference (PLAN `REF-13`): `build-reference` normalises the viral GTF before `kb ref`. CDS-only genes get exon rows, single-protein spliced genes lose their introns, and HHV-6B repeat copies get one transcript each, so target counts of user-built references change. `viralscan --reference` does the same on a copy (`index/reference.normalised.gtf`, hashed as `content_files.normalised_gtf`); your GTF is never modified and host cDNA rows are copied unchanged. Shipped GTFs are untouched.
@@ -40,8 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs: the site is cut to 13 sidebar pages. `docs/results.md` replaces `inspect_results.md` + `assess_evidence.md`; `api_reference.md` is folded into `api.md`; `reference_help.md` and `project_info.md` are removed. `v3_counting_contract.md`, `panel_integrity.md`, `workflow_comparison.md` and `reference_maintenance.md` leave the sidebar but keep their paths (PLAN `DOCS-REV-02`).
 
 - `viralscan discover --called-cells FILE` replaces the run's own `called_cells.tsv` (e.g. the EmptyDrops cells of a full-matrix run when a two-step run called only virus-carrying barcodes). The file's barcode space comes from its own `cell_calling_input.json`; its path and sha256 are recorded in `provenance.json` and the sha256 enters the fingerprint.
-
-## 3.0.0rc1 (release candidate; date set when tagged)
 
 - Added `viralscan discover` and `viralscan discover-collapse` (PLAN `DISC`): Kraken2 classification of a completed run's host-unmapped reads, grouped by cell barcode and UMI into `cell_taxon.h5ad`, `candidates.tsv` (observation state only), `qc.json` and `provenance.json`, published atomically with a fingerprint and a no-op rerun. Classifications are not infection calls; the primary counts, `detected` and tiers do not change, and no discovery performance claim is made. Optional `environment.discovery.yml` and `viralscan doctor --profile discovery`. See `docs/discovery.md`.
 
@@ -92,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## 3.0.0rc1 (continued): entries from the 3.0.0 development series, formerly `[Unreleased]`
 
 ### Added
 - **Research-tree size guard (RESTREE-01).** `.gitignore` rules keep bulk analysis outputs untracked, and `scripts/check_tracked_file_sizes.py` (run by `tests/test_tracked_file_sizes.py`) fails if a tracked or staged `analysis/` or `results/` file exceeds 1 MB, unless listed in `config/large_file_allowlist.txt`.

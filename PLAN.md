@@ -133,13 +133,14 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   `SHA256SUMS`, DRAFT `zenodo_metadata.draft.json` with TODO values). Preparation only: nothing uploaded, no DOI reserved.
   Checked: two builds of the local 393-GTF panel at 3.0.0rc1 gave byte-identical zips (sha256 5c5b5fea...49d9), corpus
   check passed; `tests/test_make_panel_archive.py`. **Open (user):** Zenodo deposit and the TODO metadata.
-- [~] `RC1-01` (2026-10-23, `codex/release-3.0.0rc1`, decision Q15): version `3.0.0.dev1` -> `3.0.0rc1` in every file
+- [x] `RC1-01` (2026-10-23, `codex/release-3.0.0rc1`, decision Q15): version `3.0.0.dev1` -> `3.0.0rc1` in every file
   `scripts/check_versions.py` compares (`__init__`, Dockerfile, Singularity.def, conda recipe, CITATION.cff x2) plus the
   cli_reference and release_policy pins; CHANGELOG section renamed. Historical receipts (release_checks, PLAN history) unchanged.
   **Open (user):** merge after #109 + green main, then push tag `v3.0.0rc1` (TestPyPI per release.yml; not PyPI).
   - 2026-10-23: tag `v3.0.0rc1` (on `87591c4`) pushed; release run 40000132978 built and `twine check`ed both
     distributions, then failed at `check_ship_scope.py` (`jsonschema` missing in the release job; nothing published).
     Fix: release.yml installs `jsonschema`. Re-tag needed (the release runs only on a tag push of a CI-green commit).
+  - 2026-11-02 (`codex/rc1-freeze`): closed; the freeze continues as `RC-01`. All versions already read `3.0.0rc1` on main (`check_versions.py` clean, also with `--tag v3.0.0rc1`).
 - [x] `PATHS-01` (2026-10-22, `codex/strip-institutional-paths`): `PLAN.md` site paths replaced by `$SITE_ROOT` (archive work root), `$SITE_SCRATCH` (scratch checkout root) and `$COLLAB_ROOT` (collaborator root); 10 lines. **Open:** about 190 more hits in `.living/` and about 300 in tracked analysis outputs, manifests, docs and Slurm scripts (`git grep -c -E "/exports/|lumc"`); scope of a repo-wide scrub is the user's call. **Done (2026-10-22, `codex/strip-paths-docs-scripts`):** tracked `docs/`, `scripts/` and `covid_viralscan/` now use `$SITE_ROOT`/`$SITE_SCRATCH`/`$COLLAB_ROOT` placeholders in prose and the fail-fast env vars `VIRALSCAN_SITE_ROOT`, `VIRALSCAN_SITE_SCRATCH`, `VIRALSCAN_COLLAB_ROOT` in scripts (`#SBATCH` log paths are now relative; `--chdir` lines dropped, submit from the repo root). `.living/`, `analysis/`, `results/` and other outputs deliberately untouched; no history rewrite. **Closed 2026-11-02 (user decision):** no repo-wide scrub. Shipped code and docs are already clean; `.living/` and analysis outputs do not ship.
 - [~] `DOCS-PAGES-01` (2026-10-20, `codex/docs-pages`): publish the Sphinx docs on GitHub Pages (user choice over
   Read the Docs). `.github/workflows/docs.yml` builds on push to `main` (and by hand), installs pandoc for nbsphinx
@@ -2840,9 +2841,20 @@ No open rows; done rows are in the PLAN archive (see Next action).
 
 ## WP10 — Publish and test `3.0.0rc1`
 
-- [ ] `RC-01` — freeze `3.0.0rc1` version, changelog, migration notes, CFF, locks,
+- [~] `RC-01` — freeze `3.0.0rc1` version, changelog, migration notes, CFF, locks,
   reference manifest, checksums, SBOM, licence report, and release notes on one
   green protected-main SHA.
+  - 2026-11-02 (`codex/rc1-freeze`, PR only, nothing tagged): version strings (`__init__`, Dockerfile, Singularity.def,
+    conda recipe, CITATION.cff x2, `cli_reference.md`, `release_policy.md`) all read `3.0.0rc1`. CHANGELOG: the
+    "Unreleased (after 3.0.0rc1)" and `[Unreleased]` sections are folded into one `3.0.0rc1` section, because the
+    `v3.0.0rc1` tag (now on `4da4674`, 164 commits behind main) never produced a release. `docs/migration.md` already
+    covers layout v3. `uv.lock` unchanged (version is dynamic; no bump needed). Checksums, SBOM and licence report are
+    produced by `release.yml` on the tag run, not committed.
+    **Open (maintainer):** (1) the last release run 40038144113 failed at "Audit the product image before
+    publication" (anchore, severity cutoff high), before any push, so nothing is on GHCR/TestPyPI; triage the findings
+    or set an exception. (2) The stale remote tag `v3.0.0rc1` must be deleted and re-created on the chosen green main
+    SHA (`RC-03`); this PR does not touch tags. (3) CITATION.cff `date-released`, authors and contact (`REL-15`).
+    (4) Reference archive manifest (`REF-11`).
 - [!] `RC-02` — maintainers configure/approve TestPyPI or PyPI trusted publishing,
   GHCR/GitHub release permissions, and public artifact hosting.
 - [ ] `RC-03` — tag `v3.0.0rc1` only after exact-SHA gates; publish prerelease
