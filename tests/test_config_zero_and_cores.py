@@ -50,5 +50,15 @@ def test_huge_cores_clamped_with_warning(caplog):
     args = _args(cores=99999999999)
     with patch("os.path.exists", side_effect=_always_exists):
         errorhandler(args)
-    assert args.cores == (os.cpu_count() or 1)
+    assert args.cores <= (os.cpu_count() or 1)
     assert "exceeds" in caplog.text
+
+
+def test_cores_clamped_to_affinity_not_node(caplog):
+    args = _args(cores=8)
+    with (
+        patch("os.path.exists", side_effect=_always_exists),
+        patch("os.sched_getaffinity", return_value={0, 1}, create=True),
+    ):
+        errorhandler(args)
+    assert args.cores == 2
