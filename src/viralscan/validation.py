@@ -476,7 +476,9 @@ def _inventory_issues(run_dir: Path) -> list[ValidationIssue]:
         for rel, expected in listed.items():
             target = (sample_dir / rel).resolve()
             if sample_dir not in target.parents or not target.is_file():
-                issues.append(ValidationIssue("error", "inventory_artifact_missing", rel, str(path)))
+                issues.append(
+                    ValidationIssue("error", "inventory_artifact_missing", rel, str(path))
+                )
             elif sha256_file(target) != expected:
                 issues.append(ValidationIssue("error", "inventory_hash_mismatch", rel, str(path)))
     return issues
