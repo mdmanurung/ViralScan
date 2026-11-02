@@ -712,6 +712,7 @@ def record_reference_build(
     *,
     fasta: Path,
     gtf: Path,
+    normalised_gtf: Optional[Path] = None,
     t2g: Optional[Path] = None,
     command: Optional[list[str]] = None,
     resources: Optional[dict[str, object]] = None,
@@ -720,6 +721,8 @@ def record_reference_build(
     """Separate deterministic file checksums from variable build receipts."""
     manifest = json.loads(manifest_path.read_text())
     files = {"fasta": sha256_file(fasta), "gtf": sha256_file(gtf)}
+    if normalised_gtf is not None:  # the GTF kb actually indexed; "gtf" stays the user's file
+        files["normalised_gtf"] = sha256_file(normalised_gtf)
     if t2g is not None:
         files["t2g"] = sha256_file(t2g)
     manifest["content_files"] = files

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
-- Reference (PLAN `REF-13`): `build-reference` normalises the viral GTF before `kb ref`. CDS-only genes get exon rows, single-protein spliced genes lose their introns, and HHV-6B repeat copies get one transcript each, so target counts of user-built references change. Shipped GTFs are untouched.
+- Reference (PLAN `REF-13`): `build-reference` normalises the viral GTF before `kb ref`. CDS-only genes get exon rows, single-protein spliced genes lose their introns, and HHV-6B repeat copies get one transcript each, so target counts of user-built references change. `viralscan --reference` does the same on a copy (`index/reference.normalised.gtf`, hashed as `content_files.normalised_gtf`); your GTF is never modified and host cDNA rows are copied unchanged. Shipped GTFs are untouched.
 - Docs (PLAN `AUD3-02-OPEN`): the report no longer says the neighbour-enrichment null is uncalibrated. On the host-only graph it holds its nominal false-positive rate when positive cells are random; a new test pins that rate.
 - Fix (PLAN `SIGTERM-GROUP-01`): SIGTERM or Ctrl-C during the `kb ref` index build or the `--strand auto` pilot now stops kb and kallisto too; before, only a running snakemake got the signal.
 - Fix (PLAN `CORES-AFFINITY-01`): `--cores` is clamped to the CPUs the process may use (a Slurm allocation), not every CPU on the node.

@@ -68,7 +68,8 @@ def test_reference_entrypoints_bound_workers(tmp_path, monkeypatch, entrypoint, 
     command = commands[0]
     assert command[1:4] == ["ref", "-t", str(8 if cores is None else min(8, cores))]
     assert command.count("-t") == 1
-    assert command[-2:] == [str(fasta), str(gtf)]
+    expected_gtf = tmp_path / "out" / "index" / "reference.normalised.gtf"
+    assert command[-2:] == [str(fasta), str(gtf if entrypoint != "menu" else expected_gtf)]
     assert ("--d-list" in command) == (entrypoint == "finish_dlist")
     assert receipts[0]["command"] == command
 
