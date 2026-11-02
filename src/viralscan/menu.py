@@ -44,12 +44,14 @@ from viralscan.outputs import (
     ANALYSIS_GENES,
     LAYOUT_VERSION,
     POSTHOC_DIRNAME,
+    V3Outputs,
     analysis_genes_path,
     is_posthoc,
     posthoc_dir,
 )
 from viralscan.resources import KB_WORKERS, bounded_workers
 from viralscan.run_safety import (
+    COMBINED_SUMMARY,
     RUN_MANIFEST,
     RunSafetyError,
     acquire_run_lock,
@@ -375,6 +377,16 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             "Run viralscan first so the multimap checkpoint exists."
         )
 
+    # Validate every merged config before anything is copied: a bad override must not
+    # leave a half-built result tree that refuses a retry.
+    for rel in source_config_rels:
+        cfg = _yaml.safe_load((source_dir / rel).read_text(encoding="utf-8"))
+        _apply_rerun_overrides(cfg, args)
+        try:
+            RunConfig.from_snakemake_config(cfg)
+        except ValueError as exc:
+            _die(f"Invalid rerun-multimap options for {rel.parent.name}: {exc}", 2)
+
     if output_dir.exists():
         output_dir.rmdir()
     # posthoc/ is never copied (run level or <sample>/posthoc/): a rerun must not carry
@@ -388,6 +400,12 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     )
     # The copy is a new, unfinished run; the source's marker must not vouch for it.
     clear_run_complete(output_dir)
+    # The copied READMEs say "finished" and the inventory/summary describe the source's counts;
+    # a failure from here on must leave an honest NOT FINISHED tree.
+    write_start_docs(output_dir, [rel.parent.name for rel in source_config_rels])
+    (output_dir / COMBINED_SUMMARY).unlink(missing_ok=True)
+    for rel in source_config_rels:
+        V3Outputs(output_dir / rel.parent).artifact_inventory.unlink(missing_ok=True)
 
     snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
 
@@ -422,12 +440,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         # Update multimap parameters in the working copy. The trailing separator
         # matters: the Snakefile builds paths as f"{config['output']}log/...".
         cfg["output"] = str(output_dir / rel) + os.sep
-        cfg["multimap_method"] = new_method
-        cfg["cores"] = args.cores
-        if args.multimap_em_max_iter is not None:
-            cfg["multimap_em_max_iter"] = args.multimap_em_max_iter
-        if args.multimap_em_tol is not None:
-            cfg["multimap_em_tol"] = args.multimap_em_tol
+        _apply_rerun_overrides(cfg, args)
 
         use_em = new_method in {"em-global", "em-cell"}
         swapped = False
@@ -468,6 +481,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         run_config = RunConfig.from_snakemake_config(cfg)
         _write_run_config(run_config, keep_mtime=True)
         _migrate_gene_list(sample_dir)
+        _drop_legacy_outputs(sample_dir)
         _backfill_identity_table(run_config)
 
         # Drop sentinels so snakemake re-runs the right rules.
@@ -507,6 +521,31 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     else:
         write_run_complete(output_dir)
     log.info("rerun-multimap complete in new result directory %s.", output_dir)
+
+
+def _apply_rerun_overrides(cfg: dict[str, Any], args: argparse.Namespace) -> None:
+    """Set the rerun's method, cores and EM options on a sample's config dict."""
+    cfg["multimap_method"] = args.multimap_method
+    cfg["cores"] = args.cores
+    if args.multimap_em_max_iter is not None:
+        cfg["multimap_em_max_iter"] = args.multimap_em_max_iter
+    if args.multimap_em_tol is not None:
+        cfg["multimap_em_tol"] = args.multimap_em_tol
+
+
+def _drop_legacy_outputs(sample_dir: Path) -> None:
+    """On a v1/v2 copy, delete the old-method gene lists and plots the rerun regenerates.
+
+    Run after ``_migrate_gene_list`` has copied ``log/analysis.txt``: the v3 rules write
+    ``results/``, so these would sit in the new tree describing the source's method and
+    be listed in its inventory.
+    """
+    if not (sample_dir / "log" / "analysis.txt").is_file():
+        return
+    (sample_dir / "log" / "analysis.txt").unlink()
+    (sample_dir / "log" / "found_genes.txt").unlink(missing_ok=True)
+    for stale in (sample_dir / "plots").glob("SuperExpressor_*"):
+        stale.unlink()
 
 
 def _migrate_gene_list(sample_dir: Path) -> None:
@@ -671,26 +710,41 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         Path(args.output).resolve() if args.output else posthoc_dir(output_dir, "hostresponse")
     )
     _require_fresh(Path(out_dir), args)
-    run_hostresponse(
-        virus_h5ad=virus_h5ad,
-        host_h5ad=args.host_h5ad,
-        viral_accessions_file=str(_hostresponse_viral_file(output_dir, analysis_txt)),
-        out_dir=out_dir,
-        use_hvg=args.use_hvg,
-        seeds=seeds,
-        n_stab_iter=n_stab_iter,
-        stab_min_prob=stab_min_prob,
-        top_n_genes=top_n_genes,
-        detection_threshold=min_umi,
-        do_enrichment=args.enrichment,
-        enrichment_db=enrichment_db,
-        label=args.label,
-        depth_match=args.depth_match,
-        control_mito=args.mito_control,
-        annotate_symbols=args.gene_symbols,
-        differential=args.differential,
-        **_hostresponse_evaluation_kwargs(args, cfg),
-    )
+    # run_hostresponse clears the old per-virus CSVs before it models. Keep a copy so a
+    # failed --force re-run restores them instead of leaving a half-empty tree.
+    backup = Path(out_dir).with_name(f".{Path(out_dir).name}.prev")
+    shutil.rmtree(backup, ignore_errors=True)
+    if Path(out_dir).is_dir() and any(Path(out_dir).iterdir()):
+        shutil.copytree(out_dir, backup, symlinks=True)
+    try:
+        provenance = run_hostresponse(
+            virus_h5ad=virus_h5ad,
+            host_h5ad=args.host_h5ad,
+            viral_accessions_file=str(_hostresponse_viral_file(output_dir, analysis_txt)),
+            out_dir=out_dir,
+            use_hvg=args.use_hvg,
+            seeds=seeds,
+            n_stab_iter=n_stab_iter,
+            stab_min_prob=stab_min_prob,
+            top_n_genes=top_n_genes,
+            detection_threshold=min_umi,
+            do_enrichment=args.enrichment,
+            enrichment_db=enrichment_db,
+            label=args.label,
+            depth_match=args.depth_match,
+            control_mito=args.mito_control,
+            annotate_symbols=args.gene_symbols,
+            differential=args.differential,
+            **_hostresponse_evaluation_kwargs(args, cfg),
+        )
+    except BaseException:
+        if backup.is_dir():
+            shutil.rmtree(out_dir, ignore_errors=True)
+            backup.rename(out_dir)
+        raise
+    shutil.rmtree(backup, ignore_errors=True)
+    if provenance and provenance.get("status") == "too_few_shared_barcodes":
+        _die(f"hostresponse did not run: too few shared barcodes (see {out_dir}).")
     log.info("hostresponse complete. Results in %s", out_dir)
 
 

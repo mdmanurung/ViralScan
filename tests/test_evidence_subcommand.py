@@ -350,7 +350,7 @@ class TestReplayFastqs:
         identity = SimpleNamespace(viral_gene_ids=lambda: {"g1"})
         stats = SimpleNamespace(viral_reads=viral_reads, total_reads=viral_reads)
 
-        out_dir = tmp_path / "evidence"
+        out_dir = tmp_path / "posthoc" / "evidence"
         args = SimpleNamespace(
             run_dir=str(run_dir),
             output=str(out_dir),
@@ -550,8 +550,8 @@ class TestReplayFastqs:
         import json
 
         (tmp_path / "run_manifest.json").write_text(json.dumps({"run_fingerprint": "fp"}))
-        output = tmp_path / "evidence"
-        output.mkdir()
+        output = tmp_path / "posthoc" / "evidence"
+        output.mkdir(parents=True)
         sentinel = output / "viral_reads.fasta"
         sentinel.write_text("existing reads\n")
         manifest = output / "evidence_manifest.json"
@@ -568,8 +568,8 @@ class TestReplayFastqs:
         import json
 
         (tmp_path / "run_manifest.json").write_text(json.dumps({"run_fingerprint": "fp"}))
-        output = tmp_path / "evidence"
-        output.mkdir()
+        output = tmp_path / "posthoc" / "evidence"
+        output.mkdir(parents=True)
         (output / "evidence_manifest.json").write_text(
             json.dumps(
                 {
@@ -585,8 +585,8 @@ class TestReplayFastqs:
     def test_missing_current_run_fingerprint_cannot_overwrite_existing_output(self, tmp_path):
         import json
 
-        output = tmp_path / "evidence"
-        output.mkdir()
+        output = tmp_path / "posthoc" / "evidence"
+        output.mkdir(parents=True)
         (output / "evidence_manifest.json").write_text(
             json.dumps(
                 {

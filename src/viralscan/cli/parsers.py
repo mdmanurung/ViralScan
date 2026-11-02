@@ -704,14 +704,14 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
     )
     p.add_argument(
         "--multimap-em-max-iter",
-        type=int,
+        type=_positive_int,
         default=None,
         metavar="N",
         help="(em only) Maximum EM iterations. Default: preserves existing config value.",
     )
     p.add_argument(
         "--multimap-em-tol",
-        type=float,
+        type=_positive_float,
         default=None,
         metavar="TOL",
         help="(em only) EM convergence tolerance. Default: preserves existing config value.",
@@ -731,6 +731,13 @@ def _positive_int(value: str) -> int:
     number = int(value)
     if number < 1:
         raise argparse.ArgumentTypeError(f"must be >= 1, got {value}")
+    return number
+
+
+def _positive_float(value: str) -> float:
+    number = float(value)
+    if not number > 0:  # also rejects nan
+        raise argparse.ArgumentTypeError(f"must be > 0, got {value}")
     return number
 
 

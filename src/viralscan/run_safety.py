@@ -366,12 +366,32 @@ def write_run_complete(run_root: Path) -> None:
     write_combined_summary(run_root)
 
 
+def refuse_primary_tree(output: Path) -> None:
+    """Refuse an ``output`` inside a run's or sample's tree unless it sits under ``posthoc/``."""
+    from viralscan.outputs import POSTHOC_DIRNAME
+
+    out = Path(output).resolve()
+    for root in (out, *out.parents):
+        # A bare config.yaml is common in any project dir; a sample also has kb-python/.
+        sample = (root / "config.yaml").is_file() and (root / "kb-python").is_dir()
+        if sample or (root / RUN_MANIFEST).is_file():
+            if POSTHOC_DIRNAME not in out.relative_to(root).parts:
+                raise RunSafetyError(
+                    f"Output {output} is inside the ViralScan run {root}. Post-hoc results go "
+                    f"under {root / POSTHOC_DIRNAME}/ or in a directory outside the run."
+                )
+            return
+
+
 def require_fresh_output(output: Path, *, force: bool = False, forceable: bool = True) -> None:
     """The one overwrite guard of the post-hoc verbs: refuse a non-empty ``output``.
 
-    ``force`` lets the verb write into it (same-named files are replaced, nothing is
-    deleted). ``forceable=False`` is for a verb that has no ``--force``.
+    ``force`` lets the verb write into it (same-named files are replaced). The verb
+    itself decides what else it clears; ``hostresponse`` backs the old tree up and
+    restores it on failure. ``forceable=False`` is for a verb that has no ``--force``.
+    Any ``output`` inside a run's own tree (outside ``posthoc/``) is refused, forced or not.
     """
+    refuse_primary_tree(output)
     if force or not output.exists() or (output.is_dir() and not any(output.iterdir())):
         return
     way = ", or pass --force to write into it (same-named files are replaced)" if forceable else ""

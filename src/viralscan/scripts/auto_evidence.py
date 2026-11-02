@@ -12,6 +12,7 @@ result is distinguishable from a rule that never ran.
 
 import csv
 import logging
+import shutil
 from pathlib import Path
 from typing import Any, Union
 
@@ -184,14 +185,20 @@ def run(ctx: RunContext, done_file: str) -> None:
     log.info("auto_evidence: %d detected anellovirus genera: %s", len(genera), genera)
     # ponytail: one `evidence` run per genus, each copying the host genome into its own
     # competitive FASTA and re-reading the FASTQs; share one index across genera if slow.
-    extract_virus_reads(
+    evidence_dir = run_dir / "results" / "evidence"
+    extracted = extract_virus_reads(
         run_dir,
         genera,
-        run_dir / "results" / "evidence",
+        evidence_dir,
         cores=config.cores,
         viral_fasta=config.viral_fasta,
         host_fasta=config.host_fasta,
     )
+    # A rerun can demote a genus; its old folder would still sit in the inventory.
+    keep = {reads.out_dir for reads in extracted.values()}
+    for stale in evidence_dir.glob("*/evidence_manifest.json"):
+        if stale.parent not in keep:
+            shutil.rmtree(stale.parent)
     Path(done_file).write_text("\n".join(genera) + "\n" if genera else "none\n")
 
 
