@@ -35,3 +35,14 @@ def test_truncated_record_fails(tmp_path):
     bad.write_text("@r\nACGT\n+\n")
     with pytest.raises(ValueError, match="multiple of 4"):
         fpc.check_pairs(_fq(tmp_path / "a.fq", 1), bad)
+
+
+def test_pair_check_is_a_final_target_not_a_multimap_input():
+    """Old runs must resume without rerunning multimap (they have no pair-check json)."""
+    import re
+
+    text = (Path(fpc.__file__).parents[1] / "Snakefile").read_text()
+    multimap = re.search(r"^rule multimap:.*?^rule ", text, re.S | re.M).group(0)
+    assert "fastq_pair_check" not in multimap
+    all_targets = re.search(r"^def _all_targets.*?return targets", text, re.S | re.M).group(0)
+    assert "log/fastq_pair_check.json" in all_targets

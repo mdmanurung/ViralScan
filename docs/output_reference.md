@@ -880,7 +880,6 @@ One row per sample (also stored as `adata.uns["molecule_audit"]`), validated aga
 | `bus_records_after_correction`, `bus_reads_after_correction` | Records / reads in the corrected BUS that molecule resolution used | observation |
 | `offlist_dropped_records`, `offlist_dropped_reads` | Raw minus corrected: barcodes off the on-list with no unique one-mismatch neighbour. Reads is the figure comparable to kb's "reads on the whitelist" in `inspect.json` | observation |
 | `bus_totals_source` | `bustools_inspect`, or `not_corrected` (then drops are 0 and the raw/corrected totals are absent) | observation |
-| `fastq_read_pairs` | Read pairs in the raw R1/R2 inputs, counted by the `fastq_pair_check` rule (a run with unequal R1/R2 read counts fails). Empty when `rerun-multimap` runs without that rule's `log/fastq_pair_check.json` | observation |
 
 The new fields are optional in the schema, so audits written before this change still validate.
 

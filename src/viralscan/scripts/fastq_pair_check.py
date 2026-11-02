@@ -3,8 +3,8 @@ Fail the run when R1 and R2 hold different numbers of reads.
 
 kallisto pairs reads by position and exits 0 when R2 is shorter, so a truncated
 R2 silently drops reads. This rule counts both raw inputs (no dependency on
-``kb_count``) and writes ``log/fastq_pair_check.json`` with the pair count,
-which ``multimap`` reads into ``count_audit.tsv`` as ``fastq_read_pairs``.
+``kb_count``) and writes ``log/fastq_pair_check.json`` with the pair count.
+An old run resumed after its FASTQs were deleted records ``"pairs": null``.
 """
 
 import gzip
@@ -29,5 +29,10 @@ def check_pairs(r1, r2) -> int:
 
 
 if "snakemake" in globals():
-    pairs = check_pairs(snakemake.config["sample1"], snakemake.config["sample2"])  # noqa: F821
-    Path(snakemake.output[0]).write_text(json.dumps({"pairs": pairs}) + "\n")  # noqa: F821
+    r1, r2 = snakemake.config["sample1"], snakemake.config["sample2"]  # noqa: F821
+    result = {"pairs": None, "skipped": "raw FASTQs missing"}
+    if Path(r1).exists() and Path(r2).exists():
+        result = {"pairs": check_pairs(r1, r2)}
+    else:
+        print(f"WARNING fastq_pair_check skipped: {r1} or {r2} no longer exists.")
+    Path(snakemake.output[0]).write_text(json.dumps(result) + "\n")  # noqa: F821
