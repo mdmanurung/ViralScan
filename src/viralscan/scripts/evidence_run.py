@@ -63,7 +63,7 @@ from viralscan.molecule_verdict import (
 )
 from viralscan.outputs import analysis_genes_path, posthoc_dir
 from viralscan.read_support import write_molecule_support
-from viralscan.run_safety import sha256_file, software_identity
+from viralscan.run_safety import RunSafetyError, refuse_primary_tree, sha256_file, software_identity
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
 from viralscan.utils import configure_logging
@@ -424,6 +424,11 @@ def run_evidence(args: argparse.Namespace) -> None:
     if not technology:
         _die("config.yaml has no 'technology'; cannot resolve barcode geometry. Re-run the sample.")
     out = Path(args.output).resolve()
+    if not out.is_relative_to(run_dir.resolve() / "results" / "evidence"):  # auto-evidence's home
+        try:
+            refuse_primary_tree(out)
+        except RunSafetyError as exc:
+            _die(str(exc))
     run_manifest_path = run_dir / "run_manifest.json"
     if not run_manifest_path.exists():
         # The workflow writes run_manifest.json at the run ROOT, while
