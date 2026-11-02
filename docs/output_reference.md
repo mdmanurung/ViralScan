@@ -113,7 +113,6 @@ output/
     │   ├── anello_alignment_by_accession.tsv
     │   ├── anello_alignment_by_virus.tsv
     │   ├── star_support_by_virus.tsv             # only with --star-confirm
-    │   ├── host_capture.tsv                      # only with --host-capture
     │   ├── cell_type_enrichment.tsv
     │   ├── reference_provenance.json
     │   ├── superexpressor/                       # SuperExpressor_<virus>.{tsv,json} (v1/v2: plots/)
@@ -132,7 +131,6 @@ output/
     │   ├── scautoqc.done                         # only with --scautoqc
     │   ├── anello_align.done                     # only with --anello-align
     │   ├── star_confirm.done                     # only with --star-confirm
-    │   ├── host_capture.done                     # only with --host-capture
     │   ├── gene_programs.done                    # only with --gene-programs
     │   ├── auto_evidence.done                    # only with --auto-evidence
     │   └── hostresponse.done                     # only with --host-h5ad
@@ -147,14 +145,13 @@ output/
     ├── read_filtered/                            # FASTQs after the read filter (--read-filter)
     ├── host_filtered/                            # STARsolo host-filter work dir (--host-filter starsolo)
     ├── star_hostvirus/                           # STAR host+virus BAM (--star-confirm)
-    └── host_capture/                             # host-capture work dir (--host-capture)
 ```
 
 
 Each sample folder has one job per sub-folder: `results/` holds user-facing tables, `plots/`
 images and HTML only, `log/` logs and `.done` sentinels only, `posthoc/<verb>/` the post-hoc
 verbs, and the bulky machine-only work dirs (`kb-python/`, `read_filtered/`, `host_filtered/`,
-`star_hostvirus/`, `host_capture/`) are the intermediates. They stay at the sample root, not under an
+`star_hostvirus/`) are the intermediates. They stay at the sample root, not under an
 `intermediate/` folder, because `kb-python/adata_multimap.h5ad` is the matrix users load and the
 other tools read these paths; the sample `README.txt` and this tree mark which are intermediates.
 `layout_version` in `run_manifest.json` (outside `run_fingerprint`) is bumped whenever a published
@@ -1108,7 +1105,6 @@ sample's `README.txt`.
 | `read_filtered/` | FASTQs after the read filter |
 | `host_filtered/` | STARsolo host-filter work dir and filtered FASTQs |
 | `star_hostvirus/` | STAR host+virus confirmation BAM |
-| `host_capture/` | host-capture work dir (the table is `results/host_capture.tsv`) |
 | `kb-python/` except `counts_unfiltered/` | BUS files and `run_info.json` |
 | `.kb-count.*`, `.kb-previous.*` | staging left by an interrupted `kb count` |
 

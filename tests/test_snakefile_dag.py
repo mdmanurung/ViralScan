@@ -489,19 +489,6 @@ class TestGeneProgramsDag(TestAutoEvidenceDag):
 
 
 @pytest.mark.integration
-class TestHostCaptureDag(TestAutoEvidenceDag):
-    """DLIST-02: the opt-in host_capture rule is in the DAG only when enabled."""
-
-    def test_rule_absent_by_default(self, tmp_path) -> None:
-        assert "host_capture" not in self._plan(tmp_path, [])
-
-    def test_rule_runs_after_the_count_when_enabled(self, tmp_path) -> None:
-        output = self._plan(tmp_path, ["host_capture=true"])
-        assert re.search(r"^\s*host_capture\s+1\s", output, re.MULTILINE), output
-        assert re.search(r"^\s*kb_count\s+1\s", output, re.MULTILINE), output
-
-
-@pytest.mark.integration
 class TestCpuBudgetThreads(TestAutoEvidenceDag):
     """total_budget_v1: every rule reserves what its native tool uses, capped at --cores."""
 
@@ -517,7 +504,7 @@ class TestCpuBudgetThreads(TestAutoEvidenceDag):
                 [
                     "sample1=/fake/R1.fastq.gz", "sample2=/fake/R2.fastq.gz",
                     "kb_r1=/fake/R1.fastq.gz", "kb_r2=/fake/R2.fastq.gz",
-                    f"cores={cores}", "auto_evidence=true", "host_capture=true",
+                    f"cores={cores}", "auto_evidence=true",
                 ],
             ),
         ]  # fmt: skip
@@ -537,7 +524,7 @@ class TestCpuBudgetThreads(TestAutoEvidenceDag):
     def test_reservations_follow_budget(self, tmp_path, cores) -> None:
         got = self._threads(tmp_path, cores, None)
         assert got["kb_count"] == min(8, cores)
-        for name in ("multimap", "auto_evidence", "host_capture"):
+        for name in ("multimap", "auto_evidence"):
             assert got[name] == cores, got
 
     def test_reservations_come_from_the_rule_expressions_not_the_scheduler_clamp(
@@ -555,7 +542,7 @@ class TestCpuBudgetThreads(TestAutoEvidenceDag):
         assert got["auto_evidence"] == 2 and got["kb_count"] == 6
 
 
-@pytest.mark.parametrize("script", ["multimap", "auto_evidence", "host_capture"])
+@pytest.mark.parametrize("script", ["multimap", "auto_evidence"])
 def test_scripts_use_scheduler_reserved_threads(script) -> None:
     source = (SNAKEFILE.parent / "scripts" / f"{script}.py").read_text()
     assert "with_cores(snakemake.threads)" in source
