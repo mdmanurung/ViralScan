@@ -38,6 +38,10 @@
       "type": "integer",
       "minimum": 0
     },
+    "offlist_barcode_molecules": {
+      "type": "integer",
+      "minimum": 0
+    },
     "allocated_ambiguous_mass": {
       "type": "number",
       "minimum": 0
