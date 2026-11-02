@@ -612,7 +612,6 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     if not Path(virus_h5ad).exists():
         _die(f"Virus h5ad not found at {virus_h5ad}. Ensure the multimap step has completed.")
 
-
     n_seeds = args.n_seeds if args.n_seeds is not None else cfg.hostresponse_n_seeds
     try:
         seeds = resolve_seeds(n_seeds)
