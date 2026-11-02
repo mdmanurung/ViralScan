@@ -106,7 +106,7 @@ def _patch_sctk_gmm() -> None:
     """sctk 0.2.0 ``fit_gaussian`` retries a non-converged GMM with ``gmm.fit(x, warm_start=True)``.
 
     sklearn's ``fit`` takes no such argument, so that branch always raised TypeError. Swap in a
-    GaussianMixture whose ``fit`` honours it (sets ``self.warm_start``), which is what sctk meant.
+    GaussianMixture whose ``fit`` honours it (sets ``self.warm_start``) for one extra round, then accepts the fit.
     ponytail: patches sctk's module global; drop once sctk ships a fix.
     """
     from sctk import _pipeline
@@ -119,9 +119,14 @@ def _patch_sctk_gmm() -> None:
         _viralscan_warm_start = True
 
         def fit(self, X, y=None, warm_start=None):  # type: ignore[no-untyped-def]
-            if warm_start is not None:
-                self.warm_start = warm_start
-            return super().fit(X, y)
+            if warm_start is None:
+                return super().fit(X, y)
+            self.warm_start = warm_start
+            super().fit(X, y)
+            # ponytail: accept after one warm-started round; sctk's `while not converged_`
+            # loop never ends on a fit that cannot converge. Upgrade: raise max_iter per retry.
+            self.converged_ = True
+            return self
 
     _pipeline.GaussianMixture = _WarmStartGMM
 

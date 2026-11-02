@@ -235,6 +235,11 @@ def test_sctk_gmm_retry_accepts_warm_start():
     from viralscan.scautoqc import _patch_sctk_gmm
 
     _patch_sctk_gmm()
-    gmm = _pipeline.GaussianMixture(n_components=1, random_state=0)
-    gmm.fit(np.arange(20.0).reshape(-1, 1), warm_start=True)
+    x = np.random.default_rng(0).normal(size=(200, 1))
+    # max_iter=1, tol=0: the first fit cannot converge, so sctk would retry forever.
+    gmm = _pipeline.GaussianMixture(n_components=2, max_iter=1, tol=0.0, random_state=0)
+    gmm.fit(x)
+    assert not gmm.converged_
+    gmm.fit(x, warm_start=True)
     assert gmm.warm_start is True
+    assert gmm.converged_  # one warm-started round, then accepted: the loop ends
