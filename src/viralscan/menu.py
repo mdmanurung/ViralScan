@@ -1546,7 +1546,10 @@ def main() -> None:
     except KeyboardInterrupt:
         print("viralscan: interrupted.", file=sys.stderr)
         sys.exit(130)
-    except (OSError, EOFError) as exc:  # bad path, permissions, truncated gz (BadGzipFile is OSError)
+    except (
+        OSError,
+        EOFError,
+    ) as exc:  # bad path, permissions, truncated gz (BadGzipFile is OSError)
         print(f"ERROR  {exc}", file=sys.stderr)
         if log.isEnabledFor(logging.DEBUG):  # --verbose
             raise
