@@ -267,6 +267,17 @@ rule kb_count:
         touch {output:q}
         """
 
+# R1/R2 read-count check on the raw inputs. No dependency on kb_count: kallisto
+# pairs by position and exits 0 on a shorter R2. multimap needs the result, so
+# a mismatch fails the run before count_audit.tsv is written.
+rule fastq_pair_check:
+    input:
+        f"{config['output']}config.yaml"
+    output:
+        f"{config['output']}log/fastq_pair_check.json"
+    script:
+        "scripts/fastq_pair_check.py"
+
 rule analysis:
     input:
         f"{config['output']}config.yaml",
@@ -282,7 +293,8 @@ rule analysis:
 rule multimap:
     input:
         file_viral_accessions = f"{config['output']}{ANALYSIS_GENES}",
-        virus_identity = f"{config['output']}results/virus_identity.tsv"
+        virus_identity = f"{config['output']}results/virus_identity.tsv",
+        pair_check = f"{config['output']}log/fastq_pair_check.json"
     output:
         f"{config['output']}log/multimap.done"
     threads: config.get("cores", 6)

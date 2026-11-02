@@ -521,7 +521,12 @@ def final_results(
     adata.write(output_file)
 
     count_audit.parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame([audit]).to_csv(str(count_audit), sep="\t", index=False)
+    # R1/R2 pair count from the fastq_pair_check rule (kept out of the schema'd audit dict).
+    pair_json = Path(config.output) / "log" / "fastq_pair_check.json"
+    pairs = json.loads(pair_json.read_text())["pairs"] if pair_json.exists() else None
+    pd.DataFrame([{**audit, "fastq_read_pairs": pairs}]).to_csv(
+        str(count_audit), sep="\t", index=False
+    )
 
     # summary.txt is written by detection, which runs after this rule and opened
     # the same path with mode "w". Writing the totals here destroyed them on every
