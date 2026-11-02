@@ -258,6 +258,11 @@ def load_barcodes(barcodes_file):
     with open(barcodes_file) as f:
         barcodes = [line.strip() for line in f]
     barcodes = [strip_10x_suffix(bc) for bc in barcodes]
+    if len(set(barcodes)) != len(barcodes):
+        dupes = sorted({bc for bc in barcodes if barcodes.count(bc) > 1})
+        raise ValueError(
+            f"{barcodes_file}: barcodes collide after stripping the -1 suffix: {dupes[:5]}"
+        )
     barcode_to_idx = {bc: i for i, bc in enumerate(barcodes)}
     n_cells = len(barcodes)
     return barcode_to_idx, n_cells
@@ -504,6 +509,7 @@ def final_results(
         "ambiguous_molecules": layers.audit.ambiguous_molecules,
         "unresolved_molecules": layers.audit.unresolved_molecules,
         "ignored_read_multiplicity": layers.audit.ignored_read_multiplicity,
+        "offlist_barcode_molecules": layers.audit.offlist_barcode_molecules,
         "allocated_ambiguous_mass": float(layers.corrected.sum()),
         "host_virus_ambiguous_molecules": layers.host_virus_ambiguous_molecules,
         **(drop_audit or {}),

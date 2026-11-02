@@ -331,7 +331,7 @@ alignment branch below.
 | `aggregate_note` | When `unique_fraction` < 0.05 (`ASSIGNMENT_UNIQUE_FRACTION_MIN`), the total is mostly an allocation: the note names the species and, if needed, genus row of `viral_summary_by_species.tsv` / `viral_summary_by_genus.tsv` and their unique fractions. A label only; it changes no count or `detected` call | diagnostic flag |
 | `accession_breadth` | Fraction of the virus's **index** genes with ≥1 molecule in any barcode (endogenous-element artefact check: an EVE concentrates on 1–2 loci, a genuine infection spreads across its genes). Before 2026-10-04 it was computed over the detected genes only and was always 1.0 (`ANDET-01`). Gene-level breadth, not genome-coverage breadth | diagnostic flag |
 | `n_features_supported`, `n_index_genes` | Tier measure F and its ceiling (`calibration.freeze_scope`, Q135): the number of the virus's index genes whose summed `adata.X` over the **called cells** is ≥1 molecule (fractions kept; ≥1, not >0, so 0.5 + 0.5 over two cells counts and a 0.5/0.5 split over two genes does not), and the number of index genes. A virus with fewer index genes than the cutoff `f` cannot reach `probable` | observation |
-| `host_viral_ambig_fraction` | Fraction of the virus's signal that is host-virus ambiguous | diagnostic flag |
+| `host_viral_ambig_fraction` | Host-virus mixed molecules over (unique viral + mixed) molecules, from the `counts_unique` and `counts_host_viral_ambiguous` layers, so it does not depend on the multimap method. NA only when both are 0 | diagnostic flag |
 | `eve_risk` | Flag copied from the identity table's `risk_class` (`eve` families: germline endogenous viral elements). No shipped family has it: Anelloviridae were cleared on 2026-10-03, because no germline human anellovirus EVE is known (F-019 revised the original basis) | diagnostic flag |
 | `artifact_risk` | `low_complexity` when the virus's family is prone to low-complexity read artefacts (poly-G no-signal reads, poly-A sinks; F-019, F-021), otherwise empty. Today this is Anelloviridae only. It is a label, **not a filter**: anelloviruses are commensal and a real call is expected. Check reads with `viralscan evidence` | diagnostic flag |
 | `claim_scope` | What the call may claim. `screening_only` for Anelloviridae (by catalogue family; genus-name fallback on legacy indexes): no orthogonally confirmed anellovirus-positive sample exists (`REF-10`), so a call is a screen, never a confirmed infection or a sensitivity claim. Empty means no scope restriction | diagnostic flag |
@@ -881,7 +881,9 @@ One row per sample (also stored as `adata.uns["molecule_audit"]`), validated aga
 | `offlist_dropped_records`, `offlist_dropped_reads` | Raw minus corrected: barcodes off the on-list with no unique one-mismatch neighbour. Reads is the figure comparable to kb's "reads on the whitelist" in `inspect.json` | observation |
 | `bus_totals_source` | `bustools_inspect`, or `not_corrected` (then drops are 0 and the raw/corrected totals are absent) | observation |
 
-The new fields are optional in the schema, so audits written before this change still validate.
+| `offlist_barcode_molecules` | Distinct CB-UMIs in the BUS whose barcode is not in the kb barcode list. They are not molecules of this run, so they sit outside `input_molecules` and the conservation identity | observation |
+
+The off-list fields are optional in the schema, so audits written before them still validate.
 
 ## `viral_summary_by_species.tsv` and `viral_summary_by_genus.tsv`
 
