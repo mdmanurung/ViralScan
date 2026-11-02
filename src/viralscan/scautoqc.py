@@ -230,7 +230,7 @@ def add_scautoqc(
     ]
     cluster_status = "complete"
     if adata.n_obs >= 6:
-        qc_adata = ad.AnnData(X=adata.obs[qc_metrics].to_numpy(), obs=adata.obs.copy())
+        qc_adata = ad.AnnData(X=adata.obs[qc_metrics].to_numpy().copy(), obs=adata.obs.copy())
         sctk.generate_qc_clusters(qc_adata, metrics=qc_metrics)
         sctk.clusterwise_qc(
             qc_adata,

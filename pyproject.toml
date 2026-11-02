@@ -43,7 +43,7 @@ full = [
     # environment.yml pins snakemake=9.23.1; the workflow relies on Snakemake 9
     # behaviour, so the pip extra must not resolve to an older major.
     "snakemake>=9,<10; python_version >= '3.11'",
-    "scanpy",
+    "scanpy>=1.10",
     "scikit-learn>=1.0",
     "plotly",
     "seaborn",
@@ -60,8 +60,8 @@ dev = [
 # Optional --scautoqc QC flags. Kept out of `full`: sctk is a niche, pinned dependency
 # (it pulls leiden/igraph) that most runs never use.
 scautoqc = [
-    "scanpy[leiden]",
-    "sctk==0.2.0",
+    "scanpy[leiden]>=1.10",
+    "sctk==0.2.0; python_version < '3.12'",
     "pybiomart",
 ]
 enrichment = [
