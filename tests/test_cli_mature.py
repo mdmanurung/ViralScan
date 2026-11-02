@@ -1,5 +1,7 @@
 """CLI behaviour: exit codes, flag aliases, fast --version (PLAN CLI-MATURE-01)."""
 
+import argparse
+import gzip
 import subprocess
 import sys
 
@@ -214,3 +216,38 @@ def test_evidence_plot_missing_dir_exits_2(tmp_path, monkeypatch, capsys):
     )
     assert _exit_code(menu.main) == 2
     assert "Traceback" not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("case", ["outfile", "dir_as_t", "dir_whitelist", "trunc_gz", "dir_r1"])
+def test_bad_inputs_give_one_error_line(tmp_path, case):
+    good = tmp_path / "R1.fastq"
+    good.write_text("@r\nACGT\n+\nIIII\n")
+    trunc = tmp_path / "t.fastq.gz"
+    trunc.write_bytes(gzip.compress(b"@r\nACGT\n+\nIIII\n" * 5000)[:-20])
+    run = ["run", "--r1", str(good), "--r2", str(good), "-i", str(good)]
+    argv = {
+        "outfile": [*run, "-o", str(good)],
+        "dir_as_t": [*run, "-t", str(tmp_path), "-o", str(tmp_path / "o")],
+        "dir_whitelist": ["check-whitelist", "--r1", str(good), "--whitelist", str(tmp_path)],
+        "trunc_gz": ["check-chemistry", "--r1", str(trunc)],
+        "dir_r1": ["check-chemistry", "--r1", str(tmp_path)],
+    }[case]
+    r = subprocess.run([sys.executable, "-m", "viralscan", *argv], capture_output=True, text=True)
+    assert r.returncode in (1, 2), r.stderr
+    assert "Traceback" not in r.stderr, r.stderr
+    assert "ERROR" in r.stderr or r.returncode == 2, r.stderr
+
+
+def test_translated_index_checks_inputs_before_download(monkeypatch, tmp_path):
+    from viralscan import translated
+
+    monkeypatch.setattr(translated, "fetch_palmdb", lambda *a: pytest.fail("downloaded"))
+    ns = argparse.Namespace(
+        out_dir=str(tmp_path / "x"),
+        proteins_dir="/nonexist",
+        host_mask="/nonexist",
+        palmdb=True,
+        threads=1,
+    )
+    with pytest.raises(translated.TranslatedError):
+        translated.run_translated_index(ns)
