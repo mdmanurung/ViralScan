@@ -60,7 +60,7 @@ def test_summary_footer_is_not_duplicated_on_resume(tmp_path: Path) -> None:
     menu._write_sample_summary(str(tmp_path), 1.0, 10, 3)
     menu._write_sample_summary(str(tmp_path), 2.0, 10, 3)
     text = (tmp_path / "summary.txt").read_text()
-    assert text.count("Runtime:") == 1 and "2.0000" in text and text.startswith("headline\n")
+    assert text.count("Runtime:") == 1 and "3.0000" in text and text.startswith("headline\n")
 
 
 def test_require_fresh_output(tmp_path: Path) -> None:

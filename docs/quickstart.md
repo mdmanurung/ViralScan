@@ -33,6 +33,11 @@ ViralScan refuses a non-empty output directory. Reuse is explicit: `--resume`
 requires an exact fingerprint match, and `--overwrite` replaces the resolved
 output target after confirmation.
 
+A running ViralScan holds `<output>/.viralscan.lock` (pid and host) and removes it on exit. A second run on the
+same output is refused with the lock path. A lock left by a killed run on the same host is replaced with a
+warning; delete a lock from another host by hand. `--resume` also clears the stale snakemake lock a killed run
+leaves, so you never need `snakemake --unlock`. SIGTERM and Ctrl-C stop snakemake and kb as well.
+
 ## Step 1 — Build a combined host + virus reference
 
 This is the recommended reference for routine host-aware analysis. Host and
