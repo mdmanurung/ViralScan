@@ -504,6 +504,10 @@ def run_translated_index(args: argparse.Namespace) -> Path:
     if index_dir.exists() and any(index_dir.iterdir()):
         raise TranslatedError(f"{index_dir} is not empty; use a new --out-dir.")
     proteins_dir = Path(args.proteins_dir).resolve()
+    if not proteins_dir.is_dir():  # check inputs before any download
+        raise TranslatedError(f"--proteins-dir {proteins_dir} is not a directory.")
+    if not Path(args.host_mask).is_file():
+        raise TranslatedError(f"--host-mask {args.host_mask} is not a file.")
     reference = proteins_dir
     if args.palmdb:
         palm = fetch_palmdb(out / "palmdb")

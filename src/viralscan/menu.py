@@ -122,6 +122,14 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
         adata.layers.pop(stale, None)
     adata.layers["counts_host_viral_selected"] = host_viral
     adata.uns["multimap_method"] = new_method
+    # new_method is deterministic: write what a fresh run writes (EM-only fields drop out).
+    diagnostics = dict(adata.uns.get("multimap_diagnostics", {}))
+    diagnostics.update(
+        method=new_method, model_scope="deterministic", max_iter=None, tolerance=None
+    )
+    for em_only in ("global_model", "cell_models"):
+        diagnostics.pop(em_only, None)
+    adata.uns["multimap_diagnostics"] = diagnostics
     adata.write_h5ad(str(adata_path))
     return True
 
@@ -639,28 +647,16 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     if not Path(virus_h5ad).exists():
         _die(f"Virus h5ad not found at {virus_h5ad}. Ensure the multimap step has completed.")
 
-    from viralscan.defaults import DEFAULTS
-
     n_seeds = args.n_seeds if args.n_seeds is not None else cfg.hostresponse_n_seeds
     try:
         seeds = resolve_seeds(n_seeds)
     except ValueError as exc:
         _die(str(exc))
-    n_stab_iter = (
-        args.n_stab_iter
-        if args.n_stab_iter is not None
-        else (cfg.hostresponse_n_stab_iter or DEFAULTS["hostresponse_n_stab_iter"])
-    )
+    n_stab_iter = args.n_stab_iter if args.n_stab_iter is not None else cfg.hostresponse_n_stab_iter
     stab_min_prob = (
-        args.stab_min_prob
-        if args.stab_min_prob is not None
-        else (cfg.hostresponse_stab_min_prob or DEFAULTS["hostresponse_stab_min_prob"])
+        args.stab_min_prob if args.stab_min_prob is not None else cfg.hostresponse_stab_min_prob
     )
-    top_n_genes = (
-        args.top_n_genes
-        if args.top_n_genes is not None
-        else (cfg.hostresponse_top_n_genes or DEFAULTS["hostresponse_top_n_genes"])
-    )
+    top_n_genes = args.top_n_genes if args.top_n_genes is not None else cfg.hostresponse_top_n_genes
     # B-16: the per-cell positive label has its own threshold; the sample gate
     # (cfg.detection_threshold) is never used for it.
     if args.hostresponse_min_umi is not None:
@@ -878,9 +874,14 @@ def errorhandler(args: argparse.Namespace) -> None:
     try:
         check_numeric_ranges(
             **{
-                key: getattr(args, key, default)
+                key: default if getattr(args, key, None) is None else getattr(args, key)
                 for key, default in (
                     ("cores", 6),
+                    ("emptydrops_fdr", DEFAULTS["emptydrops_fdr"]),
+                    ("emptydrops_niters", DEFAULTS["emptydrops_niters"]),
+                    ("hostresponse_n_stab_iter", DEFAULTS["hostresponse_n_stab_iter"]),
+                    ("hostresponse_top_n_genes", DEFAULTS["hostresponse_top_n_genes"]),
+                    ("knee_min_umi", DEFAULTS["knee_min_umi"]),
                     ("se_threshold", DEFAULTS["se_threshold"]),
                     ("umap_n_neighbors", DEFAULTS["umap_n_neighbors"]),
                     ("min_counts", DEFAULTS["min_counts"]),
@@ -892,6 +893,12 @@ def errorhandler(args: argparse.Namespace) -> None:
         )
     except ValueError as exc:
         _die(str(exc), 2)
+    max_cores = os.cpu_count() or 1
+    if getattr(args, "cores", None) is not None and args.cores > max_cores:
+        log.warning(
+            "--cores %d exceeds the %d CPUs here; using %d.", args.cores, max_cores, max_cores
+        )
+        args.cores = max_cores
     _check_hostresponse_evaluation(args)
 
     # C-09: fail before kb count, not after it.
@@ -1576,6 +1583,14 @@ def main() -> None:
     except KeyboardInterrupt:
         print("viralscan: interrupted.", file=sys.stderr)
         sys.exit(130)
+    except (
+        OSError,
+        EOFError,
+    ) as exc:  # bad path, permissions, truncated gz (BadGzipFile is OSError)
+        print(f"ERROR  {exc}", file=sys.stderr)
+        if log.isEnabledFor(logging.DEBUG):  # --verbose
+            raise
+        sys.exit(1)
 
 
 def _main() -> None:

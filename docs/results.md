@@ -294,6 +294,10 @@ The outputs trace the corrected molecules behind the call:
 - `interpretation_flags.tsv`: host-homology, low-complexity, ambiguity and
   hotspot diagnostics. All are diagnostic only.
 
+The support fraction S uses only molecules with a viral alignment. A counted molecule that aligned only to
+host (`n_excluded_host_only`) or not at all (`n_excluded_unaligned`) is left out of S and reported separately,
+although `molecule_verdicts.tsv.gz` labels the host-only one `host_best`.
+
 A verdict compares the scores of emitted alignments; it is not a probability
 and not a host-contamination call. Candidate search is limited to the
 alignments the aligner emitted, so a single primary alignment cannot prove
