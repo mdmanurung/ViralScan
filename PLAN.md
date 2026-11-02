@@ -2845,9 +2845,16 @@ No open rows; done rows are in the PLAN archive (see Next action).
     `:353` are covered by the new claim but carry no marker; M03/AUD-13 own that file; `CHANGELOG.md:25,61,63`
     likewise repeat the covered numbers). False positives to allow-list (parameters, badge, not claims):
     `README.md:13`, `cli_reference.md:71,187,597,642,710`, `reference_panel.md:60`, `faq.md:327`.
-  - Not done: the `--report-unmarked` gate stays report-only, because turning it into a failing check
-    needs the triage above (a user decision); and installation claims have no registry artifact: the
-    DOC-05 run log is not committed or inventoried.
+  - 2026-11-02 (`codex/doc10-gate`, user decision: triage, then make the gate fail): the checker moved to
+    ViralScan-reproducibility in 40d1703, so the gate itself is a repro change, made at the next re-pin. Docs
+    pass done here: `--report-unmarked` flagged 53 lines before, 26 after. Registered markers added
+    (`lod95-poisson-depth-floor`, `capture-cliff-substitution-model`) in CHANGELOG and `output_reference.md`;
+    host-filter `p_unique` table, "3.5x", "lost 96.5%", "85-93%", TTV k-mer share, "~8 % of the human genome",
+    the -22 % shift and the "~3x / ~6x" performance wording were softened (magnitudes not registered).
+    The 26 left are parameters, thresholds, definitions and worked examples; the checker has no allow-list,
+    so the repro must allow-list them by text anchor (list in the PR) before the gate can fail.
+  - Not done: the repro gate is not failing yet; installation claims still have no registry artifact (the
+    DOC-05 run log is not committed or inventoried).
 ## WP9 — Regenerate and review the manuscript
 
 No open rows; done rows are in the PLAN archive (see Next action).
