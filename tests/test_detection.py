@@ -15,6 +15,7 @@ Regression for: https://github.com/mdmanurung/ViralScan-reproducibility/blob/mai
 
 from __future__ import annotations
 
+import anndata as ad
 import numpy as np
 import pandas as pd
 import pytest
@@ -598,3 +599,18 @@ def test_enrichment_table_removed_when_rerun_has_no_rows(tmp_path) -> None:
     stale.write_text("old\n")
     assert write_cell_type_enrichment(pd.DataFrame(), str(tmp_path)) is None
     assert not stale.exists()
+
+
+def test_enrichment_refuses_obs_barcodes_that_collide_after_suffix_strip(tmp_path) -> None:
+    from types import SimpleNamespace
+
+    p = tmp_path / "ct.csv"
+    pd.DataFrame({"barcode": ["AAAC-1", "GGGT"], "cell_type": ["T", "B"]}).to_csv(p, index=False)
+    a = ad.AnnData(
+        X=np.ones((4, 1), dtype=np.float32),
+        obs=pd.DataFrame(index=["AAAC-1", "AAAC", "GGGT-1", "GGGT"]),
+        var=pd.DataFrame(index=["v1"]),
+    )
+    cfg = SimpleNamespace(cell_types=str(p), infected_min_molecules=1.0)
+    with pytest.raises(ValueError, match="AAAC"):
+        cell_type_enrichment(a, {"V": ["v1"]}, cfg)

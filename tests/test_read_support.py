@@ -230,3 +230,16 @@ def test_trimmed_query_coverage_excludes_aligned_poly_a_but_keeps_the_body() -> 
         [_sam("CB_U2_2|r", 0, "VIRUS|v", 100, f"{len(TSO)}S90M45S", 150, seq)]
     )[0]
     assert control["query_coverage"] == 1.0 and control["passes_all_gates"]
+
+
+def test_summary_human_equal_or_better_counts_the_flag_not_the_gate() -> None:
+    lines = [_sam("AA_U1_1|r", 0, "VIRUS|v", 10, "90M", 70)]
+    lines += [_sam(f"AA_H{i}_{i + 2}|r", 0, "HOST|chr1", 10, "90M", 70) for i in range(9)]
+    lines += [
+        _sam("AA_T_20|r", 0, "VIRUS|v", 10, "90M", 50),
+        _sam("AA_T_20|r", 256, "HOST|chr1", 10, "90M", 50),
+    ]
+    rows = rs.molecule_support_rows(lines, loci=[])
+    flagged = sum("human_equal_or_better" in r["flags"].split(";") for r in rows)
+    assert flagged == 1
+    assert rs.summarise_support(rows)["n_human_equal_or_better"] == flagged
