@@ -158,6 +158,25 @@ jobs:
           severity-cutoff: high
           output-format: json
           output-file: release-assets/oci-vulnerabilities.json
+      - name: List high and critical image findings
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          f = pathlib.Path("release-assets/oci-vulnerabilities.json")
+          if f.is_file():
+              for m in json.loads(f.read_text())["matches"]:
+                  v, a = m["vulnerability"], m["artifact"]
+                  if v["severity"] in ("High", "Critical"):
+                      print(v["severity"], v["id"], a["name"], a["version"], a["type"], "fixed:", v.get("fix", {}).get("versions"), a["locations"][0]["path"] if a.get("locations") else "")
+          PY
+      - name: Keep the image findings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: oci-vulnerabilities
+          path: release-assets/oci-vulnerabilities.json
+          if-no-files-found: ignore
       - name: Record installed Python licence metadata
         run: |
           docker run --rm --entrypoint /opt/conda/envs/viralscan/bin/python viralscan:release-test -c 'import importlib.metadata as m,json; print(json.dumps([{"name":d.metadata["Name"],"version":d.version,"license_expression":d.metadata.get("License-Expression"),"license":d.metadata.get("License")} for d in m.distributions()],sort_keys=True))' > release-assets/python-license-metadata.json

@@ -1,7 +1,9 @@
 # Release build requires the tested wheel as a separate, explicit BuildKit context:
 # docker build --build-context wheel=./dist -t viralscan:3.0.0rc1 .
 # The main context contains only this file, .dockerignore and the committed lock.
-FROM condaforge/miniforge3@sha256:1bfb5a539841983db847561c797f0ee6deca7c1a652b32d6eb457ada5d14069a
+# 26.9.4-0 multi-arch index (Ubuntu 24.04, built 2026-10-24). The previous pin was a 2024-06 Ubuntu 20.04
+# image; grype reports that distro as end of life. Refresh: docker buildx imagetools inspect condaforge/miniforge3:<tag>.
+FROM condaforge/miniforge3@sha256:63d72eadf0ab73ee63bad8f5cfdfe1754530415b4aeba99e466e9a6f77ceec95
 
 LABEL maintainer="emma.vonk@hotmail.nl" \
       version="3.0.0rc1" \

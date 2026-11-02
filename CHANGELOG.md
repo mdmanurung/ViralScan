@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The `v3.0.0rc1` tag of 2026-10-23 never produced a release (its three release runs failed before publication), so everything since is part of this candidate and the tag will be moved when rc1 is cut (PLAN `RC-03`).
 
+- Build (PLAN `REL-11`): the Docker base image is now Miniforge 26.9.4-0 on Ubuntu 24.04 (was a 2024 Ubuntu 20.04 image), and the release job prints and keeps the image-scan findings.
 - Fix `--scautoqc`: sctk 0.2.0 crashed with `TypeError: ... unexpected keyword argument 'warm_start'` when a QC Gaussian fit did not converge; ViralScan now patches that retry (PLAN `SCAUTOQC-01`).
 - Feat (PLAN `DEF-04`): a reference where some viruses have only a whole-genome unit (`gene_biotype whole_genome`) now logs one warning naming them. The unit is kept; their counts are whole-genome, not per-gene.
 - Reference (PLAN `REF-13`): `build-reference` normalises the viral GTF before `kb ref`. CDS-only genes get exon rows, single-protein spliced genes lose their introns, and HHV-6B repeat copies get one transcript each, so target counts of user-built references change. `viralscan --reference` does the same on a copy (`index/reference.normalised.gtf`, hashed as `content_files.normalised_gtf`); your GTF is never modified and host cDNA rows are copied unchanged. Shipped GTFs are untouched.
