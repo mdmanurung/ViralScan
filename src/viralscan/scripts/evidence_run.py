@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from viralscan.competitive_plot import plot_competitive_alignment
-from viralscan.utils import to_int
 from viralscan.evidence import (
     _KALLISTO_STRAND_FLAGS,
     COMPETITOR_BLAST_FIELDS,
@@ -66,7 +65,7 @@ from viralscan.read_support import write_molecule_support
 from viralscan.run_safety import RunSafetyError, refuse_primary_tree, sha256_file, software_identity
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
-from viralscan.utils import configure_logging
+from viralscan.utils import configure_logging, to_int
 from viralscan.validation import require_schema_valid, tool_provenance
 from viralscan.virus_grouping import load_run_identity
 
