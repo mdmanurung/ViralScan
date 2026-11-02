@@ -417,11 +417,10 @@ class TestViralFreeTestGraph:
     def test_random_dominant_virus_not_significant_every_run(self, tmp_path, monkeypatch) -> None:
         """P5-01: virus-positive cells chosen at random, viral counts dominant.
 
-        With viral genes in the embedding the audit saw p < 0.05 in 15/15 runs;
-        on the viral-free graph the rate is that of the host noise alone (4/15 in
-        the audit, an open item, AUD3-02-OPEN). Six fixed seeds, 1 of 6 observed; the
-        bound ``<= 3`` is loose on purpose (at a 4/15 rate P(>= 4 of 6) is about 3%, and the
-        seeds are fixed) and only asserts that the test no longer fires on every run.
+        With viral genes in the embedding the audit saw p < 0.05 in 15/15 runs. Its 4/15
+        "viral-free" rate came from a graph whose size factors still counted viral reads
+        (fixed by P5-07); the null rate itself is pinned by
+        ``test_null_rejection_rate_is_nominal``. This end-to-end check keeps a loose bound.
         """
         from viralscan.scripts import umap as umap_mod
 
@@ -433,6 +432,26 @@ class TestViralFreeTestGraph:
             )
             ps.append(seen[-1][1][2])
         assert sum(p < 0.05 for p in ps) <= 3, ps
+
+    def test_null_rejection_rate_is_nominal(self) -> None:
+        """AUD3-02: random positive cells, dominant viral load, 60 fixed seeds.
+
+        On the host-only graph p < 0.05 must occur at about 5%. With viral reads in the
+        size factors (the pre-P5-07 graph) the same simulation rejected in about 70% of
+        runs. The bound 8 is exceeded by Binomial(60, 0.05) about 0.3% of the time.
+        """
+        from viralscan.scripts.umap import host_only_pca, viral_neighbor_enrichment
+
+        rejections = 0
+        for seed in range(60):
+            adata = _noise_with_random_virus(seed)
+            labels = (adata[:, _VIR].X.sum(axis=1).A1 > 0).astype(int)
+            coords, _ = host_only_pca(adata, _VIR, 0.0125, 3, 0.5)
+            p = viral_neighbor_enrichment(
+                coords, labels, k=17, n_permutations=200, random_state=seed
+            )[2]
+            rejections += p < 0.05
+        assert rejections <= 8, rejections
 
     def test_enrichment_runs_on_pca_space_not_umap(self, tmp_path, monkeypatch) -> None:
         from viralscan.scripts import umap as umap_mod
