@@ -28,7 +28,7 @@ unavailable checks after retaining this receipt; warnings alone remain advisory.
 A low pseudoalignment rate is judged only against a host-containing index: a `--host-filter`
 (two-step) run and a virus-only index (no host genes in the Virus Identity table) are not judged on it.
 There an explicit `--strand forward` still produces a `strand` warning (never an error), because on a
-5' library it silently loses 85-93% of reads.
+5' library it silently loses most reads (observed on real 5' libraries; the size of the loss is not registered).
 When the index has a build manifest, the manifest's per-sample `catalogue_drift` block records
 whether the packaged virus catalogue is the one the index was built against (`status` is
 `match`, `drift`, `not_pinned` or `unavailable`, with both SHA-256 values); a drift also logs a
@@ -49,8 +49,8 @@ partition file and its SHA-256 (`partition_source`, `partition_sha256`). A re-ru
 previous `emptydrops_cells.tsv` and receipt first, so a failed run leaves neither, and a run
 that writes no receipt (`--cell-calling none` or `knee`, or `external` in combined mode) removes
 the old one. The combined-mode host columns depend on the reference's
-D-list (swapping `cat42b` for `cat42d` moved EmptyDrops calls by -22 % on the HPV16 rafts,
-`REF-06`); STARsolo host `GeneFull` counts (two-step) and an external list are independent of
+D-list (swapping `cat42b` for `cat42d` moved EmptyDrops calls on the HPV16 rafts,
+`REF-06`; size of the shift not registered); STARsolo host `GeneFull` counts (two-step) and an external list are independent of
 the reference.
 From `CELLS-02` the `knee`, `inflection` and `total` columns of a combined run's
 `emptydrops_cells.tsv` are host-only, so the dossier's `median_umi_called`, `knee` and
@@ -426,7 +426,7 @@ labelled secondary.
 
 **Three denominators, and why the middle one is not comparable across runs.**
 `pct_infected_called` divides by the called cells *of this run*, and cell calling
-runs after host subtraction, so the denominator moves with the strategy. Host filtering changes the number of called cells and the number of viral molecules by different factors, so the reported prevalence can rise while viral molecules fall; that is why `pct_infected_called` inverts across strategies. Note that the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus is not excluded. `pct_infected_comparable` uses an absolute host-UMI floor that host filtering cannot move, so it is the field to use across strategies; `pct_infected_called` remains the within-run primary.
+runs after host subtraction, so the denominator moves with the strategy. Host filtering changes the number of called cells and the number of viral molecules by different factors, so the reported prevalence can rise while viral molecules fall; that is why `pct_infected_called` inverts across strategies. Note that the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (most) and host-homologous reads (the rest) (F-005, F-019); low-level divergent anellovirus is not excluded. `pct_infected_comparable` uses an absolute host-UMI floor that host filtering cannot move, so it is the field to use across strategies; `pct_infected_called` remains the within-run primary.
 
 **`summary.txt` wording.** The per-virus lines lead with the called-cell figures
 (`<n>/<n_called_cells> called cells with viral reads (<pct>%)`) and give the all-barcode
@@ -464,7 +464,7 @@ a zero otherwise cannot: *is there nothing there, or did we not look hard enough
 | `capture` | Measured recovery of the positive control, only on rows that control certifies; **empty** otherwise (the depth-only floor is not printed as a measurement) | observation |
 | `capture_measured` | `true` only if the capture term came from a valid positive control whose scope covers this virus: never a default, another virus's control, a failed control or an over-recovered one | diagnostic flag |
 | `capture_status` | Why: `measured`, `not-measured` (no control configured), `control-out-of-scope` (a control was measured but its scope does not cover this row, including every `panel_mechanics` control), `control-failed`, `control-over-recovered`, `control-gene-missing` | diagnostic flag |
-| `lod95_per_10k` | True viral molecules per 10k host molecules at which the virus would be reported with at least 95 % probability, **adjusted by the effective capture** (1.0 when capture is not measured, so the depth-only floor; a measured capture above 1 is clamped to 1) | model estimate |
+| `lod95_per_10k` | True viral molecules per 10k host molecules at which the virus would be reported with at least 95 % probability, **adjusted by the effective capture** (1.0 when capture is not measured, so the depth-only floor; a measured capture above 1 is clamped to 1) <!-- viralscan-claim:lod95-poisson-depth-floor status=validated_v3 --> | model estimate |
 | `lod95_molecules` | **Required true** molecules at that limit: `2.996 x detection_threshold / capture`. For `depth > 0` it equals `depth x lod95_per_10k / 1e4`. At capture 0.5 and threshold 1 it is 5.991, not 2.996 | model estimate |
 | `lod95_expected_observed_molecules` | **Expected observed** molecules at that limit: `2.996 x detection_threshold`, independent of capture. `lod95_molecules x capture` equals this | model estimate |
 | `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth`, from the capture-adjusted `lod95_per_10k` | diagnostic flag |
@@ -499,7 +499,7 @@ quantified molecules. What cannot be measured from inside a run is the k-mer
 **capture** term. As a **substitution-only heuristic** (exact for i.i.d. substitutions
 against one target; 90 bp, k=31; it ignores indels, sequencing error and competition
 from the host and other panel members, so it is not a measurement) capture falls to
-0.708 at 5 % sequence divergence, 0.254 at 10 %, 0.063 at 15 % and 0.013 at 20 %. Without
+0.25 at 10 % sequence divergence, 0.063 at 15 % and 0.013 at 20 %. <!-- viralscan-claim:capture-cliff-substitution-model status=validated_v3 --> Without
 a measured capture term a negative cannot be certified at any depth — which is why
 `informative_negative` requires an adequate depth, a measured capture **and** an
 undetected row.

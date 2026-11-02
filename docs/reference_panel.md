@@ -138,15 +138,15 @@ of removing host signal gave:
 | | no filter | `--genome-dlist` | `--host-filter starsolo` |
 |---|---:|---:|---:|
 | reads reaching viral quant | 1,203,332,091 | 1,203,332,091 | 120,405,696 |
-| `p_pseudoaligned` | 6.4 % | 4.5 % | 5.8 % |
-| **`p_unique`** | **2.1 %** | **0.6 %** | **4.4 %** |
+| `p_pseudoaligned` | measured | lower than no filter | between the two |
+| **`p_unique`** | middle | **lowest** | **highest** |
 | quantified molecules | 21,613,840 | 8,404,326 | 5,308,302 |
 | called cells | 143,243 | 28,922 | 28,921 |
 
 D-list masking left most of the anellovirus artefact in place — the published
 covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads
-(≈90 %) and host-homologous reads (≈10 %); low-level divergent anellovirus is
-not excluded — while cutting `p_unique` **3.5×** (2.1 % → 0.6 %). It destroyed
+(most) and host-homologous reads (the rest); low-level divergent anellovirus is
+not excluded — while cutting `p_unique` to the lowest of the three arms (one sample; magnitudes not registered). It destroyed
 uniquely placed molecules to achieve very little.
 
 The table has three arms only. It does not include a combined host + virus

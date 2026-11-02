@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (after 3.0.0rc1)
 
+- Docs (PLAN `DOC-10`): unbacked quantitative wording is removed or softened in `cli_reference.md`, `reference_panel.md`, `faq.md`, `output_reference.md` and this file (host-filter `p_unique` table, "3.5x", "lost 96.5%", TTV k-mer share, "~3x faster / ~6x lower memory"); the claim checker lives in ViralScan-reproducibility and becomes a failing gate there. Registered markers added where an existing claim covers the number.
 - Docs (PLAN `AUD3-02-OPEN`): the report no longer says the neighbour-enrichment null is uncalibrated. On the host-only graph it holds its nominal false-positive rate when positive cells are random; a new test pins that rate.
 - Fix (PLAN `SIGTERM-GROUP-01`): SIGTERM or Ctrl-C during the `kb ref` index build or the `--strand auto` pilot now stops kb and kallisto too; before, only a running snakemake got the signal.
 - Fix (PLAN `CORES-AFFINITY-01`): `--cores` is clamped to the CPUs the process may use (a Slurm allocation), not every CPU on the node.
@@ -119,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`lod95_molecules` now means required true molecules (SENS-CORR-03).** It was the
   expected *observed* molecules (2.996 at depth 1e6, capture 0.5); it is now the true
   molecules a virus needs for 95 % detection (5.991), equal to `depth * lod95_per_10k / 1e4`.
+  <!-- viralscan-claim:lod95-poisson-depth-floor status=validated_v3 -->
   The old quantity is the new `lod95_expected_observed_molecules`. `sensitivity.tsv` gains
   `detected`, `capture_status`, `depth_only_sufficient`, `sensitivity_eligible` and
   `negative_blockers`; `informative_negative` is now `sensitivity_eligible and not detected`.
@@ -161,7 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scope (SENS-CORR-01/02).** `fragment_capture` treated overlapping k-mer
   windows as independent and overstated capture (0.90 at 10 % divergence, 90 bp,
   k=31); it now delegates to the exact substitution-only DP
-  (`fragment_capture_exact`: 0.25 at 10 %, 0.063 at 15 %, 0.013 at 20 %), and the
+  (`fragment_capture_exact`: 0.25 at 10 %, 0.063 at 15 %, 0.013 at 20 %) <!-- viralscan-claim:capture-cliff-substitution-model status=validated_v3 -->, and the
   implied-divergence inversion is renamed `substitution_model_implied_divergence`
   and labelled a heuristic. A positive control now needs
   `--positive-control-scope exact_sequence --positive-control-virus-key KEY` to
@@ -260,7 +262,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than cell×virus rows.
 
 ### Performance
-- **Multimapping correction is ~3× faster with ~6× lower peak memory** on deep samples: duplicate
+- **Multimapping correction is faster and uses less peak memory** on deep samples (speed-up and memory change not benchmarked in a registered artifact): duplicate
   `(cell, ec)` records are collapsed (their per-gene shares are linear in count) before the hot loop,
   and a per-record `pd.isna` check was hoisted out. Output is numerically identical (all layers,
   rtol=1e-9, golden-tested).
@@ -311,7 +313,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Performance
 - **Faster multimapping correction** — the EM step was vectorised into a sparse
   matrix-vector formulation, per-EC invariants were hoisted out of the inner loop, and
-  weight computation now uses direct CSR buffer access (~3x faster on the hot path;
+  weight computation now uses direct CSR buffer access (faster on the hot path, not benchmarked in a registered artifact;
   output is byte-identical and regression-tested).
 
 ### Fixed
@@ -434,7 +436,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - C1: Fixed double-counting of unique reads in multimapping mode (`multimap.py`).
   - C2: Fixed detection threshold off-by-one (`>` → `>=` in `detection.py`).
   - C3: Replaced O(n) `list.index()` scan in EC parsing with O(1) `dict` lookup (`multimap.py`).
-  - C4: Replaced `iterrows()` with `itertuples()` for ~3× faster BUS iteration (`multimap.py`).
+  - C4: Replaced `iterrows()` with `itertuples()` for faster BUS iteration (`multimap.py`).
   - C5: Changed `2> /dev/null` → `2>&1` in Snakefile so "no reads pseudoaligned" is capturable.
   - C6: Changed `mkdir` → `mkdir -p` in Snakefile to survive re-runs.
   - C7: Removed redundant `f.close()` after `with` block in `analysis.py`.
