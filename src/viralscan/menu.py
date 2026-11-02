@@ -1021,13 +1021,6 @@ def errorhandler(args: argparse.Namespace) -> None:
         except ValueError as exc:
             _die(str(exc))
 
-    if getattr(args, "host_capture", None):
-        from viralscan.validation import tool_path
-
-        missing = [t for t in ("kallisto", "bustools") if tool_path(t) is None]
-        if missing:
-            _die(f"--host-capture needs {', '.join(missing)} on PATH.")
-
     if getattr(args, "auto_evidence", None):
         host_fasta = getattr(args, "host_fasta", None)
         viral_fasta = getattr(args, "viral_fasta", None)
@@ -1077,14 +1070,14 @@ def _warn_ignored_flags(args: argparse.Namespace) -> None:
         else [],
         "they only apply with --ncbi-accession",
     )
-    if not (getattr(args, "auto_evidence", None) or getattr(args, "host_capture", None)):
+    if not getattr(args, "auto_evidence", None):
         warn(
             [
                 f
                 for f, v in (("--host-fasta", args.host_fasta), ("--viral-fasta", args.viral_fasta))
                 if v
             ],
-            "they only apply with --auto-evidence or --host-capture",
+            "they only apply with --auto-evidence",
         )
     method = getattr(args, "multimap_method", DEFAULTS["multimap_method"])
     multimap_flags = (
@@ -1402,7 +1395,6 @@ def _build_run_config(
             "star_confirm": getattr(args, "star_confirm", DEFAULTS["star_confirm"]),
             "star_hostvirus_index": getattr(args, "star_hostvirus_index", None),
             "auto_evidence": getattr(args, "auto_evidence", None),
-            "host_capture": getattr(args, "host_capture", None),
             "host_fasta": getattr(args, "host_fasta", None),
             "viral_fasta": getattr(args, "viral_fasta", None),
             "programme_min_breadth": getattr(

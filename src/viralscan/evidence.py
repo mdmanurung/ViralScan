@@ -426,7 +426,7 @@ def _replay_quant_bus(
 ) -> tuple[Path, Path]:
     """``kallisto bus -n`` plus kb's sort -> correct -> sort chain; ``(bus_dir, quant_bus)``.
 
-    Shared by the target replay and the host-capture split, so both count the reads the
+    Used by the target replay, so it counts the reads the
     primary ``kb count`` counted. ``-n`` writes the read number into each record's flag, which
     is what lets a captured record be traced back to its read.
     """
@@ -572,56 +572,6 @@ def replay_exact_target_bus(
     return _capture_flagged_text(
         bustools, bus_dir, quant_bus, target_transcripts, work / "target", threads
     )
-
-
-def replay_host_capture_bus(
-    *,
-    index: str,
-    technology: str,
-    r1_path: str,
-    r2_path: str,
-    viral_transcripts: Iterable[str],
-    host_transcripts: Iterable[str],
-    workdir: str,
-    threads: int,
-    whitelist: str | None = None,
-    strand: str | None = None,
-) -> tuple[Path, Path]:
-    """Split the reads that touch a virus into virus-only and also-host (PLAN DLIST-02).
-
-    Replays with read-number flags (:func:`replay_exact_target_bus`'s chain), captures every
-    record whose class holds a viral transcript, then applies ``bustools capture --complement``
-    with the host transcripts to that set. Returns the flagged text of ``(all virus-touching
-    reads, the virus-only subset)``; the also-host reads are the first minus the second. Needs
-    an index that holds host transcripts: on a virus-only index the complement removes nothing.
-    """
-    bus_dir, quant_bus = _replay_quant_bus(
-        index=index,
-        technology=technology,
-        r1_path=r1_path,
-        r2_path=r2_path,
-        workdir=workdir,
-        threads=threads,
-        whitelist=whitelist,
-        strand=strand,
-    )
-    bustools = tool_path("bustools")
-    assert bustools is not None  # _replay_quant_bus checked
-    work = Path(workdir)
-    viral_text = _capture_flagged_text(
-        bustools, bus_dir, quant_bus, viral_transcripts, work / "viral_touching", threads
-    )
-    viral_bus = work / "viral_touching.bus"
-    only_text = _capture_flagged_text(
-        bustools,
-        bus_dir,
-        viral_bus,
-        host_transcripts,
-        work / "virus_only",
-        threads,
-        complement=True,
-    )
-    return viral_text, only_text
 
 
 def extract_viral_reads(

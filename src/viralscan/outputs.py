@@ -73,7 +73,6 @@ SAMPLE_LAYOUT = (
     ("read_filtered/", "intermediate", "FASTQs after the read filter"),
     ("host_filtered/", "intermediate", "STARsolo host-filter work dir and filtered FASTQs"),
     ("star_hostvirus/", "intermediate", "STAR host+virus confirmation BAM"),
-    ("host_capture/", "intermediate", "host-capture work dir (table: results/host_capture.tsv)"),
 )
 
 #: "Which file answers which question" lines of README.txt and the top of the docs.

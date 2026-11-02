@@ -33,7 +33,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   before the tool preflight). `run` now applies RunConfig's own validation (`_precheck_run_config`) right after `errorhandler`,
   before the chemistry sniff, the output directory and any NCBI download; it used to raise a traceback after them.
   `--ncbi-accession` with `-i`/`-t`/`-f1` exits 2. New `_warn_ignored_flags`: one WARNING for `--ncbi-email`/`--ncbi-api-key`
-  without `--ncbi-accession`, `--host-fasta`/`--viral-fasta` without `--auto-evidence`/`--host-capture`, `--multimap-*` with
+  without `--ncbi-accession`, `--host-fasta`/`--viral-fasta` without `--auto-evidence`, `--multimap-*` with
   `--no-multimapping`, `--multimap-em-*` with a non-`em-*` method, `--emptydrops-*` when cell calling is not emptydrops.
   Not flagged: `--umap-n-neighbors`/`--hvg-*` without `--umap` (the QC step uses them regardless). Tests: `tests/test_cli_mature.py`.
 
@@ -60,7 +60,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   Paths are defined once in `outputs.py` (`SAMPLE_LAYOUT`, `V3Outputs`, `analysis_genes_path`/`found_genes_path` with v1/v2
   fallback); `rerun-multimap`/`--resume` copy the old gene list forward. New `<sample>/README.txt`, run `README.txt` and
   `results/artifact_inventory.json` (`artifact_inventory.py`, written by `write_run_complete`). Docs tree synced.
-  Decision: `kb-python/`, `read_filtered/`, `host_filtered/`, `star_hostvirus/`, `host_capture/` stay at the sample root, not
+  Decision: `kb-python/`, `read_filtered/`, `host_filtered/`, `star_hostvirus/` stay at the sample root, not
   `intermediate/` (~200 path strings, frozen oracles, kb staging shell block; `kb-python/` holds the matrix users load).
   **Open (user):** the `output-reference-doc` row of `analysis/v3_artifact_inventory.tsv` in the reproducibility repo pins
   `docs/output_reference.md` to a commit; re-pin it there after this merges (three fields: commit, sha256, `git show` command).
@@ -296,7 +296,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   (done: `build_bundled_panel_ref.py:_check_gtf_manifest` runs `write_gtf_manifest.py --check` before any fetch;
   only the network-backed builder run is left).
 - [ ] Added from the survey, not in the user's list: DSR tooling that is code (`DSR-02`, `DOSSIER-01..03`,
-  `VERDICT-01`, `SENS-07`, `DLIST-02`), `ANDET-07`, `TONSIL-02`, `CAT-19`, `DEF-07`,
+  `VERDICT-01`, `SENS-07`), `ANDET-07`, `TONSIL-02`, `CAT-19`, `DEF-07`,
   `CAT-14`/`15`/`16`.
 - [ ] `REL-06..14`, `RC-01..03` (one OCI artifact, SIF from its digest, parity, product-environment audit,
   SHA-pinned Actions, exact-revision gating); `DOC-01` (Sphinx `-W`), `DOC-05`, `DOC-07`, `OPS-01`/
@@ -2698,30 +2698,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
   extension at distinguishing flanking k-mers, it does not delete target k-mers also in the decoy).
   **A bigger D-list cannot fix F-028; I2 on dlist2 is not expected to help.** Fix is TSO handling in twostep
   (trim / require evidence), a user decision. dlist2 index kept, frozen cat42d untouched.
-- [~] `DLIST-02` — host-capture split (`kallisto bus -n` + `bustools capture --complement`) as
-  `--host-capture`, per-virus `reads_virus_only` / `reads_also_host`; only if DLIST-01 I2 shows a gain.
-  **Software done 2026-10-12 (`codex/sens07-dlist02`); the gate is not met and nothing was run on real data.**
-  Opt-in `--host-capture` (default `None`, in `run_safety.omit_when_unset`, so default fingerprints are
-  unchanged) adds the `host_capture` rule after `kb_count`: `evidence.replay_host_capture_bus` replays the
-  quantified FASTQs with `kallisto bus -n` (the bus + correct chain is now shared with `replay_exact_target_bus`
-  through `_replay_quant_bus`; file names unchanged), captures every read whose class holds a viral transcript,
-  then `bustools capture -s -x` with the host transcripts. `scripts/host_capture.py` writes
-  `results/host_capture.tsv` (`virus_name, reads_total, reads_virus_only, reads_also_host,
-  host_capture_status`) and `log/host_capture.done`. Reads, not molecules; a read compatible with two viruses
-  counts for both; viruses with no read have no row. Tests `tests/test_host_capture.py` (real `bustools` on a
-  hand-written BUS file pins that a class is captured when it holds ANY listed transcript, so a host+virus class
-  is `reads_also_host`).
-  - Decisions: (1) the row's recipe is read as a **combined host+virus index**, the Pachter-notebook form. On
-    a virus-only index there is no host to split on, so every count is `not_applicable` (never 0, as for
-    `host_viral_unresolved`). The option B(i) route in `docs/plans/competitive-host-virus-reference.md` (a second
-    pass of extracted reads against a host-only index, for users on a virus-only prebuilt index) is **not**
-    implemented. (2) A separate TSV, not `viral_summary.tsv` columns: `detection.py` and
-    `docs/output_reference.md` belong to M03. (3) New file in `config/public_ship_scope.json` (wheel + sdist).
-  - **Left:** the gate (DLIST-01 I2 not run, and the TSO finding says a D-list cannot fix F-028, so a gain is not
-    expected: your call whether this ships on); a real-run check on a combined index (`kallisto bus` hangs on
-    synthetic tiny inputs in this sandbox, so no end-to-end `kallisto` test exists); `docs/output_reference.md`
-    rows for `results/host_capture.tsv` and `log/host_capture.done` (docs owner, pinned file); a
-    `viral_summary.tsv` merge if wanted (`detection.py`, M03); B(i).
+- [x] `DLIST-02` — host-capture split as `--host-capture`: **removed (user decision, 2026-11-02, `codex/dlist02-remove`): gate not met; recover from commit ca2ce7f.** DLIST-01 I2 never ran, the feature never ran end to end on real kallisto, and the TSO finding says a D-list cannot fix F-028. Removed: the option, its `run_safety.omit_when_unset` entry (default fingerprints unchanged), the `host_capture` rule and config key, `scripts/host_capture.py`, `evidence.replay_host_capture_bus`, `tests/test_host_capture.py`, the ship-scope entries and the doc rows. `evidence._replay_quant_bus` stays (`replay_exact_target_bus` uses it).
 ## WP7 — Score, audit, and freeze results
 
 No open rows; done rows are in the PLAN archive (see Next action).
