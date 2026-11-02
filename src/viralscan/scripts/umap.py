@@ -109,7 +109,7 @@ def _write_scautoqc_umaps(adata):
     coords = adata.obsm["scautoqc_X_umap_qc"]
     df = pd.DataFrame({"UMAP1": coords[:, 0], "UMAP2": coords[:, 1], "barcode": adata.obs_names})
     for key in ("scautoqc_cell_passed_qc", "scautoqc_cluster_passed_qc", "scautoqc_qc_cluster"):
-        df[key] = adata.obs[key].astype(str).to_numpy()
+        df[key] = adata.obs[key].astype("string").fillna("None").to_numpy()
         fig = px.scatter(
             df,
             x="UMAP1",
@@ -316,7 +316,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         )
         if _n_hvg(adata) < 2:
             return
-        sc.tl.pca(adata, use_highly_variable=True, svd_solver="arpack")
+        sc.tl.pca(adata, mask_var="highly_variable", svd_solver="arpack")
         sc.pp.neighbors(adata, n_neighbors=umap_n_neighbors)
         sc.tl.umap(adata)
 
@@ -378,7 +378,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         adata.var["highly_variable"] |= adata.var_names.isin(list(found_genes))
         if _n_hvg(adata) < 2:
             return
-        sc.pp.pca(adata, use_highly_variable=True, random_state=0)
+        sc.pp.pca(adata, mask_var="highly_variable", random_state=0)
         sc.pp.neighbors(adata, n_neighbors=umap_n_neighbors, random_state=0)
         sc.tl.umap(adata, random_state=0)
 
