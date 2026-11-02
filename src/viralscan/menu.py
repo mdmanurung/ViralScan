@@ -947,10 +947,13 @@ def errorhandler(args: argparse.Namespace) -> None:
         )
     except ValueError as exc:
         _die(str(exc), 2)
-    max_cores = os.cpu_count() or 1
+    # CPUs this process may use (a Slurm allocation), not the whole node.
+    max_cores = (
+        len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
+    )
     if getattr(args, "cores", None) is not None and args.cores > max_cores:
         log.warning(
-            "--cores %d exceeds the %d CPUs here; using %d.", args.cores, max_cores, max_cores
+            "--cores %d exceeds the %d CPUs available; using %d.", args.cores, max_cores, max_cores
         )
         args.cores = max_cores
     _check_hostresponse_evaluation(args)
