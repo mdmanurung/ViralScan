@@ -288,10 +288,11 @@ def write_host_only_matrix(matrix_dir, viral_genes, dest) -> tuple[Path, int, in
     Returns ``(dest, n_host_genes, n_viral_genes_excluded)``.
     """
     from scipy.io import mmread, mmwrite
+    from scipy.sparse import csc_matrix
 
     src, dest = Path(matrix_dir), Path(dest)
     genes = (src / "cells_x_genes.genes.txt").read_text().splitlines()
-    matrix = mmread(src / "cells_x_genes.mtx").tocsc()
+    matrix = csc_matrix(mmread(src / "cells_x_genes.mtx"))  # scipy 1.20: mmread returns coo_array
     n_barcodes = len((src / "cells_x_genes.barcodes.txt").read_text().splitlines())
     if matrix.shape != (n_barcodes, len(genes)):
         raise CellCallingError(
@@ -351,9 +352,10 @@ def read_host_matrix_totals(raw: Path) -> tuple[list[str], np.ndarray]:
     corrupt matrix stops here instead of inside R or in the comparable-cell set.
     """
     from scipy.io import mmread
+    from scipy.sparse import coo_matrix
 
     barcodes = [_strip_suffix(b) for b in (raw / "barcodes.tsv").read_text().splitlines()]
-    matrix = mmread(raw / "matrix.mtx")
+    matrix = coo_matrix(mmread(raw / "matrix.mtx"))
     n_features = len((raw / "features.tsv").read_text().splitlines())
     if matrix.shape != (n_features, len(barcodes)) or len(set(barcodes)) != len(barcodes):
         raise CellCallingError(
