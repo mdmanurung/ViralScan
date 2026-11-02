@@ -108,8 +108,10 @@ def _write_scautoqc_umaps(adata):
         return
     coords = adata.obsm["scautoqc_X_umap_qc"]
     df = pd.DataFrame({"UMAP1": coords[:, 0], "UMAP2": coords[:, 1], "barcode": adata.obs_names})
+    scored = np.isfinite(coords).all(axis=1)  # non-called barcodes were not scored
+    df = df[scored].copy()
     for key in ("scautoqc_cell_passed_qc", "scautoqc_cluster_passed_qc", "scautoqc_qc_cluster"):
-        df[key] = adata.obs[key].astype("string").fillna("None").to_numpy()
+        df[key] = adata.obs[key].astype("string").fillna("None").to_numpy()[scored]
         fig = px.scatter(
             df,
             x="UMAP1",

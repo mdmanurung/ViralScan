@@ -75,14 +75,56 @@ def query_gene_annotations(gene_ids: Any) -> pd.DataFrame:
     )
 
 
+def _add_scautoqc_called(adata: Any, cells: Any, **kwargs: Any) -> None:
+    """Score only the ``cells`` rows; every other barcode keeps NA flags and NaN coordinates."""
+    cells = np.asarray(cells, dtype=bool)
+    if cells.shape != (adata.n_obs,) or not cells.any():
+        raise ValueError("scAutoQC `cells` must be a boolean mask with at least one True.")
+    scored = adata[cells].copy()
+    add_scautoqc(scored, **kwargs)
+    for key in [k for k in scored.obs if k.startswith("scautoqc_")]:
+        was_bool = scored.obs[key].dtype == bool
+        column = scored.obs[key].reindex(adata.obs_names)
+        if was_bool:
+            column = column.astype("boolean")
+        elif not pd.api.types.is_numeric_dtype(column):
+            column = column.astype(object).where(column.notna(), "not_called").astype(str)
+        adata.obs[key] = column  # a Series keeps the nullable dtype for write_h5ad
+    for key in scored.obsm:
+        full = np.full((adata.n_obs, scored.obsm[key].shape[1]), np.nan)
+        full[cells] = scored.obsm[key]
+        adata.obsm[key] = full
+    adata.var = scored.var
+    adata.uns["scautoqc"] = {
+        **scored.uns["scautoqc"],
+        "cell_set": "called cells only (results/called_cells.tsv); other barcodes are NA",
+        "n_cells_in_matrix": int(adata.n_obs),
+    }
+
+
 def add_scautoqc(
-    adata: Any, identity: Any = None, *, gene_annotations: Any = None, random_state: int = 0
+    adata: Any,
+    identity: Any = None,
+    *,
+    gene_annotations: Any = None,
+    random_state: int = 0,
+    cells: Any = None,
 ) -> None:
     """Add SCTK cell and cluster QC flags/coordinates to ``adata`` in place.
 
     QC metrics use host genes only.  Counts, rows, and the input matrix are never
     filtered or rewritten.  ``identity`` is ViralScan's optional gene identity table.
+    ``cells`` is an optional boolean mask over ``adata.obs_names``: only those rows are
+    scored (the called cells); the rest get NA flags and NaN coordinates.
     """
+    if cells is not None:
+        return _add_scautoqc_called(
+            adata,
+            cells,
+            identity=identity,
+            gene_annotations=gene_annotations,
+            random_state=random_state,
+        )
     try:
         import anndata as ad
         import sctk
@@ -256,9 +298,8 @@ def add_scautoqc(
         "host_features": int(host.sum()),
         "qc_metrics": ["n_counts", "n_genes", "percent_mito", "percent_ribo", "percent_hb"],
         "cell_removal_performed": False,
-        # Known limitation: scautoqc runs before cell calling, so this is every barcode in the
-        # kb H5AD; empty droplets shape the SCTK distributions. See PLAN SCAUTOQC-01.
-        "cell_set": "all barcodes in the input H5AD (before cell calling)",
+        # add_scautoqc(cells=...) overwrites this with the called-cell wording.
+        "cell_set": "all barcodes in the input H5AD",
         "n_cells_scored": int(adata.n_obs),
         "clusterwise_status": cluster_status,
         "seed": int(random_state),
