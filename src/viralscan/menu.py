@@ -11,7 +11,6 @@ import logging
 import os
 import re
 import shutil
-import signal
 import subprocess
 import sys
 import time
@@ -60,6 +59,7 @@ from viralscan.run_safety import (
     record_strand_inference,
     recorded_strand_inference,
     require_fresh_output,
+    run_in_group,
     write_run_complete,
 )
 from viralscan.runconfig import RunConfig, check_numeric_ranges
@@ -312,30 +312,9 @@ def _snakemake_unlock_command(snakefile_path: str, config_file: str | Path) -> l
 def _run_snakemake(command: list[str], *, what: str, hint: str) -> None:
     """Run a snakemake command; a non-zero exit is a clean error, not a traceback (C-08).
 
-    snakemake runs in its own session. SIGINT/SIGTERM reaching viralscan is forwarded to
-    that whole process group (snakemake and the kb it started), so none is orphaned.
+    snakemake runs in its own process group; SIGINT/SIGTERM is forwarded to it.
     """
-    proc = subprocess.Popen(command, start_new_session=True)
-
-    def _on_sigterm(_signum: int, _frame: Any) -> NoReturn:
-        sys.exit(143)
-
-    previous = signal.signal(signal.SIGTERM, _on_sigterm)
-    try:
-        returncode = proc.wait()
-    except (KeyboardInterrupt, SystemExit) as exc:
-        sent = signal.SIGINT if isinstance(exc, KeyboardInterrupt) else signal.SIGTERM
-        try:
-            os.killpg(proc.pid, sent)
-            proc.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)
-            proc.wait()
-        except ProcessLookupError:
-            pass
-        raise
-    finally:
-        signal.signal(signal.SIGTERM, previous)
+    returncode = run_in_group(command, check=False).returncode
     if returncode:
         _die(f"{what} failed (exit {returncode}); {hint}")
 

@@ -9,8 +9,10 @@ import json
 import logging
 import os
 import shutil
+import signal
 import socket
 import subprocess
+import sys
 from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime, timezone
@@ -21,6 +23,43 @@ from viralscan import __version__
 from viralscan.outputs import LAYOUT_VERSION
 
 log = logging.getLogger(__name__)
+
+
+def run_in_group(
+    command: list[str], *, check: bool = True, capture_output: bool = False
+) -> subprocess.CompletedProcess[bytes]:
+    """Run *command* in its own session, like ``subprocess.run``.
+
+    SIGINT/SIGTERM reaching viralscan is forwarded to that whole process group (the
+    tool and every child it started, e.g. kallisto under kb), so none is orphaned.
+    SIGTERM exits 143. Call from the main thread only (``signal.signal``).
+    """
+    pipe = subprocess.PIPE if capture_output else None
+    proc = subprocess.Popen(command, start_new_session=True, stdout=pipe, stderr=pipe)
+
+    def _on_sigterm(_signum: int, _frame: Any) -> None:
+        sys.exit(143)
+
+    previous = signal.signal(signal.SIGTERM, _on_sigterm)
+    try:
+        stdout, stderr = proc.communicate()
+    except (KeyboardInterrupt, SystemExit) as exc:
+        sent = signal.SIGINT if isinstance(exc, KeyboardInterrupt) else signal.SIGTERM
+        try:
+            os.killpg(proc.pid, sent)
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()
+        except ProcessLookupError:
+            pass
+        raise
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+    if check and proc.returncode:
+        raise subprocess.CalledProcessError(proc.returncode, command, stdout, stderr)
+    return subprocess.CompletedProcess(command, proc.returncode, stdout, stderr)
+
 
 RUN_MANIFEST = "run_manifest.json"
 RUN_COMPLETE = "run_complete.json"

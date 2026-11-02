@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import itertools
 import json
-import subprocess
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Optional
 
+from viralscan.run_safety import run_in_group
 from viralscan.utils import open_maybe_gzip
 
 PILOT_READS = 1_000_000
@@ -59,7 +59,7 @@ def _kb_pilot(
     ]  # fmt: skip
     if whitelist:
         cmd += ["-w", whitelist]
-    subprocess.run(cmd + [str(r1), str(r2)], check=True, capture_output=True)
+    run_in_group(cmd + [str(r1), str(r2)], capture_output=True)
     return float(json.loads((out / "run_info.json").read_text())["p_pseudoaligned"])
 
 

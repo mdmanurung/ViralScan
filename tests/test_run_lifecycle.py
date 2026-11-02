@@ -202,3 +202,14 @@ def test_resume_unlocks_snakemake_first_and_logs_the_attempt(run_main) -> None:
     assert "--unlock" in second[0] and "all" in second[1]
     manifest = json.loads((run_main.out / "run_manifest.json").read_text())
     assert len(manifest["resume_attempts"]) == 1
+
+
+def test_run_in_group_captures_and_raises_like_subprocess_run() -> None:
+    from viralscan.run_safety import run_in_group
+
+    code = "import sys;print('out');sys.exit(3)"
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        run_in_group([sys.executable, "-c", code], capture_output=True)
+    assert err.value.returncode == 3
+    assert err.value.stdout == b"out\n"
+    assert run_in_group([sys.executable, "-c", code], check=False).returncode == 3
