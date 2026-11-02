@@ -712,6 +712,7 @@ def record_reference_build(
     *,
     fasta: Path,
     gtf: Path,
+    normalised_gtf: Optional[Path] = None,
     t2g: Optional[Path] = None,
     command: Optional[list[str]] = None,
     resources: Optional[dict[str, object]] = None,
@@ -720,6 +721,8 @@ def record_reference_build(
     """Separate deterministic file checksums from variable build receipts."""
     manifest = json.loads(manifest_path.read_text())
     files = {"fasta": sha256_file(fasta), "gtf": sha256_file(gtf)}
+    if normalised_gtf is not None:  # the GTF kb actually indexed; "gtf" stays the user's file
+        files["normalised_gtf"] = sha256_file(normalised_gtf)
     if t2g is not None:
         files["t2g"] = sha256_file(t2g)
     manifest["content_files"] = files
@@ -2418,6 +2421,11 @@ def _emit_viral_gtf(
                 blocks.append(block)
         text = "\n".join(blocks) + ("\n" if blocks else "")
     gtf_path.write_text(text)
+    # REF-13: kb ignores CDS rows, so give CDS-only genes exon/transcript rows (build-time).
+    from viralscan.gtf_normalise import normalise_gtf_file
+
+    lines = normalise_gtf_file(gtf_path)
+    gtf_path.write_text("\n".join(lines) + "\n" if lines else "")
     return sources, placeholders
 
 
