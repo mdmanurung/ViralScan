@@ -1958,6 +1958,11 @@ No open rows; done rows are in the PLAN archive (see Next action).
     so the repro must allow-list them by text anchor (list in the PR) before the gate can fail.
   - Not done: the repro gate is not failing yet; installation claims still have no registry artifact (the
     DOC-05 run log is not committed or inventoried).
+  - 2026-11-02 (`codex/changelog-4pct`): a reviewer read the `CHANGELOG.md` "4.0% to 0.2%" line as 50 of 1,000 = 5 %.
+    The line is correct, so it is unchanged and the repro allow-list anchor stands. The fixture
+    (`test_complete_universe_legacy_and_fractional`, commit 3f4f99b, since moved to the repro) has 50 viral-positive
+    cells, of which 2 reach 10 molecules (the other 48 have 9.6). Legacy denominator = 50 viral-positive called
+    cells: 2/50 = 4.0 %. New denominator = 1,000 called cells: 2/1,000 = 0.2 %. The 50 is a denominator, not the numerator.
 ## WP9 — Regenerate and review the manuscript
 
 No open rows; done rows are in the PLAN archive (see Next action).
