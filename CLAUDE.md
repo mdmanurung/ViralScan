@@ -32,7 +32,7 @@ PLAN.md                    # live tracker: open rows only — keep this current!
 Experiments, validation runs, results, claims/governance ledgers, manuscript drafts and handoffs live in
 [ViralScan-reproducibility](https://github.com/mdmanurung/ViralScan-reproducibility) (split from this repo, see PLAN `REPO-SPLIT-01`). This repo keeps the package,
 its tests, docs, packaging and the panel curation inputs (`curation/panel/`). Experiment `PLAN.md` sections (WP0,
-WP3, WP7, WP9, Evidence log, VR pilot) are tracked there. Done `PLAN.md` rows and the dated "Next action" log up to
+WP3, WP7, WP9, Evidence log, VR pilot) are tracked there. Open experiment rows (runs on real or public data, planted benchmark and calibration runs, comparator tools; `RUN-*`, `CMP-*`, `DSR-*` and others) moved there on 2026-11-02 (PLAN `PLAN-SPLIT-EXP-01`, list in the package `PLAN.md` section "Moved to the reproducibility tracker"); the package `PLAN.md` holds package work only. Done `PLAN.md` rows and the dated "Next action" log up to
 2026-10-27 are frozen in the repro's `provenance/PLAN_archive_2026-10.md` (batch 4e); the package tracker holds open work only.
 Dev notes that are not package work (`.living/findings`, `.living/log`, old handoffs, superseded plans) live in the repro too. Locally the two checkouts may be linked by uncommitted
 symlinks; never commit them.
