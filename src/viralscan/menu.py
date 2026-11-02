@@ -859,7 +859,7 @@ def errorhandler(args: argparse.Namespace) -> None:
     except ValueError as exc:
         _die(str(exc), 2)
     max_cores = os.cpu_count() or 1
-    if getattr(args, "cores", 6) > max_cores:
+    if getattr(args, "cores", None) is not None and args.cores > max_cores:
         log.warning(
             "--cores %d exceeds the %d CPUs here; using %d.", args.cores, max_cores, max_cores
         )

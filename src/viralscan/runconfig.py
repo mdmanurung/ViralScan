@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Any, Union
@@ -66,7 +67,7 @@ def _opt(value: Any) -> Union[str, None]:
     return s
 
 
-def _num(cfg_in: dict, key: str, cast):
+def _num(cfg_in: dict[str, Any], key: str, cast: Callable[[Any], Any]) -> Any:
     """``cast(cfg_in[key])``, or the default when absent. ``or`` would swallow an explicit 0."""
     value = cfg_in.get(key)
     return cast(DEFAULTS[key] if value is None else value)
