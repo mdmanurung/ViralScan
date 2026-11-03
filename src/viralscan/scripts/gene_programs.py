@@ -337,12 +337,24 @@ def main(
     )
     _attach_layer1_totals(summary, summary_path, molecule_column)
     summary["n_called_cells"] = adata.n_obs
+    cells["lytic_programme"] = lytic_programme_flags(cells["state"])
 
     paths = write_program_outputs(cells, summary, results_root or output)
     log.info("Wrote %s and %s", os.path.basename(paths[0]), os.path.basename(paths[1]))
     if done_path:
         with open(done_path, "w") as handle:
             handle.write("done\n")
+
+
+def lytic_programme_flags(states: pd.Series) -> pd.Series:
+    """Per-cell "lytic programme present": ``productive`` or ``mixed`` (PROG-MIXED-VETO-01).
+
+    The split between the two is load-driven (a heavily lytic cell picks up one latent
+    molecule by depth alone), their union is not. Placeholder rows of a virus with no
+    programme model (``not_applicable``) are not cells, so they stay blank.
+    """
+    flags = states.isin(["productive", "mixed"]).astype("boolean")
+    return flags.mask(states == "not_applicable", pd.NA)
 
 
 def _attach_layer1_totals(summary: pd.DataFrame, layer1_path: str, molecule_column: str) -> None:

@@ -924,6 +924,39 @@ class TestSummaryAndWriters:
         assert ebv["n_cells_mixed"] == 0
         assert ebv["n_cells_total"] == 4
 
+    def test_lytic_programme_is_productive_plus_mixed(self) -> None:
+        """PROG-MIXED-VETO-01: the load-stable headline is productive + mixed."""
+        df = self._cell_df().copy()
+        for barcode, virus, state in [
+            ("c7", "Epstein-Barr virus", "mixed"),
+            ("c8", "Epstein-Barr virus", "mixed"),
+            ("c9", "Human herpesvirus 1", "productive"),
+            ("c10", "Human herpesvirus 1", "mixed"),
+        ]:
+            df.loc[len(df)] = {
+                **df.iloc[0].to_dict(),
+                "barcode": barcode,
+                "virus_name": virus,
+                "state": state,
+            }
+        by_virus = summarise_programs(df, _catalog(), min_breadth=2).set_index("virus_name")
+        ebv = by_virus.loc["Epstein-Barr virus"]
+        assert (
+            ebv["n_cells_lytic_programme"] == ebv["n_cells_productive"] + ebv["n_cells_mixed"] == 3
+        )
+        # latency unobservable: mixed is reported 0, so the sum is productive alone
+        hsv1 = by_virus.loc["Human herpesvirus 1"]
+        assert hsv1["n_cells_mixed"] == 0
+        assert hsv1["n_cells_lytic_programme"] == hsv1["n_cells_productive"] == 1
+
+    def test_per_cell_lytic_programme_flag(self) -> None:
+        from viralscan.scripts.gene_programs import lytic_programme_flags
+
+        states = pd.Series(["productive", "mixed", "latent", "indeterminate", "not_applicable"])
+        flags = lytic_programme_flags(states)
+        assert flags.iloc[:4].tolist() == [True, True, False, False]
+        assert pd.isna(flags.iloc[4]), "a no-model placeholder row is not a cell"
+
     def test_summary_carries_completeness_and_observability(self) -> None:
         summary = summarise_programs(self._cell_df(), _catalog(), min_breadth=2)
         by_virus = summary.set_index("virus_name")
