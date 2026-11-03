@@ -1149,6 +1149,30 @@ The one exception is `rerun-multimap`, which copies the whole run and so writes
 `run --hostresponse` and `--auto-evidence` are part of the run itself and still write
 `<sample>/results/hostresponse/` and `results/evidence/<genus>/`.
 
+### Post-hoc records (`posthoc/records/`, PLAN `EVID-01`)
+
+Every post-hoc verb in the table above, plus `discover-collapse`, writes one JSON record per invocation,
+whatever its outcome. `viralscan status --run-dir RUN` lists them.
+
+- **Where.** `<run root>/posthoc/records/<attempt_id>.json` when the output is inside the run (the default).
+  With `--output` outside the run, the record goes to `<output>.records/` beside that output and the run is
+  not written to at all. A verb whose source has no `run_manifest.json` above it (not a run) leaves no record.
+- **When.** The record is written with `state: started` before the verb runs and rewritten when it ends:
+  `succeeded`, `failed` (with `exit_code`; `_die` exits are failures), or `interrupted` (Ctrl-C, SIGTERM:
+  exit 130 or 143). A record still at `started` is shown as `interrupted` once its process is gone on the
+  same host, else `unfinished`.
+- **What.** `attempt_id` (`<UTC time>-<verb>-<8 hex>`), `verb`, `argv`, parsed `settings`, `software`
+  (version, build hash, git commit when run from a checkout), `host`, `pid`, `source_path`, `source_root`,
+  `sample`, `target`, `requested_output`, `output_path` (the resolved output), `output_preexisting`,
+  `inputs` (`run_manifest.json`, `config.yaml`, `evidence_manifest.json` with SHA-256) and `outputs` (every
+  file under the output with size and mtime; SHA-256 for files up to 64 MiB, `null` above; capped at 10,000
+  files with `truncated`).
+- **Index.** `posthoc/records/index.json` is rebuilt from the records after each attempt and by `status`. It
+  is a view: delete it and `status` rebuilds it. Records are written to a temp file and renamed, so a crash
+  never leaves half a record.
+- **Not covered.** `run --discover`, `run --hostresponse` and `--auto-evidence` run inside `run` and are part
+  of the run's own provenance. A record does not make a rerun reuse anything; it only reports what ran.
+
 ## `viralscan evidence` output
 
 Evidence is generated in the `--output` directory (default `<run-dir>/posthoc/evidence/<virus>`) for one exact
