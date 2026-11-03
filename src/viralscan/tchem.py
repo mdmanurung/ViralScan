@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -61,6 +62,7 @@ class TchemCall:
     strand: Optional[str]  # forward / reverse
     reason: str
     version: Optional[str] = None
+    geometry: Optional[str] = None  # layout.geometry, e.g. 1{b[16]u[10]x:}2{r:}
 
     def as_block(self) -> dict[str, Any]:
         return asdict(self)
@@ -158,6 +160,7 @@ def parse_report(report: dict[str, Any], emit_stdout: Optional[str] = None) -> T
         strand=report.get("cdna_strand") or emit_strand,
         reason=reason,
         version=report.get("version"),
+        geometry=layout.get("geometry"),
     )
 
 
@@ -201,6 +204,15 @@ def _slug(name: Optional[str]) -> str:
     return "".join(c for c in (name or "").lower() if c.isalnum())
 
 
+_R1_GEOMETRY = re.compile(r"1\{b\[(\d+)\]u\[(\d+)\]")
+
+
+def _layout_lengths(geometry: Optional[str]) -> Optional[tuple[int, int]]:
+    """``(cb_len, umi_len)`` from tchem's layout geometry when R1 starts barcode then UMI."""
+    m = _R1_GEOMETRY.match(geometry or "")
+    return (int(m[1]), int(m[2])) if m else None
+
+
 def compare(technology: Optional[str], tc: TchemCall) -> Opinion:
     """Compare ``tchem``'s call with the technology the run will use (``-x``).
 
@@ -210,7 +222,24 @@ def compare(technology: Optional[str], tc: TchemCall) -> Opinion:
     if tc.verdict != "match":
         return Opinion("no_call", f"tchem: {tc.verdict} ({tc.reason})", tc)
     if not tc.technology:
-        # kb takes no Drop-seq command, so tchem emits none: agree by name when -x is the same chemistry.
+        # No kb command (10x 5' kits, Drop-seq): compare the layout's own barcode+UMI lengths,
+        # else agree by name when -x is the same chemistry.
+        theirs = _layout_lengths(tc.geometry)
+        if technology and theirs:
+            try:
+                ours = chemistry.cb_umi_geometry(technology)
+            except ValueError as exc:
+                return Opinion("no_call", f"geometry not comparable: {exc}", tc)
+            if theirs == ours:
+                return Opinion(
+                    "agree", f"tchem: {tc.layout} ({tc.confidence}); same barcode+UMI geometry", tc
+                )
+            return Opinion(
+                "disagree",
+                f"-x {technology} is {ours[0]} bp barcode + {ours[1]} bp UMI but tchem reads "
+                f"{tc.layout} ({tc.confidence}) as {theirs[0]} + {theirs[1]}",
+                tc,
+            )
         if technology and _slug(tc.layout) == _slug(technology):
             return Opinion(
                 "agree", f"tchem: {tc.layout} ({tc.confidence}); same chemistry as -x by name", tc
