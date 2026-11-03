@@ -276,6 +276,10 @@ def validate_catalogue(rows: list[Row]) -> list[str]:
         for column in bool_columns:
             if row.get(column) not in {"true", "false"}:
                 errors.append(f"{where}: {column}={row.get(column)!r} is not true/false")
+        if "induced_in_lytic" in row and row["induced_in_lytic"] not in {"true", "false"}:
+            errors.append(
+                f"{where}: induced_in_lytic={row['induced_in_lytic']!r} is not true/false"
+            )
         for column in ("gene_id_merged", "gene_id_starsolo"):
             if not str(row.get(column, "")).strip():
                 errors.append(f"{where}: {column} is empty")
@@ -301,6 +305,9 @@ class Marker:
     non_overlapping: bool
     has_cds: bool
     kinetic_class: str = "unclassified"
+    #: A latent marker that lytic cells also express (KSHV K12, PMID 17913828). It still
+    #: counts for a ``latent`` call, but never vetoes a ``productive`` call into ``mixed``.
+    induced_in_lytic: bool = False
 
     @property
     def is_productive(self) -> bool:
@@ -431,6 +438,7 @@ def resolve_markers(
                 non_overlapping=row.get("non_overlapping") == "true",
                 has_cds=row.get("has_cds") == "true",
                 kinetic_class=row.get("kinetic_class") or "unclassified",
+                induced_in_lytic=row.get("induced_in_lytic") == "true",
             )
         )
     return resolved, unresolved
@@ -478,9 +486,15 @@ def _decide(
     latent_min_breadth: int = 1,
     ie_only: bool = False,
     absence_assessable: bool = True,
+    lat_veto: int | None = None,
 ) -> str:
+    """``lat_veto`` is the latent breadth over markers not ``induced_in_lytic``; it alone
+    can turn ``productive`` into ``mixed``. ``None`` means every latent marker vetoes."""
     latent_called = lat >= latent_min_breadth and latency_observable
-    if prod >= min_breadth and latent_called:
+    veto_called = (
+        lat if lat_veto is None else lat_veto
+    ) >= latent_min_breadth and latency_observable
+    if prod >= min_breadth and veto_called:
         return "mixed"
     if prod >= min_breadth:
         return "productive"
@@ -571,6 +585,7 @@ def call_cell_programme(
     productive_cols = [i for i, m in enumerate(markers) if m.is_productive]
     later_cols = [i for i in productive_cols if markers[i].kinetic_class != "immediate_early"]
     latent_cols = [i for i, m in enumerate(markers) if m.programme == "latent"]
+    veto_cols = [i for i in latent_cols if not markers[i].induced_in_lytic]
 
     reactivating_applicable = reactivating_applicable and latency_observable and absence_assessable
 
@@ -581,6 +596,7 @@ def call_cell_programme(
         nonzero = _nonzero_columns(unique_matrix, cell, min_umi)
         prod = _breadth(nonzero, productive_cols, groups)
         lat = _breadth(nonzero, latent_cols, groups)
+        lat_veto = _breadth(nonzero, veto_cols, groups)
         ie_only = (
             reactivating_applicable and prod >= 1 and _breadth(nonzero, later_cols, groups) == 0
         )
@@ -592,6 +608,7 @@ def call_cell_programme(
             latent_min_breadth,
             ie_only,
             absence_assessable,
+            lat_veto,
         )
 
         sel_prod = sel_lat = sel_state = None
@@ -599,6 +616,7 @@ def call_cell_programme(
             sel_nonzero = _nonzero_columns(selected_matrix, cell, min_umi)
             sel_prod = _breadth(sel_nonzero, productive_cols, groups)
             sel_lat = _breadth(sel_nonzero, latent_cols, groups)
+            sel_lat_veto = _breadth(sel_nonzero, veto_cols, groups)
             sel_ie_only = (
                 reactivating_applicable
                 and sel_prod >= 1
@@ -612,6 +630,7 @@ def call_cell_programme(
                 latent_min_breadth,
                 sel_ie_only,
                 absence_assessable,
+                sel_lat_veto,
             )
 
         for decided in (state, sel_state):

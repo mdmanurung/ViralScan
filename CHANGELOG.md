@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- **Output change (PLAN `PROG-KSHV-MARKERS-01`):** KSHV gene-programme calls change. PAN, K4, K3 and ORF52 are now productive markers and ORF37 (never seen on the unique layer) is dropped. K12 carries the new `induced_in_lytic` catalogue column: it still supports `latent` but no longer turns a `productive` cell into `mixed`. The column is optional, so other catalogues load unchanged.
+
 ## 3.0.0rc1 (release candidate; date set when tagged)
 
 The `v3.0.0rc1` tag of 2026-10-23 never produced a release (its three release runs failed before publication), so everything since is part of this candidate and the tag will be moved when rc1 is cut (PLAN `RC-03`).
