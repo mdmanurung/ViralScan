@@ -119,4 +119,7 @@ DEFAULTS: dict[str, Any] = {
     # counts only at >= programme_min_umi (0 = any nonzero value, as before).
     "programme_latent_min_breadth": 1,
     "programme_min_umi": 0.0,
+    # PROG-MINMOL-01: molecules a productive marker needs to count toward productive
+    # breadth (1 = any nonzero, the earlier rule). Latent markers are unaffected.
+    "programme_productive_min_molecules": 1,
 }

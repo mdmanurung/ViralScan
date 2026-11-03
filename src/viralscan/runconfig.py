@@ -230,6 +230,7 @@ class RunConfig:
     programme_min_breadth: int = DEFAULTS["programme_min_breadth"]
     programme_latent_min_breadth: int = DEFAULTS["programme_latent_min_breadth"]
     programme_min_umi: float = DEFAULTS["programme_min_umi"]
+    programme_productive_min_molecules: int = DEFAULTS["programme_productive_min_molecules"]
     # Anellovirus alignment branch (ANDET-09). anello_index is resolved from the
     # kb index's directory (anello_star/) unless given; None means no index.
     anello_align: bool = DEFAULTS["anello_align"]
@@ -423,6 +424,17 @@ class RunConfig:
         programme_min_umi = float(cfg_in.get("programme_min_umi", DEFAULTS["programme_min_umi"]))
         if programme_min_umi < 0:
             raise ValueError(f"programme_min_umi must be >= 0, got {programme_min_umi}.")
+        programme_productive_min_molecules = int(
+            cfg_in.get(
+                "programme_productive_min_molecules",
+                DEFAULTS["programme_productive_min_molecules"],
+            )
+        )
+        if programme_productive_min_molecules < 1:
+            raise ValueError(
+                "programme_productive_min_molecules must be >= 1, "
+                f"got {programme_productive_min_molecules}."
+            )
         gene_programs = _coerce_bool(
             cfg_in.get("gene_programs", DEFAULTS["gene_programs"])
             if cfg_in.get("gene_programs") is not None
@@ -657,6 +669,7 @@ class RunConfig:
             programme_min_breadth=programme_min_breadth,
             programme_latent_min_breadth=programme_latent_min_breadth,
             programme_min_umi=programme_min_umi,
+            programme_productive_min_molecules=programme_productive_min_molecules,
             anello_align=anello_align,
             anello_index=anello_index,
             star_confirm=star_confirm,

@@ -683,6 +683,7 @@ column was removed.
 | `evidence_layer` | Always `counts_unique_viral` | observation |
 | `min_breadth` | The `--programme-min-breadth` used | observation |
 | `latent_min_breadth` | The `--programme-latent-min-breadth` used (default 1) | observation |
+| `productive_min_molecules` | The `--programme-productive-min-molecules` used: a productive marker counts toward productive breadth only at ≥ this many molecules; latent markers are unaffected (default 1 = any nonzero value) | observation |
 | `marker_min_umi` | The `--programme-min-umi` used: a marker counts only at ≥ this many molecules (default 0 = any nonzero value, so the allocated layer's fractional values still count) | observation |
 | `n_cells_reactivating` | Cells called `reactivating` on the unique layer; the string `not_applicable` where the state is unreachable (every virus but EBV, and any virus with an unresolved productive marker), so a number here is never a structural zero | model estimate |
 | `productive_breadth_median` / `latent_breadth_median` | Breadth on the unique layer | model estimate |

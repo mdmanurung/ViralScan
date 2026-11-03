@@ -1033,6 +1033,18 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
             f"({DEFAULTS['programme_min_umi']} if it set none)."
         ),
     )
+    p.add_argument(
+        "--programme-productive-min-molecules",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "A productive marker counts toward productive breadth only at >= N molecules "
+            "in the cell; latent markers are unaffected. 1 means any nonzero value. "
+            "Must be >= 1. Default: the run's own config "
+            f"({DEFAULTS['programme_productive_min_molecules']} if it set none)."
+        ),
+    )
     _add_force_arg(p)
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="rerun-programs")
@@ -1833,6 +1845,17 @@ def _build_run_parser(subparsers: Any) -> None:
         help=(
             "A marker counts as evidence only at >= X molecules; 0 means any nonzero "
             f"value. Must be >= 0. Default: {DEFAULTS['programme_min_umi']}."
+        ),
+    )
+    parser.add_argument(
+        "--programme-productive-min-molecules",
+        type=int,
+        default=DEFAULTS["programme_productive_min_molecules"],
+        metavar="N",
+        help=(
+            "A productive marker counts toward productive breadth only at >= N molecules "
+            "in the cell; latent markers are unaffected. 1 means any nonzero value. "
+            f"Must be >= 1. Default: {DEFAULTS['programme_productive_min_molecules']}."
         ),
     )
     parser.add_argument(

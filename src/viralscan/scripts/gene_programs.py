@@ -169,6 +169,7 @@ def run_one(
     identity: Any = None,
     latent_min_breadth: int = 1,
     min_umi: float = 0.0,
+    productive_min_molecules: int = 1,
 ) -> pd.DataFrame:
     """Build the per-cell call table for the detected ``viruses``."""
     facts = catalogue_virus_facts(catalogue)
@@ -249,6 +250,7 @@ def run_one(
                 selected_matrix=None if selected is None else selected[start:stop],
                 latent_min_breadth=latent_min_breadth,
                 min_umi=min_umi,
+                productive_min_molecules=productive_min_molecules,
                 absence_assessable=absence_ok,
             )
             for barcode, call in zip(obs_names[start:stop], calls):
@@ -321,6 +323,7 @@ def main(
         identity=load_run_identity(output),
         latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", 1)),
         min_umi=float(getattr(config, "programme_min_umi", 0.0)),
+        productive_min_molecules=int(getattr(config, "programme_productive_min_molecules", 1)),
     )
     summary = summarise_programs(
         cells,
@@ -328,6 +331,7 @@ def main(
         min_breadth=int(getattr(config, "programme_min_breadth", 2)),
         latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", 1)),
         min_umi=float(getattr(config, "programme_min_umi", 0.0)),
+        productive_min_molecules=int(getattr(config, "programme_productive_min_molecules", 1)),
         viruses=viruses,
         marker_resolution=cells.attrs.get("marker_resolution"),
     )

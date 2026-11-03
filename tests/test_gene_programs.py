@@ -1084,6 +1084,8 @@ class TestDagAndCli:
         # PROG-12: the defaults are the pre-PROG-12 rule (any nonzero, one latent group).
         assert DEFAULTS["programme_latent_min_breadth"] == 1
         assert DEFAULTS["programme_min_umi"] == 0.0
+        # PROG-MINMOL-01: shipped as a parameter; 1 is the earlier rule (see PLAN for why).
+        assert DEFAULTS["programme_productive_min_molecules"] == 1
 
     def test_runconfig_accepts_the_defaults(self) -> None:
         from viralscan.runconfig import RunConfig
@@ -1459,7 +1461,29 @@ class TestReactivatingAndParameters:
         call = self._call({"lat": 0.3})
         assert call["state"] == "latent" and call["selected_state"] == "latent", call
 
-    @pytest.mark.parametrize("kwargs", [{"latent_min_breadth": 0}, {"min_umi": -1.0}])
+    def test_productive_min_molecules_gates_productive_breadth_only(self) -> None:
+        """PROG-MINMOL-01: two productive markers at 1 molecule each are not productive at 2."""
+        thin = {"early": 1.0, "ie1": 1.0}
+        assert self._call(thin)["state"] == "productive"
+        assert self._call(thin, productive_min_molecules=1)["state"] == "productive"
+        assert self._call(thin, productive_min_molecules=2)["state"] == "indeterminate"
+        thick = {"early": 2.0, "ie1": 2.0}
+        assert self._call(thick, productive_min_molecules=2)["state"] == "productive"
+        # Latent markers keep the old bar, so a thin productive cell with one latent
+        # molecule is latent at 2 rather than mixed.
+        thin_lat = {**thin, "lat": 1.0}
+        assert self._call(thin_lat, productive_min_molecules=1)["state"] == "mixed"
+        call = self._call(thin_lat, productive_min_molecules=2)
+        assert call["state"] == "latent" and call["selected_state"] == "latent", call
+
+    def test_productive_min_molecules_one_still_counts_fractional_allocated_values(self) -> None:
+        call = self._call({"early": 0.3, "ie1": 0.3}, productive_min_molecules=1)
+        assert call["selected_state"] == "productive", call
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [{"latent_min_breadth": 0}, {"min_umi": -1.0}, {"productive_min_molecules": 0}],
+    )
     def test_rejects_out_of_range_parameters(self, kwargs) -> None:
         with pytest.raises(ValueError):
             call_cell_programme(sparse.csr_matrix((1, 1)), [], **kwargs)
