@@ -1,0 +1,42 @@
+# Reviewed grype exceptions for the product image (PLAN REL-11). Read by release.yml and
+# image-audit.yml, which run grype from the repository root. One entry per CVE; every entry
+# is reviewed again by 2027-02-01 (drop it when a fixed release exists or the package is gone).
+ignore:
+  # krb5 1.22.2 (conda-forge libkrb5, /opt/conda/envs/viralscan/lib/libkrb5.so.3.3).
+  # Reason: grype lists no fixed version for any of these; the lock already has the
+  # newest krb5 on conda-forge. Review by 2027-02-01.
+  - vulnerability: CVE-2007-3149
+    package:
+      name: krb5
+      version: 1.22.2
+  - vulnerability: CVE-2007-5894
+    package:
+      name: krb5
+      version: 1.22.2
+  - vulnerability: CVE-2026-107778
+    package:
+      name: krb5
+      version: 1.22.2
+  - vulnerability: CVE-2026-40355
+    package:
+      name: krb5
+      version: 1.22.2
+  - vulnerability: CVE-2026-40356
+    package:
+      name: krb5
+      version: 1.22.2
+  # gcc 4.8.5: not a real gcc 4.8.5. Grype matched the conda gcc 16.2.0 driver
+  # /opt/conda/envs/viralscan/libexec/gcc/x86_64-conda-linux-gnu/16.2.0/gcc and read a
+  # wrong version from its binary (SBOM sourceInfo, run 41605114607). Review by 2027-02-01.
+  - vulnerability: CVE-2018-12886
+    package:
+      name: gcc
+      version: 4.8.5
+  - vulnerability: CVE-2019-15847
+    package:
+      name: gcc
+      version: 4.8.5
+  - vulnerability: CVE-2021-37322
+    package:
+      name: gcc
+      version: 4.8.5

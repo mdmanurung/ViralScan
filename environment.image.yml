@@ -1,0 +1,40 @@
+# Runtime-only spec for the product image (no pytest, ruff, mypy, pre-commit, docs tools).
+# environment.explicit.txt is the solved lock of this file; the image installs the lock.
+# Re-solve (PLAN REL-11; use local disk, NFS file locks break solvers):
+#   micromamba create -p /tmp/x -f environment.image.yml --override-channels \
+#       --channel-priority strict --dry-run --json
+# then write each LINK url#md5, sorted, under "@EXPLICIT". The 2026-11-03 solve also pinned every
+# other package to its previously locked version (conda-meta/pinned) so only the security
+# bumps moved. gget and pyfiglet are optional runtime features (enrichment, banner), kept.
+name: viralscan
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - kb-python=0.30.2
+  - kallisto=0.52.0
+  - bustools=0.45.1
+  - star=2.7.11b
+  - snakemake=9.23.1
+  - samtools=1.23.1
+  - minimap2=2.31
+  - blast=2.17.0
+  - cd-hit=4.8.1
+  - r-base=4.5.3
+  - bioconductor-dropletutils=1.30.0
+  - numpy>=1.24
+  - pandas>=1.5
+  - scipy>=1.11
+  - matplotlib>=3.7
+  - scanpy>=1.9
+  - anndata>=0.9
+  - jsonschema>=4.0
+  - scikit-learn>=1.0
+  - plotly>=5.13
+  - pyyaml>=6.0
+  - requests>=2.28
+  - jinja2>=3.0
+  - pyfiglet
+  - gget
+  - pip

@@ -707,6 +707,14 @@ No open rows; done rows are in the PLAN archive (see Next action).
     brotli family 1.2.0 -> 1.2.1, certifi 2026.10.18, nbconvert 7.17.2, filelock 4.2.1, gitpython 3.2.1. Not fixable by a pin:
     krb5 1.22.2 (no fixed release), gcc 4.8.5 (3 CVEs), virtualenv 21.14.5 (21.14.9 not on conda-forge), rust `zip` 8.6.0 (inside a
     locked binary), base-env python 3.14.9, deb libbrotli1. No ignore entries yet (user decision).
+  - 2026-11-03 (user-approved bundle): (1) the image lock is now solved from `environment.image.yml` (runtime only: no
+    pytest, ruff, mypy, pre-commit, virtualenv, sphinx, jupyter front ends; 440 packages, was 487) with micromamba on local
+    disk (`R4_51` env, strict conda-forge > bioconda, every other package pinned to its old version, so only the security
+    bumps moved); `environment.yml` is unchanged and still serves CI and dev. `gget` and `pyfiglet` stay (optional runtime
+    features). `kb-python` requires `nbconvert` and `snakemake` requires `gitpython`, so both stay at fixed versions.
+    (2) Dockerfile: `apt-get install --only-upgrade libbrotli1` and `mamba update -n base python>=3.14.10`.
+    (3) `.grype.yaml`: 8 reviewed exceptions, review date 2027-02-01: krb5 1.22.2 (5 CVEs, no fixed release) and "gcc 4.8.5"
+    (3 CVEs; grype misread the version of the conda gcc 16.2.0 driver, `libexec/gcc/.../16.2.0/gcc`, per the SBOM).
 - [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
   - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation

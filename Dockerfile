@@ -9,8 +9,15 @@ LABEL maintainer="emma.vonk@hotmail.nl" \
       version="3.0.0rc1" \
       description="ViralScan — viral load quantification from single-cell RNA-seq"
 
+# Security updates for the base layers (PLAN REL-11): the Ubuntu libbrotli1 deb and the
+# Miniforge base-env Python, neither of which the locked viralscan env replaces.
+RUN apt-get update \
+    && apt-get install -y --only-upgrade libbrotli1 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY environment.explicit.txt /tmp/environment.explicit.txt
-RUN mamba create --yes --name viralscan --file /tmp/environment.explicit.txt \
+RUN mamba update --yes --name base 'python>=3.14.10,<3.15' \
+    && mamba create --yes --name viralscan --file /tmp/environment.explicit.txt \
     && mamba clean --all --force-pkgs-dirs --yes
 
 SHELL ["conda", "run", "-n", "viralscan", "/bin/bash", "-c"]
