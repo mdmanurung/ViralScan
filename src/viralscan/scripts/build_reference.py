@@ -377,7 +377,7 @@ def validate_reference_records(
     *sibling_groups* overrides the catalogue's declared siblings.
     """
     records = _fasta_records(fasta)
-    _check_reference_structure(records, fasta)
+    _check_reference_structure(records, fasta, viral_identifiers)
     if near_duplicates != "off":
         _screen_near_duplicates(records, near_duplicates, viral_identifiers, sibling_groups)
     if max_pure_homopolymer_kmers is not None or max_low_complexity_fraction is not None:
@@ -391,12 +391,22 @@ def validate_reference_records(
     return records
 
 
-def _check_reference_structure(records: list[tuple[str, str]], fasta: Path) -> None:
-    """Raise ``ValueError`` on no records, an empty sequence, or duplicate ID/sequence."""
+def _check_reference_structure(
+    records: list[tuple[str, str]], fasta: Path, viral_identifiers: Optional[set[str]] = None
+) -> None:
+    """Raise ``ValueError`` on no records, an empty sequence, or duplicate ID/sequence.
+
+    Without *viral_identifiers* every exact duplicate sequence fails. With them, identical
+    host records are allowed and counted (Ensembl cDNA has distinct transcripts with the same
+    sequence; kallisto indexes them as one equivalence class). A duplicate that involves a
+    viral record still fails, because it splits or inflates that virus's counts.
+    """
     if not records:
         raise ValueError(f"Reference FASTA has no sequences: {fasta}")
     seen_ids: set[str] = set()
     seen_sequences: dict[str, str] = {}
+    seen_viral: dict[str, str] = {}
+    n_host_duplicates = 0
     for identifier, sequence in records:
         if not sequence:
             raise ValueError(f"Reference sequence {identifier!r} is empty.")
@@ -404,12 +414,24 @@ def _check_reference_structure(records: list[tuple[str, str]], fasta: Path) -> N
             raise ValueError(f"Duplicate FASTA identifier before index construction: {identifier}")
         seen_ids.add(identifier)
         digest = hashlib.sha256(sequence.encode()).hexdigest()
-        if digest in seen_sequences:
+        is_viral = viral_identifiers is None or identifier in viral_identifiers
+        earlier = seen_sequences.get(digest)
+        if earlier is not None and (is_viral or digest in seen_viral):
             raise ValueError(
                 f"Exact duplicate sequences before index construction: "
-                f"{seen_sequences[digest]} and {identifier}"
+                f"{seen_viral.get(digest, earlier)} and {identifier}"
             )
-        seen_sequences[digest] = identifier
+        if earlier is not None:
+            n_host_duplicates += 1
+        seen_sequences.setdefault(digest, identifier)
+        if is_viral:
+            seen_viral.setdefault(digest, identifier)
+    if n_host_duplicates:
+        log.info(
+            "%d host record(s) repeat an earlier host sequence exactly; kept (kallisto merges "
+            "identical targets into one equivalence class).",
+            n_host_duplicates,
+        )
 
 
 def _raise_on_low_complexity(
