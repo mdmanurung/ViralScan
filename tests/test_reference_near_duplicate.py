@@ -146,3 +146,19 @@ def test_bundled_panel_builder_has_the_same_flag():
         assert default.strict_reference is False
     dests = {a.dest for a in parser._actions}
     assert "strict_reference" in dests
+
+
+def test_exact_duplicates_among_host_records_pass_but_viral_ones_fail(tmp_path, caplog):
+    viral = {"VIR1.1", "VIR2.1"}
+    ok = _write(tmp_path / "ok.fa", [("ENST1.1", HOST), ("ENST2.1", HOST), ("VIR1.1", VIRAL)])
+    with caplog.at_level(logging.INFO, logger="viralscan"):
+        br.validate_reference_records(ok, near_duplicates="off", viral_identifiers=viral)
+    assert "1 host record(s) repeat" in caplog.text
+    for name, rows in {
+        "vv": [("VIR1.1", VIRAL), ("VIR2.1", VIRAL)],
+        "host_then_viral": [("ENST1.1", HOST), ("ENST2.1", HOST), ("VIR1.1", HOST)],
+        "viral_then_host": [("VIR1.1", HOST), ("ENST1.1", HOST)],
+    }.items():
+        fa = _write(tmp_path / f"{name}.fa", rows)
+        with pytest.raises(ValueError, match="Exact duplicate sequences"):
+            br.validate_reference_records(fa, near_duplicates="off", viral_identifiers=viral)

@@ -127,7 +127,7 @@ TSV has not been regenerated.
 
 ## Near-duplicate screen and host homology at build time (AUD3-05, audit P2-01)
 
-`validate_reference_records` still rejects exact duplicate sequences. Since AUD3-05 the build also screens
+`validate_reference_records` still rejects exact duplicate sequences, except among host records when `viral_identifiers` is given (Ensembl cDNA repeats sequences under different IDs; kallisto merges them, BUILDREF-HOSTDUP-01). Since AUD3-05 the build also screens
 for near-copies: a record is flagged when under 5% of its distinct canonical 31-mers (both strands) lie outside
 the other records, the same twin cut the curation tools use (`viralscan.kmer_sharing.KMER_TWIN_BELOW`,
 `kmer_twin_of:` in `scripts/panel_candidates.py`). A 1-mismatch copy and a reverse-complement copy of another
