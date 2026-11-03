@@ -1,6 +1,7 @@
 """Optional SCTK QC annotations stay in place and never filter cells."""
 
 import numpy as np
+import pandas as pd
 import pytest
 
 
@@ -221,6 +222,53 @@ def test_biomart_failure_is_actionable(monkeypatch):
     monkeypatch.setattr(sc.queries, "biomart_annotations", down)
     with pytest.raises(RuntimeError, match="BioMart"):
         query_gene_annotations(["ENSG00000000001"])
+
+
+def _flaky_biomart(monkeypatch, fail_times):
+    import xml.etree.ElementTree as ET
+
+    sc = pytest.importorskip("scanpy")
+    calls = []
+    monkeypatch.setattr("time.sleep", lambda s: None)
+
+    def biomart(*_a, **_k):
+        calls.append(1)
+        if len(calls) <= fail_times:
+            raise ET.ParseError("mismatched tag")
+        return pd.DataFrame(
+            {
+                "ensembl_gene_id": ["ENSG00000000001"],
+                "external_gene_name": ["A"],
+                "gene_biotype": ["protein_coding"],
+                "chromosome_name": ["1"],
+            }
+        )
+
+    monkeypatch.setattr(sc.queries, "biomart_annotations", biomart)
+    monkeypatch.setattr(
+        sc.queries,
+        "mitochondrial_genes",
+        lambda *_a, **_k: pd.DataFrame({"ensembl_gene_id": []}),
+    )
+    return calls
+
+
+def test_biomart_transient_error_is_retried(monkeypatch):
+    from viralscan.scautoqc import query_gene_annotations
+
+    calls = _flaky_biomart(monkeypatch, fail_times=2)
+    out = query_gene_annotations(["ENSG00000000001"])
+    assert len(calls) == 3
+    assert out["gene_symbol"].tolist() == ["A"]
+
+
+def test_biomart_persistent_error_raises_after_all_attempts(monkeypatch):
+    from viralscan.scautoqc import query_gene_annotations
+
+    calls = _flaky_biomart(monkeypatch, fail_times=99)
+    with pytest.raises(RuntimeError, match="after 3 attempts.*scautoqc_gene_annotations.tsv"):
+        query_gene_annotations(["ENSG00000000001"])
+    assert len(calls) == 3
 
 
 def test_globin_pattern_matches_human_and_mouse_but_not_lookalikes():
