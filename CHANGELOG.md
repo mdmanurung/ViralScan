@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The `v3.0.0rc1` tag of 2026-10-23 never produced a release (its three release runs failed before publication), so everything since is part of this candidate and the tag will be moved when rc1 is cut (PLAN `RC-03`).
 
+- Fix `--scautoqc` on multimap H5ADs: scoring called cells only crashed when the AnnData carried sparse non-QC `obsm` matrices (`viral_groups_*`); only `scautoqc_*` keys are written back now (PLAN `SCAUTOQC-01`).
 - Fix `--tchem auto` stopping a Drop-seq run: tchem names the layout but gives no kb command, which was a `no_call`. It now agrees when the layout name matches `-x` (`dropseq`); other unmappable layouts still stop the run (PLAN `TCHEM-DROPSEQ-01`).
 - Fix `--scautoqc`: sctk 0.2.0 crashed with `TypeError: ... unexpected keyword argument 'warm_start'` when a QC Gaussian fit did not converge; ViralScan now patches that retry (PLAN `SCAUTOQC-01`).
 - Feat (PLAN `DEF-04`): a reference where some viruses have only a whole-genome unit (`gene_biotype whole_genome`) now logs one warning naming them. The unit is kept; their counts are whole-genome, not per-gene.
