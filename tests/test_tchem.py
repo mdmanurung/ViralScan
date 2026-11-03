@@ -203,6 +203,15 @@ class TestCompare:
         other = tchem.parse_report(_report(layout="inDrops"), None)
         assert tchem.compare("dropseq", other).status == "no_call"
 
+    def test_layout_without_kb_command_compares_report_geometry(self):
+        def call(umi):
+            layout = {"name": "10x 5' v1/v2", "geometry": f"1{{b[16]u[{umi}]x:}}2{{r:}}"}
+            return tchem.parse_report(_report() | {"layout": layout, "cdna_strand": "reverse"})
+
+        assert tchem.compare("10xv2", call(10)).status == "agree"
+        assert tchem.compare("10xv3", call(10)).status == "disagree"
+        assert tchem.compare("10xv2", call(8)).status == "disagree"
+
     def test_no_technology_reports_info(self):
         op = tchem.compare(None, self._call())
         assert op.status == "info" and f"-x {V2}" in op.reason and "--strand forward" in op.reason
