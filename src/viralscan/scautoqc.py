@@ -90,7 +90,7 @@ def _add_scautoqc_called(adata: Any, cells: Any, **kwargs: Any) -> None:
         elif not pd.api.types.is_numeric_dtype(column):
             column = column.astype(object).where(column.notna(), "not_called").astype(str)
         adata.obs[key] = column  # a Series keeps the nullable dtype for write_h5ad
-    for key in scored.obsm:
+    for key in [k for k in scored.obsm if k.startswith("scautoqc_")]:
         full = np.full((adata.n_obs, scored.obsm[key].shape[1]), np.nan)
         full[cells] = scored.obsm[key]
         adata.obsm[key] = full
