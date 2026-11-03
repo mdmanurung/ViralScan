@@ -661,6 +661,8 @@ No open rows; done rows are in the PLAN archive (see Next action).
 - [!] `REL-06` — Miniforge is digest-pinned; rebuild Docker from the committed
   lock and the exact tested wheel rather than from a mutable source install.
   - Blocked (2026-10-02): needs the committed lock (`REL-03`, `[ ]`) and the tested wheel (`REL-04`). No docker daemon here, and verification needs a CI build job.
+  - 2026-11-02: Miniforge pin moved from a 2024-06 Ubuntu 20.04 single-arch manifest (`sha256:1bfb5a53...`) to the
+    `26.9.4-0` multi-arch index (`sha256:63d72ead...`, Ubuntu 24.04, built 2026-10-24); see `REL-11`. Not yet built in CI.
 - [ ] `REL-07` — publish a versioned OCI candidate, record its digest and tool
   manifest, and never assign `latest` to an RC.
 - [ ] `REL-08` — build Apptainer/SIF from that OCI digest rather than performing
@@ -688,6 +690,33 @@ No open rows; done rows are in the PLAN archive (see Next action).
     pillow 12.3.0 are in it). Still open: OCI scan/full SBOM/licence report run only on a tagged release
     (needs docker), no exception file exists, and no scan was wired into CI as a gate because the 3.9 branch
     would turn it permanently red until the decision above is made.
+  - 2026-11-02 (image-audit triage, run 40038144113): the `v3.0.0rc1` release run failed at "Audit the product image
+    before publication" (grype 0.118.0, `--fail-on high`, 545 packages, distro `ubuntu 20.04`, "EOL distro: data may be
+    incomplete") before any push. **The per-CVE list is not recoverable**: the scan wrote only
+    `release-assets/oci-vulnerabilities.json`, which was never uploaded, and the run's logs are not printed. Done:
+    (1) Dockerfile base moved off the EOL Ubuntu 20.04 image (see `REL-06`), the likeliest source of OS-package findings;
+    (2) `release.yml` now prints every High/Critical match (id, package, version, fixed-in, path) and uploads
+    `oci-vulnerabilities.json` as artifact `oci-vulnerabilities` even when the scan fails, so the next run is triageable.
+    **Not done, needs a CI run:** no `.grype.yaml` exception was written, because an entry needs a real CVE, package
+    and review date and none is known; an unevidenced ignore file would only hide findings. Local re-scan was not possible
+    (no docker; running a downloaded grype binary was refused). Next: re-run the release job on a moved tag
+    (`RC-03`, maintainer), read the printed list, bump conda pins in `environment.explicit.txt` where a fix exists, and
+    list the rest in `.grype.yaml` (one `vulnerability:` entry per CVE, with `reason` and a review date in a comment).
+  - 2026-11-03: new `image-audit.yml` (PR paths filter + `workflow_dispatch`, no login/push/tag) builds the image and runs
+    the same grype gate. First scan on Miniforge 26.9.4-0 (Ubuntu 24.04, 1055 packages): 76 High/Critical rows. Pins bumped
+    in `environment.explicit.txt` (md5 from conda-forge repodata; dependencies checked against the lock by script, no
+    solver run): pillow 12.3.0 -> 13.0.0, curl/libcurl 8.22.0 -> 8.23.0, python 3.11.16 -> 3.11.18 (+libpython, libsqlite),
+    brotli family 1.2.0 -> 1.2.1, certifi 2026.10.18, nbconvert 7.17.2, filelock 4.2.1, gitpython 3.2.1. Not fixable by a pin:
+    krb5 1.22.2 (no fixed release), gcc 4.8.5 (3 CVEs), virtualenv 21.14.5 (21.14.9 not on conda-forge), rust `zip` 8.6.0 (inside a
+    locked binary), base-env python 3.14.9, deb libbrotli1. No ignore entries yet (user decision).
+  - 2026-11-03 (user-approved bundle): (1) the image lock is now solved from `environment.image.yml` (runtime only: no
+    pytest, ruff, mypy, pre-commit, virtualenv, sphinx, jupyter front ends; 440 packages, was 487) with micromamba on local
+    disk (`R4_51` env, strict conda-forge > bioconda, every other package pinned to its old version, so only the security
+    bumps moved); `environment.yml` is unchanged and still serves CI and dev. `gget` and `pyfiglet` stay (optional runtime
+    features). `kb-python` requires `nbconvert` and `snakemake` requires `gitpython`, so both stay at fixed versions.
+    (2) Dockerfile: `apt-get install --only-upgrade libbrotli1` and `mamba update -n base python>=3.14.10`.
+    (3) `.grype.yaml`: 8 reviewed exceptions, review date 2027-02-01: krb5 1.22.2 (5 CVEs, no fixed release) and "gcc 4.8.5"
+    (3 CVEs; grype misread the version of the conda gcc 16.2.0 driver, `libexec/gcc/.../16.2.0/gcc`, per the SBOM).
 - [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
   - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation
