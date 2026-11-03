@@ -157,9 +157,15 @@ def test_only_called_barcodes_are_scored(monkeypatch):
     sctk = pytest.importorskip("sctk")
     pytest.importorskip("leidenalg")
 
+    from scipy import sparse
+
     from viralscan.scautoqc import add_scautoqc
 
     adata = _toy(ad, 40)
+    # multimap H5ADs carry sparse non-QC obsm (viral_groups_*); they must pass through untouched
+    adata.obsm["viral_groups_unique"] = sparse.random(
+        40, 3, density=0.3, format="csr", random_state=0
+    )
     called = np.arange(40) < 30
     seen = []
     real = sctk.calculate_qc
@@ -178,6 +184,7 @@ def test_only_called_barcodes_are_scored(monkeypatch):
     assert np.isfinite(adata.obsm["scautoqc_X_umap_qc"][:30]).all()
     assert adata.uns["scautoqc"]["n_cells_scored"] == 30
     assert "called cells" in adata.uns["scautoqc"]["cell_set"]
+    assert sparse.issparse(adata.obsm["viral_groups_unique"])
 
 
 def test_host_only_metrics_and_curated_globins_without_leiden():
