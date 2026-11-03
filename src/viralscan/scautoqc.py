@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import warnings
 from importlib.metadata import version
 from typing import Any
@@ -16,6 +17,9 @@ GLOBIN_PATTERN = (
     r"^(?:(?:HBA|HBA[12]|HBB|HBD|HBE1|HBG[12]|HBM|HBQ1|HBZ)(?:P\d+)?"
     r"|HBA-(?:A[12]|X)|HBB-(?:B[ST12]|BH\d|Y)|HBQ1[AB])$"
 )
+
+#: Seconds to wait after each failed BioMart attempt; None marks the last attempt (no wait, then raise).
+BIOMART_RETRY_DELAYS_S: tuple[float | None, ...] = (5, 15, None)
 
 
 def query_gene_annotations(gene_ids: Any) -> pd.DataFrame:
@@ -36,26 +40,37 @@ def query_gene_annotations(gene_ids: Any) -> pd.DataFrame:
         raise ValueError(
             "scAutoQC gene annotation needs gene symbols or human/mouse Ensembl gene IDs."
         )
-    try:
-        annotations = sc.queries.biomart_annotations(
-            organism,
-            ["ensembl_gene_id", "external_gene_name", "gene_biotype", "chromosome_name"],
-        )
-        if "ensembl_gene_id" not in annotations or annotations.empty:
-            raise ValueError("empty BioMart response")
-        annotations = annotations.drop_duplicates("ensembl_gene_id").set_index("ensembl_gene_id")
-        mito_ids = set(
-            sc.queries.mitochondrial_genes(organism, attrname="ensembl_gene_id")["ensembl_gene_id"]
-            .dropna()
-            .astype(str)
-        )
-    except Exception as exc:  # network, BioMart outage, or empty/odd response
-        raise RuntimeError(
-            "scAutoQC could not retrieve Ensembl BioMart annotations (needs network access to "
-            "www.ensembl.org, which serves the latest release). Provide gene symbols in "
-            "var['gene_name'] or pre-seed <output>/results/scautoqc_gene_annotations.tsv "
-            f"(columns gene_id, gene_symbol, mito). Cause: {exc!r}"
-        ) from exc
+    # Ensembl BioMart drops requests now and then; a blip must not kill a multi-hour run.
+    for attempt, delay in enumerate(BIOMART_RETRY_DELAYS_S, start=1):
+        try:
+            annotations = sc.queries.biomart_annotations(
+                organism,
+                ["ensembl_gene_id", "external_gene_name", "gene_biotype", "chromosome_name"],
+            )
+            if "ensembl_gene_id" not in annotations or annotations.empty:
+                raise ValueError("empty BioMart response")
+            annotations = annotations.drop_duplicates("ensembl_gene_id").set_index(
+                "ensembl_gene_id"
+            )
+            mito_ids = set(
+                sc.queries.mitochondrial_genes(organism, attrname="ensembl_gene_id")[
+                    "ensembl_gene_id"
+                ]
+                .dropna()
+                .astype(str)
+            )
+            break
+        except Exception as exc:  # network, BioMart outage (ParseError), or odd response
+            if delay is not None:
+                time.sleep(delay)
+                continue
+            raise RuntimeError(
+                f"scAutoQC could not retrieve Ensembl BioMart annotations after {attempt} "
+                "attempts (needs network access to www.ensembl.org, which serves the latest "
+                "release). Provide gene symbols in var['gene_name'] or pre-seed "
+                "<output>/results/scautoqc_gene_annotations.tsv "
+                f"(columns gene_id, gene_symbol, mito). Cause: {exc!r}"
+            ) from exc
     mapped = annotations.reindex(stable_ids)
     unmapped = float(mapped["external_gene_name"].isna().mean())
     if unmapped > 0.2:
