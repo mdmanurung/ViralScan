@@ -38,6 +38,7 @@ from viralscan.gene_programs import (
     STATES,
     Marker,
     call_cell_programme,
+    catalogue_virus_facts,
     load_catalogue,
     resolve_markers,
     summarise_programs,
@@ -1260,6 +1261,10 @@ class TestKshvLyticMarkers:
         assert {"HHV8_gs01", "K4", "K3", "ORF52"} <= set(productive)  # HHV8_gs01 is PAN
         assert "ORF37" not in productive
         assert productive["HHV8_gs01"]["has_cds"] == "false"
+        # PAN must be capture-certain, or `latent` becomes unreachable for the whole virus.
+        assert productive["HHV8_gs01"]["polya_capture"] == "yes"
+        facts = catalogue_virus_facts(_catalog())["Human herpesvirus 8"]
+        assert not facts.get("capture_uncertain_productive")
         assert "PAN" in productive["HHV8_gs01"]["note"]
         assert validate_catalogue(_catalog()) == []
 

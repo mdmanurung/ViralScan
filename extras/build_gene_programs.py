@@ -852,6 +852,12 @@ CAPTURE_ANNOTATION_BASIS = (
 
 #: Verified, marker-specific overrides, ``(virus, refseq_gene) -> (value, basis)``.
 CAPTURE_OVERRIDES: dict[tuple[str, str], tuple[str, str]] = {
+    ("Human herpesvirus 8", "HHV8_gs01"): (
+        "yes",
+        "PAN RNA is an RNA polymerase II transcript with a polyadenylated 3' end (Sun et al. "
+        "1996, PMID 8876232); the RefSeq record is misc_RNA with no CDS, so the annotation "
+        "rule cannot derive this",
+    ),
     ("Human herpesvirus 1", "LAT"): (
         "unknown",
         "primary 8.3 kb LAT is capped and polyadenylated, but the stable 1.5 and 2 kb LAT "
