@@ -572,6 +572,8 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "lytic activity",
         "kinetic_class": "latent",
         "kinetic_pmid": "9733875;17913828",
+        # Vetoes no productive call into ``mixed`` (PROG-KSHV-MARKERS-01): 96% of lytic cells carry it.
+        "induced_in_lytic": True,
     },
     {
         "virus": "Human herpesvirus 8",
@@ -608,14 +610,9 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "kinetic_class": "late",
         "kinetic_pmid": "24453964;36733461",
     },
-    {
-        "virus": "Human herpesvirus 8",
-        "refseq_gene": "ORF37",
-        "programme": "productive",
-        "note": "lytic",
-        "kinetic_class": "early",
-        "kinetic_pmid": "24453964",
-    },
+    # ORF37 was removed (PROG-KSHV-MARKERS-01): 0 unique molecules even in lytic libraries.
+    # Marking it polya_capture=unknown would make the whole virus absence_assessable=false and
+    # so make `latent` unreachable for KSHV; a marker that cannot be seen only adds a dead column.
     {
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF43",
@@ -623,6 +620,43 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "note": "lytic",
         "kinetic_class": "late",
         "kinetic_pmid": "24453964;30735904",
+    },
+    # Lytic transcripts with unique placement, added after the first KSHV libraries showed the
+    # original set (ORF16/17/43/50) reached breadth 2 in few lytic cells. Class and time follow
+    # Arias 2014 (PMID 24453964, Table 1, first detection after iSLK-219 reactivation).
+    {
+        "virus": "Human herpesvirus 8",
+        "refseq_gene": "HHV8_gs01",
+        "programme": "productive",
+        "note": "PAN RNA (nut-1, T1.1), polyadenylated nuclear non-coding RNA, the most abundant "
+        "lytic transcript (PMID 8876232); first detected 8 h (PMID 24453964). Overlaps the K7 "
+        "locus",
+        "kinetic_class": "early",
+        "kinetic_pmid": "24453964;8876232",
+    },
+    {
+        "virus": "Human herpesvirus 8",
+        "refseq_gene": "K4",
+        "programme": "productive",
+        "note": "vMIP-II; first detected 8 h (PMID 24453964)",
+        "kinetic_class": "early",
+        "kinetic_pmid": "24453964",
+    },
+    {
+        "virus": "Human herpesvirus 8",
+        "refseq_gene": "K3",
+        "programme": "productive",
+        "note": "MIR1 immune modulator; first detected 24 h (PMID 24453964)",
+        "kinetic_class": "early",
+        "kinetic_pmid": "24453964",
+    },
+    {
+        "virus": "Human herpesvirus 8",
+        "refseq_gene": "ORF52",
+        "programme": "productive",
+        "note": "tegument protein; first detected 48-72 h (PMID 24453964)",
+        "kinetic_class": "late",
+        "kinetic_pmid": "24453964",
     },
     # ── HHV-6B (AF157706) — partial ──────────────────────────────────────
     # The bundled HHV-6B GTF carries no attributes at all; these IDs are
@@ -797,6 +831,7 @@ TSV_COLUMNS = (
     "do_not_normalise",
     "kinetic_class",
     "kinetic_pmid",
+    "induced_in_lytic",
     "polya_capture",
     "capture_basis",
     "note",
@@ -817,6 +852,12 @@ CAPTURE_ANNOTATION_BASIS = (
 
 #: Verified, marker-specific overrides, ``(virus, refseq_gene) -> (value, basis)``.
 CAPTURE_OVERRIDES: dict[tuple[str, str], tuple[str, str]] = {
+    ("Human herpesvirus 8", "HHV8_gs01"): (
+        "yes",
+        "PAN RNA is an RNA polymerase II transcript with a polyadenylated 3' end (Sun et al. "
+        "1996, PMID 8876232); the RefSeq record is misc_RNA with no CDS, so the annotation "
+        "rule cannot derive this",
+    ),
     ("Human herpesvirus 1", "LAT"): (
         "unknown",
         "primary 8.3 kb LAT is capped and polyadenylated, but the stable 1.5 and 2 kb LAT "
@@ -1343,6 +1384,7 @@ def main(argv: list[str] | None = None) -> int:
                         "do_not_normalise": str(virus in DO_NOT_NORMALISE_VIRUSES).lower(),
                         "kinetic_class": entry.get("kinetic_class", "unclassified"),
                         "kinetic_pmid": entry.get("kinetic_pmid", ""),
+                        "induced_in_lytic": str(bool(entry.get("induced_in_lytic"))).lower(),
                         "polya_capture": polya_capture(virus, refseq, rec)[0],
                         "capture_basis": polya_capture(virus, refseq, rec)[1],
                         "note": note,

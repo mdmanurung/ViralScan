@@ -38,6 +38,7 @@ from viralscan.gene_programs import (
     STATES,
     Marker,
     call_cell_programme,
+    catalogue_virus_facts,
     load_catalogue,
     resolve_markers,
     summarise_programs,
@@ -1230,6 +1231,52 @@ def _m(name: str, programme: str, group: str, kinetic: str = "unclassified") -> 
     return Marker(name, programme, group, True, True, kinetic)
 
 
+class TestKshvLyticMarkers:
+    """PROG-KSHV-MARKERS-01: PAN/K4/K3/ORF52 are productive; K12 never vetoes a productive call."""
+
+    P1 = _m("p1", "productive", "g1", "early")
+    P2 = _m("p2", "productive", "g2", "early")
+    K12 = Marker("k12", "latent", "g3", True, True, "latent", induced_in_lytic=True)
+    LAT = _m("lat", "latent", "g4", "latent")
+    MARKERS = [P1, P2, K12, LAT]
+
+    def _state(self, *names: str) -> str:
+        cols = [i for i, m in enumerate(self.MARKERS) if m.var_name in names]
+        matrix = _matrix([(c, 0, 1.0) for c in cols], 1, len(self.MARKERS))
+        return call_cell_programme(matrix, self.MARKERS)[0]["state"]
+
+    def test_two_productive_groups_plus_flagged_k12_is_productive(self) -> None:
+        assert self._state("p1", "p2", "k12") == "productive"
+
+    def test_two_productive_groups_plus_plain_latent_is_mixed(self) -> None:
+        assert self._state("p1", "p2", "lat") == "mixed"
+
+    def test_k12_alone_is_still_latent(self) -> None:
+        assert self._state("k12") == "latent"
+
+    def test_catalogue_flags_only_k12_and_lists_the_new_productive_markers(self) -> None:
+        kshv = [r for r in _catalog() if r["virus"] == "Human herpesvirus 8"]
+        assert {r["refseq_gene"] for r in kshv if r["induced_in_lytic"] == "true"} == {"K12"}
+        productive = {r["refseq_gene"]: r for r in kshv if r["programme"] == "productive"}
+        assert {"HHV8_gs01", "K4", "K3", "ORF52"} <= set(productive)  # HHV8_gs01 is PAN
+        assert "ORF37" not in productive
+        assert productive["HHV8_gs01"]["has_cds"] == "false"
+        # PAN must be capture-certain, or `latent` becomes unreachable for the whole virus.
+        assert productive["HHV8_gs01"]["polya_capture"] == "yes"
+        facts = catalogue_virus_facts(_catalog())["Human herpesvirus 8"]
+        assert not facts.get("capture_uncertain_productive")
+        assert "PAN" in productive["HHV8_gs01"]["note"]
+        assert validate_catalogue(_catalog()) == []
+
+    def test_catalogue_without_the_column_still_loads(self) -> None:
+        rows = [{k: v for k, v in r.items() if k != "induced_in_lytic"} for r in _catalog()]
+        assert validate_catalogue(rows) == []
+        resolved, _ = resolve_markers(
+            "Human herpesvirus 8", [r["gene_id_bundled"] for r in rows], catalogue=rows
+        )
+        assert not any(m.induced_in_lytic for m in resolved)
+
+
 class TestReactivatingAndParameters:
     """PLAN PROG-12: the ``reactivating`` state, latent breadth and the UMI floor."""
 
@@ -1452,5 +1499,10 @@ class TestReactivatingAndParameters:
                 old = _legacy_decide(prod, lat, 2, observable)
                 if call["state"] == "reactivating":
                     assert old == "indeterminate", (virus, i, call)
+                elif any(m.induced_in_lytic for m in resolved) and (call["state"], old) == (
+                    "productive",
+                    "mixed",
+                ):
+                    continue  # PROG-KSHV-MARKERS-01: induced_in_lytic latent markers do not veto
                 else:
                     assert call["state"] == old, (virus, i, call, old)

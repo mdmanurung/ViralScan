@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- **Output change (PLAN `PROG-KSHV-MARKERS-01`):** KSHV gene-programme calls change. PAN, K4, K3 and ORF52 are now productive markers and ORF37 (never seen on the unique layer) is dropped. K12 carries the new `induced_in_lytic` catalogue column: it still supports `latent` but no longer turns a `productive` cell into `mixed`. The column is optional, so other catalogues load unchanged.
 - Fix (PLAN `BUILDREF-HOSTDUP-01`): `build-ref --host` no longer fails on identical host transcripts (Ensembl cDNA has them); they are kept and counted in the log. Exact duplicates involving a viral record still stop the build.
 
 ## 3.0.0rc1 (release candidate; date set when tagged)
