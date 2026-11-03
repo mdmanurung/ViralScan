@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Fix (PLAN `BUILDREF-HOSTDUP-01`): `build-ref --host` no longer fails on identical host transcripts (Ensembl cDNA has them); they are kept and counted in the log. Exact duplicates involving a viral record still stop the build.
+
 ## 3.0.0rc1 (release candidate; date set when tagged)
 
 The `v3.0.0rc1` tag of 2026-10-23 never produced a release (its three release runs failed before publication), so everything since is part of this candidate and the tag will be moved when rc1 is cut (PLAN `RC-03`).
