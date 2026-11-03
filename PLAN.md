@@ -7,6 +7,7 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `TCHEM-DROPSEQ-01` (2026-11-02, `codex/tchem-dropseq`, user decision, found by the HSV-1 SRR8315713 run): `tchem.compare` returned `no_call` for Drop-seq (tchem layout `Drop-seq` has no kb command), so the default `--tchem auto` stopped a run with `-x dropseq`. It now returns `agree` when the layout name and `-x` match after lower-casing and dropping punctuation. Every other layout without a kb technology stays `no_call`. Test: `tests/test_tchem.py::TestCompare::test_layout_without_kb_command_agrees_only_by_name`.
 - [x] `PLAN-SPLIT-EXP-01` (2026-11-02, `codex/plan-split-experiments`, user decision: experiment work lives only in the reproducibility repo): 64 open experiment rows
   (64 row blocks, 62 IDs) moved to the repro `PLAN.md`; the list is in "Moved to the reproducibility tracker". `SCAUTOQC-01` split: code stays, its real-data gate is repro `SCAUTOQC-01-RUN`.
   `CLAUDE.md` "Sibling repository" now names these rows. No code or test change.
@@ -113,6 +114,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 - [~] `DISC` Kraken2 cell-resolved taxonomic discovery: plan approved 2026-10-21 (all nine §16 decisions).
   `DISC-R1` (grouping perf) done. `DISC-09` (R2: provenance, fingerprint, publish, resume) done. `DISC-R5` (per-UMI rule: deepest-consistent) done. `DISC-R6` (polyA/T trim before Kraken2) done. `DISC-R7b` (Kraken2 defaults 0.05 / 4) done. `DISC-01` (R3: discovery env, doctor profile) done. `DISC-10` (R4: real-Kraken2 integration test) done. `DISC-11` (R7: `discover-collapse` rank views) done. `DISC-R8` (minimal `candidates.tsv`) done. `DISC-R9` (docs: `docs/discovery.md`) done. `DISC-R10` (EBV real-data validation, 3 arms) done. `DISC-R11` (close-out) done. Defaults 0.05 / 4 confirmed by the user after R10 (2026-10-22). Next: push and PR (user); then `DISC-12`.
 - [~] REVIEW-C (WP-3): coverage-map code/fixtures pass; real-directory qualification pending.
+  - 2026-11-02 split: the package code and fixtures are done; the real-directory qualification moved to the repro tracker as `REVIEW-C-RUN`. Flip this row to `[x]` when that row closes.
   - Note: real Track A BAMs (`VIRUS|U31784.1`) vs a bare-accession GTF gave `annotation_mismatch`;
     `resolve_reference_annotation` now also accepts `ACC` for viral-class references only and
     records `annotation_seqid` / `annotation_seqid_normalised` in the coverage-map JSON.
@@ -130,7 +132,8 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   the target's multimapper QNAMEs go to a file, one `samtools view -N` pass collects their other records, and the same precedence
   applies (any `HOST|` partner, else another `VIRUS|` contig, else unique; same-contig hits stay unique). Streams records; memory is the
   multimapper QNAME set. Tested on a synthetic NH/HI BAM.
-  **Open:** layout review by the user, a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1, a `environment.coverage.yml` solve in CI.
+  **Open (package):** layout review by the user, a `environment.coverage.yml` solve in CI.
+  **Moved 2026-11-02 to the reproducibility tracker as `COVMAP-01-RUN`:** a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1. Flip this row to `[x]` when the package items and that row close.
 - [~] `REF-11-PREP` (2026-10-23, `codex/panel-archive-script`, user: keep the script): `scripts/make_panel_archive.py` builds the
   deterministic viral-annotation panel archive for Zenodo (zip in the `viralscan data fetch` layout + `PANEL_MANIFEST.json`,
   `SHA256SUMS`, DRAFT `zenodo_metadata.draft.json` with TODO values). Preparation only: nothing uploaded, no DOI reserved.
@@ -311,7 +314,8 @@ packaging, release and CI. An ID in this list that appears elsewhere in this fil
 - Catalogue and reference measurements: `CAT-07`, `CAT-08`, `CAT-10`, `CAT-14`, `CAT-15`, `CAT-16`, `CAT-19`, `CAT-40`.
 - Gene programmes: `PROG-15`, `PROG-16`, `PROG-18`.
 - Translated search (arm P): `AA-02`, `AA-04`, `AA-05`.
-- Split rows: `SCAUTOQC-01` stays here (code done); its real-data gate is `SCAUTOQC-01-RUN` in the repro tracker.
+- Split rows: `SCAUTOQC-01` stays here (code done); its real-data gate is `SCAUTOQC-01-RUN` in the repro tracker. Likewise `COVMAP-01` (real-library pyGenomeTracks run: `COVMAP-01-RUN`) and `REVIEW-C` (real-directory qualification: `REVIEW-C-RUN`).
+- Checked and not split: `AUD3-REF08-DIVERGED` has no run part. It is a deferral of the homology threshold to `REF-08` (already in the repro tracker), so it stays here as written.
 
 ## How to use this tracker
 
@@ -1972,6 +1976,11 @@ No open rows; done rows are in the PLAN archive (see Next action).
     so the repro must allow-list them by text anchor (list in the PR) before the gate can fail.
   - Not done: the repro gate is not failing yet; installation claims still have no registry artifact (the
     DOC-05 run log is not committed or inventoried).
+  - 2026-11-02 (`codex/changelog-4pct`): a reviewer read the `CHANGELOG.md` "4.0% to 0.2%" line as 50 of 1,000 = 5 %.
+    The line is correct, so it is unchanged and the repro allow-list anchor stands. The fixture
+    (`test_complete_universe_legacy_and_fractional`, commit 3f4f99b, since moved to the repro) has 50 viral-positive
+    cells, of which 2 reach 10 molecules (the other 48 have 9.6). Legacy denominator = 50 viral-positive called
+    cells: 2/50 = 4.0 %. New denominator = 1,000 called cells: 2/1,000 = 0.2 %. The 50 is a denominator, not the numerator.
 ## WP9 — Regenerate and review the manuscript
 
 No open rows; done rows are in the PLAN archive (see Next action).

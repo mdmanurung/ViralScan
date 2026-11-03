@@ -196,6 +196,13 @@ class TestCompare:
         c = tchem.parse_report(_report(), None)
         assert tchem.compare("10xv2", c).status == "no_call"
 
+    def test_layout_without_kb_command_agrees_only_by_name(self):
+        drop = tchem.parse_report(_report(layout="Drop-seq"), None)
+        assert tchem.compare("dropseq", drop).status == "agree"
+        assert tchem.compare("10xv2", drop).status == "no_call"
+        other = tchem.parse_report(_report(layout="inDrops"), None)
+        assert tchem.compare("dropseq", other).status == "no_call"
+
     def test_no_technology_reports_info(self):
         op = tchem.compare(None, self._call())
         assert op.status == "info" and f"-x {V2}" in op.reason and "--strand forward" in op.reason
