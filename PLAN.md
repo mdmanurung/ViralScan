@@ -700,6 +700,13 @@ No open rows; done rows are in the PLAN archive (see Next action).
     (no docker; running a downloaded grype binary was refused). Next: re-run the release job on a moved tag
     (`RC-03`, maintainer), read the printed list, bump conda pins in `environment.explicit.txt` where a fix exists, and
     list the rest in `.grype.yaml` (one `vulnerability:` entry per CVE, with `reason` and a review date in a comment).
+  - 2026-11-03: new `image-audit.yml` (PR paths filter + `workflow_dispatch`, no login/push/tag) builds the image and runs
+    the same grype gate. First scan on Miniforge 26.9.4-0 (Ubuntu 24.04, 1055 packages): 76 High/Critical rows. Pins bumped
+    in `environment.explicit.txt` (md5 from conda-forge repodata; dependencies checked against the lock by script, no
+    solver run): pillow 12.3.0 -> 13.0.0, curl/libcurl 8.22.0 -> 8.23.0, python 3.11.16 -> 3.11.18 (+libpython, libsqlite),
+    brotli family 1.2.0 -> 1.2.1, certifi 2026.10.18, nbconvert 7.17.2, filelock 4.2.1, gitpython 3.2.1. Not fixable by a pin:
+    krb5 1.22.2 (no fixed release), gcc 4.8.5 (3 CVEs), virtualenv 21.14.5 (21.14.9 not on conda-forge), rust `zip` 8.6.0 (inside a
+    locked binary), base-env python 3.14.9, deb libbrotli1. No ignore entries yet (user decision).
 - [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
   - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation
