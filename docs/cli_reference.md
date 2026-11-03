@@ -710,6 +710,11 @@ Run layer 2 over a completed run; results go to `<run-dir>/posthoc/programs/` by
 viralscan rerun-programs --run-dir output/sample/ --programme-min-breadth 2
 ```
 
+`--programme-productive-min-molecules N` makes a productive marker count toward productive
+breadth only at N or more molecules in the cell (default 1, any nonzero value); latent
+markers keep their own bar. A value of 2 cuts single-molecule `mixed` calls on KSHV but also
+moves lytic cells to `latent`, so check it on your own lytic control first.
+
 Unlike `rerun-multimap` this does not copy the run. Layer 2 only reads the count
 matrices and layer 1's `viral_summary.tsv` and writes two `gene_program_*.tsv`
 files under `results/` of the output directory (`-o DIR` overrides the default);
@@ -780,6 +785,7 @@ the sections above add context. Do not edit between the markers.
 | `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because EBV's latent and lytic ORFs share exonic sequence: on the EBV LCL run a naive per-gene comparison gives a latent:lytic ratio of 1.15 in a cell line defined by latency. Must be >= 1. Default: 2. |
 | `--programme-latent-min-breadth N` | `1` | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: 1. |
 | `--programme-min-umi X` | `0.0` | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: 0.0. |
+| `--programme-productive-min-molecules N` | `1` | A productive marker counts toward productive breadth only at >= N molecules in the cell; latent markers are unaffected. 1 means any nonzero value. Must be >= 1. Default: 1. |
 | `--min-counts MIN_COUNTS` | `1000` | Minimum total molecule count per cell (for UMAP QC). Default: 1000. |
 | `--min-genes MIN_GENES` | `200` | Minimum detected genes per cell (for UMAP QC filter). Default: 200. |
 | `--hvg-min-mean HVG_MIN_MEAN` | `0.0125` | Scanpy highly-variable-gene min_mean parameter. Default: 0.0125. |
@@ -1049,6 +1055,7 @@ the row not estimable.
 | `--programme-min-breadth N` | *(none)* | Distinct non-overlapping overlap groups required before a programme is called. Must be >= 1. Default: the run's own config (2 if it set none). |
 | `--programme-latent-min-breadth N` | *(none)* | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: the run's own config (1 if it set none). |
 | `--programme-min-umi X` | *(none)* | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: the run's own config (0.0 if it set none). |
+| `--programme-productive-min-molecules N` | *(none)* | A productive marker counts toward productive breadth only at >= N molecules in the cell; latent markers are unaffected. 1 means any nonzero value. Must be >= 1. Default: the run's own config (1 if it set none). |
 | `--force` | `False` | Write into --output although it already holds files (same-named files are replaced; nothing is deleted). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |

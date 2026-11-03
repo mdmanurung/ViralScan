@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- **New option (PLAN `PROG-MINMOL-01`):** `--programme-productive-min-molecules N` (also on `rerun-programs`, `programme_productive_min_molecules` in the config) sets the molecules a productive marker needs before it counts toward productive breadth; latent breadth is unchanged. The default stays 1 (any nonzero value), so no call changes. `N=2` cut BC-1 `mixed` calls by 83-86% but halved lytic KSHV productive calls and moved HSV-1 productive calls to `indeterminate`, so it did not pass the default gate. `gene_program_summary.tsv` gains a `productive_min_molecules` column.
 - **Output change (PLAN `PROG-KSHV-MARKERS-01`):** KSHV gene-programme calls change. PAN, K4, K3 and ORF52 are now productive markers and ORF37 (never seen on the unique layer) is dropped. K12 carries the new `induced_in_lytic` catalogue column: it still supports `latent` but no longer turns a `productive` cell into `mixed`. The column is optional, so other catalogues load unchanged.
 - Fix (PLAN `SCAUTOQC-01`): `--scautoqc` retries the Ensembl BioMart annotation query (3 attempts, 5 and 15 s waits) before failing, so one transient BioMart error no longer aborts a long run.
 - Fix (PLAN `BUILDREF-HOSTDUP-01`): `build-ref --host` no longer fails on identical host transcripts (Ensembl cDNA has them); they are kept and counted in the log. Exact duplicates involving a viral record still stop the build.

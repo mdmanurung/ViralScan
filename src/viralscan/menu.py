@@ -208,6 +208,9 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
         _die("--programme-latent-min-breadth must be >= 1.", 2)
     if args.programme_min_umi is not None and args.programme_min_umi < 0:
         _die("--programme-min-umi must be >= 0.", 2)
+    pmm = args.programme_productive_min_molecules
+    if pmm is not None and pmm < 1:
+        _die("--programme-productive-min-molecules must be >= 1.", 2)
 
     with config_path.open() as handle:
         loaded = _yaml.safe_load(handle)
@@ -227,7 +230,12 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
         )
         payload["multimap_primary_call"] = "selected-method"
     # An explicit flag overrides the run's own config.yaml; absent, the run's value stands.
-    for key in ("programme_min_breadth", "programme_latent_min_breadth", "programme_min_umi"):
+    for key in (
+        "programme_min_breadth",
+        "programme_latent_min_breadth",
+        "programme_min_umi",
+        "programme_productive_min_molecules",
+    ):
         if getattr(args, key) is not None:
             payload[key] = getattr(args, key)
     config = RunConfig.from_snakemake_config(payload)
@@ -1404,6 +1412,11 @@ def _build_run_config(
                 args, "programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"]
             ),
             "programme_min_umi": getattr(args, "programme_min_umi", DEFAULTS["programme_min_umi"]),
+            "programme_productive_min_molecules": getattr(
+                args,
+                "programme_productive_min_molecules",
+                DEFAULTS["programme_productive_min_molecules"],
+            ),
             # getattr matches the existing convention for args that older
             # callers may not set (see the host_filter handling below).
             "anellovirus_gene_ids": getattr(

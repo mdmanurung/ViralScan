@@ -517,6 +517,7 @@ def call_cell_programme(
     cell_index: int | None = None,
     latent_min_breadth: int = 1,
     min_umi: float = 0.0,
+    productive_min_molecules: int = 1,
     reactivating_applicable: bool = True,
     absence_assessable: bool = True,
 ) -> list[dict[str, Any]]:
@@ -552,7 +553,12 @@ def call_cell_programme(
     min_umi:
         Per-marker floor: a marker counts only when its value is at least this
         (and positive). Must be >= 0; the default 0 is any nonzero value, the
-        pre-PROG-12 rule.
+        pre-PROG-12 rule. Applies to every marker, latent included.
+    productive_min_molecules:
+        Molecules a *productive* marker needs before it counts toward productive
+        breadth (PLAN PROG-MINMOL-01). Latent markers are unaffected. Must be
+        >= 1; ``1`` is any nonzero value, the rule before PROG-MINMOL-01. It
+        stacks with ``min_umi``: a productive marker needs the larger of the two.
     reactivating_applicable:
         When false the ``reactivating`` state is never emitted. It is also
         never emitted when ``latency_observable`` is false (audit D-01). It is
@@ -581,6 +587,10 @@ def call_cell_programme(
         raise ValueError(f"latent_min_breadth must be >= 1, got {latent_min_breadth}.")
     if min_umi < 0:
         raise ValueError(f"min_umi must be >= 0, got {min_umi}.")
+    if productive_min_molecules < 1:
+        raise ValueError(f"productive_min_molecules must be >= 1, got {productive_min_molecules}.")
+    # 1 means "any nonzero", so fractional multimap-allocated values still count.
+    prod_floor = max(min_umi, productive_min_molecules if productive_min_molecules > 1 else 0)
     groups = {i: m.overlap_group for i, m in enumerate(markers)}
     productive_cols = [i for i, m in enumerate(markers) if m.is_productive]
     later_cols = [i for i in productive_cols if markers[i].kinetic_class != "immediate_early"]
@@ -591,15 +601,28 @@ def call_cell_programme(
 
     indices = [cell_index] if cell_index is not None else range(unique_matrix.shape[0])
 
+    def _breadths(matrix: sparse.csr_matrix, cell: int) -> tuple[int, int, int, bool]:
+        """Productive, latent and veto breadth, and whether only immediate-early fired."""
+        nonzero = _nonzero_columns(matrix, cell, min_umi)
+        prod_nonzero = (
+            nonzero if prod_floor == min_umi else _nonzero_columns(matrix, cell, prod_floor)
+        )
+        prod = _breadth(prod_nonzero, productive_cols, groups)
+        ie_only = (
+            reactivating_applicable
+            and prod >= 1
+            and _breadth(prod_nonzero, later_cols, groups) == 0
+        )
+        return (
+            prod,
+            _breadth(nonzero, latent_cols, groups),
+            _breadth(nonzero, veto_cols, groups),
+            ie_only,
+        )
+
     calls: list[dict[str, Any]] = []
     for cell in indices:
-        nonzero = _nonzero_columns(unique_matrix, cell, min_umi)
-        prod = _breadth(nonzero, productive_cols, groups)
-        lat = _breadth(nonzero, latent_cols, groups)
-        lat_veto = _breadth(nonzero, veto_cols, groups)
-        ie_only = (
-            reactivating_applicable and prod >= 1 and _breadth(nonzero, later_cols, groups) == 0
-        )
+        prod, lat, lat_veto, ie_only = _breadths(unique_matrix, cell)
         state = _decide(
             prod,
             lat,
@@ -613,15 +636,7 @@ def call_cell_programme(
 
         sel_prod = sel_lat = sel_state = None
         if selected_matrix is not None:
-            sel_nonzero = _nonzero_columns(selected_matrix, cell, min_umi)
-            sel_prod = _breadth(sel_nonzero, productive_cols, groups)
-            sel_lat = _breadth(sel_nonzero, latent_cols, groups)
-            sel_lat_veto = _breadth(sel_nonzero, veto_cols, groups)
-            sel_ie_only = (
-                reactivating_applicable
-                and sel_prod >= 1
-                and _breadth(sel_nonzero, later_cols, groups) == 0
-            )
+            sel_prod, sel_lat, sel_lat_veto, sel_ie_only = _breadths(selected_matrix, cell)
             sel_state = _decide(
                 sel_prod,
                 sel_lat,
@@ -659,6 +674,7 @@ def summarise_programs(
     viruses: Iterable[str] | None = None,
     latent_min_breadth: int = 1,
     min_umi: float = 0.0,
+    productive_min_molecules: int = 1,
     marker_resolution: dict[str, dict[str, Any]] | None = None,
 ) -> pd.DataFrame:
     """Roll per-cell calls up to one row per virus.
@@ -813,6 +829,7 @@ def summarise_programs(
                 "min_breadth": min_breadth,
                 "latent_min_breadth": latent_min_breadth,
                 "marker_min_umi": min_umi,
+                "productive_min_molecules": productive_min_molecules,
                 "n_markers_resolved": n_res,
                 "n_markers_unresolved": n_unres,
                 "caveat": caveat,
