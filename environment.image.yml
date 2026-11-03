@@ -37,4 +37,5 @@ dependencies:
   - jinja2>=3.0
   - pyfiglet
   - gget
+  - cython  # pip check: gget -> pyseq-align declares cython
   - pip
