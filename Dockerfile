@@ -16,7 +16,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY environment.explicit.txt /tmp/environment.explicit.txt
-RUN mamba update --yes --name base 'python>=3.14.10,<3.15' \
+RUN conda install --yes --name base 'python>=3.14.10,<3.15' \
     && mamba create --yes --name viralscan --file /tmp/environment.explicit.txt \
     && mamba clean --all --force-pkgs-dirs --yes
 
