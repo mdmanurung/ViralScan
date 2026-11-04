@@ -212,6 +212,9 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
     pmm = args.programme_productive_min_molecules
     if pmm is not None and pmm < 1:
         _die("--programme-productive-min-molecules must be >= 1.", 2)
+    alpha = args.programme_mixed_veto_alpha
+    if alpha is not None and not 0 < alpha < 1:
+        _die("--programme-mixed-veto-alpha must be in (0, 1).", 2)
 
     with config_path.open() as handle:
         loaded = _yaml.safe_load(handle)
@@ -236,6 +239,8 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
         "programme_latent_min_breadth",
         "programme_min_umi",
         "programme_productive_min_molecules",
+        "programme_mixed_veto",
+        "programme_mixed_veto_alpha",
     ):
         if getattr(args, key) is not None:
             payload[key] = getattr(args, key)
@@ -972,6 +977,19 @@ def errorhandler(args: argparse.Namespace) -> None:
 
     if getattr(args, "gene_programs", False) and not getattr(args, "multimapping", True):
         _die("--gene-programs needs multimapping; drop --no-multimapping.", 2)
+    alpha = getattr(args, "programme_mixed_veto_alpha", None)
+    if alpha is not None and not 0 < alpha < 1:
+        _die("--programme-mixed-veto-alpha must be in (0, 1).", 2)
+    if getattr(args, "programme_mixed_veto", None) == "betabinomial":
+        from viralscan.gene_programs import load_veto_settings
+
+        # Fail before hours of quantification, not at layer 2 (PROG-MIXED-VETO-01).
+        if not any(v.fitted for v in load_veto_settings().values()):
+            _die(
+                "--programme-mixed-veto betabinomial needs a fitted veto, and "
+                "gene_program_vetoes.tsv has none for any virus.",
+                2,
+            )
 
     host_filter = getattr(args, "host_filter", None)
     host_index = getattr(args, "host_index", None)
@@ -1421,6 +1439,13 @@ def _build_run_config(
                 "programme_productive_min_molecules",
                 DEFAULTS["programme_productive_min_molecules"],
             ),
+            # PROG-MIXED-VETO-01: the CLI leaves these None when unset (fingerprint), the
+            # config records the value used.
+            "programme_mixed_veto": getattr(args, "programme_mixed_veto", None)
+            or DEFAULTS["programme_mixed_veto"],
+            "programme_mixed_veto_alpha": DEFAULTS["programme_mixed_veto_alpha"]
+            if getattr(args, "programme_mixed_veto_alpha", None) is None
+            else args.programme_mixed_veto_alpha,
             # getattr matches the existing convention for args that older
             # callers may not set (see the host_filter handling below).
             "anellovirus_gene_ids": getattr(
