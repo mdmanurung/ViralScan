@@ -59,6 +59,7 @@ from pathlib import Path
 import requests
 
 from viralscan.run_safety import sha256_file
+from viralscan.source_licences import draft_source_licence
 
 log = logging.getLogger("viralscan")
 
@@ -703,12 +704,7 @@ def cached_accession_provenance(accession: str, cache_dir: Path) -> dict[str, ob
         "retrieved_at": retrieved_at,
         "retrieval_status": "recorded" if retrieved_at else "unknown_legacy_cache",
         "taxonomy": taxonomy,
-        "source_licence": {
-            "status": "unreviewed",
-            "terms": None,
-            "source": "NCBI nuccore",
-            "review_required": True,
-        },
+        "source_licence": draft_source_licence("NCBI nuccore"),
     }
 
 

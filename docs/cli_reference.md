@@ -769,6 +769,7 @@ the sections above add context. Do not edit between the markers.
 | `--index, -i INDEX` | *(none)* | The path to the reference index created by kb ref. |
 | `--cores, -c CORES` | `6` | The amount of cores the workflow can use. Default: 6. |
 | `--reference, --no-reference` | `False` | Build a kb ref index from --fasta and --gtf into the output directory. |
+| `--reference-host-species NAME` | *(none)* | With --reference: host species label recorded in reference_manifest.json (for example 'Homo sapiens'). A label only; it does not change the index. Default: 'unspecified'. |
 | `--gtf GTF` | *(none)* | Path to GTF files (comma-delimited, without space in-between). |
 | `--fasta FASTA` | *(none)* | Path to FASTA files (comma-delimited, without space in-between). |
 | `--f1 F1` | *(none)* | Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated |

@@ -294,6 +294,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   catalogued as `shipped` + `contaminant`, GTFs generated locally and listed in `gtf_corpus_manifest.tsv`; 2,272 tests pass) and **WP3 gates**
   (self-consistency matrix, EC-size gate, `CAT-40` `kallisto inspect`); iciHHV-6 flag and CAR-T vector
   filter under `CAT-04`. B19 genotype 2 stays deferred (no complete reference).
+  - 2026-11-04 (`codex/lane-p3-reference`, user decision G4): cat42d is frozen, so the WP2-WP5 promotions move to **3.1**. Nothing here changes the cat42d index inputs (FASTA, GTF, t2g, panel membership).
 - [x] *(pointer row, PLAN-HYGIENE-02: open members tracked in their own rows)* `REF-13` (done 2026-11-02), `CAT-36`, `CAT-38`/`39` (done 2026-10-10), `DEF-04` (done 2026-11-02: kept and warned) (annotation integrity); stale `AB303562.1` rows in
   `anellovirus_genes.tsv` (removed in `f4320d2`, 2026-10-10); GTF-manifest check in the build lifecycle
   (done: `build_bundled_panel_ref.py:_check_gtf_manifest` runs `write_gtf_manifest.py --check` before any fetch;
@@ -408,15 +409,17 @@ No open rows; done rows are in the PLAN archive (see Next action).
     "Human enterovirus 68, 70" for Enterovirus D.
   Re-run the scan in `CAT-41` after any catalogue merge.
   - 2026-11-02 (`PLAN-RECON-01`): the first three "Still open" items are stale. The catalogue now shows Influenza D per segment, NC_001664 "Human herpesvirus 6A" and KC138720 "Human papillomavirus type XS2". Only the smaller exemplar-name mismatches remain unreviewed.
+  - 2026-11-04 (`codex/lane-p3-reference`): the catalogue `common_name` is not an index input (the panel is built from the GTFs; the build only reads the catalogue for the `CAT-31` reconciliation), but the catalogue sha256 is pinned in run manifests and governance, so nothing was edited. Remaining exemplar names checked against NCBI titles: NC_001694.1 ("Human papillomavirus - 61") and NC_001352.1 ("- 2") are correct; X74467.1 is HPV 14D, shown as "14" (a type-level name, acceptable); NC_001430.1 is "Human enterovirus D" (EV-D70), shown as "Human enterovirus 68, 70", which over-names it. HPV68a and HPV6b rows not checked. **Question (user):** edit `NC_001430` common_name to "Enterovirus D70" now (changes the catalogue sha256, needs a re-pin) or batch it with the next catalogue change?
 - [~] `MECH-D` — **tracked under `DEF-02` (reconciled 2026-10-04): one module, one row;
   this closes with DEF-02.** (module landed 2026-10-03) Chemistry module: one geometry for kb, STARsolo and the
   preflight, plus an R1-length / polyT check. The 10x v2 run as `-x 10xv3`
   gave 1.78M "cells" with no error.
-- [~] `MECH-E` — the reference pipeline: source adapters → one gate module →
+- [x] `MECH-E` — the reference pipeline: source adapters → one gate module →
   masking → GTF emitter → index with a recorded D-list. The prototype is
   `viral_panel_max_2026-09-28/01–04`.
   Software side done under `AUD-15` (2026-10-11/12): source adapters, `_prepare_viral_fasta` masking gate, `_emit_viral_gtf` emitter, `_finish_reference_build` index boundary with `genome_dlist_applied` in the manifest. Left: governance re-pin and a real (non-mock) index build.
   - 2026-11-02 (`PLAN-RECON-01`): the governance re-pin is done (repro PR #19 pins package 9e31c65, `reference-manifest-schema` included). Only the real (non-mock) index build is left.
+  - 2026-11-04 (`codex/lane-p3-reference`): real (non-mock) index build done at small scale. `menu._build_kb_ref` (the `--reference` path: real `dustmasker` mask, gate, `kb ref`, manifest, `record_reference_build`) on three cached anellovirus genomes, run twice into fresh dirs: index built, `t2g`/`cdna.fa`/prepared FASTA/GTF identical, audit identical, `host_species` recorded. The full 465k-transcript panel rebuild is `REF-04` (job 25954275).
 - [~] `MECH-F` — the corrected-BUS boundary, index-aware denominators, and one
   - 2026-10-04 (1203250): **off-list drops are now counted.** The count audit gains:
     - `barcode_correction`;
@@ -859,7 +862,8 @@ No open rows; done rows are in the PLAN archive (see Next action).
   version, taxonomy, snapshot, retrieval date, SHA-256, length, licence, cluster,
   representative status, rationale, and missing-accession fields.
   - Blocked (2026-10-02): the licence fields need `REF-05`. Wiring the manifest into the production builder is `REF-03` (`[ ]`).
-- [~] `REF-03` — apply identical masking, duplicate-ID/sequence validation, and
+  - 2026-11-04 (`codex/lane-p3-reference`): the licence field is no longer empty. Manifest rows now carry a draft `source_licence.terms` (prefix `DRAFT, needs maintainer/legal review`) from `src/viralscan/source_licences.py` for `NCBI nuccore`, `Ensembl cDNA` and `local_input`; `status` stays `unreviewed`. **Left (user):** the reviewed sign-off in `REF-05`; cluster and representative fields for the production panel come with the `REF-07` curated manifest.
+- [x] `REF-03` — apply identical masking, duplicate-ID/sequence validation, and
   manifest generation to dedicated and combined build paths.
   - **Masking and gate done 2026-10-07.** `build_combined_reference` takes `mask=True` and runs
     `mask_low_complexity` (`MASK-01`) on the viral FASTA, then the same `_enforce_low_complexity_gate`
@@ -872,6 +876,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     `prepare_reference_inputs(mask=True)` (dustmasker, gate, per-sequence `reference_manifest.json`). Remaining
     limitation: that manifest records `host_species="unspecified"` for `--reference`, because a user-supplied
     FASTA/GTF carries no species.
+  - 2026-11-04 (`codex/lane-p3-reference`): **done.** `viralscan run --reference --reference-host-species NAME` (also `prepare_reference_inputs(host_species=)`, `menu._build_kb_ref(host_species=)`) records the species in `reference_manifest.json` (`host_species` and host-row `taxonomy.organism`). Default stays `unspecified`. A label only: the prepared FASTA is byte-identical either way (`test_reference_host_species_is_recorded_and_defaults_to_unspecified`). Passing it without `--reference` is an error. `docs/cli_reference.md` regenerated.
 - [~] `REF-04` — make frozen inputs rebuild byte-identical panel FASTA/GTF/t2g
   contents and save a reproducibility audit.
   - 2026-10-10 (wave 4): comparison tooling done. `scripts/compare_reference_reproducibility.py A.json B.json`
@@ -879,8 +884,11 @@ No open rows; done rows are in the PLAN archive (see Next action).
     `content_sha256` and every per-file digest, else 1 with one `field: a != b` line per difference. The
     binary `.idx` is not claimed. Test: `tests/test_compare_reference_reproducibility.py`. **Left (cluster
     task):** rebuild the real frozen-input panel twice and save the comparison as the audit.
-- [ ] `REF-05` — replace vague source-data licence text with reviewed terms for
+  - 2026-11-04 (`codex/lane-p3-reference`): no job submitted from this lane. The user's G4 byte-rebuild of cat42d is already queued (Slurm job 25954275, `g4_cat42d_rebuild`, repro `scripts/slurm_g4_cat42d_rebuild.sh`, writes a fresh `rebuild_g4_2026-11-04/`); a second copy would only repeat it. New: `scripts/make_panel_reference_manifest.py` turns any finished panel build dir into `reference_reproducibility.json`, so the frozen build and the rebuild compare with `scripts/compare_reference_reproducibility.py`. Tests `tests/test_make_panel_reference_manifest.py`.
+  - Small real check (3 anellovirus genomes, real `dustmasker` and `kb ref`, `menu._build_kb_ref` twice, fresh dirs): `content_sha256` and every file digest identical, but the two `index.idx` files differ (sha256 `b629bdeb...` vs `fa32a861...`). So the binary index is not byte-reproducible, which is why it stays out of the audit. **Left (cluster, after job 25954275):** run `make_panel_reference_manifest.py` on `viral_ref_cat42d/build` and on `rebuild_g4_2026-11-04/build`, then compare the two audits.
+- [~] `REF-05` — replace vague source-data licence text with reviewed terms for
   every redistributed or fetched reference source.
+  - 2026-11-04 (`codex/lane-p3-reference`): **draft table written**, `docs/reference_licences.md` (NCBI GenBank/RefSeq, NCBI Taxonomy, Ensembl 116, 10x GRCh38-2024-A genome D-list, the Clareau-lab accession list, igv.js, user input), each with the published terms, URL and an open question. Marked draft; no row is `reviewed`. **Left (user):** maintainer/legal review and sign-off. Questions: which licence for the ViralScan-authored GTF archive; do derived GTFs need a per-record claim check; what are the 10x reference-bundle terms; is an index built from Ensembl cDNA a redistribution.
 - [!] `REF-11` — publish the viral annotation panel archive and register its
   Zenodo DOI. `src/viralscan/data_fetch.py` pins
   `VIRAL_DATA_DOI = "10.5281/zenodo.20112332"`, but that identifier is **not
@@ -974,6 +982,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     - So these reads are lost by pseudoalignment itself, not by the D-list.
       Removing viral sequence from the D-list is not needed.
     - This supports F-022: gene models must reach the mRNA ends.
+  - 2026-11-04 (`codex/lane-p3-reference`): G4 (user, 2026-11-04) freezes cat42d. No cat42d input changed in this lane. The curated manifest is `scripts/make_panel_reference_manifest.py` (see `REF-07`); the freeze itself stays the user's.
 - [~] `REF-07` — save the reference manifest, host-homology/low-complexity table,
   index/t2g/GTF, commands, versions, checksums, and build resource accounting.
   - **2026-10-05: the host-homology table is in progress** (only that part; the
@@ -1050,6 +1059,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     the three tools `kb info` does not report. `menu._build_kb_ref` now passes `resources=` and `index=` (it
     previously discarded both). Left for `[x]`: the curated-panel manifest itself, the index/t2g/GTF copies, and
     the real build.
+  - 2026-11-04 (`codex/lane-p3-reference`): code for the curated manifest done. `scripts/make_panel_reference_manifest.py --build-dir <build> --out-dir <fresh>` reads a finished panel build (read only) and writes `reference_manifest.json` (one row per viral record: accession version, taxonomy, snapshot, retrieval date from the cache receipt or `unknown_legacy_cache`, SHA-256, length, draft licence, low-complexity metrics; D-list path and SHA-256; digests of viral/combined FASTA and GTF, `cdna.fa`, `panel.t2g`, the mask table; index digest and size) and `reference_reproducibility.json`. Run on the frozen cat42d build (login node, 6 min, output to a scratch dir): 2,343 viral rows, `content_sha256` `97193cb0...`, D-list SHA-256 `e368c0e5...` matches `dlist.sha256`; every row has retrieval status `unknown_legacy_cache` because the old NCBI cache entries have no retrieval receipt (no date is invented). **Left (user):** copy the outputs into the repro `viral_ref_cat42d/` at the G4 freeze; resource accounting for the original build is not recoverable (the job predates `build_receipt.resources`).
 - [~] `TIER-02` — **new, 2026-10-14 (Q135, Q141; `codex/tier-measures`).** The three measures behind the frozen `probable`
   grid, per `calibration.freeze_scope`. Software only; no data read, no calibration run, `protocol.yaml` untouched (so no
   digest, no DEV record, no collision with `DEV-032` on `codex/sci05-r15-fixes`).
@@ -1803,13 +1813,14 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
     (`fd8cee1` → `be1c196` → `c31742d`) is replayed against the new commit.
   - **Left open:** all 34 rows of `catalogued_not_indexed.tsv` still need a
     genome or a named decision. `CAT-32`/`CAT-33` are the first consumers.
-- [~] `CAT-36` — *(2026-10-10: reverse gap is zero, every GTF seqname is catalogued with `source`/`refseq`; the
+- [x] `CAT-36` — *(2026-10-10: reverse gap is zero, every GTF seqname is catalogued with `source`/`refseq`; the
   `oncogenic_class` ask is dropped because `hpv_genes.HIGH_RISK_GENOTYPES` already carries it; the 96-row
   count is measured on a built index and is not re-checked here.)* **the catalogue is now behind the panel by 96 rows.** The build
   reports 96 genomes indexed but absent from `virus_catalog.tsv` (the INSDC HPV
   set, plus `AF157706.1` HHV-6B). They have no provenance, family or tier, and
   `CAT-31`'s reverse check will keep reporting them. Extend the catalogue, and
   propagate `source` / `refseq` / `oncogenic_class` for the HPV rows.
+  - 2026-11-04 (`codex/lane-p3-reference`): re-measured on the frozen cat42d build (`viral.fa`, 2,343 records): every indexed record is in `virus_catalog.tsv` (0 missing; `accession_version` or `accession` match). The 96-row gap is closed. The catalogue holds 2,094 further accession versions that are not in cat42d; that is the forward direction tracked under `CAT-31`, not this row.
 ## WP4L — Audit 2026-10 findings (new 2026-10-11)
 
 - [~] `AUD-12` — Biomni-raised, not audited (`M-01` strand defaults across count/extract, `M-02` per-marker polyA/capturability, `M-03` ambient/swapping controls, `M-04` real-data sensitivity/specificity, `M-05` competitive host reference).
@@ -1837,6 +1848,7 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
 - [~] `AUD-15` — `MECH-E` reference pipeline refactor (user-approved for autonomous work 2026-10-11): source adapters, one gate, masking, GTF emitter; touches pinned `build_reference.py`; mock-verified only.
   **Decision (user, 2026-10-11):** refactor plus manifest schema additions allowed (D-list record, source adapters; bump `reference_manifest.schema.json`, governance re-pin, docs); a golden test must prove byte-identical FASTA/GTF/t2g on fixture inputs for everything not intentionally changed; mock-verified only. Also fold in D-13 (the anellovirus origin-wrap gene is transposed in the `kb ref` cDNA).
   Partial 2026-10-11: one `_prepare_viral_fasta` masking gate, `_finish_reference_build` index/receipt boundary, `source_adapters` and `genome_dlist_applied` in the manifest (`reference_manifest.schema.json` now accepts 3.0.0 and 3.0.1; builder writes 3.0.1), golden test `tests/test_reference_pipeline_aud15.py` (13 cases, byte-identical FASTA/GTF/t2g on fixtures). Then ab9d9da: the GTF emitter is one boundary, `build_reference._emit_viral_gtf` (catalogue and combined adapters; `_anellovirus_gtf` and `_gtf_from_merged_fasta` are thin wrappers). **D-13 closed as a documented limitation, 2026-10-12 (`codex/aud-15c`):** `ngs_tools` (the splitter `kb ref` runs) merges exons into a sorted `SegmentCollection`, so `join(2677..2824,1..80)` of KU243129.1 is indexed as `[1:80]+[2677:2824]` whatever order the GTF gives; this cannot be fixed in ViralScan's GTF without rotating the genome or splitting the gene, both of which change coordinates and the transcript model, so it needs an `ngs_tools`/kb-python change. The rows carry `viralscan_norm "wrap_native"` (as EBV LMP-2A/2B do) and `test_origin_wrap_gene_is_tagged_and_kb_splitter_transposes_it` runs the same splitter on a fixture, keeps the GTF in transcript order (ANELLO-05, never re-sorted) and fails if kb-python ever fixes the order. Impact: one gene, junction-spanning reads only. Still open: governance re-pin (user, once at the end).
+  - 2026-11-04 (`codex/lane-p3-reference`): the non-mock check now exists (see `MECH-E`: three-genome real build, twice, identical audits). The row stays `[~]` for the full-panel rebuild (`REF-04`, job 25954275) and the end-of-work governance re-pin (`build_reference.py`, `menu.py`, `ncbi_fetch.py` and `parsers.py` changed in this lane), which are the user's.
 - [~] `AUD-16` — `ANDET-01/02/04` follow-ups (user-approved 2026-10-11): per-accession genome-coverage breadth, host-homology coordinates kept for later demotion; auto-evidence stays opt-in.
   **Decision (user, 2026-10-11):** ANDET-02 = keep per-locus host-homology coordinates and add an `eve_risk` column, NO demotion until REF-08 calibrates thresholds; ANDET-01 per-accession genome-coverage breadth and ANDET-04 as in the row (auto-evidence stays opt-in).
   Partial 2026-10-11 (`codex/aud-a1`): ANDET-01 per-virus best-genome breadth done (`alignment_breadth_max`, `alignment_breadth_unique_max`, circular-safe; reporting only). Still open: ANDET-02 per-locus host-homology coordinates and `eve_risk` column; ANDET-04 as in the row.

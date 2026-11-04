@@ -26,6 +26,7 @@ def test_local_input_does_not_fabricate_retrieval_or_database(tmp_path):
     assert row["source"] == "local_input"
     assert row["taxonomy"]["organism"] is None
     assert row["source_licence"]["status"] == "unreviewed"
+    assert row["source_licence"]["terms"].startswith("DRAFT, needs maintainer/legal review")
 
 
 def test_cached_provenance_retains_recorded_retrieval_and_taxonomy(tmp_path):
@@ -263,3 +264,17 @@ def test_whole_genome_only_virus_is_kept_and_warned(tmp_path, monkeypatch, caplo
             fasta, gtf, tmp_path / "out", viral_gene_ids={"ENSG1", "V1_g"}
         )
     assert any("whole-genome, not per-gene" in m and "V1" in m for m in caplog.messages)
+
+
+def test_draft_licences_stay_unreviewed_and_match_the_licence_table():
+    """REF-05: every draft is marked for review and each source label appears in the doc table."""
+    from viralscan.source_licences import _DRAFTS, draft_source_licence
+
+    doc = (Path(__file__).resolve().parents[1] / "docs" / "reference_licences.md").read_text()
+    assert "needs maintainer/legal review" in doc
+    for source in _DRAFTS:
+        record = draft_source_licence(source)
+        assert record["status"] == "unreviewed" and record["review_required"] is True
+        assert record["source"] == source and f"`{source}`" in doc
+        assert record["terms"].startswith("DRAFT, needs maintainer/legal review")
+    assert draft_source_licence("unknown source")["terms"] is None

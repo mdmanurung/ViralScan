@@ -1553,6 +1553,14 @@ def _build_run_parser(subparsers: Any) -> None:
         help="Build a kb ref index from --fasta and --gtf into the output directory.",
     )
     parser.add_argument(
+        "--reference-host-species",
+        default=None,
+        metavar="NAME",
+        help="With --reference: host species label recorded in reference_manifest.json "
+        "(for example 'Homo sapiens'). A label only; it does not change the index. "
+        "Default: 'unspecified'.",
+    )
+    parser.add_argument(
         "--gtf",
         default=None,
         help="Path to GTF files (comma-delimited, without space in-between).",
