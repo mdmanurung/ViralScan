@@ -104,8 +104,10 @@ jobs:
     name: Build, scan and publish the tested wheel in the locked runtime
     needs: [ci-gate, build]
     runs-on: ubuntu-latest
-    # Configure required reviewers on pypi in repository settings before stable release.
-    # Declaring an environment here does not configure those protection rules.
+    # REL-14: `pypi` (stable tags) and `testpypi` (every other tag, e.g. 3.0.0b1 or 3.0.0rc1).
+    # Required reviewers on `pypi` gate this job, so an unapproved stable tag pushes no image.
+    # Declaring an environment here does not create it or its protection rules; the
+    # maintainer steps are in PLAN.md REL-14 and MAINTAINER_CHECKLIST.md.
     environment: ${{ needs.build.outputs.publish_environment }}
     permissions:
       contents: read
@@ -207,14 +209,129 @@ jobs:
           oci="$(docker inspect --format '{{index .RepoDigests 0}}' "${tags[0]}")"
           printf '%s\n' "$oci" > release-assets/OCI_DIGEST
           python scripts/release_sif_definition.py "$oci" > release-assets/Singularity.release.def
+      - name: Record the tool manifest from inside the published image (REL-07)
+        run: |
+          oci="$(cat release-assets/OCI_DIGEST)"
+          python scripts/release_parity.py versions \
+            --runner "docker run --rm -e HOME=/tmp --entrypoint env $oci PATH=/opt/conda/envs/viralscan/bin:/usr/bin:/bin" \
+            --digest "$oci" --output release-assets/tool-manifest.json
+          cat release-assets/tool-manifest.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: container-release-assets
           path: release-assets/
 
+  sif:
+    name: Build the Apptainer image from the published OCI digest
+    needs: [ci-gate, container]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: container-release-assets
+          path: release-assets/
+      - uses: eWaterCycle/setup-apptainer@95b5c781df5f72fd2271cc3cff06904a09d2a087  # v3.0.0
+        with:
+          apptainer-version: "1.5.4"
+      - name: Build the SIF from the digest-derived definition (no second solve) and record its SHA-256
+        env:
+          APPTAINER_DOCKER_USERNAME: ${{ github.actor }}
+          APPTAINER_DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          grep -qx "From: $(cat release-assets/OCI_DIGEST)" release-assets/Singularity.release.def
+          apptainer build viralscan.sif release-assets/Singularity.release.def
+          apptainer test viralscan.sif
+          mkdir -p sif-assets
+          sha256sum viralscan.sif > sif-assets/viralscan.sif.sha256
+          cat sif-assets/viralscan.sif.sha256
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: sif-assets
+          path: sif-assets/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: sif
+          path: viralscan.sif
+          retention-days: 7
+
+  parity:
+    name: Run the tiny workflow in locked conda, the image digest and the SIF (REL-09, REL-10)
+    needs: [ci-gate, build, container, sif]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    env:
+      APPTAINER_DOCKER_USERNAME: ${{ github.actor }}
+      APPTAINER_DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.ci-gate.outputs.sha }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: container-release-assets
+          path: release-assets/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: sif
+          path: sif/
+      - uses: mamba-org/setup-micromamba@4b9113af4fba0e9e1124b252dd6497a419e7396d  # v1.11.0
+      - uses: eWaterCycle/setup-apptainer@95b5c781df5f72fd2271cc3cff06904a09d2a087  # v3.0.0
+        with:
+          apptainer-version: "1.5.4"
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9  # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create the locked conda environment and install the tested wheel
+        shell: bash -el {0}
+        run: |
+          micromamba create --yes --name viralscan-locked --file environment.explicit.txt
+          micromamba run -n viralscan-locked python -m pip install --no-deps dist/*.whl
+      - name: Run the identical workflow in each environment and compare
+        shell: bash -el {0}
+        run: |
+          oci="$(cat release-assets/OCI_DIGEST)"
+          mkdir -p analysis/release_parity
+          python scripts/release_parity.py run --name conda --kind conda \
+            --runner "micromamba run -n viralscan-locked" \
+            --digest "sha256:$(sha256sum environment.explicit.txt | cut -d' ' -f1)" \
+            --work "$PWD/parity-work/conda" --out analysis/release_parity
+          python scripts/release_parity.py run --name docker --kind docker \
+            --runner "docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp -e MPLCONFIGDIR=/tmp -e NUMBA_CACHE_DIR=/tmp -v $PWD:$PWD -w $PWD --entrypoint env $oci PATH=/opt/conda/envs/viralscan/bin:/usr/bin:/bin" \
+            --digest "$oci" --work "$PWD/parity-work/docker" --out analysis/release_parity
+          python scripts/release_parity.py run --name apptainer --kind apptainer \
+            --runner "apptainer exec --cleanenv --bind $PWD sif/viralscan.sif" \
+            --digest "sha256:$(sha256sum sif/viralscan.sif | cut -d' ' -f1)" \
+            --work "$PWD/parity-work/apptainer" --out analysis/release_parity
+          python scripts/release_parity.py compare \
+            analysis/release_parity/result_conda.json \
+            analysis/release_parity/result_docker.json \
+            analysis/release_parity/result_apptainer.json \
+            --output analysis/release_parity/parity_report.json
+      - name: Keep the parity results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: release-parity
+          path: analysis/release_parity/
+          if-no-files-found: ignore
+
   publish:
     name: Publish tested distributions
-    needs: [ci-gate, build, container]
+    needs: [ci-gate, build, container, sif, parity]
     runs-on: ubuntu-latest
     # Trusted Publishers and environment protection must be configured by maintainers.
     environment: ${{ needs.build.outputs.publish_environment }}
@@ -250,7 +367,7 @@ jobs:
 
   release-assets:
     name: Attach the tested artifacts and release receipts
-    needs: [build, container, publish]
+    needs: [build, container, sif, parity, publish]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -265,7 +382,19 @@ jobs:
           path: release-files/
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
+          name: dist-checksums
+          path: release-files/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
           name: container-release-assets
+          path: release-files/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: sif-assets
+          path: release-files/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: release-parity
           path: release-files/
       - name: Create versioned GitHub release with receipts
         env:

@@ -116,7 +116,15 @@ def test_action_pin_check_rejects_mutable_tags_and_preserves_local_actions():
 
 
 @pytest.mark.parametrize(
-    "tag,latest", [("v3.0.0.dev1", False), ("v3.0.0rc1", False), ("v3.0.0", True)]
+    "tag,latest",
+    [
+        ("v3.0.0.dev1", False),
+        ("v3.0.0a1", False),
+        ("v3.0.0b1", False),
+        ("v3.0.0rc1", False),
+        ("v3.0.0rc2", False),
+        ("v3.0.0", True),
+    ],
 )
 def test_actual_release_tag_step_preserves_latest_for_prereleases(tmp_path, tag, latest):
     workflow = yaml.safe_load((ROOT / ".github/workflows/release.yml").read_text())
@@ -253,3 +261,93 @@ def test_weekly_skipped_audit_is_recorded_as_skipped(tmp_path):
     assert "audit=skipped" in (receipts / "status.txt").read_text()
     assert "exit_code=not-recorded" in summary.read_text()
     assert "Skipped or failed is not a clean scan." in summary.read_text()
+
+
+def _release_jobs():
+    return yaml.safe_load((ROOT / ".github/workflows/release.yml").read_text())["jobs"]
+
+
+def _steps_text(job):
+    return "\n".join(str(step) for step in job["steps"])
+
+
+@pytest.mark.parametrize(
+    "tag,stable,environment",
+    [
+        ("v3.0.0b1", "false", "testpypi"),
+        ("v3.0.0rc1", "false", "testpypi"),
+        ("v3.0.0.dev1", "false", "testpypi"),
+        ("v3.0.0", "true", "pypi"),
+    ],
+)
+def test_channel_step_maps_tags_to_testpypi_or_pypi(tmp_path, tag, stable, environment):
+    step = next(s for s in _release_jobs()["build"]["steps"] if s.get("id") == "channel")
+    output = tmp_path / "output"
+    subprocess.run(
+        ["bash", "-eu", "-c", step["run"]],
+        check=True,
+        env={**os.environ, "GITHUB_REF": f"refs/tags/{tag}", "GITHUB_OUTPUT": str(output)},
+    )
+    fields = dict(line.split("=", 1) for line in output.read_text().splitlines())
+    assert fields == {"stable": stable, "environment": environment}
+
+
+def test_publish_targets_testpypi_for_prereleases_and_pypi_only_for_stable():
+    jobs = _release_jobs()
+    steps = {s["name"]: s for s in jobs["publish"]["steps"] if "pypi-publish" in s.get("uses", "")}
+    stable = steps["Publish stable to PyPI"]
+    candidate = steps["Publish candidate to TestPyPI"]
+    assert stable["if"] == "needs.build.outputs.stable == 'true'"
+    assert "repository-url" not in stable.get("with", {})
+    assert candidate["if"] == "needs.build.outputs.stable != 'true'"
+    assert candidate["with"]["repository-url"] == "https://test.pypi.org/legacy/"
+    assert jobs["publish"]["permissions"]["id-token"] == "write"
+    for name in ("container", "publish"):
+        assert jobs[name]["environment"] == "${{ needs.build.outputs.publish_environment }}"
+
+
+def test_container_records_digest_and_tool_manifest_and_latest_is_stable_only():
+    container = _release_jobs()["container"]
+    text = _steps_text(container)
+    assert "release-assets/OCI_DIGEST" in text
+    assert "release_parity.py versions" in text and "release-assets/tool-manifest.json" in text
+    meta = next(s for s in container["steps"] if s.get("id") == "meta")["run"]
+    assert meta.count(":latest") == 1 and "^v[0-9]+\\.[0-9]+\\.[0-9]+$" in meta
+    # the only push loop iterates the tags built from `meta`; nothing else names latest
+    assert text.count(":latest") == 1
+    from scripts.release_parity import TOOL_VERSION_COMMANDS
+
+    assert set(TOOL_VERSION_COMMANDS) == {
+        "kb", "kallisto", "bustools", "minimap2", "samtools", "snakemake", "STAR",
+    }  # fmt: skip
+
+
+def test_sif_is_built_from_the_digest_definition_and_hashed():
+    sif = _release_jobs()["sif"]
+    text = _steps_text(sif)
+    assert "release-assets/Singularity.release.def" in text and "sha256sum viralscan.sif" in text
+    assert "sif-assets/viralscan.sif.sha256" in text
+    assert "%post" not in text and "conda" not in text.replace("container-release-assets", "")
+
+
+def test_parity_runs_three_environments_and_gates_publication():
+    jobs = _release_jobs()
+    text = _steps_text(jobs["parity"])
+    for kind in ("conda", "docker", "apptainer"):
+        assert f"--kind {kind}" in text
+    assert "analysis/release_parity/parity_report.json" in text
+    assert "environment.explicit.txt" in text
+    assert "parity" in jobs["publish"]["needs"] and "sif" in jobs["publish"]["needs"]
+
+
+def test_release_assets_collect_every_receipt():
+    steps = _release_jobs()["release-assets"]["steps"]
+    names = {s["with"]["name"] for s in steps if "download-artifact" in s.get("uses", "")}
+    assert names == {
+        "dist",
+        "dist-checksums",
+        "release-ci",
+        "container-release-assets",
+        "sif-assets",
+        "release-parity",
+    }
