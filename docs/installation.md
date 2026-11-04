@@ -94,11 +94,15 @@ conda route for the full workflow.
 
 ## The bundled viral reference panel
 
-The default viral GTF annotation panel is distributed separately on Zenodo
-(DOI `10.5281/zenodo.20112332`). A run needs it only when its index has no
-`<index>.build_manifest.json`; every index from `viralscan build-ref` has one and
+The default viral GTF annotation panel is the bundled cache (the GTFs in
+`src/viralscan/data/`, read from `~/.cache/viralscan/data/`). A run needs it only when its
+index has no `<index>.build_manifest.json`; every index from `viralscan build-ref` has one and
 carries its own viral gene list. Custom `--gtf` and `--ncbi-accession` runs do not
-need it either. When it is needed, fetch it once:
+need it either.
+
+The Zenodo archive (DOI `10.5281/zenodo.20112332`) is not registered yet (PLAN `REF-11`), so
+`viralscan data fetch` cannot download the panel today. This page switches to the commands
+below once the DOI is live:
 
 ```bash
 viralscan data fetch                                   # ~/.cache/viralscan/data/
@@ -106,5 +110,5 @@ viralscan data fetch --cache-dir /shared/viralscan-cache   # shared HPC cache
 ```
 
 Point runs at a shared cache with `viralscan run --cache-dir /shared/viralscan-cache ...`
-or set `VIRALSCAN_CACHE=/shared/viralscan-cache` for both commands. The command
+or set `VIRALSCAN_CACHE=/shared/viralscan-cache` for both commands. Once live, the fetch command
 verifies the Zenodo checksum before unpacking.

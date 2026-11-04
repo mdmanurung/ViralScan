@@ -104,7 +104,7 @@
         </dd>
         <dt>Infected cells, all barcodes (secondary)</dt>
         <dd class="number">
-          {% if denominator_note %}{{ per_cell_count }} (rate NA: two-step run, see note below)
+          {% if all_barcode_rate_na %}{{ per_cell_count }} (rate NA: two-step run, see note below)
           {% elif n_barcodes %}{{ per_cell_count }} / {{ n_barcodes }}
           ({{ "%.2f"|format(per_cell_count / n_barcodes * 100) }}%, empty droplets included){% else %}{{ per_cell_count }}{% endif %}
         </dd>

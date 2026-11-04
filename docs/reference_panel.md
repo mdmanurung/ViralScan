@@ -1,15 +1,17 @@
 # Reference Panel
 
-ViralScan uses **195 viral GTF annotation files** distributed through Zenodo
-under DOI `10.5281/zenodo.20112332`. It is required only for an index that has no
+ViralScan uses **195 viral GTF annotation files**, kept as the bundled cache
+(the GTFs in `src/viralscan/data/` of the source tree, read from
+`~/.cache/viralscan/data/`). It is required only for an index that has no
 `<index>.build_manifest.json`; an index built by `viralscan build-ref` carries its
-own viral gene list. When it is needed, fetch the panel once after installation:
+own viral gene list.
 
-```bash
-viralscan data fetch
-```
+> **Distribution status (PLAN `REF-11`, user decision 2026-11-04).** The panel archive is meant for
+> Zenodo under DOI `10.5281/zenodo.20112332`, but that DOI is not registered yet, so
+> `viralscan data fetch` cannot download it. This page describes the bundled cache. The
+> text switches to `viralscan data fetch` once the DOI is live.
 
-The command verifies the Zenodo checksum and unpacks the GTF files to
+`viralscan data fetch` will then verify the Zenodo checksum and unpack the GTF files to
 `~/.cache/viralscan/data/`. The annotations were generated from RefSeq
 GenBank entries using the `Viral_GTF_maker.py` script
 (whole-genome-as-gene model: one gene per chromosome, covering the full
@@ -19,8 +21,8 @@ replicon length).
 
 ## When you need this panel
 
-Run `viralscan data fetch` to use ViralScan's bundled viral annotations or helper
-code that expects the cached panel. Run it also for an index that has no
+Use the bundled cache for ViralScan's viral annotations or helper code that expects the
+cached panel (once the DOI is live, `viralscan data fetch` fills it). Use it also for an index that has no
 `<index>.build_manifest.json`, because the analysis step then reads the viral gene
 list from the panel. The cache is not needed in three cases: the index has a build
 manifest (every index from `viralscan build-ref`), every run supplies custom GTF

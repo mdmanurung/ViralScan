@@ -282,7 +282,9 @@ viralscan data fetch [OPTIONS]
 ```
 
 Download the bundled viral GTF panel from Zenodo, verify checksums, and unpack
-the GTF files into the local ViralScan cache. A run needs the panel only for an index
+the GTF files into the local ViralScan cache. The Zenodo record
+(`10.5281/zenodo.20112332`) is not registered yet (PLAN `REF-11`), so until the DOI is live
+the panel is the bundled cache described in `docs/reference_panel.md`. A run needs the panel only for an index
 without a `<index>.build_manifest.json` (such as one not built by `viralscan build-ref`);
 with a manifest the viral gene list comes from the manifest.
 

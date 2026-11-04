@@ -106,7 +106,17 @@ def _in_barcode_set(obs_names, barcodes) -> np.ndarray:
     The host sets are suffix-stripped (cellcalling), so the raw obs_names must be too (B-10).
     """
     wanted = {_strip_suffix(str(b)) for b in barcodes}
-    return np.array([_strip_suffix(str(b)) in wanted for b in obs_names], dtype=bool)
+    mask = np.array([_strip_suffix(str(b)) in wanted for b in obs_names], dtype=bool)
+    if not mask.any():
+        # B-10 (user decision 2026-11-04): zero overlap is a valid outcome for an external host list.
+        # Warn with the counts and continue; the caller's empty mask gives NA rates, never a raise.
+        log.warning(
+            "No barcode of the count matrix (%d) is in the host barcode set (%d); "
+            "the host-based cell sets are empty for this run.",
+            len(obs_names),
+            len(wanted),
+        )
+    return mask
 
 
 def _gene_counts_from_matrix(matrix, gene_idx):
@@ -576,6 +586,14 @@ TWO_STEP_DENOMINATOR_NOTE = (
 )
 
 
+#: Why ``viral_molecules_per_10k_est`` is NA when the index has no host genes (MECH-F, user decision
+#: 2026-11-04). Dividing by a virus-only total would read 10,000 whatever the load. No semicolon (see above).
+NO_HOST_DENOMINATOR_NOTE = (
+    "the index has no host genes (virus-only index or gene identity unavailable), so molecules "
+    "per 10k has no host-based denominator and is NA"
+)
+
+
 def _na(value, suffix="") -> str:
     """Two decimals plus *suffix*, or ``NA`` for None/NaN (the NA convention of the tables)."""
     if value is None or (isinstance(value, float) and np.isnan(value)):
@@ -616,7 +634,8 @@ def _virus_summary_line(virus_name, stats) -> str:
     """
     # Two-step runs carry a denominator_note: their barcode count is the host-filtered set, not
     # every barcode of the raw matrix, so name it as such (AUD3-03 follow-up).
-    barcodes = "host-filtered barcodes" if stats.get("denominator_note") else "all barcodes"
+    two_step = stats.get("denominator_note") == TWO_STEP_DENOMINATOR_NOTE
+    barcodes = "host-filtered barcodes" if two_step else "all barcodes"
     line = (
         f"{virus_name}: {stats['viral_molecules_total_est']} viral molecules estimated, "
         f"{stats['infected_called']}/{stats['n_called_cells']} called cells with viral reads "
@@ -1001,6 +1020,11 @@ def compute_stats(
             # both all-barcode figures would divide by host-filtered barcodes (100.0 / 10000.0).
             pct_infected = umi_per_10k = None
             denominator_note = TWO_STEP_DENOMINATOR_NOTE
+        elif _host_gene_mask(adata) is None:
+            # MECH-F: no host genes in the index, so the host-based denominator is absent. NA with a
+            # reason, never the virus-only total (which reads 10,000 whatever the load).
+            umi_per_10k = None
+            denominator_note = NO_HOST_DENOMINATOR_NOTE
 
         # Same stats restricted to called cells (real, non-empty droplets) — the
         # primary denominator. Empty droplets otherwise dilute pct_infected.
@@ -1810,7 +1834,7 @@ def _alignment_only_template(summary_rows):
     for k in ("n_called_cells", "n_comparable_cells", "total_cells"):
         template[k] = summary_rows[0][k]
     template.update({k: 0 for k in _KALLISTO_COUNT_FIELDS})
-    if summary_rows[0].get("denominator_note"):  # two-step: the all-barcode figures stay NA
+    if summary_rows[0].get("denominator_note"):  # two-step or no host genes: the figures stay NA
         template["pct_infected"] = template["viral_molecules_per_10k_est"] = ""
         template["denominator_note"] = summary_rows[0]["denominator_note"]
     # Same rule as the kallisto rows: the comparable-cell figures are unavailable when
@@ -2143,6 +2167,7 @@ def generate_html_report(
         "denominator_note": next(
             (s["denominator_note"] for s in virus_stats.values() if s.get("denominator_note")), ""
         ),
+        "all_barcode_rate_na": any(s["pct_infected"] is None for s in virus_stats.values()),
         "rates": {v: primary_rate(s) for v, s in virus_stats.items()},
         "cell_type_enrichment": cell_type_enrichment_df.to_dict("records")
         if cell_type_enrichment_df is not None and not cell_type_enrichment_df.empty
