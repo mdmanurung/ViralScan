@@ -889,6 +889,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
 - [~] `REF-05` — replace vague source-data licence text with reviewed terms for
   every redistributed or fetched reference source.
   - 2026-11-04 (`codex/lane-p3-reference`): **draft table written**, `docs/reference_licences.md` (NCBI GenBank/RefSeq, NCBI Taxonomy, Ensembl 116, 10x GRCh38-2024-A genome D-list, the Clareau-lab accession list, igv.js, user input), each with the published terms, URL and an open question. Marked draft; no row is `reviewed`. **Left (user):** maintainer/legal review and sign-off. Questions: which licence for the ViralScan-authored GTF archive; do derived GTFs need a per-record claim check; what are the 10x reference-bundle terms; is an index built from Ensembl cDNA a redistribution.
+  - 2026-11-04 (`codex/docs-orphan-licences`): `docs/reference_licences.md` marked `orphan` so Sphinx `-W` passes on main; it joins a toctree after the licence review.
 - [!] `REF-11` — publish the viral annotation panel archive and register its
   Zenodo DOI. `src/viralscan/data_fetch.py` pins
   `VIRAL_DATA_DOI = "10.5281/zenodo.20112332"`, but that identifier is **not

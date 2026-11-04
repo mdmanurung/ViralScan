@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Reference source licences (DRAFT)
 
 **Status: draft, needs maintainer/legal review.** Nothing here is legal advice. Every row
