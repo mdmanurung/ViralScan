@@ -8,8 +8,8 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
 - [~] `EVID` (2026-11-03, user approved Milestone A after a Codex + Biomni plan review): move the repro read-level checks into
-  `viralscan evidence` as post-hoc outputs that never change a completed run. Rows in `WP4M` below. Next: `EVID-01` (post-hoc
-  record).
+  `viralscan evidence` as post-hoc outputs that never change a completed run. Rows in `WP4M` below. Next: `EVID-02`
+  (`evidence --splice`).
 - [x] `PROG-MINMOL-01` (2026-11-03, `codex/prog-minmol`, user decision: count a productive marker only at >= 2 molecules, validate before default): new `programme_productive_min_molecules` (`--programme-productive-min-molecules`, also `rerun-programs`; `call_cell_programme(productive_min_molecules=)`) gates productive breadth only; latent breadth and `min_umi` unchanged; 1 = any nonzero (so fractional allocated values still count). `min_umi` was not reusable: it floors every marker, latent included. **Default stays 1**: the gate failed. Read-only evaluation at 1 -> 2 (cells; states prod/latent/mixed/reactivating/indeterminate; indeterminate counts are not comparable because cells with zero breadth after the floor are pruned): KSHV GSM5725695 latent 1/2478/0/-/48 -> 0/2479/0/-/2 (stays latent); KSHV GSM5725696 lytic 4709/1043/1699/-/187 -> 2384/3599/1379/-/265 (productive+mixed 84% -> 49% of 7638 called cells); GSM5725697 lytic 3065/1231/1993/-/196 -> 1497/3189/1536/-/262 (productive+mixed 84% -> 47%); BC-1 GSM4682311 twostep 0/2357/605/-/15 -> 0/2857/105/-/7 and combined_off 0/2889/288/-/88 -> 0/3138/39/-/28 (mixed cut 83-86%, as wanted); EBV SRR12682296 81/431/135/7/1382 -> 36/482/84/0/1172; HSV-1 SRR8315713 9/0/0/-/436 -> 0/0/0/-/341 (all productive calls lost); HPV16 HN18 has no programme model (all zero). Fails the lytic-majority and HSV-1 checks: lytic KSHV cells with a single-molecule marker become `latent`. Revisit only with a depth-aware or marker-specific threshold (PAN/K4 only) validated on a lytic control; eval script in scratch only, rerun with `rerun-programs --programme-productive-min-molecules 2`.
 - [x] `PROG-KSHV-MARKERS-01` (2026-11-03, `codex/kshv-markers`, user approved; found by the KSHV GSE190558 repro runs): KSHV productive set gains PAN (`HHV8_gs01`, misc_RNA, no CDS), K4, K3, ORF52 (class and time from PMID 24453964 Table 1; PAN also PMID 8876232) and drops ORF37 (0 unique molecules even in lytic libraries; `polya_capture=unknown` was rejected because it makes `latent` unreachable for the whole virus). New optional catalogue column `induced_in_lytic` (true for K12): flagged markers still count for `latent` but no longer veto `productive` into `mixed` (`_decide(lat_veto=)`). Catalogue regenerated; only KSHV rows and the new column change (KSHV group labels renumber). Held-out validation is tracked in the repro under `PROG-16`. 2026-11-03 follow-up: `curation/panel/cat28_panviral_marker_check.tsv` regenerated from the new catalogue (CAT-28 script, 77 markers: 41 matched, 16 unmatched, 20 accession_mismatch); #181 left it stale and the repro staleness test failed on the re-pin. PAN (`HHV8_gs01`) reports unmatched because panviral has no such gene.
 - [x] `TCHEM-5P-01` (2026-11-03, `codex/tchem-5p`, found by the HHV-6B SRR20710641 repro run): `tchem.compare` returned `no_call` for 10x 5' v1/v2 (no kb command, name does not match `10xv2`), so default `--tchem auto` stopped every 5' run. It now compares the report's `layout.geometry` (R1 `b[N]u[M]`) with `chemistry.cb_umi_geometry(-x)`: equal is `agree`, different is `disagree`. Without a geometry it keeps the by-name rule, else `no_call`. Strand is not compared (`compare` has no run strand). Test: `tests/test_tchem.py::TestCompare::test_layout_without_kb_command_compares_report_geometry`.
@@ -1743,11 +1743,23 @@ post-hoc folder; the completed run's files never change. Repro prototypes: `scri
 - [x] `EVID-00` evidence unit spec: `docs/evidence_unit.md`. A molecule is a corrected (CB, UMI) of `molecule_verdicts.tsv.gz`;
   checks use counted virus-best molecules and all member reads (joined on `read_number`), never the representative read of
   `viral_reads.umi_dedup.fasta`; competitor mode is `not_assessed`. User approved 2026-11-03 ("Spec ok").
-- [ ] `EVID-01` post-hoc record: one `posthoc/records/<attempt_id>.json` per invocation (temp then rename; started, succeeded,
-  failed, interrupted), keyed by source root, sample, library, arm, target and output path, with settings, version, git sha,
-  tool versions, input/output hashes and manifest link; `posthoc/index.json` rebuilt from records; every post-hoc verb incl.
-  `evidence-plot`, `discover-collapse`, `discover-states`; `viralscan status` lists it. Tests: interrupted run, concurrent runs,
-  index rebuild, source-run files outside `posthoc/` hash-identical on success and failure.
+- [x] `EVID-01` post-hoc record (2026-11-03, `codex/evid-01-posthoc-record`): `src/viralscan/posthoc_record.py`. One
+  `<attempt_id>.json` per invocation of the ten post-hoc verbs (`evidence`, `evidence-plot`, `rerun-multimap`,
+  `rerun-programs`, `host-loss`, `discover`, `discover-collapse`, `discover-states`, `hostresponse`, `translated`), wrapped
+  once at the `menu._main` dispatch: `started` before the verb, then `succeeded` / `failed` (exit code; `_die` is a failure)
+  / `interrupted` (exit 130 or 143); an abandoned `started` reads as `interrupted` (pid gone, same host) or `unfinished`.
+  Written temp-then-rename; `index.json` rebuilt from records after each attempt and by the new `viralscan status`.
+  Holds argv, settings, software identity, source root, sample, target, resolved output (each verb sets
+  `args._posthoc_output`), `output_preexisting`, input hashes (`run_manifest.json`, `config.yaml`, `evidence_manifest.json`)
+  and output files (SHA-256 up to 64 MiB, size and mtime above). Tests `tests/test_posthoc_record.py` (14): success,
+  `_die`, exception, Ctrl-C, SIGTERM, abandoned record, external output, large files, index rebuild with a broken record,
+  4 concurrent processes, dispatch covers post-hoc verbs only, list-valued source, no record without a run, `status`.
+  **Two deviations from the approved row:** (1) records for `--output` outside the run go to `<output>.records/`, because
+  `tests/test_posthoc_layout.py:80` makes an external output leave the run untouched (and a run may be read-only);
+  `status` lists in-run records only. (2) No per-attempt output folders: that would change every verb's documented
+  default path, `--auto-evidence` and repro scripts; the record carries `output_preexisting` instead. A verb whose source
+  has no `run_manifest.json` above it leaves no record. `run --discover`, `run --hostresponse`, `--auto-evidence` are not
+  recorded (part of the run).
 - [ ] `EVID-02` `evidence --splice` (off by default): member reads of counted virus-best molecules realigned to the viral
   genome alone with `minimap2 -ax splice:sr` (check >= 2.29, no fallback; `ci.yml` installs minimap2 unpinned); junction rules
   (anchor, mismatch, clip, primary only, intron length) fixed in the spec; per junction molecules and reads, motif in

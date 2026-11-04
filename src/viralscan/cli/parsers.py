@@ -1071,6 +1071,24 @@ def _build_validate_run_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="validate-run")
 
 
+def _build_status_parser(subparsers: Any) -> None:
+    p = subparsers.add_parser(
+        "status",
+        help="List the post-hoc steps run on a completed run (PLAN EVID-01).",
+        description=(
+            "Rebuild <run-dir>/posthoc/records/index.json from the per-attempt records and print one "
+            "line per post-hoc invocation: verb, state (succeeded, failed, interrupted, unfinished), "
+            "sample, target and output. Attempts written with --output outside the run keep their "
+            "records beside that output (<output>.records/) and are not listed here."
+        ),
+    )
+    p.add_argument(
+        "--run-dir", required=True, help="Completed run root (holds run_manifest.json) or a sample."
+    )
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="status")
+
+
 def _add_hostresponse_evaluation_args(parser: Any, prefix: str = "") -> None:
     """Keep rerun and initial-run evaluation options on the same public contract."""
     for name, kwargs in (
@@ -1376,7 +1394,8 @@ def build_parser() -> argparse.ArgumentParser:
             "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
             "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n"
             "  doctor          Check Python and full-workflow dependencies.\n"
-            "  validate-run    Validate v3 schemas and count invariants.\n\n"
+            "  validate-run    Validate v3 schemas and count invariants.\n"
+            "  status          List the post-hoc steps run on a completed run.\n\n"
             "Recommended host-aware workflow: run 'viralscan build-ref' once, "
             "then quantify with the generated -i/-t files.\n\n"
             "There are 3 ways to run quantification:\n"
@@ -1417,6 +1436,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_discover_states_parser(subparsers)
     _build_doctor_parser(subparsers)
     _build_validate_run_parser(subparsers)
+    _build_status_parser(subparsers)
     _build_hostresponse_parser(subparsers)
     _build_check_whitelist_parser(subparsers)
     _build_check_chemistry_parser(subparsers)
