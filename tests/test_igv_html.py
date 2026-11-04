@@ -375,3 +375,25 @@ def test_evidence_manifest_lists_the_page(built: tuple[Path, Path, Path]) -> Non
         replay=replay,
     )
     assert "igv_browser.html" in json.loads(path.read_text())["outputs"]
+
+
+# --- full-contig view and the no-splice message ----------------------------------------------------
+
+
+@needs_tools
+def test_tracks_are_visible_at_full_contig_view(built: tuple[Path, Path, Path]) -> None:
+    ev, fasta, gtf = built
+    page = igv_html.write_igv_page(ev, viral_fasta=fasta, annotation_gtfs=[gtf]).read_text()
+    assert _data(page)["visibility_window"] == len(GENOME)
+    assert page.count("visibilityWindow: vw") == 3  # reads, splice reads, genes
+
+
+@needs_tools
+def test_splice_ran_with_no_passing_junction_is_said_so(tmp_path: Path) -> None:
+    ev = _evidence_dir(tmp_path, [(("CB", "U"), True, "virus_best", [(1, 0, GENOME[110:170])])])
+    fasta = _fasta(tmp_path)
+    splice.run_splice(ev, viral_fasta=fasta)
+    (ev / "splice" / "splice.bam").unlink()  # as when no read is spliced
+    page = igv_html.write_igv_page(ev, viral_fasta=fasta).read_text()
+    assert "--splice ran: 0 spliced reads passed the junction rules" in page
+    assert "run viralscan evidence --splice" not in page

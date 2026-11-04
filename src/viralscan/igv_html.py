@@ -15,6 +15,7 @@ is never cut without a statement.
 """
 
 import base64
+import csv
 import hashlib
 import html
 import json
@@ -378,6 +379,19 @@ def _page(
     return page.replace("__IGV_JS__", vendor_text("igv.min.js"))
 
 
+def _no_splice_text(ev: Path) -> str:
+    """Why the page has no splice track: --splice never ran, or it ran and no junction passed the rules."""
+    summary = ev / SPLICE_DIR / "splice_summary.tsv"
+    if summary.is_file():
+        with summary.open(newline="") as handle:
+            row = next(csv.DictReader(handle, delimiter="\t"), {})
+        if row.get("status") == "assessed":
+            return "No splice track: --splice ran: 0 spliced reads passed the junction rules."
+        if row.get("status"):
+            return f"No splice track: --splice ran: {row['status']} ({row.get('reason', '')})."
+    return "No splice track: this evidence directory has no splice/splice.bam (run viralscan evidence --splice)."
+
+
 def write_igv_page(
     evidence_dir: str | Path,
     *,
@@ -446,9 +460,9 @@ def write_igv_page(
         "Splice track: reads of splice/splice.bam (minimap2 splice:sr on the viral genome alone) with a junction "
         f"that passes the --splice rules (anchor >= {MIN_ANCHOR} bp each side, intron {MIN_INTRON_LENGTH} bp to "
         f"{MAX_INTRON_LENGTH} bp, NM per aligned base <= {MAX_MISMATCH_FRACTION}, soft clip <= {MAX_CLIP_FRACTION} "
-        "of the read)."
+        f"of the read). At most {MAX_SPLICED} splice reads per contig, drawn the same way."
         if splice_pools
-        else "No splice track: this evidence directory has no splice/splice.bam (run viralscan evidence --splice)."
+        else _no_splice_text(ev)
     )
     gene_note = (
         f"Gene track from {len(annotation_gtfs)} GTF file(s); {len(left_out)} feature(s) longer than "
@@ -504,6 +518,7 @@ def write_igv_page(
             "bai": _uri(reads_bai),
             "contigs": [c["name"] for c in contigs],
             "igv_sampling_depth": IGV_SAMPLING_DEPTH,
+            "visibility_window": max(len(g) for g in genome.values()),
         }
         if splice_pools:
             splice_bam_bytes, splice_bai = _bam_bytes(

@@ -36,7 +36,7 @@
 <ul>
   <li id="population">__POPULATION__</li>
   <li id="sampling">Sampling rule: for each viral contig, at most __MAX_READS__ of those reads, a uniform random draw without replacement with fixed seed __SEED__ (seed text "&lt;seed&gt;:&lt;contig&gt;"). The reads track shows primary alignments from competitive_reads.raw.bam, renamed to the contig without its VIRUS| prefix.</li>
-  <li id="splice-rule">__SPLICE_RULE__ At most __MAX_SPLICED__ splice reads per contig, drawn the same way.</li>
+  <li id="splice-rule">__SPLICE_RULE__</li>
   <li id="genes">__GENE_NOTE__</li>
   <li id="size">__SIZE_NOTE__</li>
   <li id="strand">__STRAND_NOTE__</li>
@@ -63,18 +63,21 @@
 (function () {
   var D = JSON.parse(document.getElementById("igv-data").textContent);
   var status = document.getElementById("status");
+  // visibilityWindow = longest contig: the draw is capped (MAX_READS per contig), so reads are light enough
+  // to show at the full-contig view; igv's default would hide them ("Zoom in to see features").
+  var vw = D.visibility_window;
   var tracks = [{
     name: "Member reads (sample)", type: "alignment", format: "bam", url: D.bam, indexURL: D.bai,
-    samplingDepth: D.igv_sampling_depth, colorBy: "strand", showCoverage: false, height: 300
+    samplingDepth: D.igv_sampling_depth, visibilityWindow: vw, colorBy: "strand", showCoverage: false, height: 300
   }];
   if (D.splice_bam) {
     tracks.push({
       name: "Splice reads (sample)", type: "alignment", format: "bam", url: D.splice_bam,
-      indexURL: D.splice_bai, samplingDepth: D.igv_sampling_depth, colorBy: "strand", showCoverage: false, height: 200
+      indexURL: D.splice_bai, samplingDepth: D.igv_sampling_depth, visibilityWindow: vw, colorBy: "strand", showCoverage: false, height: 200
     });
   }
   if (D.bed) {
-    tracks.push({ name: "Genes", type: "annotation", format: "bed", url: D.bed, displayMode: "EXPANDED", height: 90 });
+    tracks.push({ name: "Genes", type: "annotation", format: "bed", url: D.bed, visibilityWindow: vw, displayMode: "EXPANDED", height: 90 });
   }
   igv.createBrowser(document.getElementById("igv"), {
     loadDefaultGenomes: false,
