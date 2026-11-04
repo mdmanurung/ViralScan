@@ -2297,7 +2297,8 @@ No open rows; done rows are in the PLAN archive (see Next action).
   - 2026-11-04 (`codex/lane-p2-docs`): published as far as an agent can. The page is in the Sphinx toctree (`docs/index.md`, Project) and `README.md` links it under "Support and policies". **Left (user):** approve or change every item tagged `DRAFT: maintainer decision`; supply `REL-15` contacts; the page keeps its draft banner until then.
   security-response policies with named contact routes.
   - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **accepted as proposed.** DRAFT tags removed from `docs/release_policy.md` (support windows, version-part mapping, patch triggers, deprecation window). The private contact stays a placeholder until `REL-15`. The security triage and fix targets had no proposed value, so they read 'Not set'; the maintainer supplies them.
-- [~] `OPS-02` — establish reference-update cadence and manifest compatibility
+  - 2026-11-04 (user decision, "approve all"): security triage within 7 days, fix within 90 days. Left: the private contact (`REL-15`).
+- [x] `OPS-02` — establish reference-update cadence and manifest compatibility
   - 2026-10-04: drafted in `docs/reference_maintenance.md` (0b89ad5): invariants,
     a placeholder cadence, and manifest schema_version reader rules.
     Needs maintainer sign-off.
@@ -2309,6 +2310,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
   - 2026-11-04 (`codex/lane-p2-docs`): `docs/reference_maintenance.md` joined the Sphinx toctree (it was `orphan`) and `README.md` links it. **Left (user):** maintainer sign-off on the review interval, triggers and release contents.
   rules; never silently change a frozen reference under an existing version.
   - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **accepted as proposed.** DRAFT tags removed from `docs/reference_maintenance.md` (triggers, contents of a new version). No review interval was ever proposed, so it reads 'not set'; the maintainer supplies it.
+  - 2026-11-04 (user decision, "approve all"): review interval every 6 months. Signed off; nothing left in this row.
 - [ ] `OPS-03` — triage false positives, false negatives, data loss, and reference
   drift as scientific incidents with reproducible packets.
 - [ ] `OPS-04` — monitor install/usage failures during the first 90 days and ship

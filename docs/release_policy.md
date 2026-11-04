@@ -135,11 +135,11 @@ upstream, with a note in the advisory if ViralScan needs a version pin.
 | Step | Target |
 |---|---|
 | Acknowledge a private report | within 7 days (as stated in `SECURITY.md`) |
-| Triage and confirm or reject, with severity | Not set (no value proposed) |
-| Fix, patch release, advisory published | Not set (no value proposed); coordinated with the reporter |
+| Triage and confirm or reject, with severity | Within 7 days of the report |
+| Fix, patch release, advisory published | Within 90 days of the report; coordinated with the reporter |
 | Credit | reporter named in the advisory unless they decline |
 
 Reports are handled privately until a fixed release exists. Fixes ship as a
 patch release of the latest stable line; older lines are not backported.
 
-<!-- MAINTAINER: supply the private contact (REL-15) and the security triage and fix targets before OPS-01 closes. -->
+<!-- MAINTAINER: supply the private contact (REL-15) before OPS-01 closes. -->
