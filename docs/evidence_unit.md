@@ -55,3 +55,13 @@ and better-scoring host reads (`docs/output_reference.md`, `viralscan evidence` 
 Each check's table and receipt record: the evidence run's `evidence_manifest.json` SHA-256, the five
 category counts, the read counts beside them, and `not_assessed` / `not_evaluable` with the reason
 when the unit is missing.
+
+## Gene-relative strand (`EVID-03`)
+
+`strand_qc.tsv` uses the `counted_virus_best` member reads as its unit and writes the five category counts
+(molecules and reads) in every row. It also reads the member reads of `counted_host_best` molecules, to
+calibrate the expected read orientation of the library on host exons that belong to one gene (at least 200
+blocks, 80 % agreeing; otherwise `not_assessed`). This is the only check that uses host-best molecules, and
+only for calibration. The table cannot carry the SHA-256 of `evidence_manifest.json`, which is written after
+it; the manifest lists the hash of `strand_qc.tsv` instead. The default of `--strand` is not decided by this
+check.

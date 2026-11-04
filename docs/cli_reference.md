@@ -913,6 +913,7 @@ the sections above add context. Do not edit between the markers.
 | `--output, -o OUTPUT` | *(none)* | Directory for evidence outputs (default: <run-dir>/posthoc/evidence/<virus>). |
 | `--viral-fasta VIRAL_FASTA` | *(none)* | Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). Omit for read-extraction only. |
 | `--host-fasta HOST_FASTA` | *(none)* | Full host-genome FASTA required with --viral-fasta for competitive v3 alignment and BLAST. |
+| `--host-gtf HOST_GTF` | *(none)* | Host annotation GTF (exon rows) used to calibrate strand_qc.tsv on host reads. Without it strand_qc.tsv is written as not_assessed. |
 | `--competitor-fasta COMPETITOR_FASTA` | *(none)* | Explicit alternate/related/decoy FASTA; requires --competitor-manifest. |
 | `--competitor-manifest COMPETITOR_MANIFEST` | *(none)* | Checksum-pinned TSV covering target, host and competitor FASTA records. |
 | `--blast-tie-delta BLAST_TIE_DELTA` | `0.0` | Nonnegative bitscore distance retaining top BLAST ties (default: 0). |
