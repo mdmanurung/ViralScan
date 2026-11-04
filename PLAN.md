@@ -1795,8 +1795,10 @@ post-hoc folder; the completed run's files never change. Repro prototypes: `scri
 - [ ] `EVID-04` `evidence --html`: igv.js 2.15.11 and licence in the wheel; reads, genome, BED genes and splice reads embedded;
   sampling rule and omitted genes stated on the page; no metric from the page sample; size cap. Test: render with networking
   off after moving the file.
-- [ ] `EVID-05` coverage-map gene track: one coverage track, +/- gene lanes, collision-free labels for the top covered genes,
-  genes > 20 kb left out and counted.
+- [x] `EVID-05` coverage-map gene track: one coverage track, +/- gene lanes, collision-free labels for the top covered genes,
+  genes > 20 kb left out and counted. Done 2026-11-04 in `coverage_map_figure` (`evidence-plot --coverage-map`); pure layout in
+  `coverage_gene_track.py`. Kept the deduplicated track (raw stays in the TSV); gene detail went into the JSON, no new table.
+  `plot_coverage_maps` (pyGenomeTracks, run-time) is unchanged.
 - [!] `EVID-06` (B, blocked: held-out set) evidence verdict in a post-hoc table: origin evidence apart from supporting
   features; each check applicable / not applicable / not evaluable; outcomes supported viral origin, likely host artefact,
   ambiguous, insufficient evidence; splice only adds support; builds on the existing Q137 `molecule_support.tsv` gates.
