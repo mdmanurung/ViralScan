@@ -1685,6 +1685,7 @@ def run_discover_states(args: argparse.Namespace) -> dict[str, Any]:
     (uncalibrated) constants; the discovery fingerprint is checked against ``--run-dir`` when given.
     """
     out = Path(args.discovery_dir).resolve()
+    args._posthoc_output = out
     if not (out / COMPLETE_JSON).is_file():
         raise DiscoveryError(f"{out} is not a published discovery ({COMPLETE_JSON} missing).")
     provenance = json.loads((out / PROVENANCE_JSON).read_text(encoding="utf-8"))
@@ -1971,6 +1972,7 @@ def run_discover(args: argparse.Namespace) -> None:
         if getattr(args, "output", None)
         else posthoc_dir(sample_dir, "discovery")
     )
+    args._posthoc_output = output
     check_output_dir(output, run_root)
     validate_kraken2_db(db)
     config = RunConfig.from_yaml(str(sample_dir / "config.yaml"))
