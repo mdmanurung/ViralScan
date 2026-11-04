@@ -1,12 +1,12 @@
 # Release build requires the tested wheel as a separate, explicit BuildKit context:
-# docker build --build-context wheel=./dist -t viralscan:3.0.0rc1 .
+# docker build --build-context wheel=./dist -t viralscan:3.0.0b1 .
 # The main context contains only this file, .dockerignore and the committed lock.
 # 26.9.4-0 multi-arch index (Ubuntu 24.04, built 2026-10-24). The previous pin was a 2024-06 Ubuntu 20.04
 # image; grype reports that distro as end of life. Refresh: docker buildx imagetools inspect condaforge/miniforge3:<tag>.
 FROM condaforge/miniforge3@sha256:63d72eadf0ab73ee63bad8f5cfdfe1754530415b4aeba99e466e9a6f77ceec95
 
 LABEL maintainer="emma.vonk@hotmail.nl" \
-      version="3.0.0rc1" \
+      version="3.0.0b1" \
       description="ViralScan — viral load quantification from single-cell RNA-seq"
 
 # Security updates for the base layers (PLAN REL-11): the Ubuntu libbrotli1 deb and the

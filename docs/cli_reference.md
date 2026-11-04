@@ -2,7 +2,7 @@
 
 Run `viralscan --help` or `viralscan <subcommand> --help` to see options for
 the installed version. This page documents the public CLI as of ViralScan
-**3.0.0rc1**. Available subcommands:
+**3.0.0b1**. Available subcommands:
 
 <!-- BEGIN GENERATED: subcommands -->
 
