@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import pytest
 
 from viralscan import evidence_tiers as et
