@@ -21,6 +21,11 @@ results remain excluded unless their access and publication requirements are met
 
 - [ ] `main` branch protection and required CI checks verified by repository owner: `<evidence>`
 - [ ] Protected `testpypi` and `pypi` environments, reviewers and permitted deployment refs: `<evidence>`
+  - Settings, Environments, New environment: `testpypi` (no reviewers; deployment branches and tags: `v*`) and `pypi`
+    (Required reviewers: you; deployment tags: `v*`). The `container` and `publish` jobs both use the environment, so
+    the `pypi` approval comes before the stable image push and before the upload.
+  - TestPyPI and PyPI, Publishing, add a pending trusted publisher: owner `mdmanurung`, repository `ViralScan`,
+    workflow `release.yml`, environment `testpypi` (on TestPyPI) or `pypi` (on PyPI).
 - [ ] Trusted Publisher owner/repository/workflow/environment registered with TestPyPI and PyPI: `<evidence>`
 - [ ] GHCR, GitHub release and public artifact-hosting permissions approved: `<evidence>`
 
