@@ -480,7 +480,12 @@ No open rows; done rows are in the PLAN archive (see Next action).
         - [x] DEV-026 (2026-10-06): the `datasets` planting_rule no longer says
           "planted-minus-twin difference" (it read as rate subtraction); the
           DEF-00 amendment doc marks D18 resolved;
-      - run SCI-05.
+      - [x] 2026-11-04 (`codex/g3-amend-schema-copy`): byte copy of the G3 amendment draft schema (protocol 0.4.0,
+        `DEV-034`..`DEV-037`, repro draft PR #35, user decisions Q6-Q20 of 2026-11-04) in
+        `src/viralscan/schemas/v3/validation_protocol.schema.json`, and `docs/workflow_comparison.md` regenerated
+        (W10a/W10b removed). Repro protocol tests: 216 passed against this tree. Repro `PACKAGE_BASE_SHA` moves to
+        the merge commit. Nothing is frozen; the protocol stays `draft`.
+      - run SCI-05 (round 13: Codex + Biomni max on the amendment, then user sign-off).
 - [~] `DEF-02` — **priority after F-020**, because every 5′ run so far used
   about 7–9 % of its reads. The Chemistry module (`MECH-D`), covering:
   - auto-detection and fail-closed checks (Q6);
