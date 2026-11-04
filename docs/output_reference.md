@@ -1219,6 +1219,7 @@ remains provenance-incomplete.
 | `splice/junctions.tsv` | `--splice` only. One row per intron (`contig`, `start`, `end`: 1-based, inclusive intron coordinates on the genome), `strand` and `motif` (donor-acceptor in transcript orientation, e.g. `GT-AG`; `strand` is `.` and `motif` the forward reading when neither strand reads canonical), `motif_canonical` (GT-AG, GC-AG or AT-AC), `supporting_molecules` and `supporting_reads` (a molecule counts once however many of its reads span the intron), `annotated` (exact match to a gap between consecutive `exon` rows of one `transcript_id` in the viral GTF; **empty** when that contig has no exon rows) and `annotated_transcript` | observation |
 | `splice/splice_summary.tsv` | `--splice` only. One row: `status` (`assessed`, `not_evaluable`, `not_assessed`) and `reason`; the five molecule counts of `docs/evidence_unit.md` (`counted_virus_best`, `counted_host_best`, `counted_tie`, `counted_unaligned`, `not_counted`); `reads_realigned`, `reads_aligned`, `spliced_reads`, `spliced_molecules`, `spliced_molecules_annotated`, `unique_junctions`, `junction_calls_rejected` (N operations that failed a rule below); `annotation_status`; `note`. Only the counted virus-best molecules are realigned | observation |
 | `splice/splice_manifest.json` | `--splice` only. Receipt: input hashes (`molecule_verdicts.tsv.gz`, `read_lineage.tsv.gz`, `competitive_reads.raw.bam`, viral FASTA, GTFs), minimap2 version and options, the rule constants, rejections per rule, output hashes. Its SHA-256 is listed in `evidence_manifest.json` `outputs` (`splice/splice_manifest.json`); `evidence_manifest_sha256` inside it is null because the evidence manifest is written after the check | observation |
+| `igv_browser.html` | `--html` only. One self-contained igv.js 2.15.11 page: the viral genome, a seeded sample of the member reads of counted virus-best molecules, a splice-read track when `splice/splice.bam` exists, and a BED12 gene track. It embeds its data as `data:` URIs and its Content-Security-Policy allows no network. Its receipt (rule constants, per-contig counts, input hashes, igv.js hash) is the JSON in `<script id="viralscan-receipt">`. Listed in `evidence_manifest.json` `outputs` | observation |
 
 Every manifest of a run that aligned with minimap2 (competitor or host-verdict mode) also has a top-level
 `minimap2_options` list and the minimap2 version string in `tool_binaries.minimap2.version`. A manifest without
@@ -1263,6 +1264,39 @@ intron_matching_not_evaluable` and an empty `annotated`: CDS gaps are never trea
 origin of the molecule, infection or reactivation. Ambient RNA and integrated genomes give spliced viral reads
 too: ciHHV-6 expresses U90 and U100 (Peddu 2019, doi:10.1128/JVI.01418-19). Molecules the kallisto index never
 captured are outside the check.
+
+### `--html`: a read browser for a call
+
+Off by default; needs `--viral-fasta` and is refused in competitor mode. `viralscan evidence-plot --evidence-dir DIR
+--html` writes the same page for an existing evidence directory (it replaces the figures in that call). It needs the
+viral genome from `--viral-fasta`, or from `splice/target_genome.fa` of an earlier `--splice` run; `--annotation GTF`
+adds the gene track (`evidence --html` takes the run's viral GTFs). The post-hoc call does not rewrite
+`evidence_manifest.json`; the page's receipt records the manifest hash it was built from.
+
+The page is one file. igv.js 2.15.11 (MIT; `src/viralscan/vendor/igv/`, licence shown in the page and shipped in the
+wheel) runs with `loadDefaultGenomes: false`, so it fetches no genome list. Genome, BAMs and genes are `data:` URIs;
+a Content-Security-Policy meta tag blocks every other request. The page works from any directory with no network.
+
+Population and sampling (named constants in `src/viralscan/igv_html.py`): the reads are the **primary** viral
+alignments of the member reads of counted virus-best molecules (`docs/evidence_unit.md`), from
+`competitive_reads.raw.bam`. A member read whose primary alignment is on the host is never drawn; the page counts
+them. Per viral contig, at most `MAX_READS` = 4000 reads are drawn uniformly without replacement with seed
+`SEED` = 20261103 (per-contig seed `"<seed>:<contig>"`), and at most `MAX_SPLICED` = 1500 reads of
+`splice/splice.bam` that carry a junction accepted by the `--splice` rules. igv.js shows at most 10000 reads per
+window. If the page would exceed `MAX_HTML_BYTES` = 25,000,000 bytes, the draw is halved until it fits (never below
+`MIN_READS` = 100, then the page is refused) and the page states the new cap.
+With no counted virus-best molecule (or no `molecule_verdicts.tsv.gz`) no page is written: `evidence --html` logs a warning and the manifest lists no page; `evidence-plot --html` stops with an error.
+
+Gene track: one BED12 row per transcript (per gene when there are no transcript rows); exons give the blocks,
+else CDS rows, else the span. A CDS-only gene reaches out to the UTR ends of its gene row and is split into
+copies where its CDS are more than `COPY_GAP` = 10 kb apart (terminal repeats). A feature longer than
+`MAX_FEATURE_BP` = 20 kb (EBV latency transcripts) is left out; the page lists how many and which.
+
+**What it means.** The page is for looking. It shows no number computed from the drawn sample: the coverage track
+is switched off, and the table on the page gives only the size of the population and of the draw per contig. Counts,
+junctions and verdicts come from the TSV tables, which use every molecule. Reads are drawn as aligned to the viral
+genome; 10x 3' reads are sense to the gene they cover and 10x 5' reads antisense. A read in the browser supports
+neither infection nor reactivation by itself.
 
 ### `results/evidence/<genus>/` and `log/auto_evidence.done`
 

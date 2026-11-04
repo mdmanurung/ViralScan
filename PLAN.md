@@ -1847,9 +1847,21 @@ post-hoc folder; the completed run's files never change. Repro prototypes: `scri
   written after it and hashes `strand_qc.tsv` instead). Calibration reads are only extracted reads that out-score on host, so
   the set may be small; real-data calibration size is not checked here. The `--strand` default is NOT decided (user Q12:
   after EVID-03 data).
-- [ ] `EVID-04` `evidence --html`: igv.js 2.15.11 and licence in the wheel; reads, genome, BED genes and splice reads embedded;
+- [x] `EVID-04` `evidence --html`: igv.js 2.15.11 and licence in the wheel; reads, genome, BED genes and splice reads embedded;
   sampling rule and omitted genes stated on the page; no metric from the page sample; size cap. Test: render with networking
   off after moving the file.
+  Done 2026-11-04 (`codex/evid-04-html`): `src/viralscan/igv_html.py`, template `templates/igv_browser.html`, vendored
+  `vendor/igv/igv.min.js` + `LICENSE` (npm igv@2.15.11, sha256 pinned in `tests/test_igv_html.py`), flag `--html` on
+  `evidence`, and on `evidence-plot` for an existing folder (`--viral-fasta`, `--annotation`; replaces the figures in that
+  call, does not rewrite the manifest). Output `igv_browser.html`, listed in `evidence_manifest.json` `outputs`. Named
+  constants: `MAX_READS` 4000, `MAX_SPLICED` 1500, `SEED` 20261103, `MAX_HTML_BYTES` 25 MB (halve the draw, never below
+  `MIN_READS` 100, then refuse), `MAX_FEATURE_BP` 20 kb, `COPY_GAP` 10 kb. Decisions: reads are primary viral records of
+  member reads (a member read whose primary is host is counted on the page, not drawn); igv coverage track off
+  (`showCoverage: false`) because it would be a metric from the sample; `samtools view --no-PG` so the same inputs give the
+  same bytes; competitor mode is refused up front. Own gene-model code (BED12), not shared with EVID-05 (#194). Tests
+  `tests/test_igv_html.py` (17). Render check: static in CI (no http(s) outside the vendored script and licence text, after
+  moving the file); by hand, Firefox headless with a dead proxy rendered reads, splice reads and genes from the moved file.
+  Not run: the full `run_evidence` path (kallisto replay), real data.
 - [x] `EVID-05` coverage-map gene track: one coverage track, +/- gene lanes, collision-free labels for the top covered genes,
   genes > 20 kb left out and counted. Done 2026-11-04 in `coverage_map_figure` (`evidence-plot --coverage-map`); pure layout in
   `coverage_gene_track.py`. Kept the deduplicated track (raw stays in the TSV); gene detail went into the JSON, no new table.

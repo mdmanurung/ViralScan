@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="__CSP__">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+  :root { --fg: #1c2330; --muted: #5b6678; --bg: #ffffff; --line: #d5dae3; --accent: #1f5fae; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e9ef; --muted: #9aa5b8; --bg: #161a22; --line: #343c4c; --accent: #6fa8ee; }
+  }
+  body { margin: 0; padding: 0 16px 32px; background: var(--bg); color: var(--fg);
+         font: 14px/1.5 system-ui, sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 20px 0 4px; }
+  h2 { font-size: 15px; margin: 18px 0 4px; }
+  p, li { max-width: 80ch; }
+  .muted { color: var(--muted); }
+  table { border-collapse: collapse; margin: 6px 0; }
+  th, td { border-bottom: 1px solid var(--line); padding: 3px 12px 3px 0; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  #contigs button { margin: 0 6px 6px 0; padding: 3px 10px; border: 1px solid var(--line);
+                    background: transparent; color: var(--accent); border-radius: 4px; cursor: pointer; }
+  #igv { border: 1px solid var(--line); margin-top: 6px; background: #fff; }
+  pre { white-space: pre-wrap; font-size: 12px; color: var(--muted); }
+  #status { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+<h1>__TITLE__</h1>
+<p class="muted">igv.js __IGV_VERSION__ (MIT), embedded. This page loads nothing from the network.</p>
+
+<h2>What is drawn</h2>
+<ul>
+  <li id="population">__POPULATION__</li>
+  <li id="sampling">Sampling rule: for each viral contig, at most __MAX_READS__ of those reads, a uniform random draw without replacement with fixed seed __SEED__ (seed text "&lt;seed&gt;:&lt;contig&gt;"). The reads track shows primary alignments from competitive_reads.raw.bam, renamed to the contig without its VIRUS| prefix.</li>
+  <li id="splice-rule">__SPLICE_RULE__</li>
+  <li id="genes">__GENE_NOTE__</li>
+  <li id="size">__SIZE_NOTE__</li>
+  <li id="strand">__STRAND_NOTE__</li>
+</ul>
+<p id="no-metric"><strong>__NO_METRIC_NOTE__</strong></p>
+
+<h2>Contigs</h2>
+<table id="contig-table">
+  <thead><tr><th>contig</th><th>length (bp)</th><th>reads available</th><th>reads drawn</th><th>splice reads available</th><th>splice reads drawn</th></tr></thead>
+  <tbody>__CONTIG_ROWS__</tbody>
+</table>
+<div id="contigs"></div>
+<div id="status">Loading the browser.</div>
+<div id="igv"></div>
+
+<h2>Licence of the embedded igv.js</h2>
+<details><summary>MIT licence (igv.js __IGV_VERSION__)</summary><pre>__LICENSE__</pre></details>
+</main>
+
+<script id="igv-data" type="application/json">__DATA_JSON__</script>
+<script id="viralscan-receipt" type="application/json">__RECEIPT_JSON__</script>
+<script id="igv-lib">__IGV_JS__</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById("igv-data").textContent);
+  var status = document.getElementById("status");
+  // visibilityWindow = longest contig: the draw is capped (MAX_READS per contig), so reads are light enough
+  // to show at the full-contig view; igv's default would hide them ("Zoom in to see features").
+  var vw = D.visibility_window;
+  var tracks = [{
+    name: "Member reads (sample)", type: "alignment", format: "bam", url: D.bam, indexURL: D.bai,
+    samplingDepth: D.igv_sampling_depth, visibilityWindow: vw, colorBy: "strand", showCoverage: false, height: 300
+  }];
+  if (D.splice_bam) {
+    tracks.push({
+      name: "Splice reads (sample)", type: "alignment", format: "bam", url: D.splice_bam,
+      indexURL: D.splice_bai, samplingDepth: D.igv_sampling_depth, visibilityWindow: vw, colorBy: "strand", showCoverage: false, height: 200
+    });
+  }
+  if (D.bed) {
+    tracks.push({ name: "Genes", type: "annotation", format: "bed", url: D.bed, visibilityWindow: vw, displayMode: "EXPANDED", height: 90 });
+  }
+  igv.createBrowser(document.getElementById("igv"), {
+    loadDefaultGenomes: false,
+    genome: { id: "viralscan_evidence", name: "viralscan evidence", fastaURL: D.fasta, indexURL: D.fai },
+    locus: D.contigs[0],
+    tracks: tracks
+  }).then(function (browser) {
+    status.textContent = "Ready. Pick a contig below or type a locus.";
+    var box = document.getElementById("contigs");
+    D.contigs.forEach(function (name) {
+      var b = document.createElement("button");
+      b.textContent = name;
+      b.onclick = function () { browser.search(name); };
+      box.appendChild(b);
+    });
+    window.viralscanIgvReady = true;
+  }).catch(function (err) {
+    status.textContent = "The browser failed to start: " + err;
+    window.viralscanIgvError = String(err);
+  });
+})();
+</script>
+</body>
+</html>

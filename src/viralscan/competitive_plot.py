@@ -802,6 +802,26 @@ def cross_call_loci(
 
 def run_evidence_plot(args: argparse.Namespace) -> None:
     """``viralscan evidence-plot``: one figure per evidence directory, optionally the cross-call view."""
+    if getattr(args, "html", False):
+        from viralscan.igv_html import write_igv_page
+
+        if args.cross_call or getattr(args, "coverage_map", False) or getattr(args, "target", None):
+            raise ValueError(
+                "--html cannot be combined with --cross-call, --coverage-map or --target"
+            )
+        gtfs = [Path(args.annotation)] if getattr(args, "annotation", None) else []
+        for directory in map(Path, args.evidence_dir):
+            out = Path(args.output) / directory.name if args.output else None
+            page = write_igv_page(
+                directory,
+                viral_fasta=getattr(args, "viral_fasta", None),
+                annotation_gtfs=gtfs,
+                out_dir=out,
+            )
+            log.info("Wrote %s", page)
+        return
+    if getattr(args, "viral_fasta", None):
+        raise ValueError("--viral-fasta requires --html")
     if getattr(args, "coverage_map", False):
         from viralscan.evidence import coverage_map_figure
 

@@ -577,6 +577,15 @@ def _build_evidence_parser(subparsers: Any) -> None:
         "establish origin, infection or reactivation. Requires --viral-fasta.",
     )
     p.add_argument(
+        "--html",
+        action="store_true",
+        default=False,
+        help="Write igv_browser.html: one self-contained igv.js page (no network) with a seeded sample of the "
+        "member reads of counted virus-best molecules, the viral genome, genes and, with --splice, splice "
+        "reads. The page states its sampling rule and shows no metric. Requires --viral-fasta. "
+        "Not available in competitor mode.",
+    )
+    p.add_argument(
         "--dedup",
         choices=("umi", "markdup", "none"),
         default="umi",
@@ -660,6 +669,17 @@ def _build_evidence_plot_parser(subparsers: Any) -> None:
     p.add_argument(
         "--annotation",
         help="GTF annotation; seqid = target, or the bare accession for viral CLASS|ACC targets.",
+    )
+    p.add_argument(
+        "--html",
+        action="store_true",
+        help="Instead of the figures, write igv_browser.html (self-contained igv.js page) from the "
+        "evidence directory's BAM and tables. Needs the viral genome: --viral-fasta, or splice/target_genome.fa "
+        "from an earlier --splice run. --annotation adds the gene track. The evidence manifest is not rewritten.",
+    )
+    p.add_argument(
+        "--viral-fasta",
+        help="Viral FASTA for --html (contig names as in the evidence BAM, without the VIRUS| prefix).",
     )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="evidence-plot")

@@ -64,6 +64,7 @@ from viralscan.outputs import analysis_genes_path, posthoc_dir
 from viralscan.read_support import write_molecule_support
 from viralscan.run_safety import RunSafetyError, refuse_primary_tree, sha256_file, software_identity
 from viralscan.runconfig import RunConfig
+from viralscan.igv_html import IgvError, IgvNotEvaluable, write_igv_page
 from viralscan.splice import SPLICE_DIR, SpliceError, require_splice_minimap2, run_splice
 from viralscan.strand_qc import write_strand_qc
 from viralscan.scripts.multimap import load_transcripts, read_ec
@@ -241,6 +242,22 @@ def _run_splice_check(
     log.info("Splice check: %s %s -> %s", row["status"], row["reason"], out / SPLICE_DIR)
 
 
+def _run_html_check(args: argparse.Namespace, config: RunConfig, out: Path) -> None:
+    """``--html`` (PLAN EVID-04): write ``<out>/igv_browser.html``; no molecule unit is a warning, not a stop."""
+    from viralscan.scripts.analysis import locus_gtf_paths
+
+    try:
+        path = write_igv_page(
+            out, viral_fasta=args.viral_fasta, annotation_gtfs=locus_gtf_paths(config)
+        )
+    except IgvNotEvaluable as exc:
+        log.warning("--html wrote no page: %s", exc)
+        return
+    except (IgvError, SpliceError, OSError, RuntimeError) as exc:
+        _die(f"--html failed: {exc}")
+    log.info("Wrote %s", path)
+
+
 def star_evidence(
     targets: str | Iterable[str], bam_path: str | Path, barcodes: set[str] | None = None
 ) -> dict[str, Any]:
@@ -343,6 +360,8 @@ def run_evidence(args: argparse.Namespace) -> None:
                 _die(f"{flag} requires --viral-fasta.")
         if getattr(args, "splice", False):
             _die("--splice requires --viral-fasta.")
+        if getattr(args, "html", False):
+            _die("--html requires --viral-fasta.")
     else:
         if not getattr(args, "host_fasta", None):
             _die(
@@ -352,6 +371,10 @@ def run_evidence(args: argparse.Namespace) -> None:
         missing_tools = have_tools(["minimap2", "samtools"])
         if missing_tools:
             _die(f"--viral-fasta given but missing tools: {', '.join(missing_tools)}")
+        if getattr(args, "html", False) and competitor_fasta:
+            _die(
+                "--html draws the molecules of counted virus-best verdicts, which competitor mode does not produce."
+            )
         if getattr(args, "splice", False) and not competitor_fasta:
             try:  # fail before the replay, which is the expensive step
                 require_splice_minimap2()
@@ -600,6 +623,8 @@ def run_evidence(args: argparse.Namespace) -> None:
             )
         if getattr(args, "splice", False):
             _run_splice_check(args, config, out, competition is not None)
+        if getattr(args, "html", False):
+            _run_html_check(args, config, out)
         _write_evidence_manifest(
             out,
             target_label=target_label,
@@ -889,6 +914,8 @@ def run_evidence(args: argparse.Namespace) -> None:
 
     if getattr(args, "splice", False):
         _run_splice_check(args, config, out, competition is not None)
+    if getattr(args, "html", False):
+        _run_html_check(args, config, out)
     log.info("Evidence outputs written under %s", out)
     _write_evidence_manifest(
         out,
