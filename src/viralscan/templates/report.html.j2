@@ -310,6 +310,7 @@
             <th>Virus</th>
             <th>Panel</th>
             <th>Latency observable in RNA</th>
+            <th>Cells with a lytic programme (productive + mixed)</th>
             <th>Cells latent</th>
             <th>Cells productive</th>
             <th>Cells mixed</th>
@@ -323,6 +324,7 @@
             <td><span class="badge badge-found">{{ row.virus_name }}</span></td>
             <td>{{ row.panel_completeness }}</td>
             <td>{{ 'yes' if row.latency_observable_in_rna else 'no' }}</td>
+            <td class="number">{{ row.n_cells_lytic_programme }}</td>
             <td class="number">{{ row.n_cells_latent }}</td>
             <td class="number">{{ row.n_cells_productive }}</td>
             <td class="number">{{ row.n_cells_mixed }}</td>

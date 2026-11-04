@@ -816,6 +816,9 @@ def summarise_programs(
                 if info is not None and info["reactivation_reachable"] and absence_ok
                 else "not_applicable",
                 "n_cells_mixed": 0 if not observable else int(counts.get("mixed", 0)),
+                # PROG-MIXED-VETO-01: the productive/mixed split is load-driven, their sum is not.
+                "n_cells_lytic_programme": int(counts.get("productive", 0))
+                + (0 if not observable else int(counts.get("mixed", 0))),
                 "n_cells_indeterminate": int(counts.get("indeterminate", 0)),
                 "n_cells_productive_selected_layer": n_prod_sel,
                 "n_cells_latent_selected_layer": n_lat_sel,

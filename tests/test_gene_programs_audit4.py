@@ -170,6 +170,7 @@ class TestD03NotApplicableColumn:
             "n_cells_productive",
             "n_cells_latent",
             "n_cells_mixed",
+            "n_cells_lytic_programme",
             "n_cells_indeterminate",
         ):
             assert isinstance(row[col], (int, np.integer))
