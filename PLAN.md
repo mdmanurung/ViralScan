@@ -672,14 +672,54 @@ No open rows; done rows are in the PLAN archive (see Next action).
   - Blocked (2026-10-02): needs the committed lock (`REL-03`, `[ ]`) and the tested wheel (`REL-04`). No docker daemon here, and verification needs a CI build job.
   - 2026-11-02: Miniforge pin moved from a 2024-06 Ubuntu 20.04 single-arch manifest (`sha256:1bfb5a53...`) to the
     `26.9.4-0` multi-arch index (`sha256:63d72ead...`, Ubuntu 24.04, built 2026-10-24); see `REL-11`. Not yet built in CI.
-- [ ] `REL-07` — publish a versioned OCI candidate, record its digest and tool
+- [~] `REL-07` — publish a versioned OCI candidate, record its digest and tool
   manifest, and never assign `latest` to an RC.
-- [ ] `REL-08` — build Apptainer/SIF from that OCI digest rather than performing
+  - 2026-11-04 (`codex/rel-07-14-plumbing`, code half): already held, `release.yml` `container` job: pushes the scanned
+    image under the version tag, writes the digest to `release-assets/OCI_DIGEST` (the `Publish the scanned image` step),
+    and `latest` is added only for `^v[0-9]+\.[0-9]+\.[0-9]+$` (the `meta` step; run for `dev1`, `a1`, `b1`, `rc1`, `rc2`
+    and stable in `test_actual_release_tag_step_preserves_latest_for_prereleases`). New: step `Record the tool manifest`
+    runs `scripts/release_parity.py versions` inside the pushed image and ships `tool-manifest.json` (kb-python, kallisto,
+    bustools, minimap2, samtools, snakemake, STAR, viralscan + digest). `kb --version` prints usage and `kb info` exits
+    non-zero, so kb-python is read from distribution metadata. Static tests: `tests/test_release_static.py`.
+    Needs a tag run: the first push, the digest and the manifest content. Not verified (no docker here).
+- [~] `REL-08` — build Apptainer/SIF from that OCI digest rather than performing
   a separate dependency solve; record the SIF SHA-256.
-- [ ] `REL-09` — run the identical tiny workflow in locked conda, Docker, and
+  - 2026-11-04 (code half): `scripts/release_sif_definition.py` (refuses mutable tags; `Bootstrap: docker`, `From:
+    <repo>@sha256:...`, no `%post`) was already called by the `container` job. New `sif` job (`needs: container`):
+    checks the def's `From:` equals `OCI_DIGEST`, `apptainer build`, `apptainer test`, then ships
+    `viralscan.sif.sha256` (release asset) and the SIF itself as a 7-day workflow artifact (`sif`). Apptainer
+    1.5.4 via `eWaterCycle/setup-apptainer` v3.0.0 (SHA-pinned; `1.5.4` is the README's example version, not tried here).
+    Decision for the user: the SIF is not a release asset (size, and a SIF rebuild is not byte-identical); to host it
+    push it to GHCR with `apptainer push oras://`, not added. Needs a tag run.
+- [~] `REL-09` — run the identical tiny workflow in locked conda, Docker, and
   Apptainer and compare validated molecule counts and deterministic output hashes.
-- [ ] `REL-10` — save `analysis/release_parity/parity_report.json` with commands,
+  - 2026-11-04 (code half): `scripts/release_parity.py run` runs `tests/data/evidence_tiny` (kallisto index, then
+    `viralscan run --tchem off --cell-calling none`, then `validate-run`) behind a `--runner` command prefix and
+    writes per-environment molecule totals, the validate-run verdict and a SHA-256 per output file. New `parity` job
+    runs it three times: `micromamba create --file environment.explicit.txt` + the tested wheel, the image digest by
+    `docker run`, and the SIF by `apptainer exec`. `publish` now needs `parity` and `sif`. `--tchem off` because
+    `auto` depends on whether a tchem binary exists in the environment and the fixture reads are not a real kit
+    (`auto` stops the fixture run with `no_match`). Local conda leg run twice (`viralscan_test_full`, kb-python 0.30.2, kallisto 0.52.0 used by
+    `kb count`, bustools 0.45.1, `viralscan 3.0.0rc1`, separate work dirs): `validate-run` ok, 1 molecule of
+    `VIRUS_TARGET`, 27 files hash-identical (the BUS files, `cells_x_genes.mtx`, every `results/*.tsv`), 21 explained
+    differences, `compare` ok. It found three more path-dependent files (`README.txt`, `chemistry_sanity.json`,
+    `artifact_inventory.json`), now on the explained list, and that the fixture index must be built with the kallisto
+    that `kb count` uses (`tool_path`), not the one on PATH (0.51.1: "Corrupted index"). Docker and Apptainer legs not run.
+    Known wart: the docker leg fixes the container cwd to the workspace (`-w $PWD`), so `.snakemake/` lands in the
+    workspace root, not in `parity-work/docker`; hashing covers `out/` only, so parity is unaffected. The `parity` job
+    builds the 487-package env, pulls the image and holds the SIF on one runner: disk may be tight. `setup-micromamba`
+    is called with no environment inputs (its README: it then installs only the executable); the env is made by
+    `micromamba create --file environment.explicit.txt`. Local runs were conda against conda, so they show same-environment
+    determinism, not cross-environment parity. Needs a tag run for the docker and apptainer legs and the workflow YAML itself.
+- [~] `REL-10` — save `analysis/release_parity/parity_report.json` with commands,
   versions, digests, hashes, and explained nondeterministic files.
+  - 2026-11-04 (code half): `release_parity.py compare` writes the report (reference environment, per-environment
+    kind/digest/versions/commands/molecules, `deterministic_files` with hashes, `explained_nondeterministic_files` with
+    per-environment hashes and a reason, the rule list) and exits 1 on any molecule, validation or unexplained hash
+    difference. The explained list is `EXPLAINED_NONDETERMINISTIC` in the script (run manifest/completion marker,
+    config, summary, report, kb/run info JSON, `.h5ad`, `*.done`, `log/`, `.snakemake/`). Unit tests with fake
+    per-environment results: `tests/test_release_parity.py`. The `release-parity` artifact (results + report) is a
+    release asset. Needs a tag run to produce the real report.
 ### WP2C — Supply chain and release workflow
 
 - [~] `REL-11` — security CI exists; audit the locked product environment rather
@@ -765,8 +805,23 @@ No open rows; done rows are in the PLAN archive (see Next action).
     `publish` and `release-assets` consume the `dist` artifact after `sha256sum -c`. Pinned by
     `tests/test_release_static.py`. Limit: the gate needs a CI run on the tagged SHA, so tag a commit already on `main`.
   - 2026-11-04: `tests/test_workflows_pinned.py` also asserts that every `release.yml` job reaches `ci-gate` through `needs` and that `container` and `publish` need it directly.
-- [ ] `REL-14` — add protected TestPyPI/PyPI environments, stable approval, GitHub
+- [~] `REL-14` — add protected TestPyPI/PyPI environments, stable approval, GitHub
   release assets, and separate RC/stable container tag behavior.
+  - 2026-11-04 (code half): already held in `release.yml`: `build` picks `pypi` for `^v[0-9]+\.[0-9]+\.[0-9]+$` and
+    `testpypi` for every other tag (`b`, `rc`, `a`, `dev`); `container` and `publish` use that environment; stable
+    goes to PyPI, the rest to `test.pypi.org/legacy/`; `latest` is stable-only; prereleases are marked on the GitHub
+    release. New static tests run the channel step for `b1`/`rc1`/`dev1`/stable and pin the publish steps. The release
+    asset list is now tested: wheel, sdist, `SHA256SUMS`, `release-ci.json`, OCI SBOM, vulnerability report, licence
+    metadata, `OCI_DIGEST`, `tool-manifest.json`, `Singularity.release.def`, `viralscan.sif.sha256`, parity results
+    and `parity_report.json`.
+  - **User steps (repo settings, not done here):** (1) Settings, Environments: create `testpypi` (deployment
+    tags `v*`, no reviewers) and `pypi` (required reviewers, deployment tags `v*`). (2) On test.pypi.org and pypi.org add
+    a pending trusted publisher: owner `mdmanurung`, repo `ViralScan`, workflow `release.yml`, environment `testpypi` /
+    `pypi` (`RC-02`). (3) Make the GHCR package `viralscan` public so outside labs can pull. (4) Bump the version to
+    `3.0.0b1` in `src/viralscan/__init__.py`, `Dockerfile`, `Singularity.def`, `conda-recipe/meta.yaml`,
+    `CITATION.cff` (`scripts/check_versions.py --tag v3.0.0b1` must pass), merge, wait for CI on `main`, tag the
+    merged commit. Same steps are in `MAINTAINER_CHECKLIST.md`. Open: the first tag run exercises `sif` and `parity`,
+    which have never run; a failure there blocks `publish`, so expect to move the tag (as `RC-03` already plans).
 - [!] `REL-15` — maintainers must provide final author, licence-holder,
   maintainer/contact, ORCID, affiliation, support-window, and trusted-publisher
   metadata.
