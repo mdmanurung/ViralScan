@@ -290,6 +290,28 @@ def test_d1_options_keep_the_plain_fingerprint_unless_set(
     )
 
 
+@pytest.mark.parametrize(
+    "key, value", [("programme_mixed_veto", "betabinomial"), ("programme_mixed_veto_alpha", 0.05)]
+)
+def test_mixed_veto_options_keep_the_plain_fingerprint_unless_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, value: object
+) -> None:
+    """PROG-MIXED-VETO-01: an unset flag adds no manifest key; a set value changes it."""
+    import viralscan.run_safety as rs
+
+    monkeypatch.setattr(rs, "__version__", "0.0.test")
+    monkeypatch.chdir(tmp_path)
+    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
+        Path(name).write_text(text)
+    Path("t2g.txt").write_text("a\tb\n")
+    base = dict(infected_min_molecules=None, detection_min_cells=None, hostresponse_min_umi=None)
+    unset = _plain_args_d1(**base, programme_mixed_veto=None, programme_mixed_veto_alpha=None)
+    assert rs.build_run_manifest(unset)["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
+    assert rs.build_run_manifest(_plain_args_d1(**{**base, key: value}))["run_fingerprint"] != (
+        _PLAIN_RUN_FINGERPRINT
+    )
+
+
 def test_scautoqc_is_fingerprinted_only_when_enabled(tmp_path, monkeypatch):
     import viralscan.run_safety as rs
 

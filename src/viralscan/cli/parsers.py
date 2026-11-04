@@ -520,6 +520,12 @@ def _build_evidence_parser(subparsers: Any) -> None:
         "alignment and BLAST.",
     )
     p.add_argument(
+        "--host-gtf",
+        default=None,
+        help="Host annotation GTF (exon rows) used to calibrate strand_qc.tsv on host reads. "
+        "Without it strand_qc.tsv is written as not_assessed.",
+    )
+    p.add_argument(
         "--competitor-fasta",
         default=None,
         help="Explicit alternate/related/decoy FASTA; requires --competitor-manifest.",
@@ -560,6 +566,15 @@ def _build_evidence_parser(subparsers: Any) -> None:
         default=False,
         help="Write viral_reads.tagged.bam with CB/UB cell-barcode tags (from read names) "
         "for per-cell IGV inspection (group by tag CB). Requires --viral-fasta.",
+    )
+    p.add_argument(
+        "--splice",
+        action="store_true",
+        default=False,
+        help="Realign the member reads of counted virus-best molecules to the viral genome alone with "
+        "minimap2 -ax splice:sr (needs minimap2 >= 2.29) and write splice/ (splice.bam, junctions.tsv, "
+        "splice_summary.tsv, splice_manifest.json). Supports viral RNA processing; it does not "
+        "establish origin, infection or reactivation. Requires --viral-fasta.",
     )
     p.add_argument(
         "--dedup",
@@ -1043,6 +1058,30 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
             "in the cell; latent markers are unaffected. 1 means any nonzero value. "
             "Must be >= 1. Default: the run's own config "
             f"({DEFAULTS['programme_productive_min_molecules']} if it set none)."
+        ),
+    )
+    p.add_argument(
+        "--programme-mixed-veto",
+        choices=["catalogue", "any", "betabinomial"],
+        default=None,
+        help=(
+            "How a latent molecule turns a productive cell into mixed: catalogue (each "
+            "virus's shipped rule, today any for every virus), any (one latent-veto "
+            "molecule), or betabinomial (only when the latent load is improbably high for a "
+            "lytic cell at its depth; needs a fitted veto in gene_program_vetoes.tsv). "
+            "Default: the run's own config "
+            f"({DEFAULTS['programme_mixed_veto']} if it set none)."
+        ),
+    )
+    p.add_argument(
+        "--programme-mixed-veto-alpha",
+        type=float,
+        default=None,
+        metavar="A",
+        help=(
+            "Per-cell significance level of the beta-binomial mixed veto, in (0, 1). "
+            "Default: the run's own config "
+            f"({DEFAULTS['programme_mixed_veto_alpha']} if it set none)."
         ),
     )
     _add_force_arg(p)
@@ -1876,6 +1915,29 @@ def _build_run_parser(subparsers: Any) -> None:
             "A productive marker counts toward productive breadth only at >= N molecules "
             "in the cell; latent markers are unaffected. 1 means any nonzero value. "
             f"Must be >= 1. Default: {DEFAULTS['programme_productive_min_molecules']}."
+        ),
+    )
+    parser.add_argument(
+        "--programme-mixed-veto",
+        choices=["catalogue", "any", "betabinomial"],
+        # None (not the default string) when unset, so default runs keep their --resume fingerprint.
+        default=None,
+        help=(
+            "How a latent molecule turns a productive cell into mixed: catalogue (each "
+            "virus's shipped rule, today any for every virus), any (one latent-veto "
+            "molecule), or betabinomial (only when the latent load is improbably high for a "
+            "lytic cell at its depth; needs a fitted veto in gene_program_vetoes.tsv). "
+            f"Default: {DEFAULTS['programme_mixed_veto']}."
+        ),
+    )
+    parser.add_argument(
+        "--programme-mixed-veto-alpha",
+        type=float,
+        default=None,
+        metavar="A",
+        help=(
+            "Per-cell significance level of the beta-binomial mixed veto, in (0, 1). "
+            f"Default: {DEFAULTS['programme_mixed_veto_alpha']}."
         ),
     )
     parser.add_argument(

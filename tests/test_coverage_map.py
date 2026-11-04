@@ -165,3 +165,35 @@ def test_host_prefixed_reference_is_not_prefix_stripped(evidence_dir):
     with pytest.raises(CoverageMapError) as error:
         coverage_map_figure(d, "HOST|X", annotation_path=gtf)
     assert error.value.status == "annotation_mismatch"
+
+
+def test_gene_track_figure_metadata(evidence_dir):
+    d = evidence_dir
+    gtf = d / "genes.gtf"
+    gtf.write_text(
+        'TARGET|X\tt\tgene\t1\t100\t.\t+\t.\tgene_id "COV";\n'
+        'TARGET|X\tt\tgene\t200\t300\t.\t-\t.\tgene_id "NOCOV";\n'
+        'TARGET|X\tt\tgene\t850\t950\t.\t-\t.\tgene_id "LATE";\n'
+    )
+    meta = coverage_map_figure(d, annotation_path=gtf)
+    track = meta["gene_track"]
+    assert meta["coverage_track"] == "deduplicated"
+    assert track["genes_drawn"] == 3 and track["genes_left_out_over_max_bp"] == 0
+    assert track["labelled"] == ["COV", "LATE"]  # NOCOV has no reads, so no label
+    assert "0 gene(s) longer than 20 kb not drawn" in track["caption"]
+    saved = json.loads((d / "coverage_map.TARGET|X.json").read_text())
+    assert saved["gene_track"]["genes"][0]["mean_dedup_depth"] > 0
+    assert (d / "coverage_map.TARGET|X.png").stat().st_size > 0
+
+
+def test_gene_track_counts_long_genes(evidence_dir, monkeypatch):
+    d = evidence_dir
+    gtf = d / "genes.gtf"
+    gtf.write_text(
+        'TARGET|X\tt\tgene\t1\t100\t.\t+\t.\tgene_id "A";\n'
+        'TARGET|X\tt\tgene\t1\t900\t.\t+\t.\tgene_id "B";\n'
+    )
+    monkeypatch.setattr("viralscan.coverage_gene_track.MAX_FEATURE_BP", 500)  # genome is 1 kb
+    meta = coverage_map_figure(d, annotation_path=gtf)
+    assert meta["gene_track"]["genes_drawn"] == 1
+    assert meta["gene_track"]["genes_left_out_over_max_bp"] == 1
