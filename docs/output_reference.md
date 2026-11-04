@@ -658,7 +658,7 @@ A third defence is about honesty rather than arithmetic:
 | `productive` | ≥ `min_breadth` distinct non-overlapping productive overlap groups carry uniquely-placing molecules |
 | `latent` | ≥ `latent_min_breadth` (default 1) latent overlap group(s), productive below `min_breadth`, **and** `latency_observable_in_rna` |
 | `reactivating` | productive evidence in which every productive marker carrying molecules is immediate-early (`kinetic_class`), and the cell is not `productive`, `mixed` or `latent`. It only replaces what would otherwise be `indeterminate`. It is reachable only for a virus whose catalogue rows set `latency_observable_in_rna` true **and** that has an immediate-early productive marker: today that is EBV alone. VZV, HHV-6A/6B, HHV-7, HSV-1/2 and HCMV never emit it (`not_applicable`: there is no latency anchor, and for HCMV latency mirrors late-lytic expression at low levels while the IE genes UL122/UL123 are detectable in latent cells); KSHV has no immediate-early productive marker. It is also not called when a productive catalogue marker is unresolved against the index (see `indeterminate`) |
-| `mixed` | both of the above in the same cell. **Load-driven** (PLAN `PROG-MIXED-VETO-01`): one latent molecule turns `productive` into `mixed`, so in heavily lytic cells the mixed share rises with depth (KSHV GSE190558: 13-20 % of called cells at 100-500 KSHV molecules, 66-73 % at >= 2,000). Read `productive` and `mixed` together as "lytic programme present" (`n_cells_lytic_programme`, per-cell `lytic_programme`); do not read the split between them as biology |
+| `mixed` | both of the above in the same cell. **Load-driven** (PLAN `PROG-MIXED-VETO-01`): one latent molecule turns `productive` into `mixed`, so in heavily lytic cells the mixed share rises with depth (KSHV GSE190558: 13-20 % of called cells at 100-500 KSHV molecules, 66-73 % at >= 2,000). Read `productive` and `mixed` together as "lytic programme present" (`n_cells_lytic_programme`, per-cell `lytic_programme`); do not read the split between them as biology. With `--programme-mixed-veto betabinomial` the latent markers veto only when their molecules are improbably many for a lytic cell at its load (one-sided beta-binomial test, `mixed_veto_*` columns); on the GSE190558 training libraries that removes the load dependence (mixed share 2-8 % at both 15-100 and >= 500 unique KSHV molecules) |
 | `indeterminate` | the virus was detected but no programme met its threshold, and the cell is not `reactivating` — not a negative. It is also what a cell reads when a productive catalogue marker is unresolved against this index: both absence-based states (`latent`, which asserts productive evidence is below threshold, and `reactivating`) degrade to `indeterminate`, because the markers that would show the absence are missing. Positive calls (`productive`, `mixed`) are unaffected. `n_markers_unresolved` and `caveat` record it |
 | `not_applicable` | no programme model exists for this virus (summary rows only) |
 
@@ -686,6 +686,9 @@ column was removed.
 | `productive_min_molecules` | The `--programme-productive-min-molecules` used: a productive marker counts toward productive breadth only at ≥ this many molecules; latent markers are unaffected (default 1 = any nonzero value) | observation |
 | `marker_min_umi` | The `--programme-min-umi` used: a marker counts only at ≥ this many molecules (default 0 = any nonzero value, so the allocated layer's fractional values still count) | observation |
 | `n_cells_lytic_programme` | `n_cells_productive` + `n_cells_mixed`: cells with the lytic programme present. Use this rather than either part, because the split between them depends on load (see `mixed` under States) | model estimate |
+| `mixed_veto_rule` | The veto the virus was called with: `any` (one latent-veto molecule turns `productive` into `mixed`) or `betabinomial` (load-aware test); blank for a virus with no programme model | observation |
+| `mixed_veto_mean` / `mixed_veto_rho` | The beta-binomial fit used for the veto, from `gene_program_vetoes.tsv` (mean latent-veto share of a lytic cell and its overdispersion); empty when the virus has no fit | observation |
+| `mixed_veto_alpha` | The per-cell significance level of the beta-binomial veto; empty unless `mixed_veto_rule` is `betabinomial` | observation |
 | `n_cells_reactivating` | Cells called `reactivating` on the unique layer; the string `not_applicable` where the state is unreachable (every virus but EBV, and any virus with an unresolved productive marker), so a number here is never a structural zero | model estimate |
 | `productive_breadth_median` / `latent_breadth_median` | Breadth on the unique layer | model estimate |
 | `n_cells_latent_selected_layer` / `n_cells_productive_selected_layer` | What the same rule would have called on the multimap-allocated layer — the honest comparison | model estimate |
@@ -1212,6 +1215,10 @@ remains provenance-incomplete.
 | `molecule_support.tsv`, `read_support_summary.tsv` | Q137 provisional read-support **flags** per molecule (one row per corrected (CB, UMI); the representative read is the one with the best viral alignment) and one call-level summary row. Gates: viral aligned length >= 60 (M/=/X) and >= 60% of the trimmed query (`aligned_bases`, `query_coverage`); >= 20 DUST-unmasked aligned bases (`dust_unmasked_bases`, symmetric DUST w64 l20), with `aligned_AT_warning` at max(A,T) >= 0.70; competitive human alignment (`human_equal_or_better` when human AS >= viral AS); `hotspot_only` and the DNAJB6 `host_decoy` from `src/viralscan/data/read_support_loci.tsv`. `known_artefact` (`human_DNAJB6`, `low_complexity_hotspot`) is set per molecule and, in the summary, only when every molecule fails for that reason (`known_artefact_mixed` when every molecule fails for one of several). `n_molecules`, `n_pass_all_gates`, `n_human_equal_or_better` (molecules carrying that flag, so only those with a viral alignment). Flags remove nothing and move no threshold. A molecule whose viral-aligned primary record has `SEQ=*` (and no queries FASTA) has no read to assess and is skipped, with one aggregated warning giving the count; every other molecule stays. Written only without `--competitor-fasta` | observation |
 | `viral_reads.umi_dedup.fasta` | One representative extracted read per corrected (CB, UMI) molecule, chosen after the competitive alignment; the BLAST sample and the interpretation-flag fractions are drawn from it. The representative is the read with the best viral alignment, so the BLAST/UMI-dedup FASTA, Q137 gates 1, 2 and 4 and the ambiguity flag are built from that read of each molecule, while gate 3 and `molecule_verdicts` use all reads of the molecule. A molecule that mixes a viral-looking read with better-scoring host reads is therefore biased toward the virus side in the former; treat them as diagnostic only (audit P3-01). | observation |
 | `molecule_verdict_summary.tsv` | Molecules per `scope` (`all`, `counted`) and `verdict`; every verdict is listed, zeros included. `scripts/dsr02_verdicts.py` decides on the `counted` scope | observation |
+| `splice/splice.bam` (+ `.bai`) | `--splice` only. Member reads of counted virus-best molecules realigned to the viral genome alone with `minimap2 -ax splice:sr --secondary=no -G 100000`, sorted and indexed. Primary, supplementary and unmapped records are all kept; junction rules read only primary mapped ones | observation |
+| `splice/junctions.tsv` | `--splice` only. One row per intron (`contig`, `start`, `end`: 1-based, inclusive intron coordinates on the genome), `strand` and `motif` (donor-acceptor in transcript orientation, e.g. `GT-AG`; `strand` is `.` and `motif` the forward reading when neither strand reads canonical), `motif_canonical` (GT-AG, GC-AG or AT-AC), `supporting_molecules` and `supporting_reads` (a molecule counts once however many of its reads span the intron), `annotated` (exact match to a gap between consecutive `exon` rows of one `transcript_id` in the viral GTF; **empty** when that contig has no exon rows) and `annotated_transcript` | observation |
+| `splice/splice_summary.tsv` | `--splice` only. One row: `status` (`assessed`, `not_evaluable`, `not_assessed`) and `reason`; the five molecule counts of `docs/evidence_unit.md` (`counted_virus_best`, `counted_host_best`, `counted_tie`, `counted_unaligned`, `not_counted`); `reads_realigned`, `reads_aligned`, `spliced_reads`, `spliced_molecules`, `spliced_molecules_annotated`, `unique_junctions`, `junction_calls_rejected` (N operations that failed a rule below); `annotation_status`; `note`. Only the counted virus-best molecules are realigned | observation |
+| `splice/splice_manifest.json` | `--splice` only. Receipt: input hashes (`molecule_verdicts.tsv.gz`, `read_lineage.tsv.gz`, `competitive_reads.raw.bam`, viral FASTA, GTFs), minimap2 version and options, the rule constants, rejections per rule, output hashes. Its SHA-256 is listed in `evidence_manifest.json` `outputs` (`splice/splice_manifest.json`); `evidence_manifest_sha256` inside it is null because the evidence manifest is written after the check | observation |
 
 Every manifest of a run that aligned with minimap2 (competitor or host-verdict mode) also has a top-level
 `minimap2_options` list and the minimap2 version string in `tool_binaries.minimap2.version`. A manifest without
@@ -1227,6 +1234,35 @@ aligned. The alignment keeps secondaries with at least 0.8 of the primary score
 (`-p 0.8 -N 5`), so an exact host/virus tie is reported as `tie`. When only one
 side has an alignment the other scored below that cutoff, so the present side wins. A verdict compares scores of the
 emitted alignments; it is not a probability and not a host-contamination call.
+
+### `--splice`: junctions in the reads behind a call
+
+Off by default; needs `--viral-fasta` and minimap2 >= 2.29 (the `splice:sr` preset; an older minimap2 stops the
+run before the replay, with no fallback to plain `splice`). The unit is the one of `docs/evidence_unit.md`: the
+member reads (all `read_lineage.tsv.gz` rows with that CB and UB) of molecules that are `counted` and
+`virus_best` in `molecule_verdicts.tsv.gz`, with sequences taken from the primary record of
+`competitive_reads.raw.bam`. `viral_reads.umi_dedup.fasta` is not used. The reads are aligned to the viral
+contigs that those reads aligned to in the competitive BAM, not to the host. A molecule supports a junction
+when any member read does. In competitor mode (`--competitor-fasta`) no verdicts exist, so
+`splice_summary.tsv` has one `not_assessed` row and nothing is computed. With no counted virus-best molecule
+the row is `not_evaluable` and carries the five counts.
+
+Junction rules (named constants in `src/viralscan/splice.py`): primary alignments only (no secondary,
+supplementary or unmapped record); at least 8 aligned bases (`MIN_ANCHOR`) on each side of an N, up to the
+next N or the read end; intron length 20 bp (`MIN_INTRON_LENGTH`) to 100,000 bp (`MAX_INTRON_LENGTH`, also
+minimap2's `-G`); NM over aligned bases at most 0.08 (`MAX_MISMATCH_FRACTION`); soft clips at most 0.25 of the
+read (`MAX_CLIP_FRACTION`). An alignment that fails the last two reports no junction; an N that fails the first
+three is refused alone. Refusals are counted in `junction_calls_rejected` and, per rule, in the manifest.
+
+Annotated introns come only from the gap between consecutive `exon` rows of one `transcript_id`. A genome whose
+GTF has only CDS rows (for example HHV-6B AF157706.1) gets `annotation_status =
+intron_matching_not_evaluable` and an empty `annotated`: CDS gaps are never treated as introns.
+`annotated_introns_available` and `no_annotated_introns` (exon rows, no gaps) mean matching was evaluated.
+
+**What it means.** A viral-only alignment: a junction supports viral RNA processing. It does not establish the
+origin of the molecule, infection or reactivation. Ambient RNA and integrated genomes give spliced viral reads
+too: ciHHV-6 expresses U90 and U100 (Peddu 2019, doi:10.1128/JVI.01418-19). Molecules the kallisto index never
+captured are outside the check.
 
 ### `results/evidence/<genus>/` and `log/auto_evidence.done`
 

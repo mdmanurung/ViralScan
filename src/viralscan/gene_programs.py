@@ -173,6 +173,116 @@ def load_catalogue(path: str | Path | None = None) -> list[Row]:
     return rows
 
 
+#: PLAN PROG-MIXED-VETO-01. Per-virus settings of the latent-marker veto that turns a
+#: ``productive`` cell into ``mixed``. ``any`` (the rule before PROG-MIXED-VETO-01): one
+#: latent-veto molecule vetoes. ``betabinomial``: a cell's latent-veto molecules k veto only
+#: when they are improbably many for a lytic cell at its load N, i.e. when
+#: P(X >= k | X ~ BetaBinomial(N, mean, rho)) < alpha. Lytic cells differ in their latent
+#: share (on KSHV GSE190558 the counts vary ~57x more than one shared share allows), so a
+#: plain binomial flags the upper half of heavy lytic cells by construction; the
+#: beta-binomial's ``rho`` carries that spread. ``mean`` and ``rho`` are fitted once and
+#: frozen in the file with their basis.
+MIXED_VETO_RULES = ("any", "betabinomial")
+MIXED_VETO_OVERRIDES = ("catalogue",) + MIXED_VETO_RULES
+_VETO_FILENAME = "gene_program_vetoes.tsv"
+_VETO_COLUMNS = ("virus", "mixed_veto_rule", "mixed_veto_mean", "mixed_veto_rho", "basis")
+
+
+@dataclass(frozen=True)
+class VetoSetting:
+    """One virus's ``mixed`` veto: the shipped rule and its frozen fit (None if unfitted)."""
+
+    rule: str = "any"
+    mean: float | None = None
+    rho: float | None = None
+    basis: str = ""
+
+    @property
+    def fitted(self) -> bool:
+        return self.mean is not None and self.rho is not None
+
+
+def load_veto_settings(path: str | Path | None = None) -> dict[str, VetoSetting]:
+    """Read the per-virus veto table; a virus not listed gets ``VetoSetting()`` (``any``).
+
+    Raises ``ValueError`` on an unknown rule, a duplicate virus, a ``mean`` or ``rho``
+    outside (0, 1), only one of the two given, or a ``betabinomial`` rule with no fit: a
+    veto that cannot be computed must not fall back to ``any`` in silence.
+    """
+    tsv = (
+        Path(path)
+        if path is not None
+        else Path(str(importlib.resources.files(_PACKAGE_DATA).joinpath(_VETO_FILENAME)))
+    )
+    settings: dict[str, VetoSetting] = {}
+    with open(tsv, newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != _VETO_COLUMNS:
+            raise ValueError(f"{tsv}: columns must be {_VETO_COLUMNS}, got {reader.fieldnames}")
+        for line, row in enumerate(reader, start=2):
+            virus, rule = row["virus"], row["mixed_veto_rule"]
+            if rule not in MIXED_VETO_RULES:
+                raise ValueError(
+                    f"{tsv}:{line}: mixed_veto_rule {rule!r} not in {MIXED_VETO_RULES}"
+                )
+            if virus in settings:
+                raise ValueError(f"{tsv}:{line}: {virus!r} is listed twice")
+            fit: dict[str, float | None] = {}
+            for key in ("mean", "rho"):
+                raw = row[f"mixed_veto_{key}"]
+                value = float(raw) if raw else None
+                if value is not None and not 0 < value < 1:
+                    raise ValueError(
+                        f"{tsv}:{line}: mixed_veto_{key} must be in (0, 1), got {value}"
+                    )
+                fit[key] = value
+            if (fit["mean"] is None) != (fit["rho"] is None):
+                raise ValueError(f"{tsv}:{line}: {virus!r} needs both mixed_veto_mean and _rho")
+            setting = VetoSetting(rule=rule, mean=fit["mean"], rho=fit["rho"], basis=row["basis"])
+            if rule == "betabinomial" and not setting.fitted:
+                raise ValueError(f"{tsv}:{line}: {virus!r} uses the beta-binomial veto unfitted")
+            settings[virus] = setting
+    return settings
+
+
+def effective_veto(
+    virus: str, settings: dict[str, VetoSetting], override: str = "catalogue"
+) -> VetoSetting:
+    """The veto a run uses for ``virus``: the shipped one, or ``override``.
+
+    A forced ``betabinomial`` keeps the shipped fit. A virus with no fit cannot take it
+    and keeps ``any``; the caller logs that and the summary's ``mixed_veto_rule`` shows
+    it, so a multi-virus sample (KSHV with EBV) can still force the rule on KSHV.
+    """
+    if override not in MIXED_VETO_OVERRIDES:
+        raise ValueError(f"mixed veto override {override!r} not in {MIXED_VETO_OVERRIDES}")
+    shipped = settings.get(virus, VetoSetting())
+    if override == "catalogue":
+        return shipped
+    if override == "betabinomial" and not shipped.fitted:
+        return VetoSetting(rule="any", basis=shipped.basis)
+    return VetoSetting(rule=override, mean=shipped.mean, rho=shipped.rho, basis=shipped.basis)
+
+
+def betabinomial_veto(k: float, n: float, mean: float, rho: float, alpha: float) -> bool:
+    """True when k latent-veto molecules out of n are improbably many for a lytic cell.
+
+    One-sided: P(X >= k) for X ~ BetaBinomial(n, a, b) with a = mean (1 - rho) / rho and
+    b = (1 - mean) (1 - rho) / rho, compared with ``alpha``. Fractional counts (the
+    multimap-allocated layer) are rounded to the nearest integer first.
+    """
+    from scipy.stats import betabinom
+
+    k_int, n_int = int(round(k)), int(round(n))
+    if k_int <= 0:
+        return False
+    if k_int > n_int:
+        raise ValueError(f"latent-veto molecules ({k}) exceed the cell's virus molecules ({n})")
+    a = mean * (1 - rho) / rho
+    b = (1 - mean) * (1 - rho) / rho
+    return float(betabinom.sf(k_int - 1, n_int, a, b)) < alpha
+
+
 #: Per-virus attributes that must agree on every catalogue row of a virus.
 _VIRUS_CONSTANT_COLUMNS = ("latency_observable_in_rna", "panel_completeness")
 
@@ -520,6 +630,10 @@ def call_cell_programme(
     productive_min_molecules: int = 1,
     reactivating_applicable: bool = True,
     absence_assessable: bool = True,
+    mixed_veto: VetoSetting | None = None,
+    mixed_veto_alpha: float = 0.01,
+    virus_totals: Any = None,
+    selected_virus_totals: Any = None,
 ) -> list[dict[str, Any]]:
     """Assign a gene-programme state to each cell.
 
@@ -570,6 +684,18 @@ def call_cell_programme(
         group) and ``latent`` (productive below threshold), degrade to
         ``indeterminate``: the markers that would show the absence are missing
         (audit D-02, PLAN PROG-14). Positive calls are unaffected.
+    mixed_veto:
+        The latent-marker veto (PLAN PROG-MIXED-VETO-01). ``None`` or rule ``any`` is the
+        earlier rule: one latent-veto molecule turns ``productive`` into ``mixed``. Rule
+        ``betabinomial`` vetoes only when :func:`betabinomial_veto` holds for the cell's
+        latent-veto molecules against its virus molecules (``virus_totals``); the latent-veto
+        breadth must still reach ``latent_min_breadth``. ``latent`` calls are unchanged.
+    mixed_veto_alpha:
+        Per-cell significance level of the beta-binomial veto, in (0, 1).
+    virus_totals, selected_virus_totals:
+        Per-cell molecules of the virus on the unique and allocated layers (one value per
+        matrix row, all of the virus's genes, not only markers). Required by the
+        ``betabinomial`` rule.
 
     Returns
     -------
@@ -589,6 +715,22 @@ def call_cell_programme(
         raise ValueError(f"min_umi must be >= 0, got {min_umi}.")
     if productive_min_molecules < 1:
         raise ValueError(f"productive_min_molecules must be >= 1, got {productive_min_molecules}.")
+    binomial = mixed_veto is not None and mixed_veto.rule == "betabinomial"
+    if binomial:
+        assert mixed_veto is not None
+        for name, value in (("mean", mixed_veto.mean), ("rho", mixed_veto.rho)):
+            if value is None or not 0 < value < 1:
+                raise ValueError(
+                    f"the beta-binomial mixed veto needs {name} in (0, 1), got {value}."
+                )
+        if not 0 < mixed_veto_alpha < 1:
+            raise ValueError(f"mixed_veto_alpha must be in (0, 1), got {mixed_veto_alpha}.")
+        if virus_totals is None or len(virus_totals) != unique_matrix.shape[0]:
+            raise ValueError("the beta-binomial mixed veto needs one virus total per matrix row.")
+        if selected_matrix is not None and (
+            selected_virus_totals is None or len(selected_virus_totals) != selected_matrix.shape[0]
+        ):
+            raise ValueError("the beta-binomial mixed veto needs selected-layer virus totals too.")
     # 1 means "any nonzero", so fractional multimap-allocated values still count.
     prod_floor = max(min_umi, productive_min_molecules if productive_min_molecules > 1 else 0)
     groups = {i: m.overlap_group for i, m in enumerate(markers)}
@@ -620,9 +762,37 @@ def call_cell_programme(
             ie_only,
         )
 
+    def _veto_molecules(matrix: sparse.csr_matrix, cell: int) -> float:
+        """Molecules on latent-veto markers that pass ``min_umi`` in ``cell``."""
+        start, end = matrix.indptr[cell], matrix.indptr[cell + 1]
+        veto = set(veto_cols)
+        return float(
+            sum(
+                matrix.data[o]
+                for o in range(start, end)
+                if int(matrix.indices[o]) in veto
+                and matrix.data[o] > 0
+                and matrix.data[o] >= min_umi
+            )
+        )
+
+    def _tested_veto_breadth(
+        lat_veto: int, matrix: sparse.csr_matrix, cell: int, totals: Any
+    ) -> int:
+        """Keep the veto breadth only when the beta-binomial test says the latent load is real."""
+        if not binomial or lat_veto == 0:
+            return lat_veto
+        assert mixed_veto is not None and mixed_veto.mean is not None and mixed_veto.rho is not None
+        k = _veto_molecules(matrix, cell)
+        real = betabinomial_veto(
+            k, float(totals[cell]), mixed_veto.mean, mixed_veto.rho, mixed_veto_alpha
+        )
+        return lat_veto if real else 0
+
     calls: list[dict[str, Any]] = []
     for cell in indices:
         prod, lat, lat_veto, ie_only = _breadths(unique_matrix, cell)
+        lat_veto = _tested_veto_breadth(lat_veto, unique_matrix, cell, virus_totals)
         state = _decide(
             prod,
             lat,
@@ -637,6 +807,9 @@ def call_cell_programme(
         sel_prod = sel_lat = sel_state = None
         if selected_matrix is not None:
             sel_prod, sel_lat, sel_lat_veto, sel_ie_only = _breadths(selected_matrix, cell)
+            sel_lat_veto = _tested_veto_breadth(
+                sel_lat_veto, selected_matrix, cell, selected_virus_totals
+            )
             sel_state = _decide(
                 sel_prod,
                 sel_lat,

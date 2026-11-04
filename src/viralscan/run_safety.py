@@ -268,6 +268,9 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "infected_min_molecules",
         "detection_min_cells",
         "hostresponse_min_umi",
+        # PROG-MIXED-VETO-01
+        "programme_mixed_veto",
+        "programme_mixed_veto_alpha",
     }
     options = {
         key: value

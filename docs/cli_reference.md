@@ -734,6 +734,13 @@ breadth only at N or more molecules in the cell (default 1, any nonzero value); 
 markers keep their own bar. A value of 2 cuts single-molecule `mixed` calls on KSHV but also
 moves lytic cells to `latent`, so check it on your own lytic control first.
 
+`--programme-mixed-veto betabinomial` replaces the one-molecule veto with a load-aware test:
+a cell is `mixed` only when its latent-veto molecules are improbably many for a lytic cell at
+its depth (one-sided beta-binomial test against the virus's fit in `gene_program_vetoes.tsv`,
+per-cell level `--programme-mixed-veto-alpha`, default 0.01). A virus without a fit keeps
+`any` and the run logs it. The default, `catalogue`, uses each virus's shipped rule, which is
+`any` for every virus today (PLAN `PROG-MIXED-VETO-01`).
+
 Unlike `rerun-multimap` this does not copy the run. Layer 2 only reads the count
 matrices and layer 1's `viral_summary.tsv` and writes two `gene_program_*.tsv`
 files under `results/` of the output directory (`-o DIR` overrides the default);
@@ -805,6 +812,8 @@ the sections above add context. Do not edit between the markers.
 | `--programme-latent-min-breadth N` | `1` | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: 1. |
 | `--programme-min-umi X` | `0.0` | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: 0.0. |
 | `--programme-productive-min-molecules N` | `1` | A productive marker counts toward productive breadth only at >= N molecules in the cell; latent markers are unaffected. 1 means any nonzero value. Must be >= 1. Default: 1. |
+| `--programme-mixed-veto PROGRAMME_MIXED_VETO` | *(none)* | How a latent molecule turns a productive cell into mixed: catalogue (each virus's shipped rule, today any for every virus), any (one latent-veto molecule), or betabinomial (only when the latent load is improbably high for a lytic cell at its depth; needs a fitted veto in gene_program_vetoes.tsv). Default: catalogue. |
+| `--programme-mixed-veto-alpha A` | *(none)* | Per-cell significance level of the beta-binomial mixed veto, in (0, 1). Default: 0.01. |
 | `--min-counts MIN_COUNTS` | `1000` | Minimum total molecule count per cell (for UMAP QC). Default: 1000. |
 | `--min-genes MIN_GENES` | `200` | Minimum detected genes per cell (for UMAP QC filter). Default: 200. |
 | `--hvg-min-mean HVG_MIN_MEAN` | `0.0125` | Scanpy highly-variable-gene min_mean parameter. Default: 0.0125. |
@@ -921,6 +930,7 @@ the sections above add context. Do not edit between the markers.
 | `--blast` | `False` | BLAST a sample of extracted reads against the viral reference (requires blast+). |
 | `--read-start-profile` | `False` | Write a per-position 5' read-start distribution along the viral genome (read_start_profile.tsv). Requires --viral-fasta. |
 | `--cell-tags` | `False` | Write viral_reads.tagged.bam with CB/UB cell-barcode tags (from read names) for per-cell IGV inspection (group by tag CB). Requires --viral-fasta. |
+| `--splice` | `False` | Realign the member reads of counted virus-best molecules to the viral genome alone with minimap2 -ax splice:sr (needs minimap2 >= 2.29) and write splice/ (splice.bam, junctions.tsv, splice_summary.tsv, splice_manifest.json). Supports viral RNA processing; it does not establish origin, infection or reactivation. Requires --viral-fasta. |
 | `--dedup DEDUP` | `umi` | PCR-duplicate handling for --read-start-profile: umi (collapse per CB+UMI; default), markdup (samtools markdup), or none. Default: umi. |
 | `--bin-size BIN_SIZE` | `1` | Bin width (bp) for the read-start profile. Default: 1. |
 | `--sampling-seed SAMPLING_SEED` | `42` | Seed for deterministic BLAST read sampling. Default: 42. |
@@ -1076,6 +1086,8 @@ the row not estimable.
 | `--programme-latent-min-breadth N` | *(none)* | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: the run's own config (1 if it set none). |
 | `--programme-min-umi X` | *(none)* | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: the run's own config (0.0 if it set none). |
 | `--programme-productive-min-molecules N` | *(none)* | A productive marker counts toward productive breadth only at >= N molecules in the cell; latent markers are unaffected. 1 means any nonzero value. Must be >= 1. Default: the run's own config (1 if it set none). |
+| `--programme-mixed-veto PROGRAMME_MIXED_VETO` | *(none)* | How a latent molecule turns a productive cell into mixed: catalogue (each virus's shipped rule, today any for every virus), any (one latent-veto molecule), or betabinomial (only when the latent load is improbably high for a lytic cell at its depth; needs a fitted veto in gene_program_vetoes.tsv). Default: the run's own config (catalogue if it set none). |
+| `--programme-mixed-veto-alpha A` | *(none)* | Per-cell significance level of the beta-binomial mixed veto, in (0, 1). Default: the run's own config (0.01 if it set none). |
 | `--force` | `False` | Write into --output although it already holds files (same-named files are replaced; nothing is deleted). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |

@@ -122,4 +122,9 @@ DEFAULTS: dict[str, Any] = {
     # PROG-MINMOL-01: molecules a productive marker needs to count toward productive
     # breadth (1 = any nonzero, the earlier rule). Latent markers are unaffected.
     "programme_productive_min_molecules": 1,
+    # PROG-MIXED-VETO-01: which mixed veto to use (catalogue = each virus's shipped rule in
+    # gene_program_vetoes.tsv, any = one latent molecule vetoes, betabinomial = load-aware
+    # test) and that test's per-cell significance level.
+    "programme_mixed_veto": "catalogue",
+    "programme_mixed_veto_alpha": 0.01,
 }

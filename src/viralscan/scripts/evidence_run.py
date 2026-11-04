@@ -64,6 +64,7 @@ from viralscan.outputs import analysis_genes_path, posthoc_dir
 from viralscan.read_support import write_molecule_support
 from viralscan.run_safety import RunSafetyError, refuse_primary_tree, sha256_file, software_identity
 from viralscan.runconfig import RunConfig
+from viralscan.splice import SPLICE_DIR, SpliceError, require_splice_minimap2, run_splice
 from viralscan.strand_qc import write_strand_qc
 from viralscan.scripts.multimap import load_transcripts, read_ec
 from viralscan.utils import configure_logging, to_int
@@ -163,7 +164,10 @@ def _write_evidence_manifest(
 ) -> Path:
     """Write hashes for every completed evidence artifact."""
     outputs: dict[str, str] = {}
-    for path in sorted(output.rglob("*") if competition is not None else output.iterdir()):
+    listed = list(output.rglob("*") if competition is not None else output.iterdir())
+    if competition is None and (output / SPLICE_DIR).is_dir():
+        listed += (output / SPLICE_DIR).rglob("*")  # --splice outputs are hashed with the rest
+    for path in sorted(listed):
         if path.name == "evidence_manifest.json" or not path.is_file():
             continue
         outputs[str(path.relative_to(output))] = sha256_file(path)
@@ -216,6 +220,25 @@ def _write_evidence_manifest(
     require_schema_valid(manifest, "evidence_manifest.schema.json", path)
     path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
+
+
+def _run_splice_check(
+    args: argparse.Namespace, config: RunConfig, out: Path, competitor: bool
+) -> None:
+    """``--splice`` (PLAN EVID-02): write ``<out>/splice/``; a refusal to run is a clean stop."""
+    from viralscan.scripts.analysis import locus_gtf_paths
+
+    try:
+        row = run_splice(
+            out,
+            viral_fasta=args.viral_fasta,
+            annotation_gtfs=locus_gtf_paths(config),
+            competitor_mode=competitor,
+            threads=int(args.cores),
+        )
+    except (SpliceError, OSError) as exc:
+        _die(f"--splice failed: {exc}")
+    log.info("Splice check: %s %s -> %s", row["status"], row["reason"], out / SPLICE_DIR)
 
 
 def star_evidence(
@@ -318,6 +341,8 @@ def run_evidence(args: argparse.Namespace) -> None:
         ):
             if getattr(args, attr, False):
                 _die(f"{flag} requires --viral-fasta.")
+        if getattr(args, "splice", False):
+            _die("--splice requires --viral-fasta.")
     else:
         if not getattr(args, "host_fasta", None):
             _die(
@@ -327,6 +352,11 @@ def run_evidence(args: argparse.Namespace) -> None:
         missing_tools = have_tools(["minimap2", "samtools"])
         if missing_tools:
             _die(f"--viral-fasta given but missing tools: {', '.join(missing_tools)}")
+        if getattr(args, "splice", False) and not competitor_fasta:
+            try:  # fail before the replay, which is the expensive step
+                require_splice_minimap2()
+            except SpliceError as exc:
+                _die(str(exc))
     run_dir = Path(args.run_dir).resolve()
     cfg_path = run_dir / "config.yaml"
     if not cfg_path.exists():
@@ -568,6 +598,8 @@ def run_evidence(args: argparse.Namespace) -> None:
             competition.update(
                 extraction_status="empty", n_extracted_reads=0, n_candidate_molecules=0
             )
+        if getattr(args, "splice", False):
+            _run_splice_check(args, config, out, competition is not None)
         _write_evidence_manifest(
             out,
             target_label=target_label,
@@ -855,6 +887,8 @@ def run_evidence(args: argparse.Namespace) -> None:
             competition.update(qc_status="failed", failure=message, summary=summary)
             log.error("Competitive evidence failed; retained lineage/status artifacts: %s", message)
 
+    if getattr(args, "splice", False):
+        _run_splice_check(args, config, out, competition is not None)
     log.info("Evidence outputs written under %s", out)
     _write_evidence_manifest(
         out,
