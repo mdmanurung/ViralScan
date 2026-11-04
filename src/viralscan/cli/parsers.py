@@ -562,6 +562,15 @@ def _build_evidence_parser(subparsers: Any) -> None:
         "for per-cell IGV inspection (group by tag CB). Requires --viral-fasta.",
     )
     p.add_argument(
+        "--splice",
+        action="store_true",
+        default=False,
+        help="Realign the member reads of counted virus-best molecules to the viral genome alone with "
+        "minimap2 -ax splice:sr (needs minimap2 >= 2.29) and write splice/ (splice.bam, junctions.tsv, "
+        "splice_summary.tsv, splice_manifest.json). Supports viral RNA processing; it does not "
+        "establish origin, infection or reactivation. Requires --viral-fasta.",
+    )
+    p.add_argument(
         "--dedup",
         choices=("umi", "markdup", "none"),
         default="umi",

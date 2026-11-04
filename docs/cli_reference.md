@@ -920,6 +920,7 @@ the sections above add context. Do not edit between the markers.
 | `--blast` | `False` | BLAST a sample of extracted reads against the viral reference (requires blast+). |
 | `--read-start-profile` | `False` | Write a per-position 5' read-start distribution along the viral genome (read_start_profile.tsv). Requires --viral-fasta. |
 | `--cell-tags` | `False` | Write viral_reads.tagged.bam with CB/UB cell-barcode tags (from read names) for per-cell IGV inspection (group by tag CB). Requires --viral-fasta. |
+| `--splice` | `False` | Realign the member reads of counted virus-best molecules to the viral genome alone with minimap2 -ax splice:sr (needs minimap2 >= 2.29) and write splice/ (splice.bam, junctions.tsv, splice_summary.tsv, splice_manifest.json). Supports viral RNA processing; it does not establish origin, infection or reactivation. Requires --viral-fasta. |
 | `--dedup DEDUP` | `umi` | PCR-duplicate handling for --read-start-profile: umi (collapse per CB+UMI; default), markdup (samtools markdup), or none. Default: umi. |
 | `--bin-size BIN_SIZE` | `1` | Bin width (bp) for the read-start profile. Default: 1. |
 | `--sampling-seed SAMPLING_SEED` | `42` | Seed for deterministic BLAST read sampling. Default: 42. |
