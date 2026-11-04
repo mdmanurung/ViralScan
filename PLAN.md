@@ -12,6 +12,9 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   - `[x]` PR A (this branch): `gene_program_summary.tsv` gains `n_cells_lytic_programme` (= `n_cells_productive` + `n_cells_mixed`; productive alone where latency is unobservable) and `gene_program_cells.tsv` gains `lytic_programme` (productive or mixed; blank on no-model placeholder rows), added in `scripts/gene_programs.main` after `run_one` so the B23 frozen oracle is untouched. `docs/output_reference.md` marks `mixed` as load-driven; the report template gains the column (its gene-programme section is still not wired into the render context, a pre-existing gap). No call changes: on GSM5725697 twostep the first 10 cell columns are byte-identical to the 5b419d4 output. Suite 5,350 passed, 16 skipped; mypy clean.
   - `[x]` PR B (`codex/prog-mixed-veto-binomial`): load-aware veto behind `--programme-mixed-veto {catalogue,any,betabinomial}` and `--programme-mixed-veto-alpha` (run and `rerun-programs`; unset keeps the `--resume` fingerprint). Per-virus fit in the new packaged `src/viralscan/data/gene_program_vetoes.tsv` (user choice 2026-11-03: a separate file, because regenerating `gene_programs.tsv` needs panel inputs absent here). N = the cell's unique-layer molecules over every gene of the virus, computed in `run_one` only when the rule is on; the B23 oracle is untouched. **Q6 reopened (user, 2026-11-03):** the approved binomial test (p0 = median share 0.004167) failed the training check: KSHV latent-veto counts are 57.5x overdispersed, so it flagged 42 of 135 heavy lytic cells and the mixed share still rose with load (13-16 point gap). Replaced by a one-sided beta-binomial test; MLE on the same 135 cells (unique N >= 2,000, GSM5725696/-97 twostep): mean 0.007365, rho 0.006506 (repro `scripts/kshv_fit_veto_p0.py`). New gate (Q13a, unique-layer bins [15,100) vs [500,inf), <= 10 points) on the training libraries: `any` gaps 68 and 49 points, `betabinomial` -0.3 and -4.7 (pass); mixed 1,699 -> 99 and 1,993 -> 311, lytic totals and latent calls unchanged, GSM5725695 unchanged (repro `scripts/kshv_veto_training_gate.py`, `_kshv/veto_training_gate/`). KSHV ships the fit with rule `any`. Summary gains `mixed_veto_rule`, `mixed_veto_mean`, `mixed_veto_rho`, `mixed_veto_alpha`.
   - `[ ]` Held-out gate (repro): pre-registration note, then GSE184257 Set 3 (then Set 2) and GSM5725698 with `--programme-mixed-veto betabinomial`; KSHV opts in only if it passes.
+- [~] `EVID` (2026-11-03, user approved Milestone A after a Codex + Biomni plan review): move the repro read-level checks into
+  `viralscan evidence` as post-hoc outputs that never change a completed run. Rows in `WP4M` below. Next: `EVID-02`
+  (`evidence --splice`).
 - [x] `PROG-MINMOL-01` (2026-11-03, `codex/prog-minmol`, user decision: count a productive marker only at >= 2 molecules, validate before default): new `programme_productive_min_molecules` (`--programme-productive-min-molecules`, also `rerun-programs`; `call_cell_programme(productive_min_molecules=)`) gates productive breadth only; latent breadth and `min_umi` unchanged; 1 = any nonzero (so fractional allocated values still count). `min_umi` was not reusable: it floors every marker, latent included. **Default stays 1**: the gate failed. Read-only evaluation at 1 -> 2 (cells; states prod/latent/mixed/reactivating/indeterminate; indeterminate counts are not comparable because cells with zero breadth after the floor are pruned): KSHV GSM5725695 latent 1/2478/0/-/48 -> 0/2479/0/-/2 (stays latent); KSHV GSM5725696 lytic 4709/1043/1699/-/187 -> 2384/3599/1379/-/265 (productive+mixed 84% -> 49% of 7638 called cells); GSM5725697 lytic 3065/1231/1993/-/196 -> 1497/3189/1536/-/262 (productive+mixed 84% -> 47%); BC-1 GSM4682311 twostep 0/2357/605/-/15 -> 0/2857/105/-/7 and combined_off 0/2889/288/-/88 -> 0/3138/39/-/28 (mixed cut 83-86%, as wanted); EBV SRR12682296 81/431/135/7/1382 -> 36/482/84/0/1172; HSV-1 SRR8315713 9/0/0/-/436 -> 0/0/0/-/341 (all productive calls lost); HPV16 HN18 has no programme model (all zero). Fails the lytic-majority and HSV-1 checks: lytic KSHV cells with a single-molecule marker become `latent`. Revisit only with a depth-aware or marker-specific threshold (PAN/K4 only) validated on a lytic control; eval script in scratch only, rerun with `rerun-programs --programme-productive-min-molecules 2`.
 - [x] `PROG-KSHV-MARKERS-01` (2026-11-03, `codex/kshv-markers`, user approved; found by the KSHV GSE190558 repro runs): KSHV productive set gains PAN (`HHV8_gs01`, misc_RNA, no CDS), K4, K3, ORF52 (class and time from PMID 24453964 Table 1; PAN also PMID 8876232) and drops ORF37 (0 unique molecules even in lytic libraries; `polya_capture=unknown` was rejected because it makes `latent` unreachable for the whole virus). New optional catalogue column `induced_in_lytic` (true for K12): flagged markers still count for `latent` but no longer veto `productive` into `mixed` (`_decide(lat_veto=)`). Catalogue regenerated; only KSHV rows and the new column change (KSHV group labels renumber). Held-out validation is tracked in the repro under `PROG-16`. 2026-11-03 follow-up: `curation/panel/cat28_panviral_marker_check.tsv` regenerated from the new catalogue (CAT-28 script, 77 markers: 41 matched, 16 unmatched, 20 accession_mismatch); #181 left it stale and the repro staleness test failed on the re-pin. PAN (`HHV8_gs01`) reports unmatched because panviral has no such gene.
 - [x] `TCHEM-5P-01` (2026-11-03, `codex/tchem-5p`, found by the HHV-6B SRR20710641 repro run): `tchem.compare` returned `no_call` for 10x 5' v1/v2 (no kb command, name does not match `10xv2`), so default `--tchem auto` stopped every 5' run. It now compares the report's `layout.geometry` (R1 `b[N]u[M]`) with `chemistry.cb_umi_geometry(-x)`: equal is `agree`, different is `disagree`. Without a geometry it keeps the by-name rule, else `no_call`. Strand is not compared (`compare` has no run strand). Test: `tests/test_tchem.py::TestCompare::test_layout_without_kb_command_compares_report_geometry`.
@@ -1734,6 +1737,58 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
   2026-10-12 (`codex/aud13-andet-followups`): `results/host_homology_loci.tsv` is now documented (pinned `output_reference.md`, re-pin pending) and a test pins that every column is. The row stays `[~]` (ANDET-04 opt-in, demotion on REF-08).
 - [x] `AUD3-02-OPEN` — open item: the viral-free test is still not calibrated. On pure-noise host cells with random virus-positive labels the audit saw p < 0.05 in 4/15 runs without viral genes in the embedding (nominal 5%), cause unexplained; shown by `biomni_bundle/plans3/verification/repro/P5-01_viral_in_embedding.py` (the `viral_in_embedding=False` rows). The test is descriptive only until this is understood; do not read p < 0.05 as evidence of anything.
   - 2026-11-02 (`codex/aud3-02-calibration`): cause found and already fixed. The audit's "viral-free" graph (`87c9e35`, PCA patched to drop viral HVGs) still computed size factors over viral counts, so viral load moved positive cells in host PCA space. `host_only_pca` (P5-07) drops viral columns first. Simulation, 200 null seeds per load: old graph rejects at 0.040 / 0.065 / 0.715 (low / moderate / dominant), current graph at 0.050 in every mode. New test `tests/test_umap.py::TestViralFreeTestGraph::test_null_rejection_rate_is_nominal` (60 seeds, <= 8 rejections; 60/60 with the size-factor leak restored). The report caveat "the null is not calibrated" is replaced. A small p stays descriptive about infection (ambient RNA, uptake, doublets).
+## WP4M — Read-level evidence in the package (new 2026-11-03)
+
+Plan approved 2026-11-03 (user: "Approve"), revised after a Codex and a Biomni max review of packet `a9b5f00d6367`
+(send not byte-bound: no `.mycelium-extra/gate.json` here). Milestone A (`EVID-00`..`05`) is buildable now; Milestone B
+(`EVID-06`..`08`) waits for a named held-out set and truth labels set without the gate. Every output goes to a fresh
+post-hoc folder; the completed run's files never change. Repro prototypes: `scripts/splice_realign_viral_reads.py`,
+`make_igv_loci.py`, `plot_genome_coverage.py` (repro PR #22).
+
+- [x] `EVID-00` evidence unit spec: `docs/evidence_unit.md`. A molecule is a corrected (CB, UMI) of `molecule_verdicts.tsv.gz`;
+  checks use counted virus-best molecules and all member reads (joined on `read_number`), never the representative read of
+  `viral_reads.umi_dedup.fasta`; competitor mode is `not_assessed`. User approved 2026-11-03 ("Spec ok").
+- [x] `EVID-01` post-hoc record (2026-11-03, `codex/evid-01-posthoc-record`): `src/viralscan/posthoc_record.py`. One
+  `<attempt_id>.json` per invocation of the ten post-hoc verbs (`evidence`, `evidence-plot`, `rerun-multimap`,
+  `rerun-programs`, `host-loss`, `discover`, `discover-collapse`, `discover-states`, `hostresponse`, `translated`), wrapped
+  once at the `menu._main` dispatch: `started` before the verb, then `succeeded` / `failed` (exit code; `_die` is a failure)
+  / `interrupted` (exit 130 or 143); an abandoned `started` reads as `interrupted` (pid gone, same host) or `unfinished`.
+  Written temp-then-rename; `index.json` rebuilt from records after each attempt and by the new `viralscan status`.
+  Holds argv, settings, software identity, source root, sample, target, resolved output (each verb sets
+  `args._posthoc_output`), `output_preexisting`, input hashes (`run_manifest.json`, `config.yaml`, `evidence_manifest.json`)
+  and output files (SHA-256 up to 64 MiB, size and mtime above). Tests `tests/test_posthoc_record.py` (14): success,
+  `_die`, exception, Ctrl-C, SIGTERM, abandoned record, external output, large files, index rebuild with a broken record,
+  4 concurrent processes, dispatch covers post-hoc verbs only, list-valued source, no record without a run, `status`.
+  **Two deviations from the approved row:** (1) records for `--output` outside the run go to `<output>.records/`, because
+  `tests/test_posthoc_layout.py:80` makes an external output leave the run untouched (and a run may be read-only);
+  `status` lists in-run records only. (2) No per-attempt output folders: that would change every verb's documented
+  default path, `--auto-evidence` and repro scripts; the record carries `output_preexisting` instead. A verb whose source
+  has no `run_manifest.json` above it leaves no record. `run --discover`, `run --hostresponse`, `--auto-evidence` are not
+  recorded (part of the run).
+- [ ] `EVID-02` `evidence --splice` (off by default): member reads of counted virus-best molecules realigned to the viral
+  genome alone with `minimap2 -ax splice:sr` (check >= 2.29, no fallback; `ci.yml` installs minimap2 unpinned); junction rules
+  (anchor, mismatch, clip, primary only, intron length) fixed in the spec; per junction molecules and reads, motif in
+  transcript orientation, annotated only from exon rows of one transcript (CDS-only = `intron_matching_not_evaluable`);
+  receipt `splice_manifest.json` linked from the evidence manifest. Wording: supports viral RNA processing, not origin,
+  infection or reactivation (ciHHV-6 expresses U90/U100: Peddu 2019, doi:10.1128/JVI.01418-19).
+- [ ] `EVID-03` gene-relative strand: new `strand_qc.tsv` (aligned blocks against annotated features: sense, antisense,
+  ambiguous overlap, outside annotation, with counts); expected orientation calibrated per library on unambiguous host exons;
+  unknown chemistry `not_assessed`; `alignment_qc.tsv` unchanged.
+- [ ] `EVID-04` `evidence --html`: igv.js 2.15.11 and licence in the wheel; reads, genome, BED genes and splice reads embedded;
+  sampling rule and omitted genes stated on the page; no metric from the page sample; size cap. Test: render with networking
+  off after moving the file.
+- [ ] `EVID-05` coverage-map gene track: one coverage track, +/- gene lanes, collision-free labels for the top covered genes,
+  genes > 20 kb left out and counted.
+- [!] `EVID-06` (B, blocked: held-out set) evidence verdict in a post-hoc table: origin evidence apart from supporting
+  features; each check applicable / not applicable / not evaluable; outcomes supported viral origin, likely host artefact,
+  ambiguous, insufficient evidence; splice only adds support; builds on the existing Q137 `molecule_support.tsv` gates.
+  Pre-registered on round 2026-11-02 as development data; held-out studies named before inspection.
+- [!] `EVID-07` (B) competitive realignment with `splice:sr` against host plus virus (Biomni C4: `-ax sr` cannot give a
+  host intron-spanning read to the host).
+- [!] `EVID-08` (B) chemistry-specific TSO / poly-A trimming of R2 (F-028), fingerprinted, replayed by evidence; compared
+  none / TSO / poly-A / both on identical inputs with per-call limits set before the runs.
+- [ ] `EVID-09` (later) `followup.yaml` + `viralscan followup`, skipping steps that match a succeeded `EVID-01` record.
+
 ## WP5 — Build and validate the truth panel
 
 ### WP5A — Generator

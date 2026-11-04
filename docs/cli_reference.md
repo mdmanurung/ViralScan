@@ -6,7 +6,7 @@ the installed version. This page documents the public CLI as of ViralScan
 
 <!-- BEGIN GENERATED: subcommands -->
 
-`run`, `data`, `data fetch`, `build-ref`, `star-index`, `translated-index`, `translated`, `evidence`, `evidence-plot`, `rerun-multimap`, `rerun-programs`, `host-loss`, `discover`, `discover-collapse`, `discover-states`, `doctor`, `validate-run`, `hostresponse`, `check-whitelist`, `check-chemistry`
+`run`, `data`, `data fetch`, `build-ref`, `star-index`, `translated-index`, `translated`, `evidence`, `evidence-plot`, `rerun-multimap`, `rerun-programs`, `host-loss`, `discover`, `discover-collapse`, `discover-states`, `doctor`, `validate-run`, `status`, `hostresponse`, `check-whitelist`, `check-chemistry`
 
 <!-- END GENERATED -->
 
@@ -677,6 +677,25 @@ viralscan doctor --profile full --json doctor_report.json
 
 ---
 
+## `viralscan status` — post-hoc steps run on a run
+
+```
+viralscan status --run-dir RUN_DIR
+```
+
+Every post-hoc command (`evidence`, `evidence-plot`, `rerun-multimap`, `rerun-programs`, `host-loss`,
+`discover`, `discover-collapse`, `discover-states`, `hostresponse`, `translated`) writes one record per
+invocation (PLAN `EVID-01`). `status` rebuilds `posthoc/records/index.json` from those records and prints
+one line per attempt: verb, state, sample, target and output. Records made with `--output` outside the run
+sit beside that output in `<output>.records/` and are not listed. See `docs/output_reference.md`,
+"Post-hoc records".
+
+```bash
+viralscan status --run-dir output/
+```
+
+---
+
 ## `viralscan validate-run` — schema and count-invariant check
 
 ```
@@ -1177,6 +1196,18 @@ the row not estimable.
 |------|---------|------|
 | `--profile PROFILE` | `full` |  |
 | `--json PATH` | *(none)* | Also write the report as JSON. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan status
+
+<!-- BEGIN GENERATED: status -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json) or a sample. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

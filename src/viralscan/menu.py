@@ -157,6 +157,7 @@ def _run_host_loss(args: argparse.Namespace) -> None:
         _die(f"--truth file does not exist: {args.truth}")
     counts = lost_truth_counts(args.truth, str(lineage), args.viral_label, args.mixed_manifest)
     out = Path(args.output).resolve() if args.output else posthoc_dir(run_dir, "host_loss")
+    args._posthoc_output = out
     _require_fresh(out, args)
     out.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -255,6 +256,7 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
     gp_script.config = config
     gp_script.output = str(run_dir)
     gp_script_out = Path(args.output).resolve() if args.output else posthoc_dir(run_dir, "programs")
+    args._posthoc_output = gp_script_out
     _require_fresh(gp_script_out, args)
     gp_script.main(
         str(adata_path),
@@ -347,6 +349,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     output_dir = Path(
         args.output or posthoc_dir(source_dir, f"multimap_{new_method.replace('-', '_')}")
     ).resolve()
+    args._posthoc_output = output_dir
     if not source_dir.is_dir():
         _die(f"Source run directory does not exist: {source_dir}")
     _require_fresh(output_dir, args, forceable=False)
@@ -701,6 +704,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     out_dir = str(
         Path(args.output).resolve() if args.output else posthoc_dir(output_dir, "hostresponse")
     )
+    args._posthoc_output = out_dir
     _require_fresh(Path(out_dir), args)
     # run_hostresponse clears the old per-virus CSVs before it models. Keep a copy so a
     # failed --force re-run restores them instead of leaving a half-empty tree.
@@ -1694,7 +1698,18 @@ def main() -> None:
 
 def _main() -> None:
     args = create_help()
+    verb = getattr(args, "_subcommand", None)
+    from viralscan import posthoc_record
 
+    if verb in posthoc_record.VERBS:
+        # every post-hoc invocation leaves a record (PLAN EVID-01), whatever its outcome
+        with posthoc_record.attempt(verb, args):
+            _dispatch(args)
+        return
+    _dispatch(args)
+
+
+def _dispatch(args: argparse.Namespace) -> None:
     # Dispatch to build-ref subcommand if requested.
     if getattr(args, "_subcommand", None) == "data-fetch":
         configure_logging(verbose=args.verbose, quiet=args.quiet)
@@ -1800,7 +1815,14 @@ def _main() -> None:
             )
         except DiscoveryError as exc:
             _die(str(exc))
+        args._posthoc_output = collapsed
         print(collapsed)
+        return
+
+    if getattr(args, "_subcommand", None) == "status":
+        from viralscan.posthoc_record import status_table
+
+        print(status_table(Path(args.run_dir)), end="")
         return
 
     if getattr(args, "_subcommand", None) in ("doctor", "validate-run"):

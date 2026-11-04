@@ -565,6 +565,7 @@ def run_translated(args: argparse.Namespace) -> Path:
         if getattr(args, "output", None)
         else posthoc_dir(sample_dir, "translated")
     )
+    args._posthoc_output = output
     try:
         require_fresh_output(output, forceable=False)
     except RunSafetyError as exc:
