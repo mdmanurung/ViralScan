@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Any, Optional
 
+from viralscan import coverage_gene_track as gene_track
 from viralscan.anello_align import (
     Alignment,
     has_reagent,
@@ -1918,6 +1919,83 @@ def resolve_reference_annotation(
     return genes or [f for f in features if f[4] in {"CDS", "exon"}], "ok"
 
 
+def _draw_gene_lanes(
+    axis: Any, models: list[gene_track.GeneModel], placed: list[gene_track.PlacedLabel], length: int
+) -> None:
+    """Gene boxes on a + lane above and a - lane below the midline, labels outside the boxes."""
+    from matplotlib.patches import Polygon, Rectangle
+
+    lanes = {"+": 0.2, "-": -0.5, ".": -0.1}  # lower edge of each lane's boxes; "." is unstranded
+    height = 0.3
+    named = {p.index: p for p in placed}
+    head = 0.012 * length  # arrow tip length in bp, shortened on small boxes
+    for i, model in enumerate(models):
+        y = lanes.get(model.strand, lanes["."])
+        colour = "#c0392b" if i in named else "#9e9e9e"
+        axis.plot(
+            [model.start, model.end], [y + height / 2] * 2, color=colour, linewidth=0.5, zorder=1
+        )
+        for number, (left, right) in enumerate(model.blocks):
+            tip = min(head, (right - left + 1) / 2)
+            at_head = (number == len(model.blocks) - 1) if model.strand == "+" else number == 0
+            if model.strand in {"+", "-"} and at_head:
+                x0, x1 = (left, right) if model.strand == "+" else (right, left)
+                step = -tip if model.strand == "+" else tip
+                axis.add_patch(
+                    Polygon(
+                        [
+                            (x0, y),
+                            (x1 + step, y),
+                            (x1, y + height / 2),
+                            (x1 + step, y + height),
+                            (x0, y + height),
+                        ],
+                        facecolor=colour,
+                        linewidth=0,
+                        alpha=0.8,
+                        zorder=2,
+                    )
+                )
+            else:
+                axis.add_patch(
+                    Rectangle(
+                        (left, y),
+                        right - left + 1,
+                        height,
+                        facecolor=colour,
+                        linewidth=0,
+                        alpha=0.8,
+                        zorder=2,
+                    )
+                )
+    rows = {"+": 0, "-": 0}
+    for label in placed:
+        strand = models[label.index].strand
+        rows[strand] = max(rows[strand], label.row + 1)
+        below = strand == "-"
+        y = (
+            lanes[strand] - 0.05 - 0.3 * label.row
+            if below
+            else lanes[strand] + height + 0.05 + 0.3 * label.row
+        )
+        axis.text(
+            label.centre,
+            y,
+            models[label.index].name,
+            ha="center",
+            va="top" if below else "bottom",
+            fontsize=7,
+        )
+    axis.axhline(0, color="#bdbdbd", linewidth=0.5)
+    axis.set(
+        ylim=(-0.6 - 0.3 * rows["-"] - 0.3, 0.55 + 0.3 * rows["+"] + 0.3),
+        yticks=[0.35, -0.35],
+        yticklabels=["+", "\u2212"],
+    )
+    for side in ("top", "right", "left"):
+        axis.spines[side].set_visible(False)
+
+
 def coverage_map_figure(
     evidence_dir: str | Path,
     target: str | None = None,
@@ -2017,44 +2095,83 @@ def coverage_map_figure(
         writer = csv.writer(handle, delimiter="\t")
         writer.writerow(["position", "end", "raw_depth", "dedup_depth"])
         writer.writerows(zip(starts, ends, raw_depth, dedup_depth))
+    models: list[gene_track.GeneModel] = []
+    n_long = 0
+    if features:
+        rows = gene_track.read_gtf_rows(
+            Path(str(annotation_path)), {str(metadata.get("annotation_seqid", target))}
+        )
+        models, n_long = gene_track.build_gene_models(rows, length)
+    mean_depth = [gene_track.mean_block_depth(dedup_depth, bin_size, m.blocks) for m in models]
+    labelled = gene_track.select_labelled(mean_depth)
+    placed: list[gene_track.PlacedLabel] = []
+    unplaced: list[int] = []
+    for strand in ("+", "-"):  # each lane packs its own labels; unstranded genes get no label
+        wanted = [
+            (
+                i,
+                (models[i].start + models[i].end) / 2,
+                gene_track.label_width(models[i].name, length),
+            )
+            for i in labelled
+            if models[i].strand == strand
+        ]
+        lane_placed, lane_unplaced = gene_track.place_labels(wanted, length)
+        placed += lane_placed
+        unplaced += lane_unplaced
     figure, axes = plt.subplots(
-        2 if features else 1, 1, squeeze=False, figsize=(10, 5 if features else 3), sharex=True
+        2 if features else 1,
+        1,
+        squeeze=False,
+        figsize=(10, 5 if features else 3),
+        sharex=True,
+        gridspec_kw={"height_ratios": [2, 1.4]} if features else None,
     )
     axis = axes[0, 0]
-    axis.plot(starts, raw_depth, label="raw")
-    axis.plot(starts, dedup_depth, label="deduplicated")
+    # One track: deduplicated depth counts molecules, as the verdict does. Raw depth stays in
+    # the .tsv.gz beside it.
+    axis.fill_between(starts, dedup_depth, step="mid", color="#4a7fb0", linewidth=0)
+    axis.set_ylim(bottom=0)
     label = (
         "reference-transcript coverage"
         if annotation_status == "transcript_reference"
         else "reference coverage"
     )
     axis.set(
-        title=f"{target}: {label} ({status})", ylabel="Mean depth" if bin_size > 1 else "Depth"
+        title=f"{target}: {label} ({status})",
+        ylabel="Deduplicated depth (mean per bin)" if bin_size > 1 else "Deduplicated depth",
     )
-    axis.legend()
     if features:
-        gene_axis = axes[1, 0]
-        for track_row, (start, end, strand, name, _) in enumerate(features):
-            blocks = [(start, end)] if start <= end else [(start, length), (1, end)]
-            for left, right in blocks:
-                gene_axis.plot([left, right], [track_row, track_row], linewidth=5)
-                if strand != ".":
-                    a, b = (left, right) if strand == "+" else (right, left)
-                    gene_axis.annotate(
-                        "",
-                        xy=(b, track_row),
-                        xytext=(a, track_row),
-                        arrowprops={"arrowstyle": "->"},
-                    )
-            gene_axis.text(
-                start,
-                track_row + 0.15,
-                name + (" (origin-spanning)" if start > end else ""),
-                fontsize=7,
-            )
-        gene_axis.set(ylim=(-1, len(features)), yticks=[])
+        caption = (
+            f"{len(models)} genes drawn, {len(placed)} most covered labelled (red, at most "
+            f"{gene_track.TOP_N_LABELS}); {n_long} gene(s) longer than "
+            f"{gene_track.MAX_FEATURE_BP // 1000} kb not drawn"
+        )
+        if unplaced:
+            caption += f"; {len(unplaced)} label(s) did not fit"
+        _draw_gene_lanes(axes[1, 0], models, placed, length)
+        figure.text(0.01, 0.01, caption, fontsize=6, color="#616161", ha="left", va="bottom")
+        metadata["gene_track"] = {
+            "genes_drawn": len(models),
+            "genes_left_out_over_max_bp": n_long,
+            "max_feature_bp": gene_track.MAX_FEATURE_BP,
+            "labelled": [models[p.index].name for p in placed],
+            "labels_not_placed": [models[i].name for i in unplaced],
+            "caption": caption,
+            "genes": [
+                {
+                    "name": m.name,
+                    "strand": m.strand,
+                    "start": m.start,
+                    "end": m.end,
+                    "mean_dedup_depth": depth,
+                }
+                for m, depth in zip(models, mean_depth, strict=True)
+            ],
+        }
+    metadata["coverage_track"] = "deduplicated"
     axes[-1, 0].set(xlabel="Reference position (bp)", xlim=(1, max(2, length)))
-    figure.tight_layout()
+    figure.tight_layout(rect=(0, 0.04 if features else 0, 1, 1))
     figure.savefig(str(stem) + ".png", dpi=200)
     figure.savefig(str(stem) + ".pdf")
     plt.close(figure)

@@ -1498,6 +1498,19 @@ must agree on target length. Known transcript accessions and whole-reference exo
 placeholders are labelled `reference-transcript coverage`; genome tracks are
 omitted for them. Explicit origin-spanning coordinates are split into two blocks.
 
+The figure has one coverage track, deduplicated depth (molecules), above a `+` strand
+lane and a `-` strand lane of gene boxes with a head at the 3' end. Raw depth is not
+drawn; it stays in the `.tsv.gz`. Boxes come from exons, else CDS, else the gene
+row. CDS-only genes reach the ends of their gene row, and one gene annotated in both
+terminal repeats is drawn once per copy (CDS blocks more than 10 kb apart). Genes or
+transcripts longer than 20 kb (for example spliced EBV latency transcripts) are not
+drawn; the caption states how many. Only the 8 most covered genes with reads are
+labelled (red boxes), in up to three rows per lane with no two labels overlapping; a
+label that fits no row is dropped and counted. Unstranded genes are drawn but never
+labelled. The JSON adds `coverage_track` and a `gene_track` object: genes drawn,
+genes left out for length, labelled and unplaced names, the caption, and every drawn
+gene with its mean deduplicated depth.
+
 The evidence directory receives `coverage_map.<target>.png`, `.pdf`, `.tsv.gz`,
 and `.json`. The compressed table uses 1-based inclusive `position`/`end` and
 `raw_depth`/`dedup_depth`, including zeros. Above five million bases, at most
