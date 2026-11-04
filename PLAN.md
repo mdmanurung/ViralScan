@@ -593,7 +593,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
       5,468 / 23,170 with the knee allowlist, job 25666447).
 - [x] `DEF-04` — *(2026-10-10: no shipped GTF carries a `whole_genome` gene any more, `panel_integrity.py` reports 0; the gene-level exclusion code is deferred: it only affects FASTA-only user references where the whole-genome gene is the virus's only unit, so it needs a design call, not plumbing.)* `whole_genome` tag in the catalogue and its exclusions (Q12). **Closed 2026-11-02 (user decision: keep + warn, `codex/def04-warn`):** the whole-genome gene is kept, since it can be the virus's only unit and excluding it would hide the virus. `prepare_reference_inputs` now logs one warning naming accessions that have only a whole-genome unit; their counts are whole-genome, not per-gene. Pinned by `test_whole_genome_only_virus_is_kept_and_warned`.
   - 2026-10-12 (grill, user-confirmed): deferred past the exploratory public-dataset runs; no shipped reference is affected.
-- [~] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
+- [x] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
   - 2026-10-04: CI gains a `snakemake9-dryrun` job (`snakemake>=9,<10` +
     `test_snakefile_dag.py`). It has not run on a runner yet; watch for the
     `connection_pool` build issue. Locking env_full is still open.
@@ -603,6 +603,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     passes 13/13 (incl. the 9 integration-marked dry-runs) with that env's
     snakemake 9.23.1. The CI-runner result of `snakemake9-dryrun` stays the user's.
   - 2026-11-02 (`PLAN-RECON-01`): the CI job `Snakemake 9 dry-run (DEF-08)` runs and passes on every PR. Only the `viralscan_test_full` lock is left.
+  - 2026-11-04 (`codex/lane-p1-release`): closed. `environment.full.explicit.txt` (619 rows) locks `viralscan_test_full`: `scripts/write_explicit_lock.py` from its `conda-meta`, plus the two REL-03-PIPCHECK corrections taken from `environment.explicit.txt` (`snakemake-interface-common` 1.23.0, `cython`), because that env still holds 1.23.1 and no `cython`. `environment.explicit.txt` is now the runtime-only image lock (441 rows). The dev lock is not replay-verified (no install here) and pins older versions than the image lock (pillow 12.0.0, filelock 4.0.10, nbconvert 7.17.1, virtualenv 21.14.5); `tests/test_conda_lock.py` checks its shape offline, and a `micromamba create --dry-run` test runs under `-m network` where micromamba exists. Refresh it from a rebuilt env when the test env is rebuilt.
 ## WP2 — Install, lock, and artifact parity
 
 ### WP2A — Pip and locked environment
@@ -635,6 +636,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     (version, build, sha256) and the user's lock commands (conda-lock or
     pixi, `uv lock`). Resolving the locks needs the network (user).
   and an exact external-tool version manifest.
+  - 2026-11-04 (`codex/lane-p1-release`): replay coverage added. `tests/test_conda_lock.py` checks both locks offline (`@EXPLICIT`, URL + md5 on every row, no duplicate names, sorted, the PIPCHECK pins) and has a `micromamba create --dry-run --file` test (marker `network`, skipped without micromamba). New CI job `environment-lock` builds from `environment.explicit.txt` with `setup-micromamba` (`environment-file:` accepts an `@EXPLICIT` file), installs the package, runs `pip check` and the tool smoke test. The `environment-file` job is kept, not switched: it validates the documented `environment.yml` install that the README tells users to run. Left (user): read the first CI result of `environment-lock` (never run on a runner; `pip check` there is the real replay), and `REL-06`.
 - [~] `REL-04` — build wheel and sdist once, run `twine check`, inspect packaged
   assets, install each in a clean environment, and write `SHA256SUMS`.
   - 2026-10-02: built once from a `git archive` export with the codex
@@ -686,6 +688,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     bustools, minimap2, samtools, snakemake, STAR, viralscan + digest). `kb --version` prints usage and `kb info` exits
     non-zero, so kb-python is read from distribution metadata. Static tests: `tests/test_release_static.py`.
     Needs a tag run: the first push, the digest and the manifest content. Not verified (no docker here).
+  - 2026-11-04 (`codex/lane-p1-release`): re-read `release.yml` `container` job against the row; no gap found. Nothing here can run before a tag.
 - [~] `REL-08` — build Apptainer/SIF from that OCI digest rather than performing
   a separate dependency solve; record the SIF SHA-256.
   - 2026-11-04 (code half): `scripts/release_sif_definition.py` (refuses mutable tags; `Bootstrap: docker`, `From:
@@ -695,6 +698,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     1.5.4 via `eWaterCycle/setup-apptainer` v3.0.0 (SHA-pinned; `1.5.4` is the README's example version, not tried here).
     Decision for the user: the SIF is not a release asset (size, and a SIF rebuild is not byte-identical); to host it
     push it to GHCR with `apptainer push oras://`, not added. Needs a tag run.
+  - 2026-11-04 (`codex/lane-p1-release`): re-read the `sif` job against the row; no gap found (def built from `OCI_DIGEST`, `From:` check, SHA-256 recorded). Cannot run before a tag.
 - [~] `REL-09` — run the identical tiny workflow in locked conda, Docker, and
   Apptainer and compare validated molecule counts and deterministic output hashes.
   - 2026-11-04 (code half): `scripts/release_parity.py run` runs `tests/data/evidence_tiny` (kallisto index, then
@@ -715,6 +719,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     is called with no environment inputs (its README: it then installs only the executable); the env is made by
     `micromamba create --file environment.explicit.txt`. Local runs were conda against conda, so they show same-environment
     determinism, not cross-environment parity. Needs a tag run for the docker and apptainer legs and the workflow YAML itself.
+  - 2026-11-04 (`codex/lane-p1-release`): re-read the `parity` job against the row; no gap found (same command in three runners, `publish` needs it). Cannot run before a tag.
 - [~] `REL-10` — save `analysis/release_parity/parity_report.json` with commands,
   versions, digests, hashes, and explained nondeterministic files.
   - 2026-11-04 (code half): `release_parity.py compare` writes the report (reference environment, per-environment
@@ -724,6 +729,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     config, summary, report, kb/run info JSON, `.h5ad`, `*.done`, `log/`, `.snakemake/`). Unit tests with fake
     per-environment results: `tests/test_release_parity.py`. The `release-parity` artifact (results + report) is a
     release asset. Needs a tag run to produce the real report.
+  - 2026-11-04 (`codex/lane-p1-release`): re-read `release_parity.py compare` and the `release-parity` artifact path against the row; no gap found. The real report exists only after a tag run.
 ### WP2C — Supply chain and release workflow
 
 - [~] `REL-11` — security CI exists; audit the locked product environment rather
@@ -770,6 +776,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     (2) Dockerfile: `apt-get install --only-upgrade libbrotli1` and `mamba update -n base python>=3.14.10`.
     (3) `.grype.yaml`: 8 reviewed exceptions, review date 2027-02-01: krb5 1.22.2 (5 CVEs, no fixed release) and "gcc 4.8.5"
     (3 CVEs; grype misread the version of the conda gcc 16.2.0 driver, `libexec/gcc/.../16.2.0/gcc`, per the SBOM).
+  - 2026-11-04 (`codex/lane-p1-release`): (1) `security/reviewed_exceptions.yaml` scaffold: 8 entries (the OSV name matches the audit finds today: setuptools and tornado in the image lock; certifi, filelock, gitpython, pillow, tornado, virtualenv in `uv.lock`), each with scope, advisory ids and a reason, all `pending maintainer review`. `scripts/audit_locks.py` reads it: a pending entry only labels, a `reviewed` entry silences exactly its listed ids (`tests/test_conda_lock.py`). The seven Python 3.9 pins in the 2026-10-12 note are gone (3.9 dropped, `requires-python >=3.10`). Container exceptions stay in `.grype.yaml` (8 entries, user-reviewed 2026-11-03). (2) The locked product environment is audited in `release.yml` (`container` job, non-gating step, output `lock-audit.txt`) and the locks plus the exception file ship as release assets; the weekly `lock-audit.yml` already audits `environment.explicit.txt`, which is the product lock. (3) `image-audit.yml` run 41771584074 (2026-11-04) passes on main-line pins. Left (user): review each exception entry; the OCI scan, SBOM and licence report run on a tag.
 - [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
   - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation
@@ -801,6 +808,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     job; needs a tag run to verify), and the attest step is untested until a tag run. Maintainer: verify with
     `gh attestation verify` after the first release; the Node 20 action majors stay as noted above.
   - 2026-11-04 (`codex/rel-12-13-actions`): re-resolved all 15 distinct pins in `.github/workflows/*.yml` against their release tags (annotated tags dereferenced); every SHA matches its `# vX.Y.Z` comment. New `tests/test_workflows_pinned.py` parses all five workflows (pin + version comment). Nothing else code-only is left; still `[~]` for the OCI/SIF/lock attestations and the Node 24 majors (maintainer, need a tag run).
+  - 2026-11-04 (`codex/lane-p1-release`): not touched. SHA resolution stays user-owned; the OCI, SIF and lock attestations still need a tag run.
 - [x] `REL-13` — make release publication depend on green CI for the exact tagged
   SHA; build distributions once and make all downstream jobs consume them.
   - 2026-11-02 (`codex/rel12-13-ci`): already in `release.yml` (landed with the release-CI work; row was stale). `ci-gate`
@@ -826,6 +834,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     `CITATION.cff` (`scripts/check_versions.py --tag v3.0.0b1` must pass), merge, wait for CI on `main`, tag the
     merged commit. Same steps are in `MAINTAINER_CHECKLIST.md`. Open: the first tag run exercises `sif` and `parity`,
     which have never run; a failure there blocks `publish`, so expect to move the tag (as `RC-03` already plans).
+  - 2026-11-04 (`codex/lane-p1-release`): re-read the channel, environment and asset steps against the row; no gap found. The release now also carries `uv.lock`, both conda locks, `reviewed_exceptions.yaml` and `lock-audit.txt`. Cannot run before a tag; the repo-settings steps above stay with the user.
 - [!] `REL-15` — maintainers must provide final author, licence-holder,
   maintainer/contact, ORCID, affiliation, support-window, and trusted-publisher
   metadata.
@@ -2185,6 +2194,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     or set an exception. (2) The stale remote tag `v3.0.0rc1` must be deleted and re-created on the chosen green main
     SHA (`RC-03`); this PR does not touch tags. (3) CITATION.cff `date-released`, authors and contact (`REL-15`).
     (4) Reference archive manifest (`REF-11`).
+  - 2026-11-04 (`codex/lane-p1-release`, triage of run 40038144113): the job log is readable through `gh api repos/<repo>/actions/jobs/120703135933/logs` (`gh run view --log-failed` prints nothing). It confirms the earlier reading: grype 0.118.0, 545 packages from EOL distro `ubuntu 20.04`, failed at `--fail-on high`, and the log names no CVE (the JSON was never uploaded). So the findings cannot be listed. PR #177 (merged 2026-11-03) moved the base off Ubuntu 20.04; `image-audit.yml` then failed on the 24.04 image until the 2026-11-03 pin bumps and `.grype.yaml`, and passes on 41610716443 and 41771584074 (2026-11-04). So the 20.04 failure is superseded, but the original findings are not individually accounted for; the gate passing on the new image is the evidence.
 - [!] `RC-02` — maintainers configure/approve TestPyPI or PyPI trusted publishing,
   GHCR/GitHub release permissions, and public artifact hosting.
 - [ ] `RC-03` — tag `v3.0.0rc1` only after exact-SHA gates; publish prerelease
