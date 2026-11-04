@@ -125,7 +125,11 @@ def _write_scautoqc_umaps(adata):
             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
             plot_bgcolor="white",
         )
-        fig.write_html(f"{config.output}/plots/umap_scautoqc_{key.removeprefix('scautoqc_')}.html")
+        fig.write_html(
+            os.path.join(
+                config.output, "plots", f"umap_scautoqc_{key.removeprefix('scautoqc_')}.html"
+            )
+        )
 
 
 def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
@@ -248,7 +252,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     """
     # plots/ is otherwise only created by detection.histogram (visual + a detected
     # virus), so a negative sample or --no-visual run would crash on the QC histogram.
-    os.makedirs(f"{config.output}/plots", exist_ok=True)
+    os.makedirs(os.path.join(config.output, "plots"), exist_ok=True)
 
     # Violin plot and computing QC metrics
     adata.obs["n_counts"] = np.array(adata.X.sum(axis=1)).flatten()
@@ -263,7 +267,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     fig, ax = plt.subplots()
     ax.hist(adata.obs["n_counts"], bins=100)
     ax.set(title="Total counts per cell", xlabel="n_counts", ylabel="Count")
-    fig.savefig(f"{config.output}/plots/qc_hist_total_counts.png")
+    fig.savefig(os.path.join(config.output, "plots", "qc_hist_total_counts.png"))
     plt.close(fig)
 
     # Filtering based on QC threshold (config-driven via PR 11 A4)
@@ -344,7 +348,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
             plot_bgcolor="white",
         )
 
-        outdir = f"{config.output}/plots"
+        outdir = os.path.join(config.output, "plots")
         os.makedirs(outdir, exist_ok=True)
         fig.write_html(f"{outdir}/umap_no_virus.html")
         return
@@ -485,7 +489,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     )
 
     # Save plots to the users output directory
-    outdir = f"{config.output}/plots"
+    outdir = os.path.join(config.output, "plots")
     os.makedirs(outdir, exist_ok=True)
     fig_binary.write_html(f"{outdir}/umap_binary.html")
     fig_continuous.write_html(f"{outdir}/umap_continuous.html")

@@ -2424,7 +2424,7 @@ def main():
     found_genes_out = Path(config.output) / "results" / "found_genes.txt"
     found_genes_out.parent.mkdir(parents=True, exist_ok=True)
     with (
-        open(f"{config.output}/summary.txt", "w") as summary,
+        open(Path(config.output) / "summary.txt", "w") as summary,
         open(found_genes_out, "w") as found_genes_file,
     ):
         # First block: evonk's ViralScan 2.2.0 summary.txt, same wording and order, so
