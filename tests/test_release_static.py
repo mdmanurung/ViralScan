@@ -351,3 +351,12 @@ def test_release_assets_collect_every_receipt():
         "sif-assets",
         "release-parity",
     }
+
+
+def test_container_audits_the_locked_product_environment_without_gating():
+    container = _release_jobs()["container"]
+    step = next(s for s in container["steps"] if "REL-11" in s.get("name", ""))
+    assert step["continue-on-error"] is True
+    assert "scripts/audit_locks.py --conda-lock environment.explicit.txt" in step["run"]
+    assert "release-assets/lock-audit.txt" in step["run"]
+    assert "environment.full.explicit.txt" in step["run"]

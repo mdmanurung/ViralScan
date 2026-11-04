@@ -22,6 +22,32 @@ except ImportError:  # Python < 3.11
     import tomli as tomllib  # type: ignore[no-redef]
 
 OSV_BATCH = "https://api.osv.dev/v1/querybatch"
+EXCEPTIONS = Path(__file__).resolve().parents[1] / "security" / "reviewed_exceptions.yaml"
+
+
+def apply_exceptions(lock: Path, hits: dict, exceptions: Path = EXCEPTIONS) -> dict:
+    """Drop advisory ids that a *reviewed* entry lists; label pending entries, silence nothing."""
+    if not exceptions.is_file():
+        return hits
+    try:
+        import yaml
+    except ImportError:  # the bare release runner has no PyYAML: report everything
+        print("  PyYAML missing: security/reviewed_exceptions.yaml not applied")
+        return hits
+
+    entries = (yaml.safe_load(exceptions.read_text()) or {}).get("exceptions") or []
+    kept = {}
+    for (name, version), ids in hits.items():
+        rows = [e for e in entries if (e["lock"], e["package"], str(e["version"])) == (lock.name, name, version)]
+        reviewed = {i for e in rows if e.get("status") == "reviewed" for i in e.get("advisories", [])}
+        left = [i for i in ids if i not in reviewed]
+        if rows and not left:
+            print(f"  {name}=={version}: {len(ids)} advisories, all reviewed exceptions")
+        elif left:
+            kept[(name, version)] = left
+            if rows and any(e.get("status") != "reviewed" for e in rows):
+                print(f"  {name}=={version}: exception entry is pending maintainer review (does not silence)")
+    return kept
 
 
 def osv_hits(pairs):
@@ -50,7 +76,7 @@ def audit_uv_lock(path: Path) -> int:
     ]
     print(f"{path}: {len(packages)} packages, sources {dict(sources)}, without full hashes {missing_hash}")
     registry = [p for p in packages if "registry" in p["source"] and p["source"]["registry"] == "https://pypi.org/simple"]
-    hits = osv_hits(sorted({(p["name"], p["version"]) for p in registry}))
+    hits = apply_exceptions(path, osv_hits(sorted({(p["name"], p["version"]) for p in registry})))
     for (name, version), ids in sorted(hits.items()):
         print(f"  {name}=={version}: {len(ids)} advisories ({', '.join(ids[:3])}{'...' if len(ids) > 3 else ''})")
     print(f"  {len(registry)} registry packages queried, {len(hits)} with advisories")
@@ -72,7 +98,7 @@ def audit_conda_lock(path: Path) -> int:
             bad.append(line)
     dup = [n for n, c in collections.Counter(n for n, _ in rows).items() if c > 1]
     print(f"{path}: {len(rows)} packages, channels {dict(channels)}, malformed {bad}, duplicate names {dup}")
-    hits = osv_hits(sorted(set(rows)))
+    hits = apply_exceptions(path, osv_hits(sorted(set(rows))))
     for (name, version), ids in sorted(hits.items()):
         print(f"  {name}=={version}: {len(ids)} advisories (name-matched, approximate)")
     print(f"  {len(hits)} name-matched packages with advisories")
