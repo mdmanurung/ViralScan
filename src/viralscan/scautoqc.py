@@ -10,6 +10,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from viralscan.utils import host_gene_mask
+
 #: Curated globins (uppercased symbols) avoid broad ^HB matches such as HBEGF, HBP1 and HBS1L.
 #: Human: HBA1/2, HBB, HBD, HBE1, HBG1/2, HBM, HBQ1, HBZ (+ pseudogenes). Mouse (MGI, uppercased):
 #: Hba-a1/a2, Hba-x, Hbb-bs/bt/b1/b2, Hbb-bh1, Hbb-y, Hbq1a/b.
@@ -179,11 +181,12 @@ def add_scautoqc(
         ) from exc
     _patch_sctk_gmm()
 
-    if "gene_role" in adata.var:
-        host = adata.var["gene_role"].astype(str).eq("host").to_numpy()
-    elif "is_viral" in adata.var:
-        host = ~adata.var["is_viral"].astype(bool).to_numpy()
-    elif identity is not None:
+    host = host_gene_mask(adata.var)
+    if host is None and identity is None:
+        raise ValueError(
+            "scAutoQC needs gene_role/is_viral annotations or ViralScan gene identity."
+        )
+    if host is None:
         by_gene = identity.by_gene()
         host = np.asarray(
             [
@@ -191,10 +194,6 @@ def add_scautoqc(
                 for gene in adata.var_names
             ],
             dtype=bool,
-        )
-    else:
-        raise ValueError(
-            "scAutoQC needs gene_role/is_viral annotations or ViralScan gene identity."
         )
     if not host.any():
         raise ValueError("scAutoQC found no host genes in the AnnData feature index.")

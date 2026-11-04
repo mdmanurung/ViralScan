@@ -426,6 +426,14 @@ No open rows; done rows are in the PLAN archive (see Next action).
     stay open as architecture. Not yet run against real bustools; the tests
     fake the inspect JSON.
   gene-role catalogue for every family.
+  - 2026-11-04 (`codex/lane-p4-truth-panel`): **one host-mask reading.** `utils.host_gene_mask(var)` is now the only place that
+    turns `gene_role` / `is_viral` / legacy `viral` into a host-gene mask; `scripts/detection._host_gene_mask` and `scautoqc` call it
+    (`gene_role` first, as both did). Test `tests/test_host_gene_mask.py`. **Left (needs a design decision, not invented):** (1) index-aware
+    denominators: for a virus-only index or an unavailable gene identity the host depth is absent, and which denominator the per-10k
+    burden and the ambient screen should report instead (absolute molecules only, per the protocol's `secondary_total_expression_rule`, or a
+    named external depth) is a user choice; (2) the full gene-role catalogue for every viral family: today only `unknown` and the
+    curated roles in the identity table exist, and the role vocabulary per family (latent/lytic/capsid/oncogene/...) is a curation decision.
+
 ### WP1E — Grill decisions for 3.0 (user-confirmed 2026-09-29)
 
 - [~] `DEF-00` — amend `analysis/v3_validation/protocol.yaml`:
@@ -1055,6 +1063,11 @@ No open rows; done rows are in the PLAN archive (see Next action).
     vacuously), and competitor mode writes no verdicts. Lifting needs that driver plus a ledgered amendment (next free
     number after `DEV-032`: `DEV-033`), digest refresh and pin chain (r15 has merged; rebase on its digests). Blocker text is partly stale
     (the measure code now exists; the driver does not).
+  - **Open question for the user (2026-11-04, nothing built past it):** the `strong` grid. Which of (a) a second 45-point grid nested above
+    `probable` with its own zero-false-call constraint, (b) a fixed multiple of the `probable` cutoffs, or (c) no `strong` tier in 3.0
+    (so H6 and E9 stay candidate against probable)? Until answered, `evidence_tiers` emits no `strong` without a caller-supplied
+    point, and the S-measure driver (run `viralscan evidence` for every sample x scored virus, negatives included) is not started
+    because its output set depends on the choice.
 - [~] `TIER-01` — **new, 2026-10-13 (Q96, Q104).** `src/viralscan/evidence_tiers.py`: probable/strong tier code built to
   the frozen `calibration.threshold_search` contract (UC-C1: the 45-point grid is a contract on this code; UC-C6: no
   eligible grid point = `no_tier`). Software only; no calibration was run and no data read.
@@ -1189,7 +1202,7 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
   `SESSION_RESUME.md:230` (not mine). `substitution_only_kmer_survival` alias name
   from the audit was not added (no consumer).
   - 2026-11-02 (`PLAN-RECON-01`): done. `docs/output_reference.md:502` gives the exact values (0.708 / 0.254 / 0.063 / 0.013) and `:515-540` documents the `positive_control.json` fields.
-- [~] `SENS-CORR-01` — scoped capture. **Done (2026-10-06):** `CaptureScope`,
+- [x] `SENS-CORR-01` — scoped capture. **Done (2026-10-06):** `CaptureScope`,
   `PositiveControl`, `scoped_capture` are wired. `build_sensitivity_table` applies
   the control's capture only to rows in scope (`detection.row_capture`); every other
   row, including undetected indexed viruses, gets no capture term, so
@@ -1209,15 +1222,13 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
   changed with a comment). **Decision:** `virus_key` is accepted by the parser but
   rejected by `RunConfig` until VAL-RA-CAL provides an approved transfer calibration
   (audit acceptance: "virus_key without valid calibration is rejected").
-  **Left:** `exact_sequence` identity is declared by flag, not verified: no versioned
-  accession/sequence digest or pinned evidence tying it to the control and the
-  current reference; rows are matched by the group key in the sensitivity table, not
-  resolved through `VirusIdentityTable` (legacy prefix-named rows are matched by
-  display name); the immutable capture-measurement record (digests, count layer,
-  evidence digest); a schema-valid control-failure receipt (the JSON is now written
-  before the raise but has no schema); schema/packaging decision for
-  `positive_control.json`; SENS-CORR-03 rendering (HTML always prints the unmeasured
-  statement; the empty `capture` column for uncertified rows is done, 2026-10-06).
+  **Closed 2026-11-04 (`codex/lane-p4-truth-panel`, audit only):** the old "Left" list was stale. Commit 488a73c already
+  verifies `exact_sequence` against a checksum-bound receipt (`sensitivity.verify_exact_control`: accession-version and
+  sequence sha256 in the sequence manifest, manifest bound to the binary index, reference FASTA digest, pinned evidence file,
+  count layer and strategy), resolves the target through `VirusIdentityTable`, archives the measurement immutably, and the
+  report/receipt schemas cover verified, failed and unavailable controls. A flag alone certifies nothing. Evidence:
+  `tests/test_positive_control_receipt.py`, `test_positive_control.py`, `test_sensitivity.py` (210 passed). SENS-CORR-03 rendering
+  is its own row.
 ## WP4D — Gene-programme inference, layer 2 (new 2026-09-26)
 
 - [~] `PROG-09` — **open.** The catalogue is 9 viruses. Polyomaviruses (JC/BK/KI/WU,
@@ -1986,6 +1997,9 @@ post-hoc folder; the completed run's files never change. Repro prototypes: `scri
     `calibration.threshold_search` result (protocol `pending`, user); (b) D21 per-10k burden needs a frozen common host-plus-viral
     denominator from a real run; (c) M7 two-step loss needs two-step output on identical input (cluster); (d) wiring the LOD
     estimator to a run's per-sample detection calls waits on the tier cutoffs (G3). No acceptance threshold anywhere. Row stays `[~]`.
+  - **2026-11-04 (lane P4):** the generator, scorer and their tests live in ViralScan-reproducibility since the repo split, so this
+    package tree has no code for this row. Work done there: repro PR #37 (D21 burden concordance, the VAL-09 freeze mechanism,
+    M8 recorded as removed by the protocol). Left (user/G3): `seeds.generation`, the factor levels and the holdout salt digest.
 - [~] `VAL-09` — freeze generator/scorer version, seeds, manifests, and expected
   tiny outputs before cluster-scale execution.
   - **2026-10-12 audit (`codex/val-software-audit`):** a freeze is a user act, so this row stays `[~]`. What exists: the generator version
@@ -1996,6 +2010,9 @@ post-hoc folder; the completed run's files never change. Repro prototypes: `scri
     and the factor levels are `pending` in the protocol until G3, so nothing can be frozen; the scorer has no version string
     (`v3_score.py` is `M04-SCORE`'s); the cluster golden receipt (`VAL-08`) supplies the real expected outputs. Do not add a freeze file
     before G3: its seed and hashes would be provisional.
+  - **2026-11-04 (lane P4):** the generator, scorer and their tests live in ViralScan-reproducibility since the repo split, so this
+    package tree has no code for this row. Work done there: repro PR #37 (D21 burden concordance, the VAL-09 freeze mechanism,
+    M8 recorded as removed by the protocol). Left (user/G3): `seeds.generation`, the factor levels and the holdout salt digest.
 ## WP6 — Run public positives and comparators
 
 ### WP6A — Public v3 reruns
