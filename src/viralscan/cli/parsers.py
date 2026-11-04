@@ -520,6 +520,12 @@ def _build_evidence_parser(subparsers: Any) -> None:
         "alignment and BLAST.",
     )
     p.add_argument(
+        "--host-gtf",
+        default=None,
+        help="Host annotation GTF (exon rows) used to calibrate strand_qc.tsv on host reads. "
+        "Without it strand_qc.tsv is written as not_assessed.",
+    )
+    p.add_argument(
         "--competitor-fasta",
         default=None,
         help="Explicit alternate/related/decoy FASTA; requires --competitor-manifest.",

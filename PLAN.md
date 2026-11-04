@@ -1780,9 +1780,18 @@ post-hoc folder; the completed run's files never change. Repro prototypes: `scri
   competitive BAM. **Deviation:** `splice_manifest.json` has `evidence_manifest_sha256` null, because the evidence manifest
   is written after the check and lists the splice receipt's hash instead (a hash both ways is circular). Tests
   `tests/test_splice.py` (26). The full `run_evidence` path (kallisto replay) is not run in tests; no real data used.
-- [ ] `EVID-03` gene-relative strand: new `strand_qc.tsv` (aligned blocks against annotated features: sense, antisense,
+- [x] `EVID-03` gene-relative strand: new `strand_qc.tsv` (aligned blocks against annotated features: sense, antisense,
   ambiguous overlap, outside annotation, with counts); expected orientation calibrated per library on unambiguous host exons;
   unknown chemistry `not_assessed`; `alignment_qc.tsv` unchanged.
+  Done 2026-11-04 (`codex/evid-03-strand-qc`, `tests/test_strand_qc.py`): new `src/viralscan/strand_qc.py`, written by
+  `evidence_run` after the molecule verdicts; one row per viral reference plus `ALL_VIRAL`. Unit = member reads of counted
+  virus-best molecules (lineage join on `read_number`). Calibration = counted host-best molecules' best host record, blocks on
+  exons of one gene; minimum 200 blocks and 80 % agreement (constants in the module docstring and `docs/output_reference.md`).
+  Deviations: new optional `--host-gtf` (no host GTF reaches `evidence` today; absent = `not_assessed`, `host_gtf_missing`);
+  `not_evaluable` when no counted virus-best read aligns to the virus; the table holds no manifest SHA-256 (the manifest is
+  written after it and hashes `strand_qc.tsv` instead). Calibration reads are only extracted reads that out-score on host, so
+  the set may be small; real-data calibration size is not checked here. The `--strand` default is NOT decided (user Q12:
+  after EVID-03 data).
 - [ ] `EVID-04` `evidence --html`: igv.js 2.15.11 and licence in the wheel; reads, genome, BED genes and splice reads embedded;
   sampling rule and omitted genes stated on the page; no metric from the page sample; size cap. Test: render with networking
   off after moving the file.
