@@ -85,9 +85,13 @@ intersphinx_mapping = {
 # Link checking (`sphinx -W -b linkcheck`). Release compare/tag URLs in the
 # changelog 404 until the matching tags are pushed (REL-15 / release step), and
 # the ACP journal DOI answers bots with 403 although it resolves in a browser.
+# Ensembl answers bots with 403 (via its archive redirect) and 10x Genomics
+# rate-limits CI with 429; both open in a browser.
 linkcheck_ignore = [
     r"https://github\.com/mdmanurung/ViralScan/(compare|releases/tag)/.*",
     r"https://doi\.org/10\.7326/.*",
+    r"https://www\.ensembl\.org/info/.*",
+    r"https://www\.10xgenomics\.com/.*",
 ]
 
 # -- Options for HTML output ---------------------------------------------------
