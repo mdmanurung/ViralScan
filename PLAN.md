@@ -752,6 +752,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     Still `[~]`: OCI image, SIF and lock attestations are not added (the image digest exists only in the `container`
     job; needs a tag run to verify), and the attest step is untested until a tag run. Maintainer: verify with
     `gh attestation verify` after the first release; the Node 20 action majors stay as noted above.
+  - 2026-11-04 (`codex/rel-12-13-actions`): re-resolved all 15 distinct pins in `.github/workflows/*.yml` against their release tags (annotated tags dereferenced); every SHA matches its `# vX.Y.Z` comment. New `tests/test_workflows_pinned.py` parses all five workflows (pin + version comment). Nothing else code-only is left; still `[~]` for the OCI/SIF/lock attestations and the Node 24 majors (maintainer, need a tag run).
 - [x] `REL-13` — make release publication depend on green CI for the exact tagged
   SHA; build distributions once and make all downstream jobs consume them.
   - 2026-11-02 (`codex/rel12-13-ci`): already in `release.yml` (landed with the release-CI work; row was stale). `ci-gate`
@@ -759,6 +760,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     completed/success, run id uploaded as `release-ci.json`); `build` builds and tests wheel+sdist once; `container`,
     `publish` and `release-assets` consume the `dist` artifact after `sha256sum -c`. Pinned by
     `tests/test_release_static.py`. Limit: the gate needs a CI run on the tagged SHA, so tag a commit already on `main`.
+  - 2026-11-04: `tests/test_workflows_pinned.py` also asserts that every `release.yml` job reaches `ci-gate` through `needs` and that `container` and `publish` need it directly.
 - [ ] `REL-14` — add protected TestPyPI/PyPI environments, stable approval, GitHub
   release assets, and separate RC/stable container tag behavior.
 - [!] `REL-15` — maintainers must provide final author, licence-holder,
