@@ -92,9 +92,16 @@ unknown taxonomy unless source metadata is supplied. Cluster representatives
 and excluded members retain CD-HIT decisions; partial-panel fetch failures retain
 their accession and reason.
 
-Source licences are structured records with `status: unreviewed`, empty terms,
-and an explicit review requirement. This records the remaining review; it does
-not grant redistribution rights. Reviewed source terms remain a maintainer task.
+Source licences are structured records with `status: unreviewed`, a draft terms
+summary (prefixed `DRAFT, needs maintainer/legal review`), and an explicit review
+requirement. The drafts come from `src/viralscan/source_licences.py` and are laid
+out in [reference_licences.md](reference_licences.md). They record the remaining
+review; they do not grant redistribution rights. Reviewed source terms remain a
+maintainer task.
+
+`viralscan --reference` records the host species as `unspecified` unless you pass
+`--reference-host-species "Homo sapiens"`. The label goes into the manifest only;
+it does not change the index.
 
 `content_sha256` and the reproducibility audit cover sequence/provenance content
 and deterministic FASTA/GTF/t2g checksums. Output paths, build/retrieval dates,

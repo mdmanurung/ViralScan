@@ -852,6 +852,8 @@ def errorhandler(args: argparse.Namespace) -> None:
     """
     Validate user input and abort with a clear message if anything is wrong.
     """
+    if getattr(args, "reference_host_species", None) and not args.reference:
+        _die("--reference-host-species only applies together with --reference.", 2)
     if args.ncbi_accession:
         if args.reference or args.gtf or args.fasta:
             _die("--ncbi-accession is mutually exclusive with --reference / --gtf / --fasta.", 2)
@@ -1606,9 +1608,16 @@ def _normalise_kb_ref_gtf(gtf: str, out: Path) -> Path:
 
 
 def _build_kb_ref(
-    output_dir: Path, fasta: str, gtf: str, cores: int | None = None
+    output_dir: Path,
+    fasta: str,
+    gtf: str,
+    cores: int | None = None,
+    host_species: str | None = None,
 ) -> tuple[str, str, str]:
-    """Run ``kb ref`` to build an index. Returns (transcripts, index, f1) paths."""
+    """Run ``kb ref`` to build an index. Returns (transcripts, index, f1) paths.
+
+    *host_species* is a manifest label only (REF-03); ``None`` records ``"unspecified"``.
+    """
     from viralscan.scripts.build_reference import (
         _run_kb_ref,
         prepare_reference_inputs,
@@ -1627,6 +1636,7 @@ def _build_kb_ref(
         index_dir,
         viral_gene_ids=gtf_gene_ids(gtf_input),
         mask=True,
+        host_species=host_species or "unspecified",
     )
     transcripts = str(index_dir / "t2g.txt")
     index = str(index_dir / "index.idx")
@@ -1952,7 +1962,13 @@ def _dispatch(args: argparse.Namespace) -> None:
         log.info("Fetched NCBI reference for: %s", ", ".join(accessions))
 
     if args.reference:
-        transcripts, index, f1 = _build_kb_ref(output_dir, args.fasta, args.gtf, args.cores)
+        transcripts, index, f1 = _build_kb_ref(
+            output_dir,
+            args.fasta,
+            args.gtf,
+            args.cores,
+            getattr(args, "reference_host_species", None),
+        )
     else:
         transcripts = args.transcripts
         index = args.index

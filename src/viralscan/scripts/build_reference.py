@@ -61,6 +61,7 @@ from viralscan.resources import (
 )
 from viralscan.run_safety import run_in_group, sha256_file, software_identity
 from viralscan.sensitivity import DEFAULT_K
+from viralscan.source_licences import draft_source_licence
 from viralscan.validation import require_schema_valid, tool_provenance
 
 log = logging.getLogger("viralscan")
@@ -544,12 +545,7 @@ def write_reference_manifest(
             "retrieval_status": "unknown_local_input",
             "sha256": hashlib.sha256(sequence.encode()).hexdigest(),
             "length": len(sequence),
-            "source_licence": {
-                "status": "unreviewed",
-                "terms": None,
-                "source": "local_input",
-                "review_required": True,
-            },
+            "source_licence": draft_source_licence("local_input"),
             "cluster": None,
             "representative_status": "input" if is_viral else "host_transcript",
             "inclusion_rationale": (
@@ -636,12 +632,7 @@ def _host_input_provenance(fasta: Path, host_species: str) -> dict[str, object]:
             "organism": ENSEMBL_SPECIES[_ensembl_species_key(host_species)][0],
             "taxid": None,
         },
-        "source_licence": {
-            "status": "unreviewed",
-            "terms": None,
-            "source": "Ensembl cDNA",
-            "review_required": True,
-        },
+        "source_licence": draft_source_licence("Ensembl cDNA"),
     }
 
 
@@ -814,8 +805,13 @@ def prepare_reference_inputs(
     viral_gene_ids: set[str],
     mask: bool = True,
     strict_reference: bool = False,
+    host_species: str = "unspecified",
 ) -> tuple[Path, Path]:
-    """Apply the shared viral masking/manifest contract before production kb ref."""
+    """Apply the shared viral masking/manifest contract before production kb ref.
+
+    *host_species* is recorded in the manifest only (REF-03): a user-supplied FASTA/GTF carries no
+    species, so the caller says which one it is. It never changes the prepared FASTA or index.
+    """
     records = validate_reference_records(fasta, near_duplicates="off")  # screened with the manifest
     viral_ids: set[str] = set()
     host_ids: set[str] = set()
@@ -880,7 +876,7 @@ def prepare_reference_inputs(
         prepared,
         output_dir / "reference_manifest.json",
         profile="curated",
-        host_species="unspecified",
+        host_species=host_species,
         viral_identifiers=viral_ids,
         input_fasta=fasta,
         masking={"enabled": mask, "windows": list(DUST_WINDOWS), "level": DUST_LEVEL},
