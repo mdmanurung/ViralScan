@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 3.0.0b1 (beta for outside laboratories on TestPyPI; date set when tagged)
+
+A beta of the 3.0.0 series for outside laboratories (user decision Q11, 2026-11-04). It carries no validation claim: gates G3 to G5 are open. The rc1 entries below were never published; rc1 is cut after its gates (PLAN `RC-03`).
 
 - **New option (PLAN `EVID-04`):** `viralscan evidence --html` (off by default; also `viralscan evidence-plot --evidence-dir DIR --html [--viral-fasta FA] [--annotation GTF]` on an existing directory) writes `igv_browser.html`: one self-contained igv.js 2.15.11 page (MIT, vendored in the wheel with its licence) with the viral genome, a seeded sample (cap 4000 reads per contig, fixed seed) of the member reads of counted virus-best molecules, `splice/splice.bam` reads when present, and a BED12 gene track. No network is used when the page is opened. The page states its sampling rule, population and the genes left out, and shows no number computed from the sample. Above 25 MB the read sample is halved and the page says so. Existing outputs do not change; the file is listed in `evidence_manifest.json`.
 - Build (PLAN `REL-07`, `REL-08`, `REL-09`, `REL-10`, `REL-14`): `release.yml` records the tool versions (kb-python, kallisto, bustools, minimap2, samtools, snakemake, STAR) from inside the published image as `tool-manifest.json`, builds the Apptainer image from the image digest in a new `sif` job and keeps its SHA-256, and runs the tiny workflow in the locked conda environment, the image digest and the SIF in a new `parity` job that writes `parity_report.json`. `publish` now waits for both. New `scripts/release_parity.py` (`versions`, `run`, `compare`). No change to the package.
