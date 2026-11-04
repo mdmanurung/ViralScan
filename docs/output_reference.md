@@ -315,8 +315,8 @@ alignment branch below.
 | `infected_subthreshold_called` | The same, restricted to called cells | model estimate |
 | `background_umis` | Viral molecules in barcodes that are **not** called cells (empty droplets), i.e. `viral_molecules_total_est` minus the molecules in called cells. They never count toward the detection gate. Molecules outside called cells can come from ambient RNA, barcode swapping or empty droplets; this column does not tell which. With `--cell-calling none` every barcode is called and it is 0. The `ambient_*` and `soup_*` columns below size and test this signal | model estimate |
 | `detected` | `true` when the virus passes the called-cell gate: at least `--detection-min-cells` (default 1) called cells are infected, **and** the called cells hold at least `--detection-threshold` of its molecules in total (compared with a relative tolerance of 1e-6, the same as the infected-cell rule, so a molecule split over several genes whose float shares sum to just under 1 still counts as 1). `false` marks a candidate that has signal in the all-barcode screen but misses the called-cell gate (for example, signal only in empty droplets). Passing is candidate evidence, not a confirmed infection, and does not exclude ambient RNA | evidence tier |
-| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000. **Blank (NA) in a two-step run** (the full matrix is the virus-only matrix, so the ratio would read 10,000 whatever the load); see `denominator_note` | model estimate |
-| `denominator_note` | Why `pct_infected` and `viral_molecules_per_10k_est` are blank, in a two-step run; empty otherwise (combined-index runs, values unchanged) | diagnostic flag |
+| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000. **Blank (NA) in a two-step run** (the full matrix is the virus-only matrix, so the ratio would read 10,000 whatever the load) and **blank (NA) when the index has no host genes** (a virus-only index or unavailable gene identity; never a silent virus-only fallback; MECH-F); see `denominator_note` | model estimate |
+| `denominator_note` | Why `pct_infected` and `viral_molecules_per_10k_est` are blank, in a two-step run, or why `viral_molecules_per_10k_est` alone is blank when the index has no host genes (`pct_infected` keeps its barcode denominator); empty otherwise (combined-index runs, values unchanged) | diagnostic flag |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below | observation |
 | `infected_called` | Infected cells (same `--infected-min-molecules` rule) restricted to the called-cell set | model estimate |
 | `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below | model estimate |
@@ -936,20 +936,20 @@ it does not replace `viral_summary.tsv` or change its default schema.
 
 The default `multimap_method` is `host-conservative` (keeps host-virus ambiguous
 mass off viral genes); use `equal` for an equal-allocation comparison. These are
-molecule-evidence tiers only. `probable` and `strong` require calibrated
-read-level evidence and are never assigned from molecule counts alone.
+molecule-evidence tiers only. `probable` requires calibrated
+read-level evidence and is never assigned from molecule counts alone. There is no `strong` tier in 3.0.
 
 (evidence-tiers)=
-### Probable and strong tiers (`viralscan.evidence_tiers`, PLAN `TIER-01`)
+### Probable tier (`viralscan.evidence_tiers`, PLAN `TIER-01`)
 
-The `evidence_tier` column above is never `probable` or `strong`. Those two tiers come from
+The `evidence_tier` column above is never `probable`. That tier comes from
 `viralscan.evidence_tiers`, a pure module (no file I/O, not yet wired into `detection` or the Snakefile)
 built to the frozen `calibration.threshold_search` contract in `ViralScan-reproducibility/analysis/v3_validation/protocol.yaml`:
 
 - the cutoff triple is (distinct supporting molecules per cell, distinct supporting features per sample,
   exact-fragment support fraction), searched over the protocol's 45-point grid, read by
   `grid_from_protocol`; no cutoff off the grid is accepted;
-- a grid point is eligible only with zero probable-or-strong calls in synthetic host-only and in planted
+- a grid point is eligible only with zero probable calls in synthetic host-only and in planted
   host-homology training negatives; among eligible points within one standard error of the best training
   F1, the most conservative wins (largest molecule cutoff, then feature cutoff, then support fraction);
 - no eligible point means calibration failed: the tier is `no_tier`, never a relaxed point;
@@ -957,8 +957,8 @@ built to the frozen `calibration.threshold_search` contract in `ViralScan-reprod
   an unmeasured support fraction never reaches a tier. The molecule cut-off carries the same 1e-6 relative
   slack as `infected_masks` (`INFECTED_RELATIVE_TOLERANCE`), so 1.999999 molecules meets a cut-off of 2;
   `assign_tier` has no production caller yet, so no shipped output is affected;
-- the grid defines only *probable-or-stronger*. `strong` exists only as a caller-supplied grid point at least as
-  strict as `probable` on every cutoff; without one, `strong` is never emitted.
+- there is no `strong` tier in 3.0 (user decision 2026-11-04). The grid defines only `probable`, and a
+  calibration result that carries a `strong` point is refused.
 
 Package tiers and the study claim levels (`scripts/adjudicate_candidates.py`, `level`) are separate scales. The
 adjudicator's last column `package_tier_analogue` is the one explicit mapping between them. It names the analogue
@@ -969,8 +969,8 @@ molecule-count rule, and a study level adds read-level evidence on top of its pa
 |-------------|-----------------------|
 | `L0` | `candidate` |
 | `L1` | `probable` |
-| `L2` | `strong` |
-| `L3` | `strong` (the gene-programme gate has no package counterpart) |
+| `L2` | `probable` (the highest package tier; there is no `strong` tier in 3.0) |
+| `L3` | `probable` (the gene-programme gate has no package counterpart) |
 
 (molecule-assignments)=
 ## `molecule_assignments.tsv.gz`

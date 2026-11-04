@@ -7,6 +7,7 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `GRILL-DECISIONS-01` (2026-11-04, `codex/grill-decisions-2026-11-04`, user: approve all): the package side of the 2026-11-04 decisions. No `strong` tier in 3.0 (`TIER-01`, `TIER-02`); no-host denominator NA with a reason (`MECH-F`); zero host-barcode overlap warns (`AUD-13` B-10); no demotion before G5 (`REF-08`, `ANDET-02`); licence working position (`REF-05`); bundled-cache wording (`REF-11`, `DOC-01`); OPS drafts accepted (`OPS-01`, `OPS-02`); row notes for `CAT-41`, `ANDET-04`, `ANELLO-15`; `MECH-E` back to `[~]`. Each change is noted in its own row. **Next up:** the user items `REL-15` contacts, the Zenodo DOI and the legal glance.
 - [~] `PROG-MIXED-VETO-01` (2026-11-03, `codex/prog-mixed-veto`, found by the KSHV GSE190558 repro runs; user decisions Q1-Q12 2026-11-03, below): the `mixed` state is load-driven. `_decide` turns `productive` into `mixed` when any latent marker not flagged `induced_in_lytic` (only K12 is) has >= 1 molecule (`marker_min_umi` 0, `latent_min_breadth` 1). In heavily lytic cells LANA/vCyclin/vFLIP reach one molecule by depth alone, so the mixed share rises with load: GSM5725696/-97 twostep, called cells, 13-20 % mixed at 100-500 KSHV molecules and 66-73 % at >= 2,000 (repro `analysis/round_2026-11-02/kshv_gse190558.md`, `scripts/kshv_programmes_by_load.py`, commit e65db16 on `codex/round-2026-11-02-kshv`). Productive + mixed together is stable (97-99 % of barcodes >= 500 molecules), so the split, not the lytic call, is the problem. BC-1 (PROG-18) shows the same threshold-on-a-continuum effect for PAN + K4. Options for the user: (a) a veto that scales with load (latent markers must carry a minimum share of the cell's KSHV molecules, not 1 molecule); (b) a molecule floor on vetoing latent markers only (`--programme-productive-min-molecules` already exists for productive markers; its >= 2 default failed its gate in `PROG-MINMOL-01`, run on these same libraries); (c) flag more latent markers `induced_in_lytic` (biology-backed for LANA/ORF73 is weaker than for K12; needs a citation per marker); (d) keep the rule and report `productive` + `mixed` together as "lytic programme present" in `gene_program_summary.tsv` and the report. Any change alters KSHV (and possibly EBV) calls, so it needs the held-out check in repro `PROG-16` before it becomes a default.
   - Decisions (user, 2026-11-03 grilling): target = a load-aware veto, a binomial test per cell (veto only when P(X >= k | N, p0) < alpha, k = latent-veto molecules, N = the virus's molecules, alpha 0.01 per cell, p0 = median per-cell latent share in cells with >= 2,000 molecules of GSM5725696/-97, frozen before any held-out run). Catalogue columns `mixed_veto_rule` (`any` default) and `mixed_veto_p0`, run config `programme_mixed_veto_alpha`, override `--programme-mixed-veto {catalogue,any,binomial}`. Ships off for every virus; KSHV opts in only after the held-out gate (repro: GSE184257 Set 3 then Set 2, GSM5725698 early check, GSM5725695 regression only, HSV-1 unchanged; criteria pre-registered in the repro before any run). EBV later, on its own evidence. Release (`v3.0.0rc1`) is not blocked.
   - `[x]` PR A (this branch): `gene_program_summary.tsv` gains `n_cells_lytic_programme` (= `n_cells_productive` + `n_cells_mixed`; productive alone where latency is unobservable) and `gene_program_cells.tsv` gains `lytic_programme` (productive or mixed; blank on no-model placeholder rows), added in `scripts/gene_programs.main` after `run_one` so the B23 frozen oracle is untouched. `docs/output_reference.md` marks `mixed` as load-driven; the report template gains the column (its gene-programme section is still not wired into the render context, a pre-existing gap). No call changes: on GSM5725697 twostep the first 10 cell columns are byte-identical to the 5b419d4 output. Suite 5,350 passed, 16 skipped; mypy clean.
@@ -223,6 +224,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   per-test `tmp_path` outputs and R's per-process `tempdir()`, so no shared state was found; no code change. Reopen with the failing
   output if it recurs.
 - [ ] `AUD3-REF08-DIVERGED` — audit P2-01 residual: the build-time near-duplicate screen (`AUD3-05`) reuses the curation twin cut (>= 95% shared canonical 31-mers), so a host homologue diverged by about 8% (about 90% of its k-mers unshared at k=31) is not screened; `host_homology_status=not_measured` stays the honest label. A homology threshold or alignment-identity cut belongs to `REF-08` (CAT-14 deliberately has none); do not invent one here.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): unchanged: the homology threshold is set at G5 from the truth-panel training arm; no demotion in 3.0.
 - [~] `PERF-EXEC-04` (2026-10-19) — authorized performance code delivery:
   B21/B13/B28/B16 accepted and combined on frozen baseline d056986 (tree6e70eda).
   Each has independent exactness and two seven-pair benefit sessions. Combined:
@@ -410,16 +412,18 @@ No open rows; done rows are in the PLAN archive (see Next action).
   Re-run the scan in `CAT-41` after any catalogue merge.
   - 2026-11-02 (`PLAN-RECON-01`): the first three "Still open" items are stale. The catalogue now shows Influenza D per segment, NC_001664 "Human herpesvirus 6A" and KC138720 "Human papillomavirus type XS2". Only the smaller exemplar-name mismatches remain unreviewed.
   - 2026-11-04 (`codex/lane-p3-reference`): the catalogue `common_name` is not an index input (the panel is built from the GTFs; the build only reads the catalogue for the `CAT-31` reconciliation), but the catalogue sha256 is pinned in run manifests and governance, so nothing was edited. Remaining exemplar names checked against NCBI titles: NC_001694.1 ("Human papillomavirus - 61") and NC_001352.1 ("- 2") are correct; X74467.1 is HPV 14D, shown as "14" (a type-level name, acceptable); NC_001430.1 is "Human enterovirus D" (EV-D70), shown as "Human enterovirus 68, 70", which over-names it. HPV68a and HPV6b rows not checked. **Question (user):** edit `NC_001430` common_name to "Enterovirus D70" now (changes the catalogue sha256, needs a re-pin) or batch it with the next catalogue change?
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): the `NC_001430` rename is batched with the next catalogue change, because the catalogue sha256 is pinned in run manifests and governance and one re-pin should cover all renames. No edit now.
 - [~] `MECH-D` — **tracked under `DEF-02` (reconciled 2026-10-04): one module, one row;
   this closes with DEF-02.** (module landed 2026-10-03) Chemistry module: one geometry for kb, STARsolo and the
   preflight, plus an R1-length / polyT check. The 10x v2 run as `-x 10xv3`
   gave 1.78M "cells" with no error.
-- [x] `MECH-E` — the reference pipeline: source adapters → one gate module →
+- [~] `MECH-E` — the reference pipeline: source adapters → one gate module →
   masking → GTF emitter → index with a recorded D-list. The prototype is
   `viral_panel_max_2026-09-28/01–04`.
   Software side done under `AUD-15` (2026-10-11/12): source adapters, `_prepare_viral_fasta` masking gate, `_emit_viral_gtf` emitter, `_finish_reference_build` index boundary with `genome_dlist_applied` in the manifest. Left: governance re-pin and a real (non-mock) index build.
   - 2026-11-02 (`PLAN-RECON-01`): the governance re-pin is done (repro PR #19 pins package 9e31c65, `reference-manifest-schema` included). Only the real (non-mock) index build is left.
   - 2026-11-04 (`codex/lane-p3-reference`): real (non-mock) index build done at small scale. `menu._build_kb_ref` (the `--reference` path: real `dustmasker` mask, gate, `kb ref`, manifest, `record_reference_build`) on three cached anellovirus genomes, run twice into fresh dirs: index built, `t2g`/`cdna.fa`/prepared FASTA/GTF identical, audit identical, `host_species` recorded. The full 465k-transcript panel rebuild is `REF-04` (job 25954275).
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): back to `[~]` until the full-panel rebuild (`REF-04`, job 25954275) passes. The small real build stands; the 465k-transcript panel is the open check.
 - [~] `MECH-F` — the corrected-BUS boundary, index-aware denominators, and one
   - 2026-10-04 (1203250): **off-list drops are now counted.** The count audit gains:
     - `barcode_correction`;
@@ -440,6 +444,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     burden and the ambient screen should report instead (absolute molecules only, per the protocol's `secondary_total_expression_rule`, or a
     named external depth) is a user choice; (2) the full gene-role catalogue for every viral family: today only `unknown` and the
     curated roles in the identity table exist, and the role vocabulary per family (latent/lytic/capsid/oncogene/...) is a curation decision.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): item (1) decided, **no-host denominator is NA with a reason**. `compute_stats` writes `viral_molecules_per_10k_est` as NA and `denominator_note = NO_HOST_DENOMINATOR_NOTE` when `_host_gene_mask` is None (virus-only index or gene identity unavailable); never a silent virus-only fallback. `pct_infected` keeps its barcode denominator. The ambient screen and the super-expressor null were already NA with a reason. Item (2) decided, **no per-family role vocabulary in 3.0**: roles stay `unknown` plus the curated identity-table roles. Docs: `docs/output_reference.md`. Tests: `tests/test_headline_denominators.py`. The row stays `[~]` only for the full gene-role catalogue, which is now out of 3.0 scope.
 
 ### WP1E — Grill decisions for 3.0 (user-confirmed 2026-09-29)
 
@@ -890,6 +895,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
   every redistributed or fetched reference source.
   - 2026-11-04 (`codex/lane-p3-reference`): **draft table written**, `docs/reference_licences.md` (NCBI GenBank/RefSeq, NCBI Taxonomy, Ensembl 116, 10x GRCh38-2024-A genome D-list, the Clareau-lab accession list, igv.js, user input), each with the published terms, URL and an open question. Marked draft; no row is `reviewed`. **Left (user):** maintainer/legal review and sign-off. Questions: which licence for the ViralScan-authored GTF archive; do derived GTFs need a per-record claim check; what are the 10x reference-bundle terms; is an index built from Ensembl cDNA a redistribution.
   - 2026-11-04 (`codex/docs-orphan-licences`): `docs/reference_licences.md` marked `orphan` so Sphinx `-W` passes on main; it joins a toctree after the licence review.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **working position adopted** (`docs/reference_licences.md`, now titled 'working position'): ViralScan GTF archive CC BY 4.0; derived GTFs get no per-record claim check, with an NCBI attribution and disclaimer; the 10x GRCh38-2024-A bundle is never redistributed; an Ensembl-derived index is redistributable. **Left:** a legal glance before the Zenodo deposit; the manifest stays `unreviewed` until then. The page stays `orphan` (not added to a toctree).
 - [!] `REF-11` — publish the viral annotation panel archive and register its
   Zenodo DOI. `src/viralscan/data_fetch.py` pins
   `VIRAL_DATA_DOI = "10.5281/zenodo.20112332"`, but that identifier is **not
@@ -907,6 +913,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     `MANIFEST.in` or ship scope). Builds a deterministic zip + `PANEL_MANIFEST.json` +
     `SHA256SUMS` + draft Zenodo metadata after checking the GTFs against
     `analysis/panel_expansion/gtf_corpus_manifest.tsv`. Publishing stays the user's.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **docs wording decided:** docs describe the bundled cache now (`docs/reference_panel.md`, `docs/installation.md`, `docs/cli_reference.md`, `README.md` carry a distribution-status note) and switch to `viralscan data fetch` once the Zenodo DOI is live. DOI `10.5281/zenodo.20112332` is still not registered, so the row stays `[!]`.
 ### WP4B — Full-genome competition and anellovirus
 
 - [~] `REF-06` — the public `--genome-dlist` path and raw annotations exist;
@@ -1087,11 +1094,12 @@ No open rows; done rows are in the PLAN archive (see Next action).
     vacuously), and competitor mode writes no verdicts. Lifting needs that driver plus a ledgered amendment (next free
     number after `DEV-032`: `DEV-033`), digest refresh and pin chain (r15 has merged; rebase on its digests). Blocker text is partly stale
     (the measure code now exists; the driver does not).
-  - **Open question for the user (2026-11-04, nothing built past it):** the `strong` grid. Which of (a) a second 45-point grid nested above
+  - **Answered (user decision 2026-11-04): option (c), no `strong` tier in 3.0.** Was the open question: the `strong` grid. Which of (a) a second 45-point grid nested above
     `probable` with its own zero-false-call constraint, (b) a fixed multiple of the `probable` cutoffs, or (c) no `strong` tier in 3.0
     (so H6 and E9 stay candidate against probable)? Until answered, `evidence_tiers` emits no `strong` without a caller-supplied
     point, and the S-measure driver (run `viralscan evidence` for every sample x scored virus, negatives included) is not started
     because its output set depends on the choice.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **no `strong` tier in 3.0** (option (c)); H6 and E9 stay candidate against `probable`. The `strong` path is removed from the code (`TIER-01`), so the grid is one set of cutoffs and the S-measure driver has a fixed output set: run `viralscan evidence` for every sample x scored virus, negatives included, then `tier_measures.support_fraction` on each evidence directory. That driver loops over datasets and writes run outputs, so it belongs in the reproducibility repo (run-and-result work stays there), not in the package; the package side (`support_fraction`, `measure_virus`, `probable_cells`) is complete. The `tier_cutoff_measures` blocker is now only that driver plus the ledgered amendment (`DEV-033`), both repro/user items.
 - [~] `TIER-01` — **new, 2026-10-13 (Q96, Q104).** `src/viralscan/evidence_tiers.py`: probable/strong tier code built to
   the frozen `calibration.threshold_search` contract (UC-C1: the 45-point grid is a contract on this code; UC-C6: no
   eligible grid point = `no_tier`). Software only; no calibration was run and no data read.
@@ -1117,6 +1125,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     string, so a structured form is a freeze-time item (it would change `calibration.contract_sha256`); (5) not wired
     into `detection`, the Snakefile or any output column (`evidence_tier` keeps its `candidate_*` vocabulary); (6) the
     F1/SE computation and the bootstrap run belong to the `SCI-03`/`SCI-04` executor.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **no `strong` tier in 3.0.** Removed: `TIER_STRONG`, `Calibration.strong`, the nesting check and the `strong` branch of `assign_tier`; `calibration_from_dict` refuses a result that carries a `strong` point; `STUDY_LEVEL_TO_PACKAGE_TIER` maps `L2` and `L3` to `probable` (the highest package tier). Contract gap (1) above is closed. Docs: `docs/output_reference.md#evidence-tiers`. Tests: `tests/test_evidence_tiers.py`. The pinned output-reference doc changed, so the repro pin chain needs a refresh.
 - [x] `REF-13` — **new, 2026-09-26.** Detection-side reference visibility and
   - 2026-10-10 (wave 4 audit): a fresh `scripts/panel_integrity.py` run reports **2,626** errors (2,469 transcripts with no exon,
     103 HHV-6B CDS rows with no `transcript_id`, 54 reused `unassigned_transcript_N`) plus 47 catalogue gaps; the drop from 2,629 is the
@@ -1309,6 +1318,7 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
     on the 2,042-genome panel (k-mer capture, CDS census) are left as measured. A test pins the numbers.
     2026-11-04 (`codex/lane-p5-homology`): **upstream now has an MIT `LICENSE`** (commit `517c264`, 2026-10-08, "Copyright (c) 2026 Lareau Lab, Memorial Sloan Kettering"), so the "no licence" claim above is stale and docs that repeat it need a pass. Still no paper, DOI or citation text. Request to the authors drafted, **not sent**: `docs/plans/anello15-clareaulab-request-draft.md` (citable release, permission to ship `orf1_genus`, method of the 15 conflicts). Disagreement table measured against `517c264`: 15 conflicts of 3,422 joined rows (9 Beta to Hetero, 2 Sade to Hetero, 1 Yod to Hetero, 1 Gamma to Beta, 1 "Small anellovirus" to Gamma, 1 Lamed to Unclassified). The "9 Beta" reproduces; the "3 Gamma" does not. 576 of 702 generic rows carry an `orf1_genus`. No panel input changed (cat42d frozen, G4). Open for the user: send the request; adopt `orf1_genus` or not (needs a new panel version); which genus wins on the 15; item (2) integrity check and item (3) `CAT-07` map unchanged.
     The 4 stale `AB303562.1` gene rows were removed in `f4320d2` (2026-10-10; `tests/test_anellovirus_reference.py` pins 2,511 rows / 1,994 accessions). `reference_strategy` template `anellovirus_expected_count` 2022 -> 2021.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): the user sends the request to the authors (`docs/plans/anello15-clareaulab-request-draft.md`) asking for a citable release. `orf1_genus` and the 15 genus conflicts move to 3.1.
 - [~] `ANDET-01` — `accession_breadth` is always 1.0: it is computed over
   - 2026-10-04: gene-level `accession_breadth` now uses the virus's **index** genes
     (`compute_stats(index_genes_by_virus=...)`). The per-accession
@@ -1372,6 +1382,7 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
     `results/host_homology_loci.tsv`) and the `eve_risk` column (`virus_grouping.py`, `detection.py` summary) are in
     `main`; nothing further to build until `REF-08`. Demotion stays unbuilt. Question for the user: which `REF-08`
     threshold (identity, query coverage, aligned bases per locus) should demote a call?
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **no demotion in 3.0.** The `REF-08` threshold is set at G5 from the truth-panel training arm (answers the 2026-11-04 question above); `eve_risk` stays an annotation. Nothing to build until then.
 - [x] `ANDET-04` — evidence replay reads the raw FASTQs (`evidence_run.py:154-155`,
   `:176`) instead of the host-filtered `kb_r1`/`kb_r2`; `--virus ttv` resolves to
   the 185 unclassified genomes only (`evidence.py:64`). Fix both; auto-run
@@ -1406,6 +1417,7 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
     - Tests: `tests/test_auto_evidence.py`, `test_cli.py::TestBuildRunConfig`, `test_snakefile_dag.py::TestAutoEvidenceDag`.
       Proposed `output_reference.md` text (hash-pinned, not edited) is in the wave 4 report.
   - 2026-11-02 (`PLAN-RECON-01`): done as an opt-in rule (`--auto-evidence`, Snakefile `rule auto_evidence`). Default-on stays the user's call under `ANELLO-PRIOR.3`.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): auto-evidence stays opt-in (user decision); no default change.
 ## WP4H — Comprehensive human-virus catalogue (new 2026-09-27)
 
 - [x] `CAT-04` — risk classes: exclude human endogenous retroviruses; flag
@@ -1846,6 +1858,7 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
   2026-11-04 (`codex/lane-p5-homology`): B-10 was already fixed in `detection._in_barcode_set` (both sides suffix-stripped; test in `test_cellcalling.py`). B-11 fixed: `summary.txt` opens via `Path(config.output) / "summary.txt"` and the `umap.py` plot paths use `os.path.join`, so none depends on a trailing separator. The B-10 "raise on empty intersection" half is left: a zero overlap is a valid outcome for an external host list, so raising is a policy call (question for the user: raise or keep the `None`/blank result?). B-18, B-20, C-19, B-35, C-18 untouched (host-response code, `REL-12`, test-only rows); `AUD-12` M-02..M-05 are science/design items and stay deferred.
   2026-10-12 (`codex/b19-c12`): C-12 fixed (user decision): `cores` is no longer hashed into the run fingerprint (still recorded in `options`); a pre-C-12 manifest whose stored hash reproduces with `cores` included still resumes under any `--cores`; the mismatch error lists differing option names (never `--cores`). The plain-run fingerprint pin in `test_run_safety.py` changed accordingly.
   2026-10-12 (`codex/b19-c12`): B-19 fixed (user decision): `run_hostresponse` aligns on the host h5ad cells; host cells missing from the viral matrix are zero-filled negatives, viral-only barcodes are dropped, and `barcode_alignment` in `hostresponse_manifest.json` records counts and fractions of both (`policy` is now `host_cell_universe_zero_fill`; `n_host_excluded`/`n_viral_excluded` are gone). An empty host h5ad or zero barcode overlap now raises `ValueError` (the old zero-overlap early return would have zero-filled everything). Supersedes the 'user-owned, open' B-19 note under Tier 6.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **B-10 decided:** zero barcode overlap with an external host list logs a WARNING with the counts (matrix barcodes, host-set barcodes) and continues; no raise. `detection._in_barcode_set`; test `tests/test_headline_denominators.py`. The empty mask gives NA rates downstream. (`cellcalling.external_cells` keeps its SW-11 error: that is the called-cell list, a different case.) **REF-08/ANDET-02:** no host-homology demotion in 3.0; the threshold is set at G5 from the truth-panel training arm; `eve_risk` stays an annotation.
 - [~] `AUD-15` — `MECH-E` reference pipeline refactor (user-approved for autonomous work 2026-10-11): source adapters, one gate, masking, GTF emitter; touches pinned `build_reference.py`; mock-verified only.
   **Decision (user, 2026-10-11):** refactor plus manifest schema additions allowed (D-list record, source adapters; bump `reference_manifest.schema.json`, governance re-pin, docs); a golden test must prove byte-identical FASTA/GTF/t2g on fixture inputs for everything not intentionally changed; mock-verified only. Also fold in D-13 (the anellovirus origin-wrap gene is transposed in the `kb ref` cDNA).
   Partial 2026-10-11: one `_prepare_viral_fasta` masking gate, `_finish_reference_build` index/receipt boundary, `source_adapters` and `genome_dlist_applied` in the manifest (`reference_manifest.schema.json` now accepts 3.0.0 and 3.0.1; builder writes 3.0.1), golden test `tests/test_reference_pipeline_aud15.py` (13 cases, byte-identical FASTA/GTF/t2g on fixtures). Then ab9d9da: the GTF emitter is one boundary, `build_reference._emit_viral_gtf` (catalogue and combined adapters; `_anellovirus_gtf` and `_gtf_from_merged_fasta` are thin wrappers). **D-13 closed as a documented limitation, 2026-10-12 (`codex/aud-15c`):** `ngs_tools` (the splitter `kb ref` runs) merges exons into a sorted `SegmentCollection`, so `join(2677..2824,1..80)` of KU243129.1 is indexed as `[1:80]+[2677:2824]` whatever order the GTF gives; this cannot be fixed in ViralScan's GTF without rotating the genome or splitting the gene, both of which change coordinates and the transcript model, so it needs an `ngs_tools`/kb-python change. The rows carry `viralscan_norm "wrap_native"` (as EBV LMP-2A/2B do) and `test_origin_wrap_gene_is_tagged_and_kb_splitter_transposes_it` runs the same splitter on a fixture, keeps the GTF in transcript order (ANELLO-05, never re-sorted) and fails if kb-python ever fixes the order. Impact: one gene, junction-spanning reads only. Still open: governance re-pin (user, once at the end).
@@ -2116,6 +2129,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
       - pip/full tier text (REL-01/02) and the data-fetch wording (REF-11).
   - 2026-11-02 (`PLAN-RECON-01`): Sphinx `-W` now runs in CI (`.github/workflows/docs.yml:33`). Only the REF-11 data-fetch wording (user) is left.
   - 2026-11-04 (`codex/lane-p2-docs`): `.github/workflows/docs-check.yml` runs `sphinx-build -W --keep-going -E -a -b html` and `-W -b linkcheck` on every docs PR (no deploy; Pages stays user-owned). Fixed the one warning that blocked `-W` on main: `docs/evidence_unit.md` was in no toctree (now `orphan`). **Left (user):** question for the REF-11 data-fetch wording: should the docs say the panel archive comes from Zenodo (`viralscan data fetch`) or from the bundled cache? PLAN records no decision, so the wording is unchanged.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): REF-11 data-fetch wording settled: docs describe the bundled cache until the DOI is live (see `REF-11`). Nothing else is left under this row except that switch.
 - [~] `DOC-05` — execute clean-install quickstart commands and validate the
   resulting run using only documented steps.
   - 2026-10-12 (`codex/docs-pass`): executed in a fresh venv (`python -m venv`, no system
@@ -2282,7 +2296,9 @@ No open rows; done rows are in the PLAN archive (see Next action).
     triage/fix targets). Stays `[~]`: closing needs maintainer approval and `REL-15` contacts.
   - 2026-11-04 (`codex/lane-p2-docs`): published as far as an agent can. The page is in the Sphinx toctree (`docs/index.md`, Project) and `README.md` links it under "Support and policies". **Left (user):** approve or change every item tagged `DRAFT: maintainer decision`; supply `REL-15` contacts; the page keeps its draft banner until then.
   security-response policies with named contact routes.
-- [~] `OPS-02` — establish reference-update cadence and manifest compatibility
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **accepted as proposed.** DRAFT tags removed from `docs/release_policy.md` (support windows, version-part mapping, patch triggers, deprecation window). The private contact stays a placeholder until `REL-15`. The security triage and fix targets had no proposed value, so they read 'Not set'; the maintainer supplies them.
+  - 2026-11-04 (user decision, "approve all"): security triage within 7 days, fix within 90 days. Left: the private contact (`REL-15`).
+- [x] `OPS-02` — establish reference-update cadence and manifest compatibility
   - 2026-10-04: drafted in `docs/reference_maintenance.md` (0b89ad5): invariants,
     a placeholder cadence, and manifest schema_version reader rules.
     Needs maintainer sign-off.
@@ -2293,6 +2309,8 @@ No open rows; done rows are in the PLAN archive (see Next action).
     code enforces a cadence. Stays `[~]` pending maintainer sign-off.
   - 2026-11-04 (`codex/lane-p2-docs`): `docs/reference_maintenance.md` joined the Sphinx toctree (it was `orphan`) and `README.md` links it. **Left (user):** maintainer sign-off on the review interval, triggers and release contents.
   rules; never silently change a frozen reference under an existing version.
+  - 2026-11-04 (`codex/grill-decisions-2026-11-04`, user decision 2026-11-04): **accepted as proposed.** DRAFT tags removed from `docs/reference_maintenance.md` (triggers, contents of a new version). No review interval was ever proposed, so it reads 'not set'; the maintainer supplies it.
+  - 2026-11-04 (user decision, "approve all"): review interval every 6 months. Signed off; nothing left in this row.
 - [ ] `OPS-03` — triage false positives, false negatives, data loss, and reference
   drift as scientific incidents with reproducible packets.
 - [ ] `OPS-04` — monitor install/usage failures during the first 90 days and ship
