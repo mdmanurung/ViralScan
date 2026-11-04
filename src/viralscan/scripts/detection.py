@@ -52,6 +52,7 @@ from viralscan.tier_measures import features_supported
 from viralscan.utils import (
     INFECTED_RELATIVE_TOLERANCE,
     get_layer,
+    host_gene_mask as roles_host_mask,
     infected_masks,
     matrix_for_genes,
     resolve_count_matrix,
@@ -828,12 +829,8 @@ def _host_gene_mask(adata) -> Optional[np.ndarray]:
         or adata.uns.get("gene_identity_source") == "unavailable"
     ):
         return None
-    if "gene_role" in adata.var:
-        host = np.asarray(adata.var["gene_role"] == "host")
-    elif "is_viral" in adata.var or "viral" in adata.var:
-        column = "is_viral" if "is_viral" in adata.var else "viral"
-        host = ~np.asarray(adata.var[column], dtype=bool)
-    else:
+    host = roles_host_mask(adata.var)
+    if host is None:
         return None
     return host if host.any() else None
 

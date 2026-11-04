@@ -200,3 +200,19 @@ def to_int(value: object, default: int = 0) -> int:
 def to_float(value: object, default: float = 0.0) -> float:
     """``float(value)`` for the number-or-numeric-string cells of a result row."""
     return float(value) if isinstance(value, (int, float, str)) else default
+
+
+def host_gene_mask(var: Any) -> np.ndarray | None:
+    """Host-gene mask over ``adata.var``, or None when the table does not say (MECH-F).
+
+    One reading of the gene-role contract for every consumer: ``gene_role == "host"``
+    when the column exists (viral genes carry a curated role or ``unknown``, never
+    ``host``); else the complement of ``is_viral`` (or legacy ``viral``). A table with
+    neither column returns None, so the caller picks its own fallback or refuses.
+    """
+    if "gene_role" in var:
+        return np.asarray(var["gene_role"].astype(str) == "host")
+    for column in ("is_viral", "viral"):
+        if column in var:
+            return ~np.asarray(var[column], dtype=bool)
+    return None
