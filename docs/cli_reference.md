@@ -930,6 +930,7 @@ the sections above add context. Do not edit between the markers.
 | `--read-start-profile` | `False` | Write a per-position 5' read-start distribution along the viral genome (read_start_profile.tsv). Requires --viral-fasta. |
 | `--cell-tags` | `False` | Write viral_reads.tagged.bam with CB/UB cell-barcode tags (from read names) for per-cell IGV inspection (group by tag CB). Requires --viral-fasta. |
 | `--splice` | `False` | Realign the member reads of counted virus-best molecules to the viral genome alone with minimap2 -ax splice:sr (needs minimap2 >= 2.29) and write splice/ (splice.bam, junctions.tsv, splice_summary.tsv, splice_manifest.json). Supports viral RNA processing; it does not establish origin, infection or reactivation. Requires --viral-fasta. |
+| `--html` | `False` | Write igv_browser.html: one self-contained igv.js page (no network) with a seeded sample of the member reads of counted virus-best molecules, the viral genome, genes and, with --splice, splice reads. The page states its sampling rule and shows no metric. Requires --viral-fasta. Not available in competitor mode. |
 | `--dedup DEDUP` | `umi` | PCR-duplicate handling for --read-start-profile: umi (collapse per CB+UMI; default), markdup (samtools markdup), or none. Default: umi. |
 | `--bin-size BIN_SIZE` | `1` | Bin width (bp) for the read-start profile. Default: 1. |
 | `--sampling-seed SAMPLING_SEED` | `42` | Seed for deterministic BLAST read sampling. Default: 42. |
@@ -953,6 +954,8 @@ the sections above add context. Do not edit between the markers.
 | `--coverage-map` | `False` | Draw coverage and optional gene track from retained BAMs. |
 | `--target TARGET` | *(none)* | Exact BAM reference; optional only for one explicit viral reference. |
 | `--annotation ANNOTATION` | *(none)* | GTF annotation; seqid = target, or the bare accession for viral CLASS\|ACC targets. |
+| `--html` | `False` | Instead of the figures, write igv_browser.html (self-contained igv.js page) from the evidence directory's BAM and tables. Needs the viral genome: --viral-fasta, or splice/target_genome.fa from an earlier --splice run. --annotation adds the gene track. The evidence manifest is not rewritten. |
+| `--viral-fasta VIRAL_FASTA` | *(none)* | Viral FASTA for --html (contig names as in the evidence BAM, without the VIRUS\| prefix). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
