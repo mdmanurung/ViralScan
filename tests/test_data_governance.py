@@ -44,3 +44,11 @@ def test_rejects_tampered_synthetic_fastq_fixture(tmp_path, monkeypatch) -> None
     assert problems == [
         "restricted biological artifact is tracked: tests/data/evidence_tiny/R1.fastq"
     ]
+
+
+def test_url_path_parts_are_not_institutional_paths() -> None:
+    from scripts.governance_utils import institutional_path_errors
+
+    url = "https://www.ncbi.nlm.nih.gov/home/about/policies/"
+    assert institutional_path_errors(url, "doc") == []
+    assert institutional_path_errors(f"see {url} and /home/someone/x", "doc") != []

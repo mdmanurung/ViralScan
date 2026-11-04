@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -171,7 +172,17 @@ def json_schema_errors(document: Any, schema_path: Path) -> list[str]:
     return errors
 
 
+# A web URL such as https://www.ncbi.nlm.nih.gov/home/about/policies/ is not a local path.
+_URL = re.compile(r"https?://\S+")
+
+
+def without_urls(value: str) -> str:
+    """Drop http(s) URLs so their path parts are not read as local paths."""
+    return _URL.sub("", value)
+
+
 def institutional_path_errors(value: str, context: str) -> list[str]:
+    value = without_urls(value)
     return [
         f"institutional absolute path {prefix!r} in {context}"
         for prefix in INSTITUTIONAL_PREFIXES

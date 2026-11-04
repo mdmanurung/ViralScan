@@ -13,13 +13,13 @@ from typing import Optional
 
 try:
     from scripts.check_ship_scope import load_ship_scope, ship_scope_source_paths
-    from scripts.governance_utils import INSTITUTIONAL_PREFIXES
+    from scripts.governance_utils import INSTITUTIONAL_PREFIXES, without_urls
 except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
     from check_ship_scope import (  # type: ignore[no-redef]
         load_ship_scope,
         ship_scope_source_paths,
     )
-    from governance_utils import INSTITUTIONAL_PREFIXES  # type: ignore[no-redef]
+    from governance_utils import INSTITUTIONAL_PREFIXES, without_urls  # type: ignore[no-redef]
 
 RESTRICTED_SUFFIXES = (
     ".fastq",
@@ -89,7 +89,7 @@ def violations(
             problems.append(f"allowlisted text file is unreadable: {path}: {exc}")
             continue
         for prefix in INSTITUTIONAL_PREFIXES:
-            if prefix in text:
+            if prefix in without_urls(text):
                 problems.append(f"institutional absolute path {prefix!r} in ship scope: {path}")
     return problems
 
