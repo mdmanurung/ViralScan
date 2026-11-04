@@ -1220,13 +1220,25 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
   statement; the empty `capture` column for uncertified rows is done, 2026-10-06).
 ## WP4D — Gene-programme inference, layer 2 (new 2026-09-26)
 
-- [~] `PROG-09` — **open.** The catalogue is 9 viruses. Polyomaviruses (JC/BK/KI/WU,
-  MCPyV), HPV, HBV, HDV, GBV-C, HIV-1 and HTLV-1 are deliberately excluded: they
-  have no latency/lytic dichotomy representable from the panel's protein-coding
-  genes, and for HIV/HPV/HBV the interesting state is DNA-level latency, which
-  scRNA-seq cannot observe at all. Adding them would mean emitting
-  `not_applicable` rows, which is what the code does for a detected virus with no
-  model — a decision to make explicitly rather than by omission.
+- [x] `PROG-09` — **done 2026-11-04** (partial scope by design). The catalogue is now 10 viruses: HPV16
+  added as productive-only (L1, L2; both `late`, PMID 15187189, differentiation-dependent late-gene
+  expression), `partial`, `latency_observable_in_rna=false`, so `latent` is unreachable and breadth 2
+  needs both capsid genes. Gene ids `HUM_PAP_1618_HpV16gp8` / `gp7` are in the cat42d panel; panel
+  inputs unchanged. Regenerated `gene_programs.tsv` with `extras/build_gene_programs.py` (existing
+  rows byte-identical) and the CAT-28 report (+2 `unmatched` rows: HPV16 is not in the panviral table).
+  Left out, with reason:
+  - JC/BK/MCPyV: no RNA latent marker (LT/sT are also early productive genes; MCC tumour LT/sT-only is
+    a transformed state, not latency). VP1 is a verified late gene (MCPyV PMID 21799863; BK PMID
+    24145549) but no verified source gives a second independent late gene, and a productive call needs
+    breadth 2.
+  - KI/WU polyomavirus: no retrieved transcript-kinetics source for either.
+  - HPV E1^E4: only "implicated in late functions" (PMID 15187189), not a verified kinetic class.
+  - HBV, HDV: HBV transcripts all come from cccDNA (DNA-level latency, invisible to RNA); HDV has no
+    latency and one ORF with two editing isoforms.
+  - GBV-C: one polyprotein ORF, no split.
+  - HIV-1: single promoter and multiply spliced transcripts that gene-level counts cannot separate;
+    latency is proviral (DNA-level).
+  - HTLV-1: the only latent anchor is HBZ and `NC_001436` has no HBZ annotation (panel frozen, G4).
 ## WP4E — Named HPV ORFs for the oncogene-versus-capsid contrast (new 2026-09-26)
 
 Open rows moved to the reproducibility tracker (see "Moved to the reproducibility tracker").

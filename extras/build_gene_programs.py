@@ -709,6 +709,28 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "programme": "productive",
         "note": "gH; ID-only",
     },
+    # ── Human papillomavirus 16 (NC_001526) — panel_completeness: partial ──
+    # PROG-09. Productive-only: L1 and L2 are expressed in differentiated suprabasal cells,
+    # where vegetative replication and late-gene expression start (PMID 15187189). No latent
+    # marker is catalogued: E6/E7 are also expressed during productive infection and in
+    # transformed cells, and basal-cell episomal persistence has no RNA marker of its own.
+    # L2 and L1 share 17 bp, below the 31-mer size, so they fall in separate overlap groups.
+    {
+        "virus": "Human papillomavirus 16",
+        "refseq_gene": "L1",
+        "programme": "productive",
+        "note": "major capsid protein; late, differentiation-dependent",
+        "kinetic_class": "late",
+        "kinetic_pmid": "15187189",
+    },
+    {
+        "virus": "Human papillomavirus 16",
+        "refseq_gene": "L2",
+        "programme": "productive",
+        "note": "minor capsid protein; late, differentiation-dependent",
+        "kinetic_class": "late",
+        "kinetic_pmid": "15187189",
+    },
 )
 
 #: Per-virus facts that are properties of the *virus*, not of any one gene.
@@ -748,6 +770,11 @@ VIRUS_FACTS: dict[str, dict[str, object]] = {
     # vFLIP cluster (one mRNA family, PMID 9733875), kaposin K12, and LANA2/vIRF-3
     # (B cells only, PMID 11119611). K12 is also lytic-induced (PMID 17913828).
     "Human herpesvirus 8": {"panel_completeness": "complete", "latency_observable_in_rna": True},
+    # PROG-09: productive-only (L1, L2); no latent marker, so latent is unreachable.
+    "Human papillomavirus 16": {
+        "panel_completeness": "partial",
+        "latency_observable_in_rna": False,
+    },
 }
 
 #: Markers transcribed as one mRNA family, so they count as one breadth unit even
@@ -775,6 +802,7 @@ VIRUS_GTF: dict[str, str] = {
     "Human herpesvirus 2": "Human_herpesvirus_2_NC_001798.gtf",
     "Varicella-zoster virus": "Varicella_zoster_virus_NC_001348.gtf",
     "Human herpesvirus 8": "Human_herpesvirus_8_NC_009333.gtf",
+    "Human papillomavirus 16": "Human_papillomavirus_16_18_NC_001526.gtf",
 }
 
 #: STARsolo keeps the prefix for these viruses; every other curated virus has
@@ -792,6 +820,7 @@ PANEL_PREFIXES = (
     "HUM_HERP8_",
     "VARICELLA_",
     "CERC_HERP_",
+    "HUM_PAP_1618_",
 )
 
 #: Allowed ``kinetic_class`` values: the marker's expression class in

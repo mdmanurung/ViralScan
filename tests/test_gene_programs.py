@@ -59,7 +59,7 @@ def _viruses() -> set[str]:
     return {row["virus"] for row in _catalog()}
 
 
-#: The nine viruses the catalogue covers, with the completeness the inventory
+#: The ten viruses the catalogue covers, with the completeness the inventory
 #: supports. HCMV is partial because single-cell latency mirrors a low-level
 #: late-lytic programme (PMID 29535194), so latency is not observable by marker.
 #: HHV-6A and HHV-7 are partial: their U90/U86 are immediate-early (PMID
@@ -79,6 +79,7 @@ EXPECTED_PARTIAL = {
     "Human herpesvirus 7",
     "Varicella-zoster virus",
     "Human herpesvirus 8",
+    "Human papillomavirus 16",  # PROG-09: productive-only (L1, L2)
 }
 
 
@@ -374,7 +375,7 @@ class TestCatalogueIntegrity:
     def test_validate_accepts_the_shipped_catalogue(self) -> None:
         assert validate_catalogue(_catalog()) == []
 
-    def test_covers_exactly_the_nine_intended_viruses(self) -> None:
+    def test_covers_exactly_the_ten_intended_viruses(self) -> None:
         assert _viruses() == EXPECTED_COMPLETE | EXPECTED_PARTIAL
 
     def test_completeness_matches_the_inventory(self) -> None:
