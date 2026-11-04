@@ -66,6 +66,7 @@ from viralscan.run_safety import RunSafetyError, refuse_primary_tree, sha256_fil
 from viralscan.runconfig import RunConfig
 from viralscan.igv_html import IgvError, IgvNotEvaluable, write_igv_page
 from viralscan.splice import SPLICE_DIR, SpliceError, require_splice_minimap2, run_splice
+from viralscan.strand_qc import write_strand_qc
 from viralscan.scripts.multimap import load_transcripts, read_ec
 from viralscan.utils import configure_logging, to_int
 from viralscan.validation import require_schema_valid, tool_provenance
@@ -694,6 +695,19 @@ def run_evidence(args: argparse.Namespace) -> None:
                     extraction_status="extracted",
                     n_extracted_reads=stats.viral_reads,
                 )
+            try:  # a new check: its failure must not lose the existing evidence outputs
+                from viralscan.scripts.analysis import locus_gtf_paths
+
+                write_strand_qc(
+                    bam,
+                    out,
+                    technology=technology,
+                    host_gtf=getattr(args, "host_gtf", None),
+                    viral_gtfs=locus_gtf_paths(config),
+                    competitor_mode=competition is not None,
+                )
+            except (OSError, RuntimeError, ValueError, KeyError) as exc:
+                log.warning("strand_qc.tsv not written: %s", exc)
             dedup_mode = getattr(args, "dedup", "umi")
             dedup_bam = deduplicate_bam(
                 bam,
@@ -915,6 +929,7 @@ def run_evidence(args: argparse.Namespace) -> None:
             "transcripts": config.transcripts,
             "viral_fasta": args.viral_fasta,
             "host_fasta": getattr(args, "host_fasta", None),
+            **({"host_gtf": args.host_gtf} if getattr(args, "host_gtf", None) else {}),
             **(
                 {"competitor_fasta": competitor_fasta, "competitor_manifest": competitor_manifest}
                 if competition is not None
