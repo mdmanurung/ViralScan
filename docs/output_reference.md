@@ -658,7 +658,7 @@ A third defence is about honesty rather than arithmetic:
 | `productive` | ≥ `min_breadth` distinct non-overlapping productive overlap groups carry uniquely-placing molecules |
 | `latent` | ≥ `latent_min_breadth` (default 1) latent overlap group(s), productive below `min_breadth`, **and** `latency_observable_in_rna` |
 | `reactivating` | productive evidence in which every productive marker carrying molecules is immediate-early (`kinetic_class`), and the cell is not `productive`, `mixed` or `latent`. It only replaces what would otherwise be `indeterminate`. It is reachable only for a virus whose catalogue rows set `latency_observable_in_rna` true **and** that has an immediate-early productive marker: today that is EBV alone. VZV, HHV-6A/6B, HHV-7, HSV-1/2 and HCMV never emit it (`not_applicable`: there is no latency anchor, and for HCMV latency mirrors late-lytic expression at low levels while the IE genes UL122/UL123 are detectable in latent cells); KSHV has no immediate-early productive marker. It is also not called when a productive catalogue marker is unresolved against the index (see `indeterminate`) |
-| `mixed` | both of the above in the same cell |
+| `mixed` | both of the above in the same cell. **Load-driven** (PLAN `PROG-MIXED-VETO-01`): one latent molecule turns `productive` into `mixed`, so in heavily lytic cells the mixed share rises with depth (KSHV GSE190558: 13-20 % of called cells at 100-500 KSHV molecules, 66-73 % at >= 2,000). Read `productive` and `mixed` together as "lytic programme present" (`n_cells_lytic_programme`, per-cell `lytic_programme`); do not read the split between them as biology. With `--programme-mixed-veto betabinomial` the latent markers veto only when their molecules are improbably many for a lytic cell at its load (one-sided beta-binomial test, `mixed_veto_*` columns); on the GSE190558 training libraries that removes the load dependence (mixed share 2-8 % at both 15-100 and >= 500 unique KSHV molecules) |
 | `indeterminate` | the virus was detected but no programme met its threshold, and the cell is not `reactivating` — not a negative. It is also what a cell reads when a productive catalogue marker is unresolved against this index: both absence-based states (`latent`, which asserts productive evidence is below threshold, and `reactivating`) degrade to `indeterminate`, because the markers that would show the absence are missing. Positive calls (`productive`, `mixed`) are unaffected. `n_markers_unresolved` and `caveat` record it |
 | `not_applicable` | no programme model exists for this virus (summary rows only) |
 
@@ -668,7 +668,7 @@ One row per called cell and detected virus that carries any marker evidence on e
 layer: `barcode`, `virus_name`, `state`, `productive_breadth`, `latent_breadth`
 (uniquely-placing layer), `selected_state`, `selected_productive_breadth`,
 `selected_latent_breadth` (multimap-allocated layer), `evidence_layer` and
-`latency_not_observable`. A cell is omitted only when all four breadths are 0. A cell
+`latency_not_observable`, and `lytic_programme` (true when `state` is `productive` or `mixed`, blank on the placeholder row of a virus with no programme model). A cell is omitted only when all four breadths are 0. A cell
 with allocated-only evidence (unique breadth 0, selected breadth above 0) **is** listed,
 so `n_cells_*_selected_layer` in the summary counts it. Before 2026-10-11 such cells were
 dropped and the selected-layer counts were understated. The never-filled `n_cells`
@@ -685,6 +685,10 @@ column was removed.
 | `latent_min_breadth` | The `--programme-latent-min-breadth` used (default 1) | observation |
 | `productive_min_molecules` | The `--programme-productive-min-molecules` used: a productive marker counts toward productive breadth only at ≥ this many molecules; latent markers are unaffected (default 1 = any nonzero value) | observation |
 | `marker_min_umi` | The `--programme-min-umi` used: a marker counts only at ≥ this many molecules (default 0 = any nonzero value, so the allocated layer's fractional values still count) | observation |
+| `n_cells_lytic_programme` | `n_cells_productive` + `n_cells_mixed`: cells with the lytic programme present. Use this rather than either part, because the split between them depends on load (see `mixed` under States) | model estimate |
+| `mixed_veto_rule` | The veto the virus was called with: `any` (one latent-veto molecule turns `productive` into `mixed`) or `betabinomial` (load-aware test); blank for a virus with no programme model | observation |
+| `mixed_veto_mean` / `mixed_veto_rho` | The beta-binomial fit used for the veto, from `gene_program_vetoes.tsv` (mean latent-veto share of a lytic cell and its overdispersion); empty when the virus has no fit | observation |
+| `mixed_veto_alpha` | The per-cell significance level of the beta-binomial veto; empty unless `mixed_veto_rule` is `betabinomial` | observation |
 | `n_cells_reactivating` | Cells called `reactivating` on the unique layer; the string `not_applicable` where the state is unreachable (every virus but EBV, and any virus with an unresolved productive marker), so a number here is never a structural zero | model estimate |
 | `productive_breadth_median` / `latent_breadth_median` | Breadth on the unique layer | model estimate |
 | `n_cells_latent_selected_layer` / `n_cells_productive_selected_layer` | What the same rule would have called on the multimap-allocated layer — the honest comparison | model estimate |

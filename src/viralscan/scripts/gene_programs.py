@@ -31,9 +31,12 @@ from viralscan.gene_programs import (
     EVIDENCE_LAYER,
     Marker,
     Row,
+    VetoSetting,
     call_cell_programme,
     catalogue_virus_facts,
+    effective_veto,
     load_catalogue,
+    load_veto_settings,
     resolve_markers,
     summarise_programs,
     validate_catalogue,
@@ -43,7 +46,12 @@ from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.cellcalling import load_called_mask
 from viralscan.utils import setup_script_logging
-from viralscan.virus_grouping import detected_summary_rows, load_run_identity
+from viralscan.virus_grouping import (
+    detected_summary_rows,
+    group_genes_by_identity,
+    group_genes_by_virus,
+    load_run_identity,
+)
 
 log = setup_script_logging()
 
@@ -170,9 +178,20 @@ def run_one(
     latent_min_breadth: int = 1,
     min_umi: float = 0.0,
     productive_min_molecules: int = 1,
+    veto_settings: dict[str, VetoSetting] | None = None,
+    mixed_veto_override: str = "catalogue",
+    mixed_veto_alpha: float = 0.01,
 ) -> pd.DataFrame:
-    """Build the per-cell call table for the detected ``viruses``."""
+    """Build the per-cell call table for the detected ``viruses``.
+
+    ``veto_settings`` (default: the packaged ``gene_program_vetoes.tsv``) and
+    ``mixed_veto_override`` choose each virus's ``mixed`` veto (PLAN PROG-MIXED-VETO-01);
+    under the default every virus uses ``any``, the earlier rule.
+    """
     facts = catalogue_virus_facts(catalogue)
+    if veto_settings is None:
+        veto_settings = load_veto_settings()
+    genes_of_virus: dict[str, list[str]] | None = None
     obs_names = list(adata.obs_names)
     records: list[dict[str, Any]] = []
     marker_resolution: dict[str, dict[str, Any]] = {}
@@ -233,6 +252,28 @@ def run_one(
             )
 
         unique, selected = _marker_matrix(adata, resolved)
+        veto = effective_veto(virus, veto_settings, mixed_veto_override)
+        if (
+            mixed_veto_override == "betabinomial"
+            and veto.rule != "betabinomial"
+            and info["latency_observable"]  # mixed is unreachable otherwise
+        ):
+            log.warning("%s: no fitted veto, so the beta-binomial veto is not applied (any)", virus)
+        totals = sel_totals = None
+        if veto.rule == "betabinomial":
+            # N per cell: every gene of this virus, not only the markers (PROG-MIXED-VETO-01).
+            if genes_of_virus is None:
+                genes_of_virus = (
+                    group_genes_by_identity(adata.var_names, identity)[0]
+                    if identity is not None
+                    else group_genes_by_virus(adata.var_names)[0]
+                )
+            cols = adata.var_names.get_indexer(genes_of_virus.get(virus, []))
+            cols = cols[cols >= 0]
+            if len(cols) == 0:
+                raise ValueError(f"{virus}: no genes of this virus in the matrix for the veto's N")
+            totals = np.asarray(adata.layers[EVIDENCE_LAYER][:, cols].sum(axis=1)).ravel()
+            sel_totals = np.asarray(adata.X[:, cols].sum(axis=1)).ravel()
         # Call in bounded row blocks so only one block's call dicts are alive at a
         # time; pruned rows are dropped immediately. State counts cover *all* calls
         # (kept or pruned), accumulated in global first-seen order, and are logged once.
@@ -252,6 +293,12 @@ def run_one(
                 min_umi=min_umi,
                 productive_min_molecules=productive_min_molecules,
                 absence_assessable=absence_ok,
+                mixed_veto=veto,
+                mixed_veto_alpha=mixed_veto_alpha,
+                virus_totals=None if totals is None else totals[start:stop],
+                selected_virus_totals=None
+                if sel_totals is None or selected is None
+                else sel_totals[start:stop],
             )
             for barcode, call in zip(obs_names[start:stop], calls):
                 state_counts[call["state"]] = state_counts.get(call["state"], 0) + 1
@@ -314,6 +361,8 @@ def main(
     # multimap H5AD also holds every empty droplet (PLAN PROG-17).
     called = load_called_mask(adata, config, output)
     adata = adata[called].copy()
+    veto_settings = load_veto_settings()
+    veto_override = str(getattr(config, "programme_mixed_veto", "catalogue"))
     cells = run_one(
         adata,
         viruses,
@@ -324,6 +373,9 @@ def main(
         latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", 1)),
         min_umi=float(getattr(config, "programme_min_umi", 0.0)),
         productive_min_molecules=int(getattr(config, "programme_productive_min_molecules", 1)),
+        veto_settings=veto_settings,
+        mixed_veto_override=veto_override,
+        mixed_veto_alpha=float(getattr(config, "programme_mixed_veto_alpha", 0.01)),
     )
     summary = summarise_programs(
         cells,
@@ -337,12 +389,44 @@ def main(
     )
     _attach_layer1_totals(summary, summary_path, molecule_column)
     summary["n_called_cells"] = adata.n_obs
+    # PROG-MIXED-VETO-01: which veto each virus was called with (blank: no programme model).
+    modelled = set(catalogue_virus_facts(catalogue))
+    vetoes = {
+        v: effective_veto(v, veto_settings, veto_override)
+        for v in summary["virus_name"]
+        if v in modelled
+    }
+    summary["mixed_veto_rule"] = [
+        vetoes[v].rule if v in vetoes else "" for v in summary["virus_name"]
+    ]
+    summary["mixed_veto_mean"] = [
+        vetoes[v].mean if v in vetoes else None for v in summary["virus_name"]
+    ]
+    summary["mixed_veto_rho"] = [
+        vetoes[v].rho if v in vetoes else None for v in summary["virus_name"]
+    ]
+    summary["mixed_veto_alpha"] = [
+        float(getattr(config, "programme_mixed_veto_alpha", 0.01)) if r == "betabinomial" else None
+        for r in summary["mixed_veto_rule"]
+    ]
+    cells["lytic_programme"] = lytic_programme_flags(cells["state"])
 
     paths = write_program_outputs(cells, summary, results_root or output)
     log.info("Wrote %s and %s", os.path.basename(paths[0]), os.path.basename(paths[1]))
     if done_path:
         with open(done_path, "w") as handle:
             handle.write("done\n")
+
+
+def lytic_programme_flags(states: pd.Series) -> pd.Series:
+    """Per-cell "lytic programme present": ``productive`` or ``mixed`` (PROG-MIXED-VETO-01).
+
+    The split between the two is load-driven (a heavily lytic cell picks up one latent
+    molecule by depth alone), their union is not. Placeholder rows of a virus with no
+    programme model (``not_applicable``) are not cells, so they stay blank.
+    """
+    flags = states.isin(["productive", "mixed"]).astype("boolean")
+    return flags.mask(states == "not_applicable", pd.NA)
 
 
 def _attach_layer1_totals(summary: pd.DataFrame, layer1_path: str, molecule_column: str) -> None:

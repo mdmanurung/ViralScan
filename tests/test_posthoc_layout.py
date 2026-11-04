@@ -124,6 +124,8 @@ def test_rerun_programs_writes_under_posthoc_and_leaves_run_untouched(tmp_path: 
         programme_latent_min_breadth=None,
         programme_min_umi=None,
         programme_productive_min_molecules=None,
+        programme_mixed_veto=None,
+        programme_mixed_veto_alpha=None,
         verbose=False,
         quiet=True,
     )
