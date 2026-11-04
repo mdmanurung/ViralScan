@@ -486,6 +486,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
         (W10a/W10b removed). Repro protocol tests: 216 passed against this tree. Repro `PACKAGE_BASE_SHA` moves to
         the merge commit. Nothing is frozen; the protocol stays `draft`.
       - run SCI-05 (round 13: Codex + Biomni max on the amendment, then user sign-off).
+        2026-11-04 (DEV-039/DEV-040, repro `e695c5c`): schema copy and `docs/workflow_comparison.md` refreshed to the edited amendment (VIRTUS dropped, three-class rule, approved values). Merge together with the user's G3 sign-off; then move the repro `provenance/PACKAGE_BASE_SHA`.
 - [~] `DEF-02` — **priority after F-020**, because every 5′ run so far used
   about 7–9 % of its reads. The Chemistry module (`MECH-D`), covering:
   - auto-detection and fail-closed checks (Q6);
