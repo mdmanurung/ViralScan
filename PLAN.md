@@ -145,6 +145,7 @@ dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
   applies (any `HOST|` partner, else another `VIRUS|` contig, else unique; same-contig hits stay unique). Streams records; memory is the
   multimapper QNAME set. Tested on a synthetic NH/HI BAM.
   **Open (package):** layout review by the user, a `environment.coverage.yml` solve in CI.
+  2026-11-04 (`codex/lane-p2-docs`): the CI solve is added as `.github/workflows/coverage-env.yml` (micromamba solve of `environment.coverage.yml`, then `pyGenomeTracks`, `bamCoverage`, `samtools` and `gtf2bed` start; runs on PRs that touch the file, weekly, and by hand). Not triggered here. Open (package): the user's layout review only.
   **Moved 2026-11-02 to the reproducibility tracker as `COVMAP-01-RUN`:** a pyGenomeTracks run on a real library beyond HHV-6B AF157706.1. Flip this row to `[x]` when the package items and that row close.
 - [~] `REF-11-PREP` (2026-10-23, `codex/panel-archive-script`, user: keep the script): `scripts/make_panel_archive.py` builds the
   deterministic viral-annotation panel archive for Zenodo (zip in the `viralscan data fetch` layout + `PANEL_MANIFEST.json`,
@@ -2045,6 +2046,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
         cross-refs in docs/plans, header jumps.
       - pip/full tier text (REL-01/02) and the data-fetch wording (REF-11).
   - 2026-11-02 (`PLAN-RECON-01`): Sphinx `-W` now runs in CI (`.github/workflows/docs.yml:33`). Only the REF-11 data-fetch wording (user) is left.
+  - 2026-11-04 (`codex/lane-p2-docs`): `.github/workflows/docs-check.yml` runs `sphinx-build -W --keep-going -E -a -b html` and `-W -b linkcheck` on every docs PR (no deploy; Pages stays user-owned). Fixed the one warning that blocked `-W` on main: `docs/evidence_unit.md` was in no toctree (now `orphan`). **Left (user):** question for the REF-11 data-fetch wording: should the docs say the panel archive comes from Zenodo (`viralscan data fetch`) or from the bundled cache? PLAN records no decision, so the wording is unchanged.
 - [~] `DOC-05` — execute clean-install quickstart commands and validate the
   resulting run using only documented steps.
   - 2026-10-12 (`codex/docs-pass`): executed in a fresh venv (`python -m venv`, no system
@@ -2061,6 +2063,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     - NOT executed (user-owned input): Mode 3 (`-acc`) and `build-ref` need an NCBI contact email and
       network downloads (Ensembl host); the Mode 3/`build-ref` commands remain parse-checked only
       (`tests/test_docs_sources.py`). Needs a user run with a real email to close.
+  - 2026-11-04 (`codex/lane-p2-docs`): re-ran in a fresh `uv venv` (Python 3.11, local disk) with `pip install ".[full]" kb-python==0.30.2`. `doctor --profile pip` and `--profile full` exit 0; quickstart Mode 2 on `tests/data/evidence_tiny` ran, and `validate-run` returned `"ok": true`. Log: `docs/install_runs/doc05_clean_install_2026-11-04.log`. Doc gap fixed in `docs/quickstart.md`: toy reads with one repeated barcode stop at the chemistry check (`tchem: no_match`) and need `--tchem off`. **Left (user):** quickstart Step 1 `build-ref` and Mode 3 need an NCBI contact email and the Ensembl download. **Left (repro):** register the log as the installation-claim artifact (see `DOC-10`).
 ### WP8B — Vignettes and claims
 
 - [~] `DOC-07` — execute six lightweight notebooks in CI and the reference/full-
@@ -2075,6 +2078,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     as the row requires. The 2026-09-27 "3 of 6 fail" note below is superseded. Still open: the
     scheduled workflow that runs the two heavy notebooks and saves logs/hashes (`.github/workflows/` is
     owned by another agent; needs a workflow change plus a real reference/index).
+  - 2026-11-04 (`codex/lane-p2-docs`): added `.github/workflows/notebooks-heavy.yml` (weekly + manual): builds `environment.yml`, runs the two `[skip-ci]` notebooks with nbmake, and uploads `nbmake.log`, `environment.txt` and `SHA256SUMS` (notebooks, `environment.yml`, logs) as the `heavy-notebook-logs` artifact. **Left (user):** the first scheduled run on GitHub (not triggered here); fix the notebooks if it fails.
   workflow notebooks in the locked scheduled workflow; save logs and hashes.
   - **2026-09-27:** 3 of the 6 CI notebooks fail today, and they fail
     identically at `af4d5b3`. The breakage is notebook/API drift, not WP1C.
@@ -2105,6 +2109,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
       `analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv`, predates `CMP-00` and is not
       a `validated_v3` artifact. Still open: add measured per-workflow columns once the `CMP-00..05` results
       exist (G5).
+  - 2026-11-04 (`codex/lane-p2-docs`): `scripts/gen_workflow_comparison.py` and `tests/test_workflow_comparison.py` are no longer in this repo (moved to ViralScan-reproducibility with `analysis/`); `docs/workflow_comparison.md` stays here as the rendered page. The generator edit for measured columns belongs in the repro. Blocked on `CMP-00..05` results; row stays `[~]`.
 - [~] `DOC-09` — add a claim-registry schema, validator, stale-hash detection, and
   - 2026-10-04: the validator already existed. Added: `--coverage` over every
     public doc, and a report-only `--report-unmarked` heuristic for numeric
@@ -2113,6 +2118,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     positives such as parameters, and triaging them is a user decision.
     The manuscript is not yet in scope. Run
     `python scripts/validate_claim_registry.py --coverage --report-unmarked`.
+  - 2026-11-04 (`codex/lane-p2-docs`): `validate_claim_registry.py`, `claims/registry.json` and the inventory are in ViralScan-reproducibility, so the failing gate and the manuscript scope are repro changes at the next re-pin. Nothing in this repo can make that gate fail. **Left (repro):** `--coverage` as a failing check; manuscript in scope.
   coverage check for README, docs, manuscript, tables, figures, and captions.
 - [~] `DOC-10` — require each quantitative, comparative, validated, performance,
   specificity, and installation claim to resolve to a `validated_v3` artifact.
@@ -2142,6 +2148,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     so the repro must allow-list them by text anchor (list in the PR) before the gate can fail.
   - Not done: the repro gate is not failing yet; installation claims still have no registry artifact (the
     DOC-05 run log is not committed or inventoried).
+  - 2026-11-04 (`codex/lane-p2-docs`): the DOC-05 run log is now committed at `docs/install_runs/doc05_clean_install_2026-11-04.log` (clean-install Mode 2 run, `validate-run` ok). **Left (repro):** add a `claims/registry.json` row and inventory entry that pin its SHA-256, and make the gate fail on unregistered installation claims.
   - 2026-11-02 (`codex/changelog-4pct`): a reviewer read the `CHANGELOG.md` "4.0% to 0.2%" line as 50 of 1,000 = 5 %.
     The line is correct, so it is unchanged and the repro allow-list anchor stands. The fixture
     (`test_complete_universe_legacy_and_fractional`, commit 3f4f99b, since moved to the repro) has 50 viral-positive
@@ -2203,6 +2210,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     `DRAFT: maintainer decision` (non-GitHub contact routes, previous-minor support window, version-part
     mapping, patch triggers, deprecation window and the absence of a deprecation mechanism in code,
     triage/fix targets). Stays `[~]`: closing needs maintainer approval and `REL-15` contacts.
+  - 2026-11-04 (`codex/lane-p2-docs`): published as far as an agent can. The page is in the Sphinx toctree (`docs/index.md`, Project) and `README.md` links it under "Support and policies". **Left (user):** approve or change every item tagged `DRAFT: maintainer decision`; supply `REL-15` contacts; the page keeps its draft banner until then.
   security-response policies with named contact routes.
 - [~] `OPS-02` — establish reference-update cadence and manifest compatibility
   - 2026-10-04: drafted in `docs/reference_maintenance.md` (0b89ad5): invariants,
@@ -2213,6 +2221,7 @@ No open rows; done rows are in the PLAN archive (see Next action).
     `schema_version` 3.0.0 and 3.0.1, now stated). The invariants stay as drafted. The review interval, the
     update triggers and what a new version ships with are tagged `DRAFT: maintainer decision`; nothing in the
     code enforces a cadence. Stays `[~]` pending maintainer sign-off.
+  - 2026-11-04 (`codex/lane-p2-docs`): `docs/reference_maintenance.md` joined the Sphinx toctree (it was `orphan`) and `README.md` links it. **Left (user):** maintainer sign-off on the review interval, triggers and release contents.
   rules; never silently change a frozen reference under an existing version.
 - [ ] `OPS-03` — triage false positives, false negatives, data loss, and reference
   drift as scientific incidents with reproducible packets.

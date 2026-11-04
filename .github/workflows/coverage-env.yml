@@ -1,0 +1,39 @@
+# Solve the optional coverage-map environment in CI (PLAN COVMAP-01).
+# It lives apart from environment.yml because it cannot co-solve with bustools
+# and r-base there. This job only proves that it solves and the tools start.
+name: Coverage env solve
+
+on:
+  pull_request:
+    paths:
+      - "environment.coverage.yml"
+      - ".github/workflows/coverage-env.yml"
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  solve:
+    name: Solve environment.coverage.yml
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: mamba-org/setup-micromamba@4b9113af4fba0e9e1124b252dd6497a419e7396d  # v1.11.0
+        with:
+          environment-file: environment.coverage.yml
+          condarc: |
+            channels:
+              - conda-forge
+              - bioconda
+      - name: Check that the coverage tools start
+        run: |
+          pyGenomeTracks --version
+          bamCoverage --version
+          samtools --version | head -1
+          command -v gtf2bed

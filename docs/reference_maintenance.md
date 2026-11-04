@@ -1,7 +1,3 @@
----
-orphan: true
----
-
 # Reference updates and manifest compatibility
 
 > **Draft for maintainer approval (PLAN `OPS-02`).** Cadences are proposals;
