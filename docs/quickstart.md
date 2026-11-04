@@ -114,7 +114,8 @@ denominator is diluted by empty droplets.
 - `--cell-calling none` is for deliberate toy data only. It reports over all
   barcodes, so every count includes empty droplets. It is **not** a routine
   workaround for failed cell calling; fix the chemistry, whitelist or external
-  list instead.
+  list instead. Toy reads with one repeated barcode also stop at the chemistry check
+  (`tchem: no_match`); add `--tchem off` for such data only.
 
 ## Step 3 — Validate the run
 

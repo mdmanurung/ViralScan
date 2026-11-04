@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Evidence unit for read-level checks (PLAN `EVID-00`)
 
 This note fixes what one unit of read-level evidence is, before the splice check (`EVID-02`), the

@@ -348,6 +348,14 @@ Validation experiments, benchmarks and manuscript analyses live in [ViralScan-re
 
 ---
 
+## Support and policies
+
+- [SUPPORT.md](SUPPORT.md) and [SECURITY.md](SECURITY.md) are the short statements.
+- [Release, support and security policy](docs/release_policy.md): supported versions, patch releases, deprecation and disclosure. Draft until a maintainer approves it.
+- [Reference maintenance](docs/reference_maintenance.md): update cadence and manifest compatibility rules. Draft until a maintainer approves it.
+
+---
+
 ## Citation
 
 If you use ViralScan in your work, please cite it using the metadata in

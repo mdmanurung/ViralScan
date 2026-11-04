@@ -45,7 +45,7 @@ column is in the [CLI reference](cli_reference.md) and the
 
 Upgrading from an earlier release? See [migration](migration.md); v3 does not
 migrate legacy outputs. Supported versions, contact routes and disclosure are in
-the [release policy](release_policy.md), with the short statements in
+the [release policy](release_policy.md) and [reference maintenance](reference_maintenance.md), with the short statements in
 [SUPPORT.md](https://github.com/mdmanurung/ViralScan/blob/main/SUPPORT.md) and
 [SECURITY.md](https://github.com/mdmanurung/ViralScan/blob/main/SECURITY.md).
 
@@ -80,5 +80,6 @@ api
 
 migration
 release_policy
+reference_maintenance
 changelog
 ```
