@@ -73,7 +73,7 @@ def test_vendored_igv_is_the_pinned_release() -> None:
 
 
 def test_vendor_files_are_package_data() -> None:
-    import tomllib
+    tomllib = pytest.importorskip("tomllib")  # stdlib from Python 3.11; CI also runs 3.10
 
     root = Path(__file__).resolve().parents[1]
     data = tomllib.loads((root / "pyproject.toml").read_text())["tool"]["setuptools"][
