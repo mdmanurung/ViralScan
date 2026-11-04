@@ -231,6 +231,8 @@ class RunConfig:
     programme_latent_min_breadth: int = DEFAULTS["programme_latent_min_breadth"]
     programme_min_umi: float = DEFAULTS["programme_min_umi"]
     programme_productive_min_molecules: int = DEFAULTS["programme_productive_min_molecules"]
+    programme_mixed_veto: str = DEFAULTS["programme_mixed_veto"]
+    programme_mixed_veto_alpha: float = DEFAULTS["programme_mixed_veto_alpha"]
     # Anellovirus alignment branch (ANDET-09). anello_index is resolved from the
     # kb index's directory (anello_star/) unless given; None means no index.
     anello_align: bool = DEFAULTS["anello_align"]
@@ -434,6 +436,23 @@ class RunConfig:
             raise ValueError(
                 "programme_productive_min_molecules must be >= 1, "
                 f"got {programme_productive_min_molecules}."
+            )
+        # None (an unset CLI flag) means the default, so older config.yaml files still load.
+        programme_mixed_veto = str(
+            cfg_in.get("programme_mixed_veto") or DEFAULTS["programme_mixed_veto"]
+        )
+        if programme_mixed_veto not in ("catalogue", "any", "betabinomial"):
+            raise ValueError(
+                "programme_mixed_veto must be catalogue, any or betabinomial, "
+                f"got {programme_mixed_veto!r}."
+            )
+        _alpha = cfg_in.get("programme_mixed_veto_alpha")
+        programme_mixed_veto_alpha = float(
+            DEFAULTS["programme_mixed_veto_alpha"] if _alpha is None else _alpha
+        )
+        if not 0 < programme_mixed_veto_alpha < 1:
+            raise ValueError(
+                f"programme_mixed_veto_alpha must be in (0, 1), got {programme_mixed_veto_alpha}."
             )
         gene_programs = _coerce_bool(
             cfg_in.get("gene_programs", DEFAULTS["gene_programs"])
@@ -670,6 +689,8 @@ class RunConfig:
             programme_latent_min_breadth=programme_latent_min_breadth,
             programme_min_umi=programme_min_umi,
             programme_productive_min_molecules=programme_productive_min_molecules,
+            programme_mixed_veto=programme_mixed_veto,
+            programme_mixed_veto_alpha=programme_mixed_veto_alpha,
             anello_align=anello_align,
             anello_index=anello_index,
             star_confirm=star_confirm,

@@ -1045,6 +1045,30 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
             f"({DEFAULTS['programme_productive_min_molecules']} if it set none)."
         ),
     )
+    p.add_argument(
+        "--programme-mixed-veto",
+        choices=["catalogue", "any", "betabinomial"],
+        default=None,
+        help=(
+            "How a latent molecule turns a productive cell into mixed: catalogue (each "
+            "virus's shipped rule, today any for every virus), any (one latent-veto "
+            "molecule), or betabinomial (only when the latent load is improbably high for a "
+            "lytic cell at its depth; needs a fitted veto in gene_program_vetoes.tsv). "
+            "Default: the run's own config "
+            f"({DEFAULTS['programme_mixed_veto']} if it set none)."
+        ),
+    )
+    p.add_argument(
+        "--programme-mixed-veto-alpha",
+        type=float,
+        default=None,
+        metavar="A",
+        help=(
+            "Per-cell significance level of the beta-binomial mixed veto, in (0, 1). "
+            "Default: the run's own config "
+            f"({DEFAULTS['programme_mixed_veto_alpha']} if it set none)."
+        ),
+    )
     _add_force_arg(p)
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="rerun-programs")
@@ -1876,6 +1900,29 @@ def _build_run_parser(subparsers: Any) -> None:
             "A productive marker counts toward productive breadth only at >= N molecules "
             "in the cell; latent markers are unaffected. 1 means any nonzero value. "
             f"Must be >= 1. Default: {DEFAULTS['programme_productive_min_molecules']}."
+        ),
+    )
+    parser.add_argument(
+        "--programme-mixed-veto",
+        choices=["catalogue", "any", "betabinomial"],
+        # None (not the default string) when unset, so default runs keep their --resume fingerprint.
+        default=None,
+        help=(
+            "How a latent molecule turns a productive cell into mixed: catalogue (each "
+            "virus's shipped rule, today any for every virus), any (one latent-veto "
+            "molecule), or betabinomial (only when the latent load is improbably high for a "
+            "lytic cell at its depth; needs a fitted veto in gene_program_vetoes.tsv). "
+            f"Default: {DEFAULTS['programme_mixed_veto']}."
+        ),
+    )
+    parser.add_argument(
+        "--programme-mixed-veto-alpha",
+        type=float,
+        default=None,
+        metavar="A",
+        help=(
+            "Per-cell significance level of the beta-binomial mixed veto, in (0, 1). "
+            f"Default: {DEFAULTS['programme_mixed_veto_alpha']}."
         ),
     )
     parser.add_argument(

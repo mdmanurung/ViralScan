@@ -1563,3 +1563,140 @@ class TestReactivatingAndParameters:
                     continue  # PROG-KSHV-MARKERS-01: induced_in_lytic latent markers do not veto
                 else:
                     assert call["state"] == old, (virus, i, call, old)
+
+
+class TestMixedVetoBetaBinomial:
+    """PROG-MIXED-VETO-01: a load-aware veto; ``any`` stays the default for every virus."""
+
+    P1 = _m("p1", "productive", "g1", "early")
+    P2 = _m("p2", "productive", "g2", "early")
+    LAT = _m("lat", "latent", "g4", "latent")
+    MARKERS = [P1, P2, LAT]
+    # the shipped KSHV fit
+    MEAN, RHO = 0.007365, 0.006506
+
+    def _setting(self, rule: str = "betabinomial"):
+        from viralscan.gene_programs import VetoSetting
+
+        return VetoSetting(rule=rule, mean=self.MEAN, rho=self.RHO)
+
+    def _call(self, prod_each: float, lat: float, total: float, rule: str) -> str:
+        matrix = _matrix([(0, 0, prod_each), (1, 0, prod_each), (2, 0, lat)], 1, 3)
+        return call_cell_programme(
+            matrix, self.MARKERS, mixed_veto=self._setting(rule), virus_totals=[total]
+        )[0]["state"]
+
+    def test_betabinomial_test_itself(self) -> None:
+        from viralscan.gene_programs import betabinomial_veto
+
+        args = (self.MEAN, self.RHO, 0.01)
+        assert not betabinomial_veto(0, 2000, *args)
+        # a few latent molecules in a heavy lytic cell are expected
+        assert not betabinomial_veto(50, 2000, *args)
+        # a latent load of 5 % of the cell is not
+        assert betabinomial_veto(100, 2000, *args)
+        # at low depth a large latent share vetoes
+        assert betabinomial_veto(3, 10, *args)
+        with pytest.raises(ValueError, match="exceed"):
+            betabinomial_veto(5, 3, *args)
+
+    def test_heavy_lytic_cell_with_some_latent_molecules_is_productive(self) -> None:
+        assert self._call(1000.0, 30.0, 2030.0, "any") == "mixed"
+        assert self._call(1000.0, 30.0, 2030.0, "betabinomial") == "productive"
+
+    def test_real_latent_load_still_vetoes(self) -> None:
+        assert self._call(1000.0, 200.0, 2200.0, "betabinomial") == "mixed"
+        assert self._call(5.0, 5.0, 15.0, "betabinomial") == "mixed"
+
+    def test_latent_calls_are_unchanged(self) -> None:
+        matrix = _matrix([(2, 0, 1.0)], 1, 3)
+        call = call_cell_programme(
+            matrix, self.MARKERS, mixed_veto=self._setting(), virus_totals=[500.0]
+        )
+        assert call[0]["state"] == "latent"
+
+    def test_betabinomial_without_inputs_fails_loudly(self) -> None:
+        from viralscan.gene_programs import VetoSetting
+
+        matrix = _matrix([(0, 0, 1.0)], 1, 3)
+        with pytest.raises(ValueError, match="one virus total per matrix row"):
+            call_cell_programme(matrix, self.MARKERS, mixed_veto=self._setting())
+        with pytest.raises(ValueError, match="rho"):
+            call_cell_programme(
+                matrix,
+                self.MARKERS,
+                mixed_veto=VetoSetting("betabinomial", self.MEAN, None),
+                virus_totals=[1.0],
+            )
+
+    def test_settings_file_and_override(self, tmp_path) -> None:
+        from viralscan.gene_programs import effective_veto, load_veto_settings
+
+        header = "virus\tmixed_veto_rule\tmixed_veto_mean\tmixed_veto_rho\tbasis\n"
+        good = tmp_path / "v.tsv"
+        good.write_text(header + "Human herpesvirus 8\tany\t0.0074\t0.0065\tfit X\n")
+        settings = load_veto_settings(good)
+        kshv = "Human herpesvirus 8"
+        assert effective_veto(kshv, settings).rule == "any"
+        forced = effective_veto(kshv, settings, "betabinomial")
+        assert (forced.rule, forced.mean, forced.rho) == ("betabinomial", 0.0074, 0.0065)
+        # a virus with no fit cannot take the forced rule and keeps any
+        assert effective_veto("Epstein-Barr virus", settings, "betabinomial").rule == "any"
+        for bad_row, match in [
+            ("Human herpesvirus 8\tbetabinomial\t\t\tx\n", "unfitted"),
+            ("Human herpesvirus 8\tany\t1.5\t0.1\tx\n", r"\(0, 1\)"),
+            ("Human herpesvirus 8\tany\t0.1\t\tx\n", "both"),
+            ("Human herpesvirus 8\tstrict\t0.1\t0.1\tx\n", "not in"),
+        ]:
+            bad = tmp_path / "bad.tsv"
+            bad.write_text(header + bad_row)
+            with pytest.raises(ValueError, match=match):
+                load_veto_settings(bad)
+
+    def test_shipped_table_keeps_any_for_every_virus(self) -> None:
+        """Ships off (user decision Q8): nothing opts in before the held-out gate."""
+        from viralscan.gene_programs import load_veto_settings
+
+        settings = load_veto_settings()
+        assert all(v.rule == "any" for v in settings.values())
+        assert settings["Human herpesvirus 8"].fitted
+
+    def test_run_one_uses_all_virus_genes_for_n(self) -> None:
+        """N is the cell's molecules over every gene of the virus, not only markers."""
+        import anndata as ad
+        import numpy as np
+
+        from viralscan.scripts.gene_programs import run_one
+
+        virus = "Human herpesvirus 8"
+        catalogue = _catalog()
+        rows = [r for r in catalogue if r["virus"] == virus]
+        prod = [r["gene_id_bundled"] for r in rows if r["programme"] == "productive"][:2]
+        lana = next(r["gene_id_bundled"] for r in rows if r["refseq_gene"] == "ORF73")
+        ids = [r["gene_id_bundled"] for r in rows] + ["HUM_HERP8_HHV8GK18_gp30"]
+        dense = np.zeros((2, len(ids)), dtype=np.float32)
+        # c1: 2 productive groups + 3 LANA molecules + 2,000 molecules on a non-marker gene
+        dense[0, [ids.index(g) for g in prod]] = 5.0
+        dense[0, ids.index(lana)] = 3.0
+        dense[0, -1] = 2000.0
+        # c2: the same marker counts and nothing else, so N is 13 and LANA is real
+        dense[1, [ids.index(g) for g in prod]] = 5.0
+        dense[1, ids.index(lana)] = 3.0
+        x = sparse.csr_matrix(dense)
+        adata = ad.AnnData(x)
+        adata.var_names = ids
+        adata.obs_names = ["c1", "c2"]
+        adata.layers["counts_unique_viral"] = x.copy()
+        settings = {virus: self._setting("any")}
+        by_any = run_one(adata, [virus], catalogue, 2, "bundled", veto_settings=settings)
+        forced = run_one(
+            adata,
+            [virus],
+            catalogue,
+            2,
+            "bundled",
+            veto_settings=settings,
+            mixed_veto_override="betabinomial",
+        )
+        assert by_any.set_index("barcode")["state"].to_dict() == {"c1": "mixed", "c2": "mixed"}
+        assert forced.set_index("barcode")["state"].to_dict() == {"c1": "productive", "c2": "mixed"}
