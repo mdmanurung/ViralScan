@@ -388,7 +388,7 @@ reports both counts, so the sensitivity gain is visible rather than assumed.
 For a `partial` virus the latency anchor set is too thin to support an absence
 claim. `latency_observable_in_rna` is `false`, the `latent` state is
 **unreachable by construction**, and those rows can read `productive` or
-`indeterminate`. `reactivating` is reachable for EBV alone. CMV is partial for a
+`indeterminate`. `reactivating` (exploratory) is reachable for EBV and KSHV only. CMV is partial for a
 different reason: single-cell HCMV latency mirrors a low-level late-lytic
 programme, so marker presence cannot separate the states.
 
