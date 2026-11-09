@@ -497,8 +497,9 @@ class SensitivityRecord:
         Set when the run has no host depth to express the limit against (virus-only
         index, or host and viral columns not separable). Then ``lod95_per_10k`` is
         NaN, ``depth_sufficient`` and ``depth_only_sufficient`` are None,
-        ``lod_interpretation`` is ``NA``, and ``informative`` is false. The TSV shows
-        ``NA`` in those four columns. ``lod95_molecules`` does not use depth and is
+        ``lod_interpretation`` is ``NA``, the 1-per-10k yardstick fields are NaN, and
+        ``informative`` is false. The TSV shows
+        ``NA`` in those six columns. ``lod95_molecules`` does not use depth and is
         unchanged (LOD95-DEPTH-01).
     """
 
@@ -549,8 +550,10 @@ class SensitivityRecord:
             "sensitivity_eligible": self.sensitivity_eligible,
             "informative_negative": self.informative,
             "negative_blockers": ";".join(self.negative_blockers),
-            "expected_molecules_at_1_per_10k": (self.expected_molecules_if_present_at_1_per_10k),
-            "p_detect_at_1_per_10k": self.p_detect_if_present_at_1_per_10k,
+            "expected_molecules_at_1_per_10k": (
+                DEPTH_NA if na else self.expected_molecules_if_present_at_1_per_10k
+            ),
+            "p_detect_at_1_per_10k": DEPTH_NA if na else self.p_detect_if_present_at_1_per_10k,
             "p_zero_at_lod95": self.p_zero_at_lod95,
             "notes": "; ".join(self.notes),
         }
@@ -640,7 +643,7 @@ def sensitivity_record(
     )
     depth_na = depth_na_reason is not None
     if depth_na:
-        lod_10k = math.nan
+        lod_10k = expected_at_yardstick = math.nan
         depth_sufficient = depth_only_sufficient = None
     eligible = bool(depth_sufficient) and capture_measured
     informative = eligible and not detected
@@ -658,7 +661,8 @@ def sensitivity_record(
     all_notes = list(notes)
     if depth_na:
         all_notes.append(
-            f"lod95_per_10k, depth_sufficient, depth_only_sufficient and lod_interpretation "
+            f"lod95_per_10k, depth_sufficient, depth_only_sufficient, lod_interpretation, "
+            f"expected_molecules_at_1_per_10k and p_detect_at_1_per_10k "
             f"are NA, not certifiable: {depth_na_reason}. lod95_molecules does not use depth "
             "and is unchanged"
         )
@@ -711,7 +715,9 @@ def sensitivity_record(
         detected=bool(detected),
         p_zero_at_lod95=poisson_zero_probability(LOD95_MOLECULES),
         expected_molecules_if_present_at_1_per_10k=expected_at_yardstick,
-        p_detect_if_present_at_1_per_10k=poisson_detection_probability(
+        p_detect_if_present_at_1_per_10k=math.nan
+        if depth_na
+        else poisson_detection_probability(
             expected_at_yardstick, detection_threshold
         ),
         lod95_per_10k=lod_10k,
@@ -863,8 +869,8 @@ def sensitivity_statement(
         parts = [
             "Detection limit per 10k host UMI: NA, not certifiable ("
             + "; ".join(na_reasons)
-            + "). lod95_per_10k, depth_sufficient, depth_only_sufficient and "
-            "lod_interpretation are NA, and no negative is an informative negative. "
+            + "). lod95_per_10k, depth_sufficient, depth_only_sufficient, lod_interpretation, "
+            "expected_molecules_at_1_per_10k and p_detect_at_1_per_10k are NA, and no negative is an informative negative. "
             f"Quantified depth: {depth:,.0f} molecules. The required true molecules "
             "(lod95_molecules) do not use depth and are still reported."
         ]

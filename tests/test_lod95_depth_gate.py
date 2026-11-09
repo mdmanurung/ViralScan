@@ -19,7 +19,14 @@ from viralscan.sensitivity import LOD95_MOLECULES, SENSITIVITY_COLUMNS, lod95_pe
 
 HOST_MOLECULES = 3_000_000.0
 VIRAL_MOLECULES = 3.0
-NA_FIELDS = ("lod95_per_10k", "depth_sufficient", "depth_only_sufficient", "lod_interpretation")
+NA_FIELDS = (
+    "lod95_per_10k",
+    "depth_sufficient",
+    "depth_only_sufficient",
+    "lod_interpretation",
+    "expected_molecules_at_1_per_10k",
+    "p_detect_at_1_per_10k",
+)
 
 
 def _adata(index_kind, viral=VIRAL_MOLECULES, identity_source=None):
@@ -122,4 +129,16 @@ def test_table_keeps_its_columns_and_shows_na():
         index_viruses=["V"],
     )
     assert tuple(table.columns) == SENSITIVITY_COLUMNS
-    assert table.loc[0, list(NA_FIELDS)].tolist() == ["NA"] * 4
+    assert table.loc[0, list(NA_FIELDS)].tolist() == ["NA"] * len(NA_FIELDS)
+
+
+def test_yardstick_fields_are_na_for_virus_only_and_numeric_for_combined():
+    na = _record("virus_only")
+    assert np.isnan(na.expected_molecules_if_present_at_1_per_10k)
+    assert np.isnan(na.p_detect_if_present_at_1_per_10k)
+    ok = _record("combined")
+    row = ok.as_row()
+    assert row["expected_molecules_at_1_per_10k"] == pytest.approx(
+        (HOST_MOLECULES + VIRAL_MOLECULES) * 1e-4
+    )
+    assert 0 < row["p_detect_at_1_per_10k"] <= 1
