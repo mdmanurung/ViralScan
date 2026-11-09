@@ -2028,6 +2028,7 @@ def _build_run_parser(subparsers: Any) -> None:
             "never on viral reads; "
             "'knee' is a sensitivity-only barcode-rank approximation, not for reported "
             "numbers (it calls empty droplets as cells on real libraries); 'none' = all barcodes. "
+            "'none' and 'knee' are refused with --host-index (CELLCALL-PCT-01). "
             f"Default: {DEFAULTS['cell_calling']}."
         ),
     )

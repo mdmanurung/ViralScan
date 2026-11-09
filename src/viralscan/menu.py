@@ -1001,6 +1001,15 @@ def errorhandler(args: argparse.Namespace) -> None:
         _die("--host-filter requires --host-index.", 2)
     if getattr(args, "host_filter_star_params", None) and not host_filter:
         _die("--host-filter-star-params requires --host-filter.", 2)
+    if host_index and cell_calling in ("none", "knee"):
+        # CELLCALL-PCT-01: the kb matrix of a host-filtered run holds only barcodes with a
+        # non-host read, so every rate would read 100 % against this denominator.
+        _die(
+            f"--cell-calling {cell_calling} cannot be used with --host-index: the matrix then "
+            "holds only barcodes with a non-host read, so the infected rates would all read "
+            "100 %. Use auto, emptydrops or external.",
+            2,
+        )
     if host_filter:
         host_index_path = str(host_index)
         if not os.path.exists(host_index_path):

@@ -1,16 +1,21 @@
 """CELLCALL-PCT-01: what ``pct_infected`` divides by under ``--cell-calling none`` and ``knee``.
 
-These tests pin today's behaviour so a later policy decision shows up as a deliberate edit.
-Nothing here is a fix. See the PLAN row for the open choice.
+The compute_stats tests pin the all-barcode behaviour. With a host index, ``none`` and ``knee``
+are refused in ``menu.errorhandler`` (decision (a), 2026-11-09), so the two-step matrix never
+reaches that path from ``run``.
 """
 
+import argparse
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import anndata as ad
 import numpy as np
 import pandas as pd
+import pytest
 import scipy.sparse as sp
 
+from viralscan import menu
 from viralscan.scripts.cellcalling import call_cells
 from viralscan.scripts.detection import compute_stats
 
@@ -48,15 +53,6 @@ def _combined():
     )
 
 
-def _two_step_matrix():
-    """A kb matrix of a two-step run: only barcodes with a non-host read, viral genes only."""
-    return ad.AnnData(
-        X=sp.csr_matrix(np.array([[5.0], [3.0], [1.0], [1.0]])),
-        obs=pd.DataFrame(index=["b0", "b1", "b2", "b3"]),
-        var=pd.DataFrame(index=["v1"]),
-    )
-
-
 def test_none_divides_by_every_barcode_of_the_matrix():
     s, called = _stats(_combined(), "none")
     assert called.all()
@@ -71,14 +67,41 @@ def test_knee_keeps_a_called_subset_on_a_combined_matrix():
     assert s["pct_infected"] == 0.2  # the all-barcode rate never uses the called set
 
 
-def test_two_step_none_has_no_host_denominator_note_today():
-    """OPEN (CELLCALL-PCT-01): with a host index and ``none``, ``host_cells`` stays None.
+def _run_args(tmp_path, **kw):
+    (tmp_path / "R1.fastq.gz").touch()
+    (tmp_path / "R2.fastq.gz").touch()
+    base = {
+        "ncbi_accession": None, "reference": False, "gtf": None, "fasta": None,
+        "index": str(tmp_path / "index.idx"), "transcripts": "/fake/t2g.txt", "f1": None,
+        "host_filter": "starsolo", "host_index": "/fake/host",
+        "sample1": str(tmp_path / "R1.fastq.gz"), "sample2": str(tmp_path / "R2.fastq.gz"),
+        "star_confirm": False, "star_hostvirus_index": None,
+        "discover": False, "kraken2_db": None, "cell_calling": "auto",
+    }  # fmt: skip
+    base.update(kw)
+    return argparse.Namespace(**base)
 
-    The viral matrix holds only barcodes with a non-host read, so every rate is 100 % and the
-    AUD3-03 NA guard (``if host_cells``) does not fire. Update this test when the choice is made.
-    """
-    s, called = _stats(_two_step_matrix(), "none")
-    assert called.all()
-    assert s["n_called_cells"] == 4
-    assert s["pct_infected_called"] == s["pct_infected"] == 100.0
-    assert s["denominator_note"] == ""
+
+@pytest.mark.parametrize("method", ["none", "knee"])
+def test_run_refuses_none_and_knee_with_a_host_index(tmp_path, method, caplog):
+    """CELLCALL-PCT-01 (a): a two-step matrix holds only non-host barcodes, so every rate is 100 %."""
+    with patch("os.path.exists", return_value=True):
+        with pytest.raises(SystemExit) as exc:
+            menu.errorhandler(_run_args(tmp_path, cell_calling=method))
+    assert exc.value.code == 2
+    assert f"--cell-calling {method} cannot be used with --host-index" in caplog.text
+
+
+@pytest.mark.parametrize("method", ["auto", "emptydrops", "external"])
+def test_run_accepts_other_cell_calling_with_a_host_index(tmp_path, method):
+    called = tmp_path / "called.tsv"
+    called.touch()
+    args = _run_args(tmp_path, cell_calling=method, called_cells_file=str(called))
+    with patch("os.path.exists", return_value=True):
+        menu.errorhandler(args)
+
+
+def test_none_without_a_host_index_is_still_allowed(tmp_path):
+    args = _run_args(tmp_path, cell_calling="none", host_filter=None, host_index=None)
+    with patch("os.path.exists", return_value=True):
+        menu.errorhandler(args)
