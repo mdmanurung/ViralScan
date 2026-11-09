@@ -925,11 +925,19 @@ def run_evidence(args: argparse.Namespace) -> None:
                 _write_tsv(out / "competitor_summary.tsv", [summary])
                 competition["summary"] = summary
             ambient = next((r for r in summary_rows if r["virus_name"] == target_label), None)
+            # BLAST fractions divide by every sampled read, no-hit reads included (EVID-DECISIONS-01).
+            sampling_path = out / "blast_sampling.json"
+            n_queried = (
+                int(json.loads(sampling_path.read_text())["sampled_reads"])
+                if blast_rows and sampling_path.is_file()
+                else None
+            )
             flag_rows = interpretation_flags(
                 [{"count_layer": "deduplicated", **r} for r in dedup_qc],
                 blast_rows,
                 support_lineage,
                 ambient=ambient,
+                n_queried=n_queried,
             )
             _write_tsv(out / "interpretation_flags.tsv", flag_rows)
         except (RuntimeError, ValueError) as exc:

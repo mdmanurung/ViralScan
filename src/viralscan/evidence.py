@@ -2187,20 +2187,43 @@ def interpretation_flags(
     blast_rows: Iterable[dict[str, str]],
     lineage_rows: Iterable[dict[str, object]],
     ambient: Optional[Mapping[str, object]] = None,
+    n_queried: Optional[int] = None,
 ) -> list[dict[str, object]]:
     """Create transparent diagnostic flags; these are never biological conclusions.
+
+    BLAST-based fractions (``low_complexity``, ``host_homology`` from BLAST, ``related_virus_competition``,
+    ``within_group_ambiguity``) divide by every queried read, no-hit reads included
+    (EVID-DECISIONS-01). *n_queried* is the number of reads sent to BLAST; it defaults to
+    ``len(blast_rows)``, which already holds a no-hit row per query in competitor mode. The rows carry
+    ``n_queried`` and ``n_hit`` (queried reads with a BLAST hit) beside each such fraction.
+
+    ``host_homology`` reads ``host_best_all`` when the alignment QC holds host rows but no virus/target
+    row: every aligned molecule was host-best, so no target-reference alignment exists to assess.
+    It stays ``not_assessed`` when nothing aligned or there are no molecules.
 
     *ambient* is the target virus's ``ambient_assessment``, ``ambient_basis`` and
     ``soup_tail_p_cells`` from ``viral_summary.tsv`` (M-03). It fills the ``contamination`` row's
     metric and basis. The status stays ``not_assessed``: one run never measures swapping between
     libraries, so the row never reads as clean, and nothing downstream branches on it.
     """
-    qc = [row for row in qc_rows if row.get("reference_class") in {"virus", "target"}]
+    all_qc = list(qc_rows)
     if any(
-        row.get("count_layer") for row in qc
+        row.get("count_layer") for row in all_qc
     ):  # a raw layer would weight PCR duplicates: decide on molecules
-        qc = [row for row in qc if row.get("count_layer") == "deduplicated"]
+        all_qc = [row for row in all_qc if row.get("count_layer") == "deduplicated"]
+    qc = [row for row in all_qc if row.get("reference_class") in {"virus", "target"}]
+    host_qc = [
+        row for row in all_qc if row.get("reference_class") == "host" and to_float(row.get("reads")) > 0
+    ]
     blast = list(blast_rows)
+    queried = len(blast) if n_queried is None else int(n_queried)
+    failed_classes = {"no_hits", "incomplete_search", "failed"}
+    n_hit = sum(
+        row.get("diagnostic_class") not in failed_classes
+        if "diagnostic_class" in row
+        else str(row.get("viral_minus_host_bitscore", "")).strip() != ""
+        for row in blast
+    )
     lineage = list(lineage_rows)
     # <=2 reads always reach the 0.50 hotspot threshold; higher-depth reliability needs calibration.
     hotspot_rows = [row for row in qc if to_float(row.get("reads")) > 2]
@@ -2210,12 +2233,12 @@ def interpretation_flags(
     max_breadth = max((to_float(row.get("breadth_1x")) for row in qc), default=0)
     host_fraction = max((to_float(row.get("host_competitive_fraction")) for row in qc), default=0)
     low_complexity_fraction = (
-        sum(row.get("low_complexity") == "true" for row in blast) / len(blast) if blast else 0
+        sum(row.get("low_complexity") == "true" for row in blast) / queried if blast else 0
     )
     # A blank/missing bitscore difference (no hit) is not assessed, never host-preferred (B-34).
     assessed = [row for row in blast if str(row.get("viral_minus_host_bitscore", "")).strip() != ""]
     host_preferred_fraction = (
-        sum(float(row["viral_minus_host_bitscore"]) <= 0 for row in assessed) / len(assessed)
+        sum(float(row["viral_minus_host_bitscore"]) <= 0 for row in assessed) / queried
         if assessed
         else 0
     )
@@ -2224,6 +2247,7 @@ def interpretation_flags(
         if lineage
         else 0
     )
+    blast_based = {"host_homology", "low_complexity"} if blast else set()
     metrics = [
         (
             "host_homology",
@@ -2249,6 +2273,8 @@ def interpretation_flags(
             "threshold": threshold,
             "basis": basis,
             "interpretation": "diagnostic_only",
+            "n_queried": queried if name in blast_based else "",
+            "n_hit": n_hit if name in blast_based else "",
         }
         for name, value, threshold, basis in metrics
     ]
@@ -2260,6 +2286,8 @@ def interpretation_flags(
             "threshold": "",
             "basis": basis,
             "interpretation": "requires target-specific model",
+            "n_queried": "",
+            "n_hit": "",
         }
         for name, basis in (
             (
@@ -2291,12 +2319,21 @@ def interpretation_flags(
                 row["basis"] = (
                     "requires more than two reads on a target reference; low-depth reliability uncalibrated"
                 )
+    if not qc and host_qc:  # every aligned molecule is host-best (EVID-DECISIONS-01)
+        host = next(r for r in rows if r["flag"] == "host_homology")
+        host.update(
+            status="host_best_all",
+            metric=max(to_float(r.get("host_competitive_fraction")) for r in host_qc),
+            basis="every aligned molecule is host-best; no target-reference alignment",
+            n_queried="",
+            n_hit="",
+        )
     if any("diagnostic_class" in row for row in blast):
         for name, classes in (
             ("related_virus_competition", {"related_preferred", "related_virus_ambiguous"}),
             ("within_group_ambiguity", {"within_group_ambiguous"}),
         ):
-            value = sum(r.get("diagnostic_class") in classes for r in blast) / len(blast)
+            value = sum(r.get("diagnostic_class") in classes for r in blast) / queried
             rows.append(
                 dict(
                     flag=name,
@@ -2305,16 +2342,21 @@ def interpretation_flags(
                     threshold=0.25,
                     basis="sampled-read competitive BLAST",
                     interpretation="diagnostic_only",
+                    n_queried=queried,
+                    n_hit=n_hit,
                 )
             )
         host_value = sum(
             r.get("diagnostic_class") in {"host_preferred", "host_competitive"} for r in blast
-        ) / len(blast)
+        ) / queried
         host = next(r for r in rows if r["flag"] == "host_homology")
-        host.update(
-            metric=max(host_fraction, host_value),
-            status="flagged" if max(host_fraction, host_value) >= 0.25 else "not_flagged",
-        )
+        if host["status"] != "host_best_all":
+            host.update(
+                metric=max(host_fraction, host_value),
+                status="flagged" if max(host_fraction, host_value) >= 0.25 else "not_flagged",
+                n_queried=queried,
+                n_hit=n_hit,
+            )
         if any(
             r.get("diagnostic_class") in {"no_hits", "incomplete_search", "failed"} for r in blast
         ):
@@ -2322,7 +2364,7 @@ def interpretation_flags(
                 if (
                     row["flag"]
                     in {"host_homology", "related_virus_competition", "within_group_ambiguity"}
-                    and row["status"] == "not_flagged"
+                    and row["status"] == "not_flagged"  # host_best_all stays
                 ):
                     row.update(
                         status="not_assessed",
