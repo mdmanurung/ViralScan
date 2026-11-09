@@ -637,8 +637,8 @@ def sensitivity_record(
     effective_capture = min(1.0, capture)
     lod_10k = lod95_per_10k(depth, capture=effective_capture, threshold=detection_threshold)
     expected_at_yardstick = expected_viral_molecules(depth, YARDSTICK_ABUNDANCE, effective_capture)
-    depth_sufficient = lod_10k <= abundance_ceiling
-    depth_only_sufficient = (
+    depth_sufficient: bool | None = lod_10k <= abundance_ceiling
+    depth_only_sufficient: bool | None = (
         lod95_per_10k(depth, capture=1.0, threshold=detection_threshold) <= abundance_ceiling
     )
     depth_na = depth_na_reason is not None

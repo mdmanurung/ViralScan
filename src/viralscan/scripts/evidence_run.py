@@ -174,7 +174,7 @@ def check_replay_matches_matrix(
     counted = {
         str(row["cb"])
         for row in lineage.values()
-        if row["assigned_weight"] not in ("", None) and float(row["assigned_weight"]) > 0  # type: ignore[arg-type]
+        if row["assigned_weight"] not in ("", None) and float(row["assigned_weight"]) > 0
     }
     extra = counted - matrix_barcodes
     if extra:
