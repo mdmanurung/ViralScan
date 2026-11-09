@@ -4,6 +4,7 @@ All tests here run without network access (no HTTP, no NCBI calls).
 Network-dependent integration tests are marked with @pytest.mark.network.
 """
 
+import hashlib
 import gzip
 import json
 import random
@@ -708,6 +709,10 @@ class TestFetchHostCdna:
         fake_gtf = species_cache / "Mus_musculus.GRCm39.109.gtf.gz"
         self._make_fake_gz(b">tx1\nATCG\n", fake_cdna)
         self._make_fake_gz(b"# fake gtf\n", fake_gtf)
+        for fake in (fake_cdna, fake_gtf):  # receipts a first fetch would have written
+            fake.with_suffix(fake.suffix + ".retrieval.json").write_text(
+                json.dumps({"sha256": hashlib.sha256(fake.read_bytes()).hexdigest()})
+            )
 
         with (
             patch(
