@@ -344,15 +344,15 @@ def _detect_and_normalize(host_adata) -> None:
     so that depth-based filtering is always computed from library size, not from
     the normalized feature subset.
 
-    Detection heuristic:
-      - If "log1p" is in adata.uns → already processed, skip.
-      - Otherwise sample the top-left 100×100 block; if all values are integers
-        AND the max exceeds 10, treat as raw counts and normalise. Otherwise
-        normalisation is SKIPPED (logged at WARNING; the block can look
-        "normalised" when the first genes are all low-count).
-    This avoids double-normalising while still handling the common case where the
-    user passes a raw-count h5ad.  If the heuristic is ambiguous the user should
-    pre-process and set adata.uns["log1p"] = {} themselves.
+    Detection heuristic (HOSTRESP-RAW-01; all stored values, not a corner block):
+      - If "log1p" is in adata.uns -> already processed, skip.
+      - Negative or nonfinite values raise ValueError.
+      - If every stored value is an integer, treat X as raw counts and normalise;
+        a maximum of 10 or less is logged at WARNING (the exceeds-10 corner rule is gone).
+      - Otherwise any non-integer value means normalised: normalisation is SKIPPED
+        (logged at WARNING).
+    If the heuristic is wrong for your data, pre-process and set
+    adata.uns["log1p"] = {} yourself.
     """
     X = host_adata.X
     raw_depth, depth_source = _resolve_raw_depth(host_adata)
@@ -365,25 +365,32 @@ def _detect_and_normalize(host_adata) -> None:
         )
         return
 
-    # Sample a small block to decide whether data is raw
-    r = min(100, host_adata.n_obs)
-    c = min(100, host_adata.n_vars)
-    sample = X[:r, :c]
-    if sp.issparse(sample):
-        sample = sample.toarray()
-    sample = np.asarray(sample, dtype=float)
-    is_integer = np.all(sample == np.floor(sample))
-    if is_integer and sample.max() > 10:
+    # Decide from EVERY stored value (sparse: X.data; the implicit zeros are integers).
+    values = X.data if sp.issparse(X) else np.asarray(X)
+    values = np.asarray(values, dtype=float)
+    if not np.isfinite(values).all():
+        raise ValueError("host X has nonfinite values; cannot decide raw vs normalised")
+    if values.size and values.min() < 0:
+        raise ValueError("host X has negative values (scaled data?); cannot normalise")
+    is_integer = bool(np.all(values == np.floor(values)))
+    max_value = float(values.max()) if values.size else 0.0
+    if is_integer:
+        if max_value <= 10:
+            log.warning(
+                "Host h5ad: every stored value is an integer but the maximum is only %g; treating "
+                "X as raw counts (normalised data is not integer-valued). Check this is not a "
+                "binarised or truncated matrix; set adata.uns['log1p'] = {} to skip normalisation.",
+                max_value,
+            )
         log.info("Host h5ad: raw counts detected; median-depth normalization then natural log1p.")
         sc.pp.normalize_total(host_adata, target_sum=None)
         sc.pp.log1p(host_adata)
     else:
         log.warning(
-            "Host h5ad: top-left %dx%d block is not integer-valued with max > 10; assuming it is "
+            "Host h5ad: X has non-integer values (checked all %d stored values); assuming it is "
             "already normalised and SKIPPING normalisation. If this is raw counts, features are "
             "unnormalised; set adata.uns['log1p'] = {} on normalised input to silence this.",
-            r,
-            c,
+            values.size,
         )
 
 
