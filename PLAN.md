@@ -1255,6 +1255,13 @@ Open rows moved to the reproducibility tracker (see "Moved to the reproducibilit
   is its own row.
 ## WP4D — Gene-programme inference, layer 2 (new 2026-09-26)
 
+- [x] `PROG-INDEXKIND-01` — **done 2026-11-09** (`codex/programme-index-kind`, review R3 F5). `gene_program_summary.tsv`
+  gains two appended columns, `index_kind` (`combined`, `virus_only`, `host_only`, or `unknown` for an H5AD without the
+  multimap stamp) and `host_filter` (the host-filter aligner or `none`), so a reader can tell whether productive
+  evidence (`counts_unique_viral`) competed with host. Columns only: no existing value or call changes. Rerun class:
+  PROG only, no kb/STAR rerun. `docs/output_reference.md` is not edited here (hash-pinned in the repro repo); it needs
+  two rows in the `gene_program_summary.tsv` column table when the pin is next refreshed.
+
 - [x] `PROG-09` — **done 2026-11-04** (partial scope by design). The catalogue is now 10 viruses: HPV16
   added as productive-only (L1, L2; both `late`, PMID 15187189, differentiation-dependent late-gene
   expression), `partial`, `latency_observable_in_rna=false`, so `latent` is unreachable and breadth 2
