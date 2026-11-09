@@ -576,7 +576,7 @@ class TestReportBothDenominators:
         self.called = np.array([True, True, False, False, False])
 
     def test_all_barcode_stats_unchanged_when_no_mask(self):
-        stats, _ = compute_stats(self.adata, {}, self.group, [])
+        stats, _ = compute_stats(self.adata, {}, self.group, [], infected_min_molecules=1.0)
         s = stats["virusA"]
         # 4 of 5 barcodes have viral UMI (bc0,1,2,4)
         assert s["infected_cells"] == 4
@@ -587,7 +587,9 @@ class TestReportBothDenominators:
         assert s["pct_infected_called"] == pytest.approx(80.0)
 
     def test_called_cell_denominator_restricts_correctly(self):
-        stats, _ = compute_stats(self.adata, {}, self.group, [], called_mask=self.called)
+        stats, _ = compute_stats(
+            self.adata, {}, self.group, [], called_mask=self.called, infected_min_molecules=1.0
+        )
         s = stats["virusA"]
         # all-barcode view stays the same
         assert s["infected_cells"] == 4 and s["total_cells"] == 5
@@ -616,6 +618,8 @@ class TestReportBothDenominators:
             )
         )
 
+        # the per-10k burden needs host genes in the index (MECH-F): declare h1 as the host gene
+        self.adata.var["gene_role"] = ["unknown", "unknown", "host"]
         stats, per_cell = compute_stats(self.adata, {}, self.group, [], viral_count_matrix=primary)
         s = stats["virusA"]
 
@@ -945,7 +949,9 @@ def test_comparable_cells_use_host_counts_only(partition):
     a.var_names = ["v1", "host1"]
     a.var[partition] = ["target", "host"] if partition == "gene_role" else [True, False]
     called = np.array([True, True, False])
-    stats, _ = compute_stats(a, ["v1"], {"virusA": ["v1"]}, ["v1"], called_mask=called)
+    stats, _ = compute_stats(
+        a, ["v1"], {"virusA": ["v1"]}, ["v1"], called_mask=called, infected_min_molecules=1.0
+    )
     s = stats["virusA"]
     assert s["n_comparable_cells"] == 1
     assert s["infected_comparable"] == 1

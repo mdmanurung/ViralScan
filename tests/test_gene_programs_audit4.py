@@ -25,6 +25,7 @@ from viralscan.scripts.gene_programs import run_one
 
 CAT = load_catalogue()
 EBV = "Epstein-Barr virus"
+KSHV = "Human herpesvirus 8"
 VIRUSES = sorted({r["virus"] for r in CAT})
 
 
@@ -150,16 +151,14 @@ class TestD03NotApplicableColumn:
     def test_value_matches_reachability(self, virus: str) -> None:
         facts = catalogue_virus_facts(CAT)[virus]
         row = _summary(_run(virus, []), virus)
-        if virus == EBV:
+        if virus in (EBV, KSHV):
             assert facts["reactivation_reachable"]
             assert row["n_cells_reactivating"] == 0
         else:
             assert not facts["reactivation_reachable"]
             assert row["n_cells_reactivating"] == "not_applicable"
 
-    @pytest.mark.parametrize(
-        "virus", ["Human herpesvirus 1", "Human herpesvirus 2", "Human herpesvirus 8"]
-    )
+    @pytest.mark.parametrize("virus", ["Human herpesvirus 1", "Human herpesvirus 2"])
     def test_no_productive_ie_marker_viruses(self, virus: str) -> None:
         assert not _ie(virus)
         assert _summary(_run(virus, []), virus)["n_cells_reactivating"] == "not_applicable"
@@ -171,7 +170,7 @@ class TestD03NotApplicableColumn:
             "n_cells_latent",
             "n_cells_mixed",
             "n_cells_lytic_programme",
-            "n_cells_indeterminate",
+            "n_cells_indeterminate_with_evidence",
         ):
             assert isinstance(row[col], (int, np.integer))
 
@@ -250,3 +249,37 @@ class TestAud21CandidateOnlyViruses:
                 "virus_name\tviral_molecules_total_est\tdetected",
                 [f"{EBV}\t10\t{value}"],
             )
+
+
+class TestKshvOrf50ImmediateEarly:
+    """KSHV ORF50 (RTA) is immediate early (user decision 2026-11-09), so `reactivating` is reachable."""
+
+    def _state(self, hot: list[str]) -> str:
+        return _run(KSHV, hot)["state"].tolist()[0]
+
+    def _gene(self, name: str) -> str:
+        return next(
+            r["gene_id_bundled"] for r in CAT if r["virus"] == KSHV and r["refseq_gene"] == name
+        )
+
+    def test_orf50_is_the_only_immediate_early_productive_marker(self) -> None:
+        assert _ie(KSHV) == [self._gene("ORF50")]
+        assert catalogue_virus_facts(CAT)[KSHV]["reactivation_reachable"]
+
+    def test_orf50_alone_is_reactivating(self) -> None:
+        assert self._state([self._gene("ORF50")]) == "reactivating"
+
+    def test_orf50_plus_an_early_marker_is_productive(self) -> None:
+        assert self._state([self._gene("ORF50"), self._gene("ORF16")]) == "productive"
+
+    def test_orf50_plus_lana_is_latent(self) -> None:
+        """Latent evidence wins over IE-only evidence (productive breadth 1 < min_breadth 2)."""
+        assert self._state([self._gene("ORF50"), self._gene("ORF73")]) == "latent"
+
+    def test_orf50_plus_early_plus_lana_is_mixed(self) -> None:
+        hot = [self._gene("ORF50"), self._gene("ORF16"), self._gene("ORF73")]
+        assert self._state(hot) == "mixed"
+
+    def test_reactivating_needs_an_assessable_absence(self) -> None:
+        index = [g for g in _ids(KSHV) if g != self._gene("ORF16")]
+        assert _run(KSHV, [self._gene("ORF50")], index=index)["state"].tolist() == ["indeterminate"]

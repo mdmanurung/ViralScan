@@ -598,7 +598,9 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "refseq_gene": "ORF50",
         "programme": "productive",
         "note": "RTA; master lytic-cycle transactivator",
-        "kinetic_class": "early",
+        # Immediate early by user decision 2026-11-09: PMID 24453964 lists ORF50 at 8 h in a
+        # Dox-induced RTA system, which it calls immediate early; no source names the class.
+        "kinetic_class": "immediate_early",
         "kinetic_pmid": "24453964",
     },
     {

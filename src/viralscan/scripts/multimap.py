@@ -349,19 +349,98 @@ def read_ec(ec_file, transcripts, t2g_map, gene_ids):
     """
     ec_map = {}
     gene_id_to_idx: dict = {gid: i for i, gid in enumerate(gene_ids)}
+    out_of_range: set[int] = set()
+    no_gene_row: set[str] = set()
+    gene_not_indexed: set[str] = set()
+    empty_ecs = 0
     with open(ec_file) as f:
-        for _i, line in enumerate(f):
+        for line in f:
             parts = line.strip().split("\t")
             if len(parts) < 2:
                 continue
             ec_id = int(parts[0])
-            transcript_indices = [int(x) for x in parts[1].split(",") if x.isdigit()]
-            transcript_ids = [transcripts[j] for j in transcript_indices if j < len(transcripts)]
-            gene_ids_ec = [t2g_map.get(tr) for tr in transcript_ids if tr in t2g_map]
-            gene_indices = [gene_id_to_idx[gid] for gid in gene_ids_ec if gid in gene_id_to_idx]
+            gene_indices = []
+            for j in (int(x) for x in parts[1].split(",") if x.isdigit()):
+                if j >= len(transcripts):
+                    out_of_range.add(j)
+                elif transcripts[j] not in t2g_map:
+                    no_gene_row.add(transcripts[j])
+                elif t2g_map[transcripts[j]] not in gene_id_to_idx:
+                    gene_not_indexed.add(t2g_map[transcripts[j]])
+                else:
+                    gene_indices.append(gene_id_to_idx[t2g_map[transcripts[j]]])
             if gene_indices:
                 ec_map[ec_id] = gene_indices
+            else:
+                empty_ecs += 1
+    # A dropped transcript shrinks an EC's gene set, so a host+viral molecule can read as
+    # unique viral. Stop and name what is missing instead of counting on the shrunken set.
+    if out_of_range or no_gene_row or gene_not_indexed:
+        raise ValueError(
+            f"{ec_file}: ECs reference transcripts that cannot be mapped to a gene in this run. "
+            f"{len(out_of_range)} transcript indices beyond transcripts.txt "
+            f"(e.g. {sorted(out_of_range)[:3]}); "
+            f"{len(no_gene_row)} transcripts missing from the t2g "
+            f"(e.g. {sorted(no_gene_row)[:3]}); "
+            f"{len(gene_not_indexed)} t2g genes missing from genes.txt "
+            f"(e.g. {sorted(gene_not_indexed)[:3]}). "
+            "Use the t2g and genes.txt of the same kb ref and kb count."
+        )
+    if empty_ecs:
+        log.warning(
+            "%s of %s ECs list no transcripts; the molecule intersection skips them (P1-01)",
+            empty_ecs,
+            empty_ecs + len(ec_map),
+        )
     return ec_map
+
+
+def align_adata_to_text_files(adata_orig, barcode_to_idx, gene_ids):
+    """
+    Reorder the kb h5ad to the barcodes.txt / genes.txt order the BUS text uses.
+    ---------------------------------------------------------------------
+    The count layers are indexed by the text-file rows and columns, so the h5ad
+    obs and var must be in that order. Names must match as sets (barcodes after
+    the -1 strip); a different order is fixed by name, a different set raises.
+    ---------------------------------------------------------------------
+    Returns:
+        adata_orig (anndata.AnnData): rows follow barcodes.txt, columns genes.txt
+    """
+    obs_stripped = [strip_10x_suffix(bc) for bc in adata_orig.obs_names]
+    barcodes = list(barcode_to_idx)
+    var_names = list(adata_orig.var_names)
+    problems = []
+    if len(set(obs_stripped)) != len(obs_stripped) or set(obs_stripped) != set(barcodes):
+        only_h5ad = sorted(set(obs_stripped) - set(barcodes))
+        only_txt = sorted(set(barcodes) - set(obs_stripped))
+        problems.append(
+            f"barcodes: {len(only_h5ad)} only in the h5ad (e.g. {only_h5ad[:3]}), "
+            f"{len(only_txt)} only in barcodes.txt (e.g. {only_txt[:3]})"
+        )
+    if len(set(var_names)) != len(var_names) or set(var_names) != set(gene_ids):
+        only_h5ad = sorted(set(var_names) - set(gene_ids))
+        only_txt = sorted(set(gene_ids) - set(var_names))
+        problems.append(
+            f"genes: {len(only_h5ad)} only in the h5ad (e.g. {only_h5ad[:3]}), "
+            f"{len(only_txt)} only in genes.txt (e.g. {only_txt[:3]})"
+        )
+    if problems:
+        raise ValueError(
+            "kb h5ad does not match the text files of the same run: " + "; ".join(problems)
+        )
+    if obs_stripped == barcodes and var_names == list(gene_ids):
+        return adata_orig
+    log.warning(
+        "kb h5ad order differs from barcodes.txt / genes.txt; reordered by name "
+        "(%s of %s barcodes, %s of %s genes moved)",
+        sum(a != b for a, b in zip(obs_stripped, barcodes, strict=True)),
+        len(barcodes),
+        sum(a != b for a, b in zip(var_names, gene_ids, strict=True)),
+        len(gene_ids),
+    )
+    row_of = {bc: i for i, bc in enumerate(obs_stripped)}
+    col_of = {g: i for i, g in enumerate(var_names)}
+    return adata_orig[[row_of[bc] for bc in barcodes], [col_of[g] for g in gene_ids]].copy()
 
 
 def create_new_h5ad(
@@ -603,6 +682,8 @@ def run(ctx, done_file):
         adata_orig, genes_from_matrix, n_genes = load_adata(adata_file)
         barcode_to_idx, n_cells = load_barcodes(barcodes_file)
         gene_ids, gene_names = load_genes(genes_file, gene_names_file, n_genes)
+        adata_orig = align_adata_to_text_files(adata_orig, barcode_to_idx, gene_ids)
+        genes_from_matrix = list(adata_orig.var_names)
         transcripts, t2g_map = load_transcripts(transcript_file, t2g_file)
 
         # Continue with workflow

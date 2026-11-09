@@ -45,6 +45,8 @@ from pathlib import Path
 from viralscan.anello_align import body_span
 from viralscan.molecule_verdict import (
     _CIGAR,
+    _read_number,
+    counted_read_numbers,
     matched_bases,
     select_representatives,
     side_score,
@@ -67,6 +69,7 @@ ROW_FIELDS = (
     "read",
     "cb",
     "umi",
+    "counted",
     "count_layer",
     "n_reads",
     "aligned_bases",
@@ -95,6 +98,7 @@ SUMMARY_FIELDS = (
     "evidence_dir",
     "n_reads",
     "n_molecules",
+    "n_molecules_not_counted",
     "n_pass_all_gates",
     "fraction_pass_all_gates",
     "n_fail_aligned_length",
@@ -182,8 +186,13 @@ def molecule_support_rows(
     sam_lines: Iterable[str],
     queries: Mapping[str, str] | None = None,
     loci: list[dict[str, str]] | None = None,
+    counted_reads: set[int] | None = None,
 ) -> list[dict[str, object]]:
     """One flag row per corrected (CB, UMI) molecule of a competitive SAM (all reads, secondary included).
+
+    ``counted`` is True when a member read is in *counted_reads* (lineage ``assigned_weight > 0``), the rule of
+    ``molecule_verdict``. ``None`` marks every molecule counted, for a SAM with no lineage. ``summarise_support``
+    scores counted rows only.
 
     # ponytail: every read's records are held in memory; stream per molecule if a target ever has > 10 M reads.
     """
@@ -299,6 +308,8 @@ def molecule_support_rows(
                 read=rep_name,
                 cb=cb,
                 umi=umi,
+                counted=counted_reads is None
+                or any(_read_number(name) in counted_reads for name in members[(cb, umi)]),
                 count_layer="umi",
                 n_reads=n_reads[(cb, umi)],
                 aligned_bases=aligned,
@@ -334,7 +345,9 @@ def molecule_support_rows(
 
 
 def summarise_support(rows: list[dict[str, object]], evidence_dir: str = "") -> dict[str, object]:
-    """Call-level summary. ``known_artefact`` lists a reason only when every molecule fails for it."""
+    """Call-level summary over counted molecules. ``known_artefact`` lists a reason only when every one fails."""
+    n_not_counted = sum(not r["counted"] for r in rows)
+    rows = [r for r in rows if r["counted"]]
     n = len(rows)
     reasons = [set(str(r["known_artefact"]).split(";")) - {""} for r in rows]
     every = sorted(set.intersection(*reasons)) if reasons else []
@@ -345,6 +358,7 @@ def summarise_support(rows: list[dict[str, object]], evidence_dir: str = "") -> 
         "evidence_dir": evidence_dir,
         "n_reads": sum(int(str(r["n_reads"])) for r in rows),
         "n_molecules": n,
+        "n_molecules_not_counted": n_not_counted,
         "n_pass_all_gates": passed,
         "fraction_pass_all_gates": round(passed / n, 4) if n else "",
         "n_fail_aligned_length": sum(not r["gate_aligned_length"] for r in rows),
@@ -370,13 +384,15 @@ def _write(path: Path, rows: list[dict[str, object]], fields: Iterable[str]) -> 
         writer.writerows(rows)
 
 
-def write_molecule_support(bam: str | Path, out_dir: Path) -> list[dict[str, object]]:
+def write_molecule_support(
+    bam: str | Path, out_dir: Path, counted_reads: set[int] | None = None
+) -> list[dict[str, object]]:
     """Write ``molecule_support.tsv`` and ``read_support_summary.tsv`` for one competitive BAM."""
     with subprocess.Popen(
         ["samtools", "view", str(bam)], stdout=subprocess.PIPE, text=True
     ) as proc:
         assert proc.stdout is not None
-        rows = molecule_support_rows(proc.stdout)
+        rows = molecule_support_rows(proc.stdout, counted_reads=counted_reads)
     if proc.returncode:
         raise RuntimeError(f"samtools view failed (exit {proc.returncode}) on {bam}")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -399,7 +415,9 @@ def main(argv: list[str] | None = None) -> int:
     summaries = []
     for d in args.evidence_dir:
         out = args.output / d.name
-        write_molecule_support(d / "competitive_reads.raw.bam", out)
+        lineage = d / "read_lineage.tsv.gz"
+        counted = counted_read_numbers(lineage) if lineage.is_file() else None
+        write_molecule_support(d / "competitive_reads.raw.bam", out, counted)
         with (out / "read_support_summary.tsv").open() as handle:
             summaries.append(next(csv.DictReader(handle, delimiter="\t")))
     _write(args.output / "read_support_calls.tsv", summaries, SUMMARY_FIELDS)

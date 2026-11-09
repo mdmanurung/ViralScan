@@ -1,4 +1,4 @@
-"""Probable/strong evidence tiers, built to the frozen calibration-grid contract (PLAN ``TIER-01``).
+"""Probable evidence tier, built to the frozen calibration-grid contract (PLAN ``TIER-01``).
 
 Pure functions, no file I/O, no data and no calibration run. The contract is
 ``calibration.threshold_search`` of ``ViralScan-reproducibility/analysis/v3_validation/protocol.yaml``:
@@ -6,20 +6,19 @@ Pure functions, no file I/O, no data and no calibration run. The contract is
 * the grid is the 45 cutoff triples ``(molecules per cell, features per sample, exact-fragment support
   fraction)``; :func:`grid_from_protocol` reads it from the already-loaded protocol, nothing here hard-codes a
   value, and no cutoff off the grid is ever adopted;
-* a grid point is **eligible** only with zero probable-or-strong calls in both synthetic host-only and planted
+* a grid point is **eligible** only with zero probable calls in both synthetic host-only and planted
   host-homology training negatives (:func:`select_cutoffs`);
 * among eligible points within one standard error of the best training F1, the **most conservative** wins: the
   largest molecule cutoff, then the largest feature cutoff, then the largest support fraction;
 * no eligible point means calibration **failed** and the tier is ``no_tier`` (UC-C6); the constraint is not
   relaxed and the grid is not widened.
 
-Without a supplied calibration result :func:`assign_tier` returns ``uncalibrated``, never ``probable`` or
-``strong``. The caller computes each grid point's F1 and its bootstrap standard error (the protocol's
+Without a supplied calibration result :func:`assign_tier` returns ``uncalibrated``, never ``probable``. The caller computes each grid point's F1 and its bootstrap standard error (the protocol's
 ``calibration.uncertainty`` resampling-unit bootstrap); this module only applies the selection rule.
 
-Open contract items (see PLAN ``TIER-01``): the grid defines only *probable-or-stronger*, so ``strong`` is an
-optional, caller-supplied grid point nested above ``probable``; the three measures are computed by
-:mod:`viralscan.tier_measures` (PLAN ``TIER-02``); comparisons are inclusive (``>=``).
+There is no ``strong`` tier in 3.0 (user decision 2026-11-04, PLAN ``TIER-01``/``TIER-02``): the grid defines
+only *probable*, so the ladder ends there and a supplied ``strong`` point is refused. The three measures are
+computed by :mod:`viralscan.tier_measures` (PLAN ``TIER-02``); comparisons are inclusive (``>=``).
 """
 
 from __future__ import annotations
@@ -37,14 +36,12 @@ TIER_NONE = "no_tier"  # calibration ran and failed (no eligible grid point)
 TIER_NOT_DETECTED = "not_detected"
 TIER_CANDIDATE = "candidate"  # calibrated, but the probable cutoffs are not met
 TIER_PROBABLE = "probable"
-TIER_STRONG = "strong"
 TIERS = (
     TIER_UNCALIBRATED,
     TIER_NONE,
     TIER_NOT_DETECTED,
     TIER_CANDIDATE,
     TIER_PROBABLE,
-    TIER_STRONG,
 )
 
 STATUS_SELECTED = "selected"
@@ -54,12 +51,13 @@ STATUS_FAILED = "failed"
 #: ``level``). An analogue by position on the ladder, not an equivalence: a package tier is a calibrated
 #: molecule-count rule and carries no read-level evidence; the study level adds read-level evidence (virus-best
 #: fraction, complex-body fraction, sibling bleed) on top. L3 adds a gene-programme model that has no package
-#: counterpart, so it maps to the highest package tier. L4 and L5 are never emitted.
+#: counterpart, so it maps to the highest package tier, ``probable`` (there is no ``strong`` tier in 3.0). L4 and
+#: L5 are never emitted.
 STUDY_LEVEL_TO_PACKAGE_TIER: dict[str, str] = {
     "L0": TIER_CANDIDATE,
     "L1": TIER_PROBABLE,
-    "L2": TIER_STRONG,
-    "L3": TIER_STRONG,
+    "L2": TIER_PROBABLE,
+    "L3": TIER_PROBABLE,
 }
 
 _GRID_TEXT = re.compile(
@@ -99,15 +97,14 @@ class GridPoint:
     cutoffs: Cutoffs
     f1: float
     se: float  # resampling-unit bootstrap SE of ``f1`` (calibration.tie_breaker_standard_error)
-    false_calls_host_only: int | None  # probable-or-strong calls in host-only negatives
-    false_calls_homology: int | None  # probable-or-strong calls in planted host-homology negatives
+    false_calls_host_only: int | None  # probable calls in host-only negatives
+    false_calls_homology: int | None  # probable calls in planted host-homology negatives
 
 
 @dataclass(frozen=True)
 class Calibration:
     status: str
     probable: Cutoffs | None = None
-    strong: Cutoffs | None = None
     n_eligible: int = 0
     best_f1: float | None = None
     best_se: float | None = None
@@ -119,7 +116,6 @@ class Calibration:
         return {
             "status": self.status,
             "probable": cut(self.probable),
-            "strong": cut(self.strong),
             "n_eligible": self.n_eligible,
             "best_f1": self.best_f1,
             "best_se": self.best_se,
@@ -203,11 +199,11 @@ def select_cutoffs(points: Iterable[GridPoint], grid: Grid) -> Calibration:
     # The most conservative point is the lexicographic maximum of the cutoff tuple. Grid points are distinct, so the
     # contract's final "ascending lexicographic" tie-break can never fire.
     chosen = max(within, key=lambda p: p.cutoffs)
-    return Calibration(STATUS_SELECTED, chosen.cutoffs, None, len(eligible), best.f1, best.se)
+    return Calibration(STATUS_SELECTED, chosen.cutoffs, len(eligible), best.f1, best.se)
 
 
 def calibration_from_dict(result: Mapping[str, Any], grid: Grid) -> Calibration:
-    """Validate a supplied calibration result: its points must be on the grid, ``strong`` nested above ``probable``."""
+    """Validate a supplied calibration result: its point must be on the grid; a ``strong`` point is refused (no ``strong`` tier in 3.0)."""
     status = result.get("status")
     if status == STATUS_FAILED:
         return Calibration(STATUS_FAILED)
@@ -225,17 +221,16 @@ def calibration_from_dict(result: Mapping[str, Any], grid: Grid) -> Calibration:
         except (KeyError, TypeError) as exc:
             raise ValueError(f"calibration {key} needs molecules, features and support") from exc
 
-    probable, strong = cut("probable"), cut("strong")
+    if result.get("strong") is not None:
+        raise ValueError(
+            "there is no strong tier in 3.0; a calibration may carry a probable point only"
+        )
+    probable = cut("probable")
     if probable is None:
         raise ValueError("a selected calibration needs a probable point")
-    if strong is not None and any(s < p for s, p in zip(strong, probable, strict=True)):
-        raise ValueError(
-            "strong must be at least as strict as probable on every cutoff (nested tiers)"
-        )
     return Calibration(
         STATUS_SELECTED,
         probable,
-        strong,
         int(result.get("n_eligible", 0)),
         result.get("best_f1"),
         result.get("best_se"),
@@ -252,15 +247,13 @@ def _meets(evidence: TierEvidence, c: Cutoffs) -> bool:
 
 
 def assign_tier(evidence: TierEvidence, calibration: Calibration | None) -> str:
-    """The tier of one (sample, virus); probable and strong need a selected calibration, nothing else gives them."""
+    """The tier of one (sample, virus); probable needs a selected calibration, nothing else gives it."""
     if calibration is None:
         return TIER_UNCALIBRATED
     if calibration.status != STATUS_SELECTED or calibration.probable is None:
         return TIER_NONE
     if evidence.max_molecules_per_cell <= 0:
         return TIER_NOT_DETECTED
-    if calibration.strong is not None and _meets(evidence, calibration.strong):
-        return TIER_STRONG
     return TIER_PROBABLE if _meets(evidence, calibration.probable) else TIER_CANDIDATE
 
 

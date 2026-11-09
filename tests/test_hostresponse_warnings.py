@@ -101,8 +101,7 @@ def test_normalization_skip_is_a_warning_and_docstring_matches_code(caplog):
     _detect_and_normalize(adata)
     skipped = [r for r in caplog.records if "SKIPPING normalisation" in r.getMessage()]
     assert skipped and all(r.levelno == logging.WARNING for r in skipped)
-    assert "exceeds 10" in _detect_and_normalize.__doc__
-    assert "exceeds 50" not in _detect_and_normalize.__doc__
+    assert "HOSTRESP-RAW-01" in _detect_and_normalize.__doc__
 
 
 def test_stability_selection_many_positives_warns_uncalibrated(tmp_path, caplog, monkeypatch):
@@ -156,3 +155,56 @@ def test_outputs_unchanged_for_preprocessed_fixed_seed_input(tmp_path, monkeypat
         {k: v for k, v in GOLDEN.items() if k != "w_abs_sum"}, abs=1e-5
     )
     assert list(stab.columns) == ["gene", "stab_prob", "weight_mean", "weight_sd", "stable"]
+
+
+def _raw_with_quiet_corner(n_obs=150, n_vars=150, seed=3):
+    """Raw counts whose top-left 100x100 block has max <= 3 (the old blind spot)."""
+    import anndata as ad
+    import pandas as pd
+    import scipy.sparse as sp
+
+    rng = np.random.default_rng(seed)
+    X = rng.integers(0, 4, size=(n_obs, n_vars)).astype(np.float32)
+    X[120:, 120:] = 40.0  # high counts only outside the corner
+    return ad.AnnData(
+        X=sp.csr_matrix(X),
+        obs=pd.DataFrame(index=[f"c{i}" for i in range(n_obs)]),
+        var=pd.DataFrame(index=[f"g{j}" for j in range(n_vars)]),
+    )
+
+
+def test_raw_counts_with_quiet_corner_are_normalised():
+    adata = _raw_with_quiet_corner()
+    assert adata.X[:100, :100].max() <= 3
+    _detect_and_normalize(adata)
+    assert "log1p" in adata.uns
+
+
+def test_low_max_integer_matrix_is_raw_but_warns(caplog):
+    caplog.set_level(logging.WARNING, logger="viralscan")
+    adata = _raw_with_quiet_corner()
+    adata.X = adata.X.copy()
+    adata.X[adata.X > 3] = 3
+    _detect_and_normalize(adata)
+    assert "log1p" in adata.uns
+    assert [m for m in _msgs(caplog) if "maximum is only" in m]
+
+
+def test_non_integer_value_outside_corner_means_normalised(caplog):
+    caplog.set_level(logging.WARNING, logger="viralscan")
+    adata = _raw_with_quiet_corner()
+    adata.X = adata.X.copy()
+    adata.X[140, 140] = 2.5  # one non-integer value far from the corner
+    _detect_and_normalize(adata)
+    assert "log1p" not in adata.uns
+    assert [m for m in _msgs(caplog) if "SKIPPING normalisation" in m]
+
+
+def test_negative_values_raise():
+    import pytest
+
+    adata = _raw_with_quiet_corner()
+    adata.X = adata.X.copy()
+    adata.X[5, 5] = -1
+    with pytest.raises(ValueError, match="negative"):
+        _detect_and_normalize(adata)

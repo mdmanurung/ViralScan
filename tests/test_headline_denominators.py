@@ -71,6 +71,7 @@ def test_report_headlines_called_cell_rate(tmp_path):
         called_cells_file=str(run / "cells.txt"),
         detection_threshold=1,
         detection_min_cells=1,
+        infected_min_molecules=1.0,  # the cells hold 1 molecule; this tests denominators
     )
     detection.run(
         RunContext.from_config(cfg), str(run / "log" / "analysis.txt"), str(run / "log" / "d")
@@ -207,3 +208,56 @@ def test_two_step_tsv_summary_and_report_render_na(tmp_path):
     html = _badge_html(tmp_path, {"VirusX": b})
     assert "100.00%" not in html and "10000.00" not in html
     assert re.search(r"0\.20%", html)
+
+
+def _stats_for(index_kind=None, identity=None):
+    var = pd.DataFrame(index=["h1", "v1"])
+    var["gene_role"] = ["host", "unknown"] if index_kind is None else ["unknown", "unknown"]
+    adata = ad.AnnData(
+        X=sp.csr_matrix(np.array([[50.0, 3.0], [40.0, 0.0], [30.0, 0.0]], dtype=np.float32)),
+        obs=pd.DataFrame(index=["c0", "c1", "c2"]),
+        var=var,
+    )
+    if index_kind:
+        adata.uns["index_kind"] = index_kind
+    if identity:
+        adata.uns["gene_identity_source"] = identity
+    stats, _ = compute_stats(
+        adata, {"v1"}, {"VirusX": ["v1"]}, {"v1"}, cell_calling_method="external", **KW
+    )
+    return stats["VirusX"]
+
+
+def test_no_host_genes_makes_the_per_10k_burden_na_with_a_reason():
+    # MECH-F (user decision 2026-11-04): never a silent fallback to the virus-only total
+    host = _stats_for()
+    assert host["viral_molecules_per_10k_est"] == pytest.approx(3 / 123 * 10_000, abs=1e-3)
+    assert host["denominator_note"] == ""
+    for kind, identity in (("virus_only", None), (None, "unavailable")):
+        s = _stats_for(index_kind=kind, identity=identity)
+        assert s["viral_molecules_per_10k_est"] is None
+        assert s["denominator_note"] == detection.NO_HOST_DENOMINATOR_NOTE
+        assert "no host genes" in s["denominator_note"]
+        assert s["pct_infected"] is not None  # the barcode-based rate has a denominator
+        line = detection._virus_summary_line("VirusX", s)
+        assert "NA" in line and "all barcodes" in line and "host-filtered" not in line
+
+
+def test_no_host_note_reaches_the_tsv_blank(tmp_path):
+    s = _stats_for(index_kind="virus_only")
+    write_tsv_outputs({"VirusX": s}, pd.DataFrame(), str(tmp_path))
+    row = next(csv.DictReader((tmp_path / "results" / "viral_summary.tsv").open(), delimiter="\t"))
+    assert row["viral_molecules_per_10k_est"] == "" and "no host genes" in row["denominator_note"]
+
+
+def test_zero_overlap_with_the_host_barcode_set_warns_with_counts_and_continues(caplog):
+    # AUD-13 B-10 (user decision 2026-11-04): a valid outcome for an external host list, not an error
+    with caplog.at_level("WARNING", logger="viralscan"):
+        mask = _in_barcode_set(["AAAA", "CCCC", "GGGG"], {"TTTT-1", "ACGT-1"})
+    assert mask.tolist() == [False, False, False]
+    warned = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warned) == 1 and "(3)" in warned[0] and "(2)" in warned[0]
+    caplog.clear()
+    with caplog.at_level("WARNING", logger="viralscan"):
+        assert _in_barcode_set(["AAAA", "CCCC"], {"AAAA-1"}).tolist() == [True, False]
+    assert not caplog.records

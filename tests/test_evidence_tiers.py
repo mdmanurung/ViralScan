@@ -1,8 +1,6 @@
-"""TIER-01: the probable/strong tier code against the frozen calibration-grid contract (synthetic inputs only)."""
+"""TIER-01: the probable tier code (no strong tier in 3.0) against the frozen calibration-grid contract (synthetic inputs only)."""
 
 from __future__ import annotations
-
-import itertools
 
 import pytest
 
@@ -41,7 +39,7 @@ def test_grid_parser_needs_the_protocol_key():
 def test_best_f1_wins_without_ties(grid):
     target = Cutoffs(3, 2, 0.75)
     cal = et.select_cutoffs(_results(grid, f1=lambda c: 0.9 if c == target else 0.5), grid)
-    assert (cal.status, cal.probable, cal.strong) == ("selected", target, None)
+    assert (cal.status, cal.probable) == ("selected", target)
     assert cal.n_eligible == 45 and cal.best_f1 == 0.9
 
 
@@ -65,7 +63,7 @@ def test_either_negative_class_makes_a_point_ineligible(grid):
 
 def test_no_eligible_point_fails_and_nothing_is_relaxed(grid):
     cal = et.select_cutoffs(_results(grid, bad=lambda c: True), grid)
-    assert cal.status == "failed" and cal.probable is None and cal.strong is None
+    assert cal.status == "failed" and cal.probable is None
     # the most conservative corner is not rescued either
     assert et.assign_tier(TierEvidence(99, 9, 1.0), cal) == "no_tier"
 
@@ -167,25 +165,19 @@ def test_a_supplied_point_off_the_grid_is_refused(grid):
     bad = {"status": "selected", "probable": {"molecules": 4, "features": 1, "support": 0.5}}
     with pytest.raises(ValueError, match="not a grid point"):
         et.calibration_from_dict(bad, grid)
-    bad = {"status": "selected", "probable": {"molecules": 1, "features": 1, "support": 0.5},
-           "strong": {"molecules": 4, "features": 3, "support": 0.9}}  # fmt: skip
-    with pytest.raises(ValueError, match="not a grid point"):
-        et.calibration_from_dict(bad, grid)
 
 
-def test_strong_must_be_nested_above_probable(grid):
+def test_a_strong_point_is_refused_there_is_no_strong_tier_in_3_0(grid):
     probable = {"molecules": 5, "features": 2, "support": 0.75}
-    for strong in (
-        {"molecules": 3, "features": 3, "support": 0.9},
-        {"molecules": 10, "features": 1, "support": 0.9},
-        {"molecules": 10, "features": 3, "support": 0.5},
-    ):
-        with pytest.raises(ValueError, match="nested"):
+    for strong in (probable, {"molecules": 10, "features": 3, "support": 0.9}):
+        with pytest.raises(ValueError, match="no strong tier"):
             et.calibration_from_dict(
                 {"status": "selected", "probable": probable, "strong": strong}, grid
             )
-    ok = {"status": "selected", "probable": probable, "strong": probable}
-    assert et.calibration_from_dict(ok, grid).strong == Cutoffs(5, 2, 0.75)
+    ok = {"status": "selected", "probable": probable, "strong": None}
+    assert et.calibration_from_dict(ok, grid).probable == Cutoffs(5, 2, 0.75)
+    assert "strong" not in et.Calibration("selected", Cutoffs(5, 2, 0.75)).to_dict()
+    assert not hasattr(et, "TIER_STRONG") and "strong" not in et.TIERS
 
 
 @pytest.mark.parametrize(
@@ -212,20 +204,18 @@ def test_a_failed_result_has_no_cutoffs(grid):
 # --- tier assignment -----------------------------------------------------------------------------
 
 
-CAL = Calibration("selected", Cutoffs(3, 2, 0.75), Cutoffs(10, 3, 0.9))
-PROBABLE_ONLY = Calibration("selected", Cutoffs(3, 2, 0.75))
+CAL = Calibration("selected", Cutoffs(3, 2, 0.75))
 
 
 def test_without_a_calibration_no_evidence_reaches_a_tier():
     for ev in (TierEvidence(1, 1, 1.0), TierEvidence(10**6, 99, 1.0), TierEvidence(0, 0, None)):
         assert et.assign_tier(ev, None) == "uncalibrated"
-    assert {"probable", "strong"}.isdisjoint({et.assign_tier(TierEvidence(99, 9, 1.0), None)})
+    assert et.assign_tier(TierEvidence(99, 9, 1.0), None) != "probable"
 
 
-def test_probable_and_strong_follow_the_cutoffs_inclusively():
+def test_probable_follows_the_cutoffs_inclusively():
     assert et.assign_tier(TierEvidence(3, 2, 0.75), CAL) == "probable"  # exactly at the cutoffs
-    assert et.assign_tier(TierEvidence(10, 3, 0.9), CAL) == "strong"
-    assert et.assign_tier(TierEvidence(10, 3, 0.89), CAL) == "probable"
+    assert et.assign_tier(TierEvidence(10**6, 99, 1.0), CAL) == "probable"  # nothing above it
     for below in (TierEvidence(2, 2, 0.75), TierEvidence(3, 1, 0.75), TierEvidence(3, 2, 0.74)):
         assert et.assign_tier(below, CAL) == "candidate"
 
@@ -235,25 +225,13 @@ def test_unmeasured_support_never_reaches_a_tier_and_no_molecule_is_not_detected
     assert et.assign_tier(TierEvidence(0, 0, None), CAL) == "not_detected"
 
 
-def test_without_a_strong_point_strong_is_never_emitted():
-    assert et.assign_tier(TierEvidence(10**6, 99, 1.0), PROBABLE_ONLY) == "probable"
-
-
-def test_tiers_are_nested_over_the_whole_grid(grid):
-    pts = grid.points()
-    rank = {"not_detected": 0, "candidate": 1, "probable": 2, "strong": 3}
+def test_the_ladder_ends_at_probable_over_the_whole_grid(grid):
     evidence = [
         TierEvidence(m, f, x) for m in (0, 1, 5, 10) for f in (0, 1, 3) for x in (0.4, 0.75, 1.0)
     ]
-    for p, s in itertools.product(pts, pts):
-        if any(a < b for a, b in zip(s, p, strict=True)):
-            continue  # not nested: calibration_from_dict refuses it
-        for ev in evidence:
-            tier = et.assign_tier(ev, Calibration("selected", p, s))
-            # adding a strong point never removes a probable call, and a strong call is also a probable one
-            assert rank[tier] >= rank[et.assign_tier(ev, Calibration("selected", p))]
-            if tier == "strong":
-                assert et.assign_tier(ev, Calibration("selected", s)) == "probable"
+    for p in grid.points():
+        tiers = {et.assign_tier(ev, Calibration("selected", p)) for ev in evidence}
+        assert tiers <= {"not_detected", "candidate", "probable"}
 
 
 def test_a_planted_homology_pattern_cannot_reach_a_tier_under_a_failed_calibration():
@@ -270,8 +248,8 @@ def test_the_mapping_table_is_the_decided_one():
     assert et.STUDY_LEVEL_TO_PACKAGE_TIER == {
         "L0": "candidate",
         "L1": "probable",
-        "L2": "strong",
-        "L3": "strong",
+        "L2": "probable",
+        "L3": "probable",
     }
     assert set(et.STUDY_LEVEL_TO_PACKAGE_TIER.values()) <= set(et.TIERS)
 

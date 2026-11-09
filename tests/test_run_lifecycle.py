@@ -162,7 +162,7 @@ def run_main(tmp_path: Path, monkeypatch):
         argv = [
             "viralscan", "-i", str(tmp_path / "index.idx"), "-t", str(tmp_path / "t2g.txt"),
             "--r1", str(tmp_path / "a_R1.fastq"), "--r2", str(tmp_path / "a_R2.fastq"),
-            "-o", str(out), "-x", "10xv3", "--yes", *extra,
+            "-o", str(out), "-x", "10xv3", "--strand", "unstranded", "--yes", *extra,
         ]  # fmt: skip
         monkeypatch.setattr(sys, "argv", argv)
         with (

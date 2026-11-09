@@ -1616,17 +1616,14 @@ def _build_run_parser(subparsers: Any) -> None:
         choices=["forward", "reverse", "unstranded", "auto"],
         default=None,
         help=(
-            "Read strandedness passed to `kb count --strand`. Default (no flag): "
-            "with the pinned kallisto 0.52.0 the effective behaviour is "
-            "`unstranded` for every chemistry — kallisto 0.52.0 marks the 10x "
-            "technologies strand-specific yet leaves the strand unset, so the "
-            "legacy per-technology forward default no longer engages (upstream "
-            "regression; kallisto <=0.51.1 defaulted 10x to forward). Set the "
-            "flag explicitly for stranded quantification. 10x 5' libraries need "
-            "`reverse` or `unstranded`: forward pseudoaligns only 6.5-8.9%% of "
-            "reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first "
-            "1M read pairs of each sample and picks one; the choice is recorded in "
-            "run_manifest.json."
+            "Read strandedness passed to `kb count --strand`. Required unless tchem "
+            "confirms a 3' chemistry (a 10x 3' or Drop-seq layout); with 10x 5' or an "
+            "unconfirmed chemistry the run stops and prints advice, because the wrong "
+            "strand loses reads (forward pseudoaligns only 6.5-8.9%% of reads on 10x 5', "
+            "F-020). Confirmed 3' without the flag keeps the old behaviour: the pinned "
+            "kallisto 0.52.0 runs `unstranded`. `auto` (opt-in) pilots "
+            "forward/reverse/unstranded on the first 1M read pairs of each sample and "
+            "picks one; the choice is recorded in run_manifest.json."
         ),
     )
     parser.add_argument(
@@ -1718,7 +1715,7 @@ def _build_run_parser(subparsers: Any) -> None:
     parser.add_argument(
         "--infected-min-molecules",
         type=float,
-        default=None,
+        default=DEFAULTS["infected_min_molecules"],
         metavar="X",
         help=(
             "A cell is infected for a virus when its summed allocated molecules across that "
@@ -2031,6 +2028,7 @@ def _build_run_parser(subparsers: Any) -> None:
             "never on viral reads; "
             "'knee' is a sensitivity-only barcode-rank approximation, not for reported "
             "numbers (it calls empty droplets as cells on real libraries); 'none' = all barcodes. "
+            "'none' and 'knee' are refused with --host-index (CELLCALL-PCT-01). "
             f"Default: {DEFAULTS['cell_calling']}."
         ),
     )
