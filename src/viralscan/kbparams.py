@@ -164,3 +164,22 @@ def recommend_kb_parameters(
         strand=_strand(None if technology.status == CONFLICT else op, pilot_rates, tau, evidence),
         evidence=evidence,
     )
+
+
+#: tchem layouts that count as confirmed 3' for the ``--strand`` gate. Drop-seq is
+#: treated as 3' (assumption recorded in PLAN ``STRAND-EXPLICIT-01``).
+THREE_PRIME_LAYOUTS = ("10x 3'", "Drop-seq")
+
+
+def is_confirmed_three_prime(tchem_block: Optional[dict[str, Any]]) -> bool:
+    """True when the recorded tchem opinion agrees with ``-x`` and names a 3' layout.
+
+    ``-x 10xv2`` names 3' v2 and 5' v1/v2 libraries alike, so the chemistry name cannot
+    decide it. Only a tchem match whose layout starts with a 3' prefix counts. A missing,
+    unavailable, ambiguous or disagreeing opinion is not a confirmation.
+    """
+    if not tchem_block or tchem_block.get("status") != "agree":
+        return False
+    call = tchem_block.get("call") or {}
+    layout = call.get("layout") or ""
+    return call.get("verdict") == "match" and layout.startswith(THREE_PRIME_LAYOUTS)
