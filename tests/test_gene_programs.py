@@ -1512,7 +1512,9 @@ class TestReactivatingAndParameters:
         ).iloc[0]
         assert adata.n_obs == 4
         assert summary["n_cells_with_evidence"] == 2  # not 4: c2 and c3 are pruned
-        assert summary["n_cells_indeterminate_with_evidence"] == 1  # c0 only; c2, c3 were indeterminate too
+        assert (
+            summary["n_cells_indeterminate_with_evidence"] == 1
+        )  # c0 only; c2, c3 were indeterminate too
         # median over the two kept cells (3, 3); over all four called cells it would be 1.5
         assert summary["selected_productive_breadth_median"] == 3.0
 

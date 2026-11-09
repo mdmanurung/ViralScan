@@ -1315,7 +1315,9 @@ def _alignment_qc_from_text(
         record.mapq.append(int(fields[4]))
         # 5' start, as in read_start_profile.tsv: rightmost consumed reference base on the reverse strand.
         record.starts.append(
-            int(fields[3]) + max(_cigar_ref_span(fields[5]) - 1, 0) if flag & 0x10 else int(fields[3])
+            int(fields[3]) + max(_cigar_ref_span(fields[5]) - 1, 0)
+            if flag & 0x10
+            else int(fields[3])
         )
         cbumi = _cb_umi(fields[0])
         if cbumi:
@@ -2213,7 +2215,9 @@ def interpretation_flags(
         all_qc = [row for row in all_qc if row.get("count_layer") == "deduplicated"]
     qc = [row for row in all_qc if row.get("reference_class") in {"virus", "target"}]
     host_qc = [
-        row for row in all_qc if row.get("reference_class") == "host" and to_float(row.get("reads")) > 0
+        row
+        for row in all_qc
+        if row.get("reference_class") == "host" and to_float(row.get("reads")) > 0
     ]
     blast = list(blast_rows)
     queried = len(blast) if n_queried is None else int(n_queried)
@@ -2346,9 +2350,10 @@ def interpretation_flags(
                     n_hit=n_hit,
                 )
             )
-        host_value = sum(
-            r.get("diagnostic_class") in {"host_preferred", "host_competitive"} for r in blast
-        ) / queried
+        host_value = (
+            sum(r.get("diagnostic_class") in {"host_preferred", "host_competitive"} for r in blast)
+            / queried
+        )
         host = next(r for r in rows if r["flag"] == "host_homology")
         if host["status"] != "host_best_all":
             host.update(
