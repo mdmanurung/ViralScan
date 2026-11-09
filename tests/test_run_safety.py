@@ -312,6 +312,31 @@ def test_mixed_veto_options_keep_the_plain_fingerprint_unless_set(
     )
 
 
+def test_reference_host_species_and_default_min_molecules_keep_the_plain_fingerprint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DISC-FP-BUILD-01: options added after old manifests keep --resume working when unused."""
+    import viralscan.run_safety as rs
+
+    monkeypatch.setattr(rs, "__version__", "0.0.test")
+    monkeypatch.chdir(tmp_path)
+    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
+        Path(name).write_text(text)
+    Path("t2g.txt").write_text("a\tb\n")
+    base = dict(infected_min_molecules=None, detection_min_cells=None, hostresponse_min_umi=None)
+    plain = _plain_args_d1(**base, reference_host_species=None, programme_productive_min_molecules=1)
+    manifest = rs.build_run_manifest(plain)
+    assert manifest["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
+    assert "reference_host_species" not in manifest["options"]
+    assert "programme_productive_min_molecules" not in manifest["options"]
+    for key, value in [
+        ("reference_host_species", "human"),
+        ("programme_productive_min_molecules", 2),
+    ]:
+        changed = _plain_args_d1(**{**base, key: value})
+        assert rs.build_run_manifest(changed)["run_fingerprint"] != _PLAIN_RUN_FINGERPRINT
+
+
 def test_scautoqc_is_fingerprinted_only_when_enabled(tmp_path, monkeypatch):
     import viralscan.run_safety as rs
 

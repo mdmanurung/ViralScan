@@ -2016,10 +2016,13 @@ def run_discover(args: argparse.Namespace) -> None:
         **{k: cells_info[k] for k in ("called_cells_sha256", "called_cells_barcode_space")},
         "called_cells_path": cells_info.get("called_cells_path"),
     }
-    # memory_mapping, threads, paths and the software build change speed or location, not output.
+    # memory_mapping, threads and paths change speed or location, not output. The package
+    # build hash is fingerprinted (DISC-FP-BUILD-01): a fix in trim, UMI grouping or
+    # barcode correction must not return "nothing to do" with the old outputs.
     provenance["fingerprint_inputs"] = {
         "primary_run_fingerprint": provenance["primary_run_fingerprint"],
         "viralscan_version": software["version"],
+        "build_sha256": software.get("build_sha256"),
         "kraken2": {k: v for k, v in provenance["kraken2"].items() if k != "memory_mapping"},
         "polya_trim": provenance["polya_trim"],
         "db_sha256": identity["sha256"],

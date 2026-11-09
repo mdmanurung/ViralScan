@@ -428,6 +428,28 @@ def test_fingerprint_changes_with_each_input(published):
     assert json.loads((out / discovery.COMPLETE_JSON).read_text())["discovery_fingerprint"] == fp
 
 
+def test_fingerprint_follows_the_package_build_not_the_static_version(published, monkeypatch):
+    """DISC-FP-BUILD-01: a code change with the same __version__ must not resume as a no-op."""
+    import viralscan.run_safety as rs
+
+    root, out, db = published
+    marker = out / discovery.COMPLETE_JSON
+    fp = json.loads(marker.read_text())["discovery_fingerprint"]
+    prov = json.loads((out / discovery.PROVENANCE_JSON).read_text())
+    build = prov["viralscan"]["build_sha256"]
+    assert prov["fingerprint_inputs"]["build_sha256"] == build
+    real = rs.software_identity
+
+    def edited():
+        return {**real(), "build_sha256": "e" * 64}
+
+    monkeypatch.setattr(rs, "software_identity", edited)
+    assert _discover(root, out, db) == 1  # same version, new build: refused without --force
+    assert json.loads(marker.read_text())["discovery_fingerprint"] == fp
+    monkeypatch.setattr(rs, "software_identity", real)
+    assert _discover(root, out, db) == 0  # same build again: nothing to do
+
+
 def test_md5_manifest_mismatch_is_refused(tmp_path):
     db = _db(tmp_path)
     good = hashlib.md5(b"x", usedforsecurity=False).hexdigest()
