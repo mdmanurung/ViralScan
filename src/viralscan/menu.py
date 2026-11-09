@@ -1486,6 +1486,7 @@ def _build_run_config(
             "se_threshold": args.se_threshold,
             "detection_threshold": args.detection_threshold,
             # None = not given; RunConfig resolves it to the default (AUD-06/AUD-07/B-16).
+            # `infected_min_molecules` always has a value from the CLI (default 2.0).
             "infected_min_molecules": getattr(args, "infected_min_molecules", None),
             "detection_min_cells": getattr(args, "detection_min_cells", None),
             "hostresponse_min_umi": getattr(args, "hostresponse_min_umi", None),

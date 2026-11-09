@@ -71,6 +71,7 @@ def test_report_headlines_called_cell_rate(tmp_path):
         called_cells_file=str(run / "cells.txt"),
         detection_threshold=1,
         detection_min_cells=1,
+        infected_min_molecules=1.0,  # the cells hold 1 molecule; this tests denominators
     )
     detection.run(
         RunContext.from_config(cfg), str(run / "log" / "analysis.txt"), str(run / "log" / "d")

@@ -268,7 +268,7 @@ def _plain_args_d1(**extra: object) -> argparse.Namespace:
 
 @pytest.mark.parametrize(
     "key, value",
-    [("infected_min_molecules", 2.0), ("detection_min_cells", 2), ("hostresponse_min_umi", 5)],
+    [("detection_min_cells", 2), ("hostresponse_min_umi", 5)],
 )
 def test_d1_options_keep_the_plain_fingerprint_unless_set(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, value: object
@@ -281,9 +281,7 @@ def test_d1_options_keep_the_plain_fingerprint_unless_set(
     for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
         Path(name).write_text(text)
     Path("t2g.txt").write_text("a\tb\n")
-    unset = _plain_args_d1(
-        infected_min_molecules=None, detection_min_cells=None, hostresponse_min_umi=None
-    )
+    unset = _plain_args_d1(detection_min_cells=None, hostresponse_min_umi=None)
     assert rs.build_run_manifest(unset)["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
     assert rs.build_run_manifest(_plain_args_d1(**{key: value}))["run_fingerprint"] != (
         _PLAIN_RUN_FINGERPRINT
@@ -304,7 +302,7 @@ def test_mixed_veto_options_keep_the_plain_fingerprint_unless_set(
     for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
         Path(name).write_text(text)
     Path("t2g.txt").write_text("a\tb\n")
-    base = dict(infected_min_molecules=None, detection_min_cells=None, hostresponse_min_umi=None)
+    base = dict(detection_min_cells=None, hostresponse_min_umi=None)
     unset = _plain_args_d1(**base, programme_mixed_veto=None, programme_mixed_veto_alpha=None)
     assert rs.build_run_manifest(unset)["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
     assert rs.build_run_manifest(_plain_args_d1(**{**base, key: value}))["run_fingerprint"] != (
@@ -493,3 +491,23 @@ def test_resume_refuses_purged_counts(tmp_path: Path) -> None:
     assert (
         prepare_output_directory(out, manifest, resume=True, overwrite=False, yes=False) == "resume"
     )
+
+
+def test_infected_min_molecules_is_hashed_and_old_manifests_refuse_resume(
+    tmp_path: Path,
+) -> None:
+    """INFECTED-MINMOL-02: the CLI default (2.0) is in the fingerprint, so a run made
+    before the default moved (manifest without the key) refuses --resume."""
+    old_args = _args(tmp_path)  # no infected_min_molecules attribute, as before the change
+    out = Path(old_args.output)
+    prepare_output_directory(
+        out, build_run_manifest(old_args), resume=False, overwrite=False, yes=False
+    )
+    (out / "partial.txt").write_text("partial")
+    two = build_run_manifest(_args(tmp_path, infected_min_molecules=2.0))
+    one = build_run_manifest(_args(tmp_path, infected_min_molecules=1.0))
+    assert two["options"]["infected_min_molecules"] == 2.0
+    assert two["run_fingerprint"] != one["run_fingerprint"]
+    for new in (two, one):
+        with pytest.raises(RunSafetyError, match="--infected-min-molecules"):
+            prepare_output_directory(out, new, resume=True, overwrite=False, yes=False)

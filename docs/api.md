@@ -39,7 +39,7 @@ def cell_type_enrichment(
 
 Computes one-sided Fisher exact tests for each virus and cell type. A cell is
 treated as infected for a virus when the molecule total across that virus's
-listed features reaches `cfg.infected_min_molecules` (default 1.0), the same
+listed features reaches `cfg.infected_min_molecules` (default 2.0), the same
 rule that Detection and the UMAP use.
 
 Minimal example:

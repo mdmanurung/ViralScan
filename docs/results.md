@@ -54,7 +54,7 @@ the reason in `denominator_note`.
   total (default 1).
 
 A cell is infected for a virus when its summed allocated molecules reach
-`--infected-min-molecules` (default 1.0). Weaker cells are counted in
+`--infected-min-molecules` (default 2.0). Weaker cells are counted in
 `infected_subthreshold_cells`, never dropped.
 
 `detected = false` means *candidate only*: the virus had signal in the

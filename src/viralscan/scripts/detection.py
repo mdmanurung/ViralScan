@@ -506,7 +506,7 @@ def _headline_totals(
     adata,
     detected_groups,
     viral_count_matrix=None,
-    infected_min_molecules=1.0,
+    infected_min_molecules=DEFAULTS["infected_min_molecules"],
     called_mask=None,
 ) -> dict:
     """Totals that head summary.txt, for the viruses that passed the gate only.

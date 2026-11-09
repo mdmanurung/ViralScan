@@ -1715,7 +1715,7 @@ def _build_run_parser(subparsers: Any) -> None:
     parser.add_argument(
         "--infected-min-molecules",
         type=float,
-        default=None,
+        default=DEFAULTS["infected_min_molecules"],
         metavar="X",
         help=(
             "A cell is infected for a virus when its summed allocated molecules across that "

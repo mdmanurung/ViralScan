@@ -47,7 +47,7 @@ def test_compute_stats_called_gate_keeps_k_way_split_molecule(k):
         var=pd.DataFrame(index=["h1", *genes]),
     )
     found = {g: 1.0 / k for g in genes}
-    stats, _ = detection.compute_stats(a, found, {"V": genes}, genes)
+    stats, _ = detection.compute_stats(a, found, {"V": genes}, genes, infected_min_molecules=1.0)
     assert stats["V"]["detected"] is True
 
 
@@ -102,6 +102,7 @@ def test_viral_summary_through_detection_run(tmp_path, k, mass, expect):
         cell_calling="none",
         detection_threshold=1,
         detection_min_cells=1,
+        infected_min_molecules=1.0,  # the tolerance test splits one molecule
     )
     detection.run(
         RunContext.from_config(cfg), str(run / "log" / "analysis.txt"), str(run / "log" / "done")
