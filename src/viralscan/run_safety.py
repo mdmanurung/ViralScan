@@ -271,7 +271,12 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         # PROG-MIXED-VETO-01
         "programme_mixed_veto",
         "programme_mixed_veto_alpha",
+        # DISC-FP-BUILD-01: a label only, added after the manifests on disk were written.
+        "reference_host_species",
     }
+    # Options whose default reproduces the behaviour before the option existed: at that
+    # value they are omitted, so older manifests still resume (DISC-FP-BUILD-01).
+    omit_at_default = {"programme_productive_min_molecules": 1}
     options = {
         key: value
         for key, value in sorted(vars(args).items())
@@ -286,6 +291,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
             )
         )
         and not (key in omit_when_unset and value is None)
+        and not (key in omit_at_default and value == omit_at_default[key])
     }
     # Pre-fix manifests hashed these two as null when unset; keep a null so a run made
     # without them still resumes. The values themselves are not recorded.
