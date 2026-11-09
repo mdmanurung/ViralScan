@@ -56,6 +56,7 @@ from viralscan.evidence import (
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.molecule_verdict import (
     _read_number,
+    counted_read_numbers,
     select_representatives,
     write_from_bam,
     write_umi_query_fasta,
@@ -134,6 +135,42 @@ def _replay_whitelist(config: RunConfig, kb: KbCountOutputs) -> str | None:
     if candidate.exists():
         return str(candidate)
     return None
+
+
+def check_replay_matches_matrix(
+    lineage: Mapping[int, Mapping[str, Any]],
+    kb: KbCountOutputs,
+    replay_whitelist: str | None,
+) -> None:
+    """Fail when the replay did not correct barcodes the way the primary ``kb count`` did.
+
+    The whitelist is inferred from files, so a moved ``kb-python/whitelist.txt`` would silently turn
+    correction off. Two checks: the primary left ``output.unfiltered.bus`` (it corrected) but the replay
+    has no on-list; or a counted replay molecule has a barcode the primary matrix does not.
+    """
+    if replay_whitelist is None and kb.kb_corrected_bus.exists():
+        raise ValueError(
+            f"The primary run corrected barcodes ({kb.kb_corrected_bus} exists) but no on-list was "
+            f"found for the replay ({kb.root / 'whitelist.txt'} is missing); pass --whitelist."
+        )
+    if not kb.barcodes.is_file():
+        log.warning(
+            "%s is missing; replay barcodes were not checked against the matrix.", kb.barcodes
+        )
+        return
+    matrix_barcodes = set(kb.barcodes.read_text().split())
+    counted = {
+        str(row["cb"])
+        for row in lineage.values()
+        if row["assigned_weight"] not in ("", None) and float(row["assigned_weight"]) > 0  # type: ignore[arg-type]
+    }
+    extra = counted - matrix_barcodes
+    if extra:
+        raise ValueError(
+            f"{len(extra)} of {len(counted)} replay barcodes with a counted read are not in the "
+            f"primary matrix {kb.barcodes} (for example {sorted(extra)[0]}); the replay corrected "
+            "barcodes differently from the primary run."
+        )
 
 
 def replay_fastqs(config: RunConfig) -> tuple[str, str]:
@@ -586,6 +623,7 @@ def run_evidence(args: argparse.Namespace) -> None:
                 {i for i, gene in enumerate(gene_ids) if gene in viral_ids},
                 config.multimap_method,
             )
+        check_replay_matches_matrix(lineage_by_number, kb, replay_whitelist)
     except (RuntimeError, ValueError) as exc:
         _die(str(exc))
     log.info("%d exact target read records found by replay", len(lineage_by_number))
@@ -675,7 +713,9 @@ def run_evidence(args: argparse.Namespace) -> None:
                 if (number := _read_number(name)) in lineage_by_number
             ]
             if competition is None:
-                write_molecule_support(Path(bam), out)  # Q137 flags, never a filter
+                write_molecule_support(  # Q137 flags, never a filter; counted molecules only
+                    Path(bam), out, counted_read_numbers(out / "read_lineage.tsv.gz")
+                )
             # VERDICT-01: which side wins per molecule, from the same competitive alignment.
             if competition is None:
                 write_from_bam(bam, out / "read_lineage.tsv.gz", out)
