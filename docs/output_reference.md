@@ -689,12 +689,14 @@ column was removed.
 | `mixed_veto_rule` | The veto the virus was called with: `any` (one latent-veto molecule turns `productive` into `mixed`) or `betabinomial` (load-aware test); blank for a virus with no programme model | observation |
 | `mixed_veto_mean` / `mixed_veto_rho` | The beta-binomial fit used for the veto, from `gene_program_vetoes.tsv` (mean latent-veto share of a lytic cell and its overdispersion); empty when the virus has no fit | observation |
 | `mixed_veto_alpha` | The per-cell significance level of the beta-binomial veto; empty unless `mixed_veto_rule` is `betabinomial` | observation |
+| `n_cells_with_evidence` | Cells with marker evidence on at least one layer: `run_one` gives no row to a cell that is `indeterminate` with 0 breadth on all four breadth columns, so this is not the number of cells scored. The full denominator is `n_called_cells`. Renamed from `n_cells_total` (PLAN `PROG-ZEROEV-01`); values unchanged | observation |
+| `n_cells_indeterminate_with_evidence` | `indeterminate` cells among those counted in `n_cells_with_evidence`. Called cells with no marker evidence are also `indeterminate` but have no row, so they are not in this count. Renamed from `n_cells_indeterminate` (PLAN `PROG-ZEROEV-01`); values unchanged | model estimate |
 | `n_cells_reactivating` | Cells called `reactivating` on the unique layer; the string `not_applicable` where the state is unreachable (every virus but EBV, and any virus with an unresolved productive marker), so a number here is never a structural zero | model estimate |
 | `productive_breadth_median` / `latent_breadth_median` | Breadth on the unique layer | model estimate |
 | `n_cells_latent_selected_layer` / `n_cells_productive_selected_layer` | What the same rule would have called on the multimap-allocated layer — the honest comparison | model estimate |
-| `selected_*_breadth_median` | Breadth on the allocated layer, for reference | model estimate |
+| `selected_productive_breadth_median` / `selected_latent_breadth_median` | Breadth on the allocated layer, for reference. Medians over the cells with marker evidence (those counted in `n_cells_with_evidence`), not over all called cells | model estimate |
 | `layer1_molecules` | Layer 1's molecule total, so the two layers need not be joined by hand | observation |
-| `n_called_cells` | Cells scored: the called set from `called_cells.tsv`. Before 2026-10-03 (`PROG-17`) layer 2 scored every barcode in the multimap H5AD, so older `n_cells_*` counts include empty droplets | observation |
+| `n_called_cells` | Cells scored: the full called-cell denominator, the called set from `called_cells.tsv`. Before 2026-10-03 (`PROG-17`) layer 2 scored every barcode in the multimap H5AD, so older `n_cells_*` counts include empty droplets | observation |
 | `n_markers_resolved` | Catalogue markers found in this index's gene set and used for the calls (`PROG-14`); empty in summaries written before it | observation |
 | `n_markers_unresolved` | Catalogue markers absent from this index; non-zero means the calls use a reduced marker set and `panel_completeness` describes the catalogue, not this index | observation |
 | `caveat` | Why a row is weaker than it looks | diagnostic flag |
