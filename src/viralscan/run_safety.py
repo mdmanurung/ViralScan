@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from viralscan import __version__
+from viralscan.defaults import DEFAULTS
 from viralscan.outputs import LAYOUT_VERSION
 
 log = logging.getLogger(__name__)
@@ -271,6 +272,14 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         # PROG-MIXED-VETO-01
         "programme_mixed_veto",
         "programme_mixed_veto_alpha",
+        # Label only (reference_manifest.json); default None. Omitted when unset so
+        # manifests from before the flag still resume; a set value stays hashed.
+        "reference_host_species",
+    }
+    # Options added later with a non-None default: the default value is omitted, so
+    # a manifest that predates the option still matches (PROG-MINMOL-01, default 1).
+    omit_when_default = {
+        "programme_productive_min_molecules": DEFAULTS["programme_productive_min_molecules"],
     }
     options = {
         key: value
@@ -286,6 +295,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
             )
         )
         and not (key in omit_when_unset and value is None)
+        and not (key in omit_when_default and value in (None, omit_when_default[key]))
     }
     # Pre-fix manifests hashed these two as null when unset; keep a null so a run made
     # without them still resumes. The values themselves are not recorded.
