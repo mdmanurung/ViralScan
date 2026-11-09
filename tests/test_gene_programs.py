@@ -1469,6 +1469,53 @@ class TestReactivatingAndParameters:
         assert summary["n_cells_productive"] == 1
         assert summary["n_cells_productive_selected_layer"] == 2
 
+    def test_run_one_prunes_zero_evidence_cells_so_summary_totals_are_evidence_cells(
+        self,
+    ) -> None:
+        """PROG-ZEROEV-01 (pins current behaviour, no denominator chosen).
+
+        A cell with no marker evidence on either layer gets no row, so the summary's
+        ``n_cells_total`` and ``n_cells_indeterminate`` count cells with marker evidence,
+        not the called cells that were scored. ``n_called_cells`` (added by ``main``) is
+        the called-cell count. The ``selected_*_breadth_median`` columns are medians over
+        the kept cells only. Changing any of this changes a denominator: the user's call.
+        """
+        import anndata as ad
+        import numpy as np
+
+        from viralscan.scripts.gene_programs import run_one
+
+        virus = "Epstein-Barr virus"
+        catalogue = _catalog()
+        names = [
+            r["gene_id_bundled"]
+            for r in catalogue
+            if r["virus"] == virus
+            and r["programme"] == "productive"
+            and r["non_overlapping"] == "true"
+        ][:3]
+        # c0: allocated-only evidence (kept, unique state indeterminate); c1: both layers;
+        # c2, c3: no evidence on either layer (pruned, still scored as indeterminate)
+        unique = sparse.csr_matrix(
+            np.array([[0, 0, 0], [1, 1, 1], [0, 0, 0], [0, 0, 0]], dtype=np.float32)
+        )
+        alloc = sparse.csr_matrix(
+            np.array([[2, 2, 2], [1, 1, 1], [0, 0, 0], [0, 0, 0]], dtype=np.float32)
+        )
+        adata = ad.AnnData(alloc)
+        adata.var_names = names
+        adata.obs_names = ["c0", "c1", "c2", "c3"]
+        adata.layers["counts_unique_viral"] = unique
+        df = run_one(adata, [virus], catalogue, min_breadth=2, form="bundled")
+        summary = summarise_programs(
+            df, catalogue, viruses=[virus], marker_resolution=df.attrs["marker_resolution"]
+        ).iloc[0]
+        assert adata.n_obs == 4
+        assert summary["n_cells_total"] == 2  # not 4: c2 and c3 are pruned
+        assert summary["n_cells_indeterminate"] == 1  # c0 only; c2, c3 were indeterminate too
+        # median over the two kept cells (3, 3); over all four called cells it would be 1.5
+        assert summary["selected_productive_breadth_median"] == 3.0
+
     def test_marker_carries_the_catalogue_kinetic_class(self) -> None:
         catalogue = _catalog()
         resolved, _ = resolve_markers(
