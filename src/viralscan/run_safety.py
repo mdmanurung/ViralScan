@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import argparse
 import atexit
 import csv
+import functools
 import hashlib
 import json
 import logging
@@ -20,7 +22,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 from viralscan import __version__
-from viralscan.defaults import DEFAULTS
 from viralscan.outputs import LAYOUT_VERSION
 
 log = logging.getLogger(__name__)
@@ -167,6 +168,66 @@ _HASHED_KEYS = (
 )
 
 
+# Options that were added (or whose default changed) after manifests were written. A value
+# equal to the default is left out of the hash, so a manifest that predates the option and one
+# that stored the default both match an invocation that leaves it alone. One mechanism for
+# PROG-MINMOL-01, DISC-FP-BUILD-01 and FP-BASELINE-01.
+_OMIT_AT_DEFAULT = (
+    "programme_productive_min_molecules",
+    "programme_min_breadth",
+    "programme_min_umi",
+    "programme_latent_min_breadth",
+    "emptydrops_niters",
+    "emptydrops_seed",
+    "multimap_molecule_assignments",
+    "anello_align",
+    "anellovirus_gene_ids",
+    "discover",
+    "kraken2_db",
+    "star_confirm",
+    "star_hostvirus_index",
+    "tchem",
+    "tchem_bin",
+    "tchem_whitelists",
+    "gene_programs",
+    "positive_control_gene",
+    "positive_control_molecules",
+    "require_positive_control",
+)
+# Not a default: the value in force before INFECTED-MINMOL-02 raised the default to 2.0. A
+# manifest without the option was made at 1.0, so 1.0 is omitted and 2.0 is hashed.
+_OMIT_AT_LEGACY = {"infected_min_molecules": 1.0}
+
+
+@functools.lru_cache(maxsize=1)
+def _omittable_values() -> dict[str, Any]:
+    """Map each omittable option to the value that is left out of the hash.
+
+    Defaults come from the ``run`` parser, so there is no second copy to drift.
+    """
+    from viralscan.cli.parsers import _build_run_parser
+
+    subparsers = argparse.ArgumentParser().add_subparsers()
+    _build_run_parser(subparsers)
+    run_parser = subparsers.choices["run"]
+    values = {key: run_parser.get_default(key) for key in _OMIT_AT_DEFAULT}
+    return {**values, **_OMIT_AT_LEGACY}
+
+
+def _omit_at_default(key: str, value: Any) -> bool:
+    """True when ``key`` is unset or equals the value that leaves the hash unchanged."""
+    omittable = _omittable_values()
+    return key in omittable and (value is None or value == omittable[key])
+
+
+def _without_default_options(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Copy of ``manifest`` with the omittable options at their default removed."""
+    options = {
+        k: v for k, v in (manifest.get("options") or {}).items() if not _omit_at_default(k, v)
+    }
+    return {**manifest, "options": options}
+
+
 def _fingerprint(manifest: dict[str, Any], *, informational: bool = False) -> str:
     """Hash the fingerprinted fields; ``informational=True`` hashes the pre-C-12 way."""
     payload = {key: manifest[key] for key in _HASHED_KEYS if key in manifest}
@@ -187,9 +248,13 @@ def _fingerprint_matches(previous: dict[str, Any], manifest: dict[str, Any]) -> 
         return True
     # Old-style manifest: trust it only if its stored hash reproduces with cores
     # included, then compare it to this invocation with cores left out.
-    return stored == _fingerprint(previous, informational=True) and _fingerprint(
-        previous
-    ) == manifest.get("run_fingerprint")
+    wanted = manifest.get("run_fingerprint")
+    if stored == _fingerprint(previous, informational=True) and _fingerprint(previous) == wanted:
+        return True
+    # A manifest that stored an option at its default was hashed with it; this invocation
+    # leaves it out. Trust the stored hash only if it reproduces, then compare without them.
+    reproduces = stored in (_fingerprint(previous), _fingerprint(previous, informational=True))
+    return reproduces and _fingerprint(_without_default_options(previous)) == wanted
 
 
 def build_run_manifest(args: Any) -> dict[str, Any]:
@@ -277,11 +342,6 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         # manifests from before the flag still resume; a set value stays hashed.
         "reference_host_species",
     }
-    # Options added later with a non-None default: the default value is omitted, so
-    # a manifest that predates the option still matches (PROG-MINMOL-01, default 1).
-    omit_when_default = {
-        "programme_productive_min_molecules": DEFAULTS["programme_productive_min_molecules"],
-    }
     options = {
         key: value
         for key, value in sorted(vars(args).items())
@@ -296,7 +356,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
             )
         )
         and not (key in omit_when_unset and value is None)
-        and not (key in omit_when_default and value in (None, omit_when_default[key]))
+        and not _omit_at_default(key, value)
     }
     # Pre-fix manifests hashed these two as null when unset; keep a null so a run made
     # without them still resumes. The values themselves are not recorded.
