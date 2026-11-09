@@ -322,7 +322,9 @@ def test_reference_host_species_and_default_min_molecules_keep_the_plain_fingerp
         Path(name).write_text(text)
     Path("t2g.txt").write_text("a\tb\n")
     base = dict(infected_min_molecules=None, detection_min_cells=None, hostresponse_min_umi=None)
-    plain = _plain_args_d1(**base, reference_host_species=None, programme_productive_min_molecules=1)
+    plain = _plain_args_d1(
+        **base, reference_host_species=None, programme_productive_min_molecules=1
+    )
     manifest = rs.build_run_manifest(plain)
     assert manifest["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
     assert "reference_host_species" not in manifest["options"]
@@ -497,7 +499,8 @@ def test_infected_min_molecules_is_hashed_and_old_manifests_refuse_resume(
     tmp_path: Path,
 ) -> None:
     """INFECTED-MINMOL-02: the CLI default (2.0) is in the fingerprint, so a run made
-    before the default moved (manifest without the key) refuses --resume."""
+    before the default moved (manifest without the key) refuses --resume unless it is
+    resumed with --infected-min-molecules 1."""
     old_args = _args(tmp_path)  # no infected_min_molecules attribute, as before the change
     out = Path(old_args.output)
     prepare_output_directory(
@@ -508,6 +511,9 @@ def test_infected_min_molecules_is_hashed_and_old_manifests_refuse_resume(
     one = build_run_manifest(_args(tmp_path, infected_min_molecules=1.0))
     assert two["options"]["infected_min_molecules"] == 2.0
     assert two["run_fingerprint"] != one["run_fingerprint"]
-    for new in (two, one):
-        with pytest.raises(RunSafetyError, match="--infected-min-molecules"):
-            prepare_output_directory(out, new, resume=True, overwrite=False, yes=False)
+    # FP-BASELINE-01: 1.0 is the value an old run used, so it is left out of the hash and
+    # the old run resumes; the new default 2.0 is hashed and refuses.
+    assert "infected_min_molecules" not in one["options"]
+    with pytest.raises(RunSafetyError, match="--infected-min-molecules"):
+        prepare_output_directory(out, two, resume=True, overwrite=False, yes=False)
+    assert prepare_output_directory(out, one, resume=True, overwrite=False, yes=False) == "resume"
