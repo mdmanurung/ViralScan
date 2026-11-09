@@ -1431,6 +1431,21 @@ _CAPTURE_STATUS_BY_CONTROL = {
 }
 
 
+def _depth_na_reason(adata) -> Optional[str]:
+    """Why the LOD95 depth term cannot be certified for this matrix, or None (LOD95-DEPTH-01)."""
+    if adata.uns.get("index_kind") == "virus_only":
+        return (
+            "index_kind is virus_only, so the quantified total counts viral molecules, "
+            "not host molecules"
+        )
+    if adata.uns.get("gene_identity_source") == "unavailable":
+        return (
+            "gene_identity_source is unavailable, so host and viral columns cannot be "
+            "told apart and the quantified total may not be host depth"
+        )
+    return None
+
+
 def build_sensitivity_records(
     adata,
     virus_stats,
@@ -1468,6 +1483,7 @@ def build_sensitivity_records(
     out_of_scope = _CAPTURE_STATUS_BY_CONTROL.get(control_detail.get("status"))
     undetected = sorted(set(index_viruses) - set(virus_stats))
     rows = [(v, s, True) for v, s in virus_stats.items()] + [(v, {}, False) for v in undetected]
+    depth_na_reason = _depth_na_reason(adata)
     records = []
     for virus, stats, detected in rows:
         observed = float(stats.get("viral_molecules_total_est", 0) or 0)
@@ -1493,6 +1509,7 @@ def build_sensitivity_records(
                 notes=notes,
                 detected=detected,
                 capture_status=None if capture is not None else out_of_scope,
+                depth_na_reason=depth_na_reason,
             )
         )
     return records

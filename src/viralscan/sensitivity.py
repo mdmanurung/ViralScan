@@ -414,6 +414,9 @@ CAPTURE_NOT_MEASURED = "not-measured"  # no control configured (or no reason giv
 BLOCKER_DETECTED = "detected"  # a call, not a negative
 BLOCKER_NO_CAPTURE = "capture-not-measured"
 BLOCKER_DEPTH = "depth-insufficient"
+BLOCKER_DEPTH_NA = "depth-not-certifiable"  # no host depth to express the limit against
+#: Text written in place of a depth-derived field that cannot be certified (LOD95-DEPTH-01).
+DEPTH_NA = "NA"
 
 
 @dataclass(frozen=True)
@@ -490,6 +493,13 @@ class SensitivityRecord:
         with no capture term established does not certify an absence.
     negative_blockers:
         Codes explaining why ``informative`` is false (empty when it is true).
+    depth_na_reason:
+        Set when the run has no host depth to express the limit against (virus-only
+        index, or host and viral columns not separable). Then ``lod95_per_10k`` is
+        NaN, ``depth_sufficient`` and ``depth_only_sufficient`` are None,
+        ``lod_interpretation`` is ``NA``, and ``informative`` is false. The TSV shows
+        ``NA`` in those four columns. ``lod95_molecules`` does not use depth and is
+        unchanged (LOD95-DEPTH-01).
     """
 
     virus_name: str
@@ -502,8 +512,8 @@ class SensitivityRecord:
     lod95_per_10k: float
     lod95_molecules: float
     expected_observed_molecules_at_lod95: float
-    depth_only_sufficient: bool
-    depth_sufficient: bool
+    depth_only_sufficient: bool | None
+    depth_sufficient: bool | None
     capture_measured: bool
     capture_status: str
     sensitivity_eligible: bool
@@ -512,6 +522,7 @@ class SensitivityRecord:
     lod_interpretation: str
     negative_blockers: tuple[str, ...] = field(default_factory=tuple)
     notes: tuple[str, ...] = field(default_factory=tuple)
+    depth_na_reason: str | None = None
 
     def as_row(self) -> dict[str, Any]:
         """Flatten to a TSV row (finite floats, or None where nothing was measured).
@@ -520,6 +531,7 @@ class SensitivityRecord:
         uncertified row is the depth-only floor, and printing it would read as a
         measurement.
         """
+        na = self.depth_na_reason is not None
         return {
             "virus_name": self.virus_name,
             "observed_molecules": self.observed_molecules,
@@ -528,12 +540,12 @@ class SensitivityRecord:
             "capture": self.capture if self.capture_measured else None,
             "capture_measured": self.capture_measured,
             "capture_status": self.capture_status,
-            "lod95_per_10k": self.lod95_per_10k,
+            "lod95_per_10k": DEPTH_NA if na else self.lod95_per_10k,
             "lod95_molecules": self.lod95_molecules,
             "lod95_expected_observed_molecules": self.expected_observed_molecules_at_lod95,
-            "lod_interpretation": self.lod_interpretation,
-            "depth_only_sufficient": self.depth_only_sufficient,
-            "depth_sufficient": self.depth_sufficient,
+            "lod_interpretation": DEPTH_NA if na else self.lod_interpretation,
+            "depth_only_sufficient": DEPTH_NA if na else self.depth_only_sufficient,
+            "depth_sufficient": DEPTH_NA if na else self.depth_sufficient,
             "sensitivity_eligible": self.sensitivity_eligible,
             "informative_negative": self.informative,
             "negative_blockers": ";".join(self.negative_blockers),
@@ -583,6 +595,7 @@ def sensitivity_record(
     notes: tuple[str, ...] = (),
     detected: bool | None = None,
     capture_status: str | None = None,
+    depth_na_reason: str | None = None,
 ) -> SensitivityRecord:
     """Build a :class:`SensitivityRecord` for one virus in one run.
 
@@ -595,6 +608,11 @@ def sensitivity_record(
     inferred as ``observed_molecules >= detection_threshold``, which is only
     right for callers that have no better information. ``capture_status``
     records *why* capture is not measured (see :class:`SensitivityRecord`).
+
+    ``depth_na_reason`` is passed when ``depth`` is not a host-molecule total (a
+    virus-only index, or host columns that cannot be told apart). The depth-derived
+    fields are then not certifiable and the record can never be an informative
+    negative (LOD95-DEPTH-01).
     """
     if detection_threshold < 1:
         raise ValueError(f"detection_threshold must be >= 1, got {detection_threshold!r}")
@@ -620,19 +638,30 @@ def sensitivity_record(
     depth_only_sufficient = (
         lod95_per_10k(depth, capture=1.0, threshold=detection_threshold) <= abundance_ceiling
     )
-    eligible = depth_sufficient and capture_measured
+    depth_na = depth_na_reason is not None
+    if depth_na:
+        lod_10k = math.nan
+        depth_sufficient = depth_only_sufficient = None
+    eligible = bool(depth_sufficient) and capture_measured
     informative = eligible and not detected
     blockers = tuple(
         code
         for code, active in (
             (BLOCKER_DETECTED, detected),
             (BLOCKER_NO_CAPTURE, not capture_measured),
-            (BLOCKER_DEPTH, not depth_sufficient),
+            (BLOCKER_DEPTH, depth_sufficient is False),
+            (BLOCKER_DEPTH_NA, depth_na),
         )
         if active
     )
     expected_observed = LOD95_MOLECULES * detection_threshold
     all_notes = list(notes)
+    if depth_na:
+        all_notes.append(
+            f"lod95_per_10k, depth_sufficient, depth_only_sufficient and lod_interpretation "
+            f"are NA, not certifiable: {depth_na_reason}. lod95_molecules does not use depth "
+            "and is unchanged"
+        )
     if not capture_measured:
         all_notes.append(
             "capture assumed 1.0 (exact reference match) and NOT measured; the "
@@ -656,7 +685,9 @@ def sensitivity_record(
                 f"{observed_molecules:g} molecule(s) observed but below the detection "
                 "gate: not called, and not a true absence either"
             )
-        if capture_measured and depth_sufficient:
+        if depth_na:
+            tail = "depth is not certifiable for this run, so this negative is not certifiable"
+        elif capture_measured and depth_sufficient:
             tail = (
                 "depth is sufficient and capture was measured in scope, so this "
                 "negative is certifiable for that scope only"
@@ -693,9 +724,10 @@ def sensitivity_record(
         sensitivity_eligible=eligible,
         informative=informative,
         capture=capture,
-        lod_interpretation=classify_lod(lod_10k),
+        lod_interpretation=DEPTH_NA if depth_na else classify_lod(lod_10k),
         negative_blockers=blockers,
         notes=tuple(all_notes),
+        depth_na_reason=depth_na_reason,
     )
 
 
@@ -826,10 +858,22 @@ def sensitivity_statement(
     """
     if depth <= 0:
         return _NOT_ESTIMABLE
-    head, verdict = _limit_sentences(
-        depth, detection_threshold, 1.0, False, abundance_ceiling, per_target=True
-    )
-    parts = [head, verdict]
+    na_reasons = sorted({r.depth_na_reason for r in records if r.depth_na_reason})
+    if na_reasons:
+        parts = [
+            "Detection limit per 10k host UMI: NA, not certifiable ("
+            + "; ".join(na_reasons)
+            + "). lod95_per_10k, depth_sufficient, depth_only_sufficient and "
+            "lod_interpretation are NA, and no negative is an informative negative. "
+            f"Quantified depth: {depth:,.0f} molecules. The required true molecules "
+            "(lod95_molecules) do not use depth and are still reported."
+        ]
+    else:
+        parts = list(
+            _limit_sentences(
+                depth, detection_threshold, 1.0, False, abundance_ceiling, per_target=True
+            )
+        )
 
     called = sorted(r.virus_name for r in records if r.detected)
     if called:
@@ -852,7 +896,13 @@ def sensitivity_statement(
     if other:
         reasons: dict[str, int] = {}
         for r in other:
-            key = r.capture_status + (", depth-insufficient" if not r.depth_sufficient else "")
+            key = r.capture_status + (
+                ", depth-NA"
+                if r.depth_sufficient is None
+                else ", depth-insufficient"
+                if not r.depth_sufficient
+                else ""
+            )
             reasons[key] = reasons.get(key, 0) + 1
         listing = "; ".join(f"{n} x {k}" for k, n in sorted(reasons.items()))
         text = (
