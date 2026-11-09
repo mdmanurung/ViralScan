@@ -4,8 +4,8 @@ All tests here run without network access (no HTTP, no NCBI calls).
 Network-dependent integration tests are marked with @pytest.mark.network.
 """
 
-import hashlib
 import gzip
+import hashlib
 import json
 import random
 import shutil
