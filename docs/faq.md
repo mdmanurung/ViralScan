@@ -174,7 +174,7 @@ droplets. A virus is detected when at least `--detection-min-cells` (default 1)
 called cells are infected and the called cells hold at least
 `--detection-threshold` (default 1) of its molecules in total. A cell is
 infected for a virus when its summed allocated molecules reach
-`--infected-min-molecules` (default 1.0); weaker cells are counted as
+`--infected-min-molecules` (default 2.0); weaker cells are counted as
 `infected_subthreshold_cells`, not dropped. Viruses seen only in the all-barcode
 screen stay in `viral_summary.tsv` as candidates (`detected` = False) with their
 `background_umis`.

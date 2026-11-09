@@ -119,6 +119,12 @@ class TestDefaults:
     def test_detection_threshold_default(self) -> None:
         assert _parse([]).detection_threshold == DEFAULTS["detection_threshold"]
 
+    def test_infected_min_molecules_default_is_two(self) -> None:
+        """INFECTED-MINMOL-02: a concrete 2.0, so the run fingerprint carries it."""
+        assert DEFAULTS["infected_min_molecules"] == 2.0
+        assert _parse([]).infected_min_molecules == 2.0
+        assert _parse(["--infected-min-molecules", "1"]).infected_min_molecules == 1.0
+
     def test_min_counts_default(self) -> None:
         assert _parse([]).min_counts == DEFAULTS["min_counts"]
 

@@ -265,7 +265,8 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "hostresponse_min_negative_cells",
         "hostresponse_min_groups",
         # AUD-06/AUD-07/B-16: unset keeps the pre-existing fingerprint.
-        "infected_min_molecules",
+        # `infected_min_molecules` is not here: the CLI always sets it (default 2.0,
+        # INFECTED-MINMOL-02), so it is hashed and a manifest without it refuses --resume.
         "detection_min_cells",
         "hostresponse_min_umi",
         # PROG-MIXED-VETO-01
