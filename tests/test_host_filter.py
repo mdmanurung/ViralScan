@@ -315,3 +315,74 @@ class TestHostFilterToolPreflight:
     def test_kallisto_is_rejected_even_when_installed(self) -> None:
         with pytest.raises(ValueError, match="not available in ViralScan v3"):
             check_host_filter_tools("kallisto")
+
+
+class TestStarsoloFilterWhitelist:
+    """User decision 2026-11-09: named 10x chemistries use the bundled on-list."""
+
+    @staticmethod
+    def _star_cmd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, technology, whitelist):
+        write_fastq(tmp_path / "in_R1.fastq.gz", [("kept/1", "A" * 28)])
+        write_fastq(tmp_path / "in_R2.fastq.gz", [("kept/2", "ACGT")])
+        calls = []
+
+        def fake_star(cmd, check):
+            calls.append(cmd)
+            star_tmp = tmp_path / "star_tmp"
+            (star_tmp / "Unmapped.out.mate1").write_text("@kept/2\nACGT\n+\nIIII\n")
+            (star_tmp / "Unmapped.out.mate2").write_text(
+                "@kept/1\n" + "A" * 28 + "\n+\n" + "I" * 28 + "\n"
+            )
+
+        monkeypatch.setattr(host_filter.subprocess, "run", fake_star)
+        host_filter._starsolo_filter(
+            str(tmp_path / "in_R1.fastq.gz"),
+            str(tmp_path / "in_R2.fastq.gz"),
+            "/host",
+            technology,
+            whitelist,
+            tmp_path,
+            str(tmp_path / "R1.fastq.gz"),
+            str(tmp_path / "R2.fastq.gz"),
+            1,
+        )
+        cmd = calls[0]
+        return cmd[cmd.index("--soloCBwhitelist") + 1]
+
+    @pytest.mark.parametrize("technology", ["10xv2", "10xv3"])
+    def test_named_10x_without_w_gets_the_bundled_onlist(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, technology: str
+    ) -> None:
+        from viralscan.chemistry import onlist_path
+
+        arg = self._star_cmd(tmp_path, monkeypatch, technology, None)
+
+        assert arg != "None"
+        assert not arg.endswith(".gz")  # STAR cannot read gzip
+        with gzip.open(onlist_path(technology), "rt") as handle:
+            assert Path(arg).read_text() == handle.read()
+
+    def test_dropseq_without_w_keeps_star_none(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assert self._star_cmd(tmp_path, monkeypatch, "dropseq", None) == "None"
+
+    def test_explicit_w_wins_over_the_bundled_onlist(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        wl = tmp_path / "mine.txt"
+        wl.write_text("AAACCCAAGAAACACT\n")
+
+        assert self._star_cmd(tmp_path, monkeypatch, "10xv3", str(wl)) == str(wl)
+
+    def test_explicit_gzipped_w_is_decompressed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        gz = tmp_path / "mine.txt.gz"
+        with gzip.open(gz, "wt") as fh:
+            fh.write("AAACCCAAGAAACACT\n")
+
+        arg = self._star_cmd(tmp_path, monkeypatch, "10xv3", str(gz))
+
+        assert not arg.endswith(".gz")
+        assert Path(arg).read_text() == "AAACCCAAGAAACACT\n"

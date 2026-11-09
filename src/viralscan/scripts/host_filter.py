@@ -37,10 +37,10 @@ from pathlib import Path
 from typing import Optional
 
 from viralscan.evidence import cb_umi_geometry
-from viralscan.utils import open_maybe_gzip
 from viralscan.runconfig import RunConfig
+from viralscan.star_hostvirus import resolve_whitelist
 from viralscan.star_run import plain_whitelist
-from viralscan.utils import setup_script_logging
+from viralscan.utils import open_maybe_gzip, setup_script_logging
 
 log = setup_script_logging()
 
@@ -358,7 +358,9 @@ def starsolo_barcode_args(technology: str, whitelist: Optional[str]) -> list[str
     exactly CB+UMI long. 10x 5' libraries ship a 150 bp R1 (barcode, UMI, TSO,
     then cDNA), and without it STAR aborts with "barcode read length 150 not
     equal to expected 28". *whitelist* must already be plain text; ``None``
-    passes STAR's literal ``None`` (accept every barcode).
+    passes STAR's literal ``None`` (accept every barcode). ``_starsolo_filter``
+    resolves named 10x chemistries to the bundled on-list first (user decision
+    2026-11-09), so ``None`` reaches STAR only for Drop-seq and custom geometries.
     """
     cb_len, umi_len = cb_umi_geometry(technology)
     return [
@@ -422,7 +424,7 @@ def _starsolo_filter(
         r1,
         "--readFilesCommand",
         read_files_cmd,
-        *starsolo_barcode_args(technology, _plain_whitelist(whitelist, star_tmp)),
+        *starsolo_barcode_args(technology, resolve_whitelist(technology, whitelist, star_tmp)),
         "--soloFeatures",
         "GeneFull",
         "--outSAMtype",

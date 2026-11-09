@@ -74,7 +74,7 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--technology STRING` | `-x` | `10xv3` | Single-cell technology (`kb --list` for all) |
-| `--whitelist PATH` | `-w` | *(bundled)* | Barcode whitelist file |
+| `--whitelist PATH` | `-w` | *(bundled)* | Barcode whitelist file. The STAR host filter (`--host-filter starsolo`) uses it too; without `-w`, named 10x chemistries use the bundled on-list and Drop-seq or custom `bc:umi:seq` geometries pass STAR `None` |
 | `--strand {forward,reverse,unstranded,auto}` | | *(required unless tchem confirms 3′)* | Read strandedness passed to `kb count --strand`. Without the flag the run stops and prints `kbparams` advice, unless tchem confirms a 3′ chemistry (a `10x 3'` or `Drop-seq` layout); a confirmed 3′ run then keeps `unstranded` under the pinned kallisto. 10x 5′ libraries need `reverse` or `unstranded` (F-020). On `--resume` the check is skipped when the manifest records a strand or kb already finished. `auto` (opt-in) pilots all three on the first 1M read pairs per sample and picks `reverse` or `forward` if it keeps ≥0.8 of the unstranded pseudoalignment rate (larger ratio wins, tie → `unstranded`), else `unstranded`; recorded as `strand_inference` in `run_manifest.json` and reused on `--resume` |
 | `--cores N` | `-c` | `6` | CPU cores |
 | `--multimapping` / `--no-multimapping` | | on | Multimapping correction |
