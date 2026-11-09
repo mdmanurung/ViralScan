@@ -1,8 +1,7 @@
 # Reference updates and manifest compatibility
 
-> **Draft for maintainer approval (PLAN `OPS-02`).** Cadences are proposals;
-> the invariants in the first section are not. Anything tagged
-> **DRAFT: maintainer decision** is a policy choice the repository does not fix.
+> **Accepted as proposed (PLAN `OPS-02`, user decision 2026-11-04).** The triggers and the contents of
+> a new version below are the policy. No review interval was proposed, so it is marked "not set".
 
 ## Invariants
 
@@ -27,14 +26,14 @@
 6. **Thresholds are not retuned retrospectively** when a reference is refreshed
    (PLAN `OPS-05`).
 
-## Update cadence (proposed)
+## Update cadence
 
-**DRAFT: maintainer decision**: the review interval, the triggers and the contents of a
-new version below. Nothing in the repository enforces a cadence.
+The triggers and the contents of a new version below are accepted. Nothing in the repository
+enforces a cadence.
 
 | Trigger | Action |
 |---|---|
-| Scheduled review (interval: DRAFT: maintainer decision) | Re-check source accessions in RefSeq/GenBank for withdrawn, suspended or superseded records; compare against the manifest; publish a new version only if something material changed |
+| Scheduled review (interval: not set, no value proposed) | Re-check source accessions in RefSeq/GenBank for withdrawn, suspended or superseded records; compare against the manifest; publish a new version only if something material changed |
 | A reported error (wrong annotation, wrong taxon, contaminated record) | Treated as a scientific incident; new reference version plus a note on which prior results are affected |
 | New viral taxa of interest | Added as a new version through the profile mechanism (`--profile`); never silently into an existing one |
 | Code release | Does not by itself change a reference; panels are reviewed independently of code releases, as `SUPPORT.md` states |
@@ -111,4 +110,4 @@ compared with `python scripts/compare_reference_reproducibility.py A.json B.json
 establish deterministic preparation and mocked t2g content. They do not prove
 binary kallisto index reproducibility or a real full-panel rebuild.
 
-<!-- MAINTAINER: choose the reference review interval and approve every item tagged DRAFT: maintainer decision before OPS-02 closes. -->
+<!-- MAINTAINER: choose the reference review interval before OPS-02 closes. -->

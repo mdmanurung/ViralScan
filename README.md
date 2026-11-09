@@ -34,7 +34,7 @@ is built with Sphinx from `docs/` (`pip install ".[docs]"`, then
 ## Features
 
 - **195 pre-bundled viral reference annotations** (GTF) covering common
-  human-infecting viruses, distributed separately through Zenodo
+  human-infecting viruses, kept as the bundled cache (a Zenodo archive follows once its DOI is registered)
 - **Host-aware reference building** with `viralscan build-ref` for combined
   host + virus kallisto indexes
 - **Molecule-aware multimapping** uses `host-conservative` by default so

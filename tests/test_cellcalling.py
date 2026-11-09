@@ -618,6 +618,8 @@ class TestReportBothDenominators:
             )
         )
 
+        # the per-10k burden needs host genes in the index (MECH-F): declare h1 as the host gene
+        self.adata.var["gene_role"] = ["unknown", "unknown", "host"]
         stats, per_cell = compute_stats(self.adata, {}, self.group, [], viral_count_matrix=primary)
         s = stats["virusA"]
 

@@ -315,8 +315,8 @@ alignment branch below.
 | `infected_subthreshold_called` | The same, restricted to called cells | model estimate |
 | `background_umis` | Viral molecules in barcodes that are **not** called cells (empty droplets), i.e. `viral_molecules_total_est` minus the molecules in called cells. They never count toward the detection gate. Molecules outside called cells can come from ambient RNA, barcode swapping or empty droplets; this column does not tell which. With `--cell-calling none` every barcode is called and it is 0. The `ambient_*` and `soup_*` columns below size and test this signal | model estimate |
 | `detected` | `true` when the virus passes the called-cell gate: at least `--detection-min-cells` (default 1) called cells are infected, **and** the called cells hold at least `--detection-threshold` of its molecules in total (compared with a relative tolerance of 1e-6, the same as the infected-cell rule, so a molecule split over several genes whose float shares sum to just under 1 still counts as 1). `false` marks a candidate that has signal in the all-barcode screen but misses the called-cell gate (for example, signal only in empty droplets). Passing is candidate evidence, not a confirmed infection, and does not exclude ambient RNA | evidence tier |
-| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000. **Blank (NA) in a two-step run** (the full matrix is the virus-only matrix, so the ratio would read 10,000 whatever the load); see `denominator_note` | model estimate |
-| `denominator_note` | Why `pct_infected` and `viral_molecules_per_10k_est` are blank, in a two-step run; empty otherwise (combined-index runs, values unchanged) | diagnostic flag |
+| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000. **Blank (NA) in a two-step run** (the full matrix is the virus-only matrix, so the ratio would read 10,000 whatever the load) and **blank (NA) when the index has no host genes** (a virus-only index or unavailable gene identity; never a silent virus-only fallback; MECH-F); see `denominator_note` | model estimate |
+| `denominator_note` | Why `pct_infected` and `viral_molecules_per_10k_est` are blank, in a two-step run, or why `viral_molecules_per_10k_est` alone is blank when the index has no host genes (`pct_infected` keeps its barcode denominator); empty otherwise (combined-index runs, values unchanged) | diagnostic flag |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below | observation |
 | `infected_called` | Infected cells (same `--infected-min-molecules` rule) restricted to the called-cell set | model estimate |
 | `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below | model estimate |
@@ -461,17 +461,17 @@ a zero otherwise cannot: *is there nothing there, or did we not look hard enough
 | `capture` | Measured recovery of the positive control, only on rows that control certifies; **empty** otherwise (the depth-only floor is not printed as a measurement) | observation |
 | `capture_measured` | `true` only if the capture term came from a valid positive control whose scope covers this virus: never a default, another virus's control, a failed control or an over-recovered one | diagnostic flag |
 | `capture_status` | Why: `measured`, `not-measured` (no control configured), `control-out-of-scope` (a control was measured but its scope does not cover this row, including every `panel_mechanics` control), `control-failed`, `control-over-recovered`, `control-gene-missing` | diagnostic flag |
-| `lod95_per_10k` | True viral molecules per 10k host molecules at which the virus would be reported with at least 95 % probability, **adjusted by the effective capture** (1.0 when capture is not measured, so the depth-only floor; a measured capture above 1 is clamped to 1) <!-- viralscan-claim:lod95-poisson-depth-floor status=validated_v3 --> | model estimate |
+| `lod95_per_10k` | True viral molecules per 10k host molecules at which the virus would be reported with at least 95 % probability, **adjusted by the effective capture** (1.0 when capture is not measured, so the depth-only floor; a measured capture above 1 is clamped to 1) <!-- viralscan-claim:lod95-poisson-depth-floor status=validated_v3 -->. `NA` when `index_kind` is `virus_only` or `gene_identity_source` is `unavailable` (no host depth to express it against; LOD95-DEPTH-01) | model estimate |
 | `lod95_molecules` | **Required true** molecules at that limit: `2.996 x detection_threshold / capture`. For `depth > 0` it equals `depth x lod95_per_10k / 1e4`. At capture 0.5 and threshold 1 it is 5.991, not 2.996 | model estimate |
 | `lod95_expected_observed_molecules` | **Expected observed** molecules at that limit: `2.996 x detection_threshold`, independent of capture. `lod95_molecules x capture` equals this | model estimate |
-| `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth`, from the capture-adjusted `lod95_per_10k` | diagnostic flag |
-| `depth_only_sufficient` | The LOD95 at capture 1.0 (depth alone) is in the `informative` band (at most 0.01 per 10k) | diagnostic flag |
-| `depth_sufficient` | The capture-adjusted `lod95_per_10k` is in the `informative` band. Legacy column, defined this way: it equals `depth_only_sufficient` for every row without a measured capture, and is stricter where capture costs depth | diagnostic flag |
+| `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth`, from the capture-adjusted `lod95_per_10k`. `NA` in the same runs | diagnostic flag |
+| `depth_only_sufficient` | The LOD95 at capture 1.0 (depth alone) is in the `informative` band (at most 0.01 per 10k). `NA` in the same runs | diagnostic flag |
+| `depth_sufficient` | The capture-adjusted `lod95_per_10k` is in the `informative` band. Legacy column, defined this way: it equals `depth_only_sufficient` for every row without a measured capture, and is stricter where capture costs depth. `NA` in the same runs | diagnostic flag |
 | `sensitivity_eligible` | `depth_sufficient` **and** `capture_measured`: an adequate, measured sensitivity estimate exists for the row. Says nothing about the result | diagnostic flag |
-| `informative_negative` | `sensitivity_eligible` **and not** `detected`. Always `false` for a called virus | diagnostic flag |
-| `negative_blockers` | `;`-joined reasons `informative_negative` is false: `detected`, `capture-not-measured`, `depth-insufficient`. Empty when it is true | diagnostic flag |
-| `expected_molecules_at_1_per_10k` | Expected observed molecules for a virus at 1 estimated molecule per 10k host molecules (cf. `viral_molecules_per_10k_est`) | model estimate |
-| `p_detect_at_1_per_10k` | Probability of clearing the threshold at that abundance | model estimate |
+| `informative_negative` | `sensitivity_eligible` **and not** `detected`. Always `false` for a called virus. Always `false` in the same runs | diagnostic flag |
+| `negative_blockers` | `;`-joined reasons `informative_negative` is false: `detected`, `capture-not-measured`, `depth-insufficient`, `depth-not-certifiable` (depth fields `NA`). Empty when it is true | diagnostic flag |
+| `expected_molecules_at_1_per_10k` | Expected observed molecules for a virus at 1 estimated molecule per 10k host molecules (cf. `viral_molecules_per_10k_est`). `NA` in the same runs (virus-only index or unavailable gene identity) | model estimate |
+| `p_detect_at_1_per_10k` | Probability of clearing the threshold at that abundance. `NA` in the same runs | model estimate |
 | `p_zero_at_lod95` | ≈ 0.05 by construction; reported so the arithmetic is checkable | model estimate |
 | `notes` | Why the LOD is a bound rather than an estimate, when a row is zero, etc. | diagnostic flag |
 
@@ -938,20 +938,20 @@ it does not replace `viral_summary.tsv` or change its default schema.
 
 The default `multimap_method` is `host-conservative` (keeps host-virus ambiguous
 mass off viral genes); use `equal` for an equal-allocation comparison. These are
-molecule-evidence tiers only. `probable` and `strong` require calibrated
-read-level evidence and are never assigned from molecule counts alone.
+molecule-evidence tiers only. `probable` requires calibrated
+read-level evidence and is never assigned from molecule counts alone. There is no `strong` tier in 3.0.
 
 (evidence-tiers)=
-### Probable and strong tiers (`viralscan.evidence_tiers`, PLAN `TIER-01`)
+### Probable tier (`viralscan.evidence_tiers`, PLAN `TIER-01`)
 
-The `evidence_tier` column above is never `probable` or `strong`. Those two tiers come from
+The `evidence_tier` column above is never `probable`. That tier comes from
 `viralscan.evidence_tiers`, a pure module (no file I/O, not yet wired into `detection` or the Snakefile)
 built to the frozen `calibration.threshold_search` contract in `ViralScan-reproducibility/analysis/v3_validation/protocol.yaml`:
 
 - the cutoff triple is (distinct supporting molecules per cell, distinct supporting features per sample,
   exact-fragment support fraction), searched over the protocol's 45-point grid, read by
   `grid_from_protocol`; no cutoff off the grid is accepted;
-- a grid point is eligible only with zero probable-or-strong calls in synthetic host-only and in planted
+- a grid point is eligible only with zero probable calls in synthetic host-only and in planted
   host-homology training negatives; among eligible points within one standard error of the best training
   F1, the most conservative wins (largest molecule cutoff, then feature cutoff, then support fraction);
 - no eligible point means calibration failed: the tier is `no_tier`, never a relaxed point;
@@ -959,8 +959,8 @@ built to the frozen `calibration.threshold_search` contract in `ViralScan-reprod
   an unmeasured support fraction never reaches a tier. The molecule cut-off carries the same 1e-6 relative
   slack as `infected_masks` (`INFECTED_RELATIVE_TOLERANCE`), so 1.999999 molecules meets a cut-off of 2;
   `assign_tier` has no production caller yet, so no shipped output is affected;
-- the grid defines only *probable-or-stronger*. `strong` exists only as a caller-supplied grid point at least as
-  strict as `probable` on every cutoff; without one, `strong` is never emitted.
+- there is no `strong` tier in 3.0 (user decision 2026-11-04). The grid defines only `probable`, and a
+  calibration result that carries a `strong` point is refused.
 
 Package tiers and the study claim levels (`scripts/adjudicate_candidates.py`, `level`) are separate scales. The
 adjudicator's last column `package_tier_analogue` is the one explicit mapping between them. It names the analogue
@@ -971,8 +971,8 @@ molecule-count rule, and a study level adds read-level evidence on top of its pa
 |-------------|-----------------------|
 | `L0` | `candidate` |
 | `L1` | `probable` |
-| `L2` | `strong` |
-| `L3` | `strong` (the gene-programme gate has no package counterpart) |
+| `L2` | `probable` (the highest package tier; there is no `strong` tier in 3.0) |
+| `L3` | `probable` (the gene-programme gate has no package counterpart) |
 
 (molecule-assignments)=
 ## `molecule_assignments.tsv.gz`
