@@ -982,7 +982,7 @@ def summarise_programs(
         rows.append(
             {
                 "virus_name": virus,
-                "n_cells_total": n_total,
+                "n_cells_with_evidence": n_total,
                 "n_cells_productive": int(counts.get("productive", 0)),
                 "n_cells_latent": 0 if not observable else int(counts.get("latent", 0)),
                 "n_cells_reactivating": int(counts.get("reactivating", 0))
@@ -992,7 +992,7 @@ def summarise_programs(
                 # PROG-MIXED-VETO-01: the productive/mixed split is load-driven, their sum is not.
                 "n_cells_lytic_programme": int(counts.get("productive", 0))
                 + (0 if not observable else int(counts.get("mixed", 0))),
-                "n_cells_indeterminate": int(counts.get("indeterminate", 0)),
+                "n_cells_indeterminate_with_evidence": int(counts.get("indeterminate", 0)),
                 "n_cells_productive_selected_layer": n_prod_sel,
                 "n_cells_latent_selected_layer": n_lat_sel,
                 "productive_breadth_median": prod_med,
