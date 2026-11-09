@@ -389,6 +389,10 @@ def main(
     )
     _attach_layer1_totals(summary, summary_path, molecule_column)
     summary["n_called_cells"] = adata.n_obs
+    # PROG-INDEXKIND-01: which index and host filter produced the unique-layer evidence.
+    summary["index_kind"], summary["host_filter"] = index_state(
+        adata.uns, getattr(config, "host_filter_aligner", None)
+    )
     # PROG-MIXED-VETO-01: which veto each virus was called with (blank: no programme model).
     modelled = set(catalogue_virus_facts(catalogue))
     vetoes = {
@@ -416,6 +420,16 @@ def main(
     if done_path:
         with open(done_path, "w") as handle:
             handle.write("done\n")
+
+
+def index_state(uns: Any, host_filter_aligner: str | None) -> tuple[str, str]:
+    """``(index_kind, host_filter)`` of a run, for the summary columns (PROG-INDEXKIND-01).
+
+    ``index_kind`` is what multimap stamped on the H5AD (``combined``, ``virus_only``,
+    ``host_only``), or ``unknown`` for an H5AD without the stamp. ``host_filter`` is the
+    host-filter aligner, or ``none`` when no host filter ran.
+    """
+    return str(uns.get("index_kind", "unknown")), host_filter_aligner or "none"
 
 
 def lytic_programme_flags(states: pd.Series) -> pd.Series:
