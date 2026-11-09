@@ -1313,7 +1313,10 @@ def _alignment_qc_from_text(
         record.reads += 1
         record.reverse += int(bool(flag & 0x10))
         record.mapq.append(int(fields[4]))
-        record.starts.append(int(fields[3]))
+        # 5' start, as in read_start_profile.tsv: rightmost consumed reference base on the reverse strand.
+        record.starts.append(
+            int(fields[3]) + max(_cigar_ref_span(fields[5]) - 1, 0) if flag & 0x10 else int(fields[3])
+        )
         cbumi = _cb_umi(fields[0])
         if cbumi:
             record.cells.add(cbumi[0])

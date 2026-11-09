@@ -137,6 +137,18 @@ def _replay_whitelist(config: RunConfig, kb: KbCountOutputs) -> str | None:
     return None
 
 
+def dedup_layers(bam: str, out: Path, mode: str, cores: int) -> tuple[str, str]:
+    """Return (read-start-profile BAM, UMI-deduplicated BAM).
+
+    --dedup picks the first only; every other "deduplicated" output (QC, coverage, flags,
+    maps) is the UMI layer.
+    """
+    profile_bam = deduplicate_bam(bam, str(out / f"competitive_reads.{mode}_dedup.bam"), mode, cores)
+    if mode == "umi":
+        return profile_bam, profile_bam
+    return profile_bam, deduplicate_bam(bam, str(out / "competitive_reads.umi_dedup.bam"), "umi", cores)
+
+
 def check_replay_matches_matrix(
     lineage: Mapping[int, Mapping[str, Any]],
     kb: KbCountOutputs,
@@ -749,16 +761,7 @@ def run_evidence(args: argparse.Namespace) -> None:
             except (OSError, RuntimeError, ValueError, KeyError) as exc:
                 log.warning("strand_qc.tsv not written: %s", exc)
             dedup_mode = getattr(args, "dedup", "umi")
-            dedup_bam = deduplicate_bam(
-                bam,
-                str(out / f"competitive_reads.{dedup_mode}_dedup.bam"),
-                dedup_mode,
-                int(args.cores),
-            )
-            if dedup_mode != "umi":
-                dedup_bam = deduplicate_bam(
-                    bam, str(out / "competitive_reads.umi_dedup.bam"), "umi", int(args.cores)
-                )
+            profile_bam, dedup_bam = dedup_layers(bam, out, dedup_mode, int(args.cores))
             raw_cov = coverage_table(bam)
             dedup_cov = coverage_table(dedup_bam)
             raw_qc = alignment_qc_table(bam)
@@ -834,7 +837,7 @@ def run_evidence(args: argparse.Namespace) -> None:
 
                 if getattr(args, "read_start_profile", False):
                     profile = read_start_distribution(
-                        dedup_bam,
+                        profile_bam,
                         dedup="none",
                         bin_size=int(getattr(args, "bin_size", 1)),
                     )
