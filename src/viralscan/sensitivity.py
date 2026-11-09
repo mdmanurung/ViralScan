@@ -717,9 +717,7 @@ def sensitivity_record(
         expected_molecules_if_present_at_1_per_10k=expected_at_yardstick,
         p_detect_if_present_at_1_per_10k=math.nan
         if depth_na
-        else poisson_detection_probability(
-            expected_at_yardstick, detection_threshold
-        ),
+        else poisson_detection_probability(expected_at_yardstick, detection_threshold),
         lod95_per_10k=lod_10k,
         lod95_molecules=expected_observed / effective_capture,
         expected_observed_molecules_at_lod95=expected_observed,
