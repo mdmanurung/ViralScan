@@ -112,8 +112,10 @@ def _download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Pat
     for attempt in range(retries):
         try:
             log.info("Downloading %s", url)
-            with urllib.request.urlopen(url, timeout=timeout) as resp, open(dest, "wb") as fh:  # noqa: S310
+            part = dest.with_name(dest.name + ".part")
+            with urllib.request.urlopen(url, timeout=timeout) as resp, open(part, "wb") as fh:  # noqa: S310
                 shutil.copyfileobj(resp, fh)
+            part.replace(dest)  # a cut download never sits at the cache path
             dest.with_suffix(dest.suffix + ".retrieval.json").write_text(
                 json.dumps(
                     {
@@ -134,6 +136,28 @@ def _download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Pat
             else:
                 raise RuntimeError(f"Failed to download {url}: {exc}") from exc
     return dest  # unreachable
+
+
+def _verify_cached_download(path: Path) -> None:
+    """Fail unless *path* matches the sha256 recorded when it was fetched.
+
+    Never re-downloads: a mismatch means a truncated, edited or swapped file, and
+    the user decides (delete the file and its receipt to refetch).
+    """
+    receipt = path.with_suffix(path.suffix + ".retrieval.json")
+    recorded = json.loads(receipt.read_text()).get("sha256") if receipt.is_file() else None
+    if not recorded:
+        raise RuntimeError(
+            f"Cached download {path} has no recorded sha256 ({receipt.name} missing or "
+            "empty), so it cannot be verified. Delete the file and its receipt to refetch."
+        )
+    actual = sha256_file(path)
+    if actual != recorded:
+        raise RuntimeError(
+            f"Cached download {path} does not match its recorded sha256 "
+            f"(recorded {recorded}, found {actual}). It may be truncated or changed. "
+            "Delete the file and its receipt to refetch; it was not replaced."
+        )
 
 
 def _fasta_records(path: Path, *, upper: bool = True) -> list[tuple[str, str]]:
@@ -1495,6 +1519,7 @@ def fetch_host_cdna(
     if not cdna_cache.exists():
         _download(cdna_base + cdna_filename, cdna_cache)
     else:
+        _verify_cached_download(cdna_cache)
         log.info("Using cached cDNA FASTA: %s", cdna_cache)
 
     cdna_out = out_dir / cdna_filename
@@ -1521,6 +1546,7 @@ def fetch_host_cdna(
     if not gtf_cache.exists():
         _download(gtf_base + gtf_filename, gtf_cache)
     else:
+        _verify_cached_download(gtf_cache)
         log.info("Using cached GTF: %s", gtf_cache)
 
     gtf_out = out_dir / gtf_filename
