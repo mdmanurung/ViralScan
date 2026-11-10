@@ -56,11 +56,10 @@ def test_tchem_disagreement_is_a_conflict_and_its_strand_is_ignored():
     assert r.strand.status == kbparams.NEEDS_FLAG  # tchem's strand is for another chemistry
 
 
-def test_reverse_agreed_by_both_signals_stays_review_with_the_hhv6b_warning():
+def test_reverse_agreed_by_both_signals_is_accepted():
     r = rec(name="10xv2", op=_opinion("agree", "reverse"), pilot=PILOT_REV)
     assert r.strand.value == "reverse"
-    assert r.strand.status == kbparams.REVIEW
-    assert kbparams.NONFORWARD_NOTE in r.strand.notes
+    assert r.strand.status == kbparams.ACCEPTED
 
 
 def test_strand_conflict_falls_back_to_unstranded():
@@ -102,3 +101,44 @@ def test_tau_is_passed_to_the_pilot_inference(tau):
         second_opinion=_opinion("agree", "forward"),
     )
     assert r.evidence["strand_pilot"]["tau"] == tau
+
+
+def test_run_helper_stops_on_anything_but_accepted():
+    from viralscan import menu
+
+    r = rec(op=_opinion("agree", "forward"), pilot=None)  # strand is review: one signal
+    menu._kb_params_require(r, ("technology", "whitelist"), "s")
+    with pytest.raises(SystemExit):
+        menu._kb_params_require(r, ("strand",), "s")
+
+
+def test_auto_strand_returns_the_pilot_rates_without_a_manifest_lookup(monkeypatch, tmp_path):
+    """--kb-params auto leaves options.strand empty, so the rates must come from the pilot itself."""
+    import argparse
+
+    from viralscan import menu, strand
+
+    monkeypatch.setattr(strand, "run_pilot", lambda *a, **k: PILOT_FWD)
+    monkeypatch.setattr(menu, "record_strand_inference", lambda *a, **k: None)
+    args = argparse.Namespace(resume=False, technology="10xv2", whitelist=None, cores=1)
+    choice, rates = menu._resolve_auto_strand(args, tmp_path, "s", "r1", "r2", "idx", "t2g")
+    assert (choice, rates) == ("forward", PILOT_FWD)
+
+
+def test_explicit_strand_gate_defers_to_kb_params_auto(tmp_path):
+    import argparse
+
+    from viralscan import menu
+
+    args = argparse.Namespace(
+        strand=None,
+        kb_params="auto",
+        sample1="a_R1.fq",
+        sample2="a_R2.fq",
+        resume=False,
+        technology="10xv2",
+    )
+    menu._require_explicit_strand(args, tmp_path, {})  # no SystemExit
+    args.kb_params = "off"
+    with pytest.raises(SystemExit):
+        menu._require_explicit_strand(args, tmp_path, {})
