@@ -124,16 +124,26 @@ def _write_tsv(
 def _replay_whitelist(config: RunConfig, kb: KbCountOutputs) -> str | None:
     """On-list the primary ``kb count`` corrected against, if it corrected.
 
-    An explicit ``--whitelist`` wins. Otherwise kb leaves the on-list it used —
-    the copied packaged list or the ``bustools whitelist`` output — at
-    ``kb-python/whitelist.txt``. No file means the run had correction disabled
-    (``-w None``), so the replay must not correct either.
+    An explicit ``--whitelist`` wins. Otherwise kb leaves the on-list it used in
+    ``kb-python/``: the ``bustools whitelist`` output as ``whitelist.txt``, or the
+    copied packaged list under its own name (``10x_version3_whitelist.txt``,
+    ``10x_version2_whitelist.txt``, ...). Before EVID-ONLIST-01 only ``whitelist.txt``
+    was read, so replays of named-10x runs silently skipped correction. No file means
+    the run had correction disabled (``-w None``), so the replay must not correct either.
     """
     if config.whitelist:
         return str(config.whitelist)
     candidate = kb.root / "whitelist.txt"
     if candidate.exists():
         return str(candidate)
+    named = sorted(kb.root.glob("*_whitelist.txt"))
+    if len(named) > 1:
+        raise ValueError(
+            f"kb-python/ holds {len(named)} on-lists ({', '.join(p.name for p in named)}); "
+            "pass --whitelist to say which one the primary run used."
+        )
+    if named:
+        return str(named[0])
     return None
 
 
