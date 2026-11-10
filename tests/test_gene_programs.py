@@ -921,9 +921,9 @@ class TestSummaryAndWriters:
         ebv = by_virus.loc["Epstein-Barr virus"]
         assert ebv["n_cells_latent"] == 2
         assert ebv["n_cells_productive"] == 1
-        assert ebv["n_cells_indeterminate"] == 1
+        assert ebv["n_cells_indeterminate_with_evidence"] == 1
         assert ebv["n_cells_mixed"] == 0
-        assert ebv["n_cells_total"] == 4
+        assert ebv["n_cells_with_evidence"] == 4
 
     def test_lytic_programme_is_productive_plus_mixed(self) -> None:
         """PROG-MIXED-VETO-01: the load-stable headline is productive + mixed."""
@@ -1014,7 +1014,7 @@ class TestSummaryAndWriters:
         assert len(summary) == 1
         row = summary.iloc[0]
         assert row["virus_name"] == "Human herpesvirus 1"
-        assert row["n_cells_total"] == 0
+        assert row["n_cells_with_evidence"] == 0
         assert row["panel_completeness"] == "partial"
         assert row["latency_observable_in_rna"] == False  # noqa: E712
         assert "no programme could be assessed" in row["caveat"]
@@ -1247,7 +1247,7 @@ def test_no_model_placeholder_row_is_not_counted_as_a_cell() -> None:
     for viruses in (None, ["Monkeypox virus"]):
         row = summarise_programs(placeholder, _catalog(), viruses=viruses).iloc[0]
         assert row["virus_name"] == "Monkeypox virus"
-        assert row["n_cells_total"] == 0
+        assert row["n_cells_with_evidence"] == 0
         assert row["panel_completeness"] == "not_applicable"
         assert row["caveat"] == "no programme model defined for this virus"
 
@@ -1468,6 +1468,55 @@ class TestReactivatingAndParameters:
         ).iloc[0]
         assert summary["n_cells_productive"] == 1
         assert summary["n_cells_productive_selected_layer"] == 2
+
+    def test_run_one_prunes_zero_evidence_cells_so_summary_totals_are_evidence_cells(
+        self,
+    ) -> None:
+        """PROG-ZEROEV-01 (pins the evidence-cell denominator; columns renamed per the 2026-11-09 decision).
+
+        A cell with no marker evidence on either layer gets no row, so the summary's
+        ``n_cells_with_evidence`` and ``n_cells_indeterminate_with_evidence`` count cells with marker evidence,
+        not the called cells that were scored. ``n_called_cells`` (added by ``main``) is
+        the called-cell count. The ``selected_*_breadth_median`` columns are medians over
+        the kept cells only. Changing any of this changes a denominator: the user's call.
+        """
+        import anndata as ad
+        import numpy as np
+
+        from viralscan.scripts.gene_programs import run_one
+
+        virus = "Epstein-Barr virus"
+        catalogue = _catalog()
+        names = [
+            r["gene_id_bundled"]
+            for r in catalogue
+            if r["virus"] == virus
+            and r["programme"] == "productive"
+            and r["non_overlapping"] == "true"
+        ][:3]
+        # c0: allocated-only evidence (kept, unique state indeterminate); c1: both layers;
+        # c2, c3: no evidence on either layer (pruned, still scored as indeterminate)
+        unique = sparse.csr_matrix(
+            np.array([[0, 0, 0], [1, 1, 1], [0, 0, 0], [0, 0, 0]], dtype=np.float32)
+        )
+        alloc = sparse.csr_matrix(
+            np.array([[2, 2, 2], [1, 1, 1], [0, 0, 0], [0, 0, 0]], dtype=np.float32)
+        )
+        adata = ad.AnnData(alloc)
+        adata.var_names = names
+        adata.obs_names = ["c0", "c1", "c2", "c3"]
+        adata.layers["counts_unique_viral"] = unique
+        df = run_one(adata, [virus], catalogue, min_breadth=2, form="bundled")
+        summary = summarise_programs(
+            df, catalogue, viruses=[virus], marker_resolution=df.attrs["marker_resolution"]
+        ).iloc[0]
+        assert adata.n_obs == 4
+        assert summary["n_cells_with_evidence"] == 2  # not 4: c2 and c3 are pruned
+        assert (
+            summary["n_cells_indeterminate_with_evidence"] == 1
+        )  # c0 only; c2, c3 were indeterminate too
+        # median over the two kept cells (3, 3); over all four called cells it would be 1.5
+        assert summary["selected_productive_breadth_median"] == 3.0
 
     def test_marker_carries_the_catalogue_kinetic_class(self) -> None:
         catalogue = _catalog()

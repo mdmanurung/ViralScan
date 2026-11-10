@@ -343,6 +343,8 @@ class TestReplayFastqs:
             genes=kb_dir / "genes.txt",
             transcripts_txt=kb_dir / "transcripts.txt",
             ec=kb_dir / "kb.ec",
+            kb_corrected_bus=kb_dir / "output.unfiltered.bus",  # absent: primary did not correct
+            barcodes=kb_dir / "cells_x_genes.barcodes.txt",  # absent: the check warns and skips
             root=kb_dir,
         )
         flagged = tmp_path / "flagged.txt"

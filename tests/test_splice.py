@@ -153,8 +153,11 @@ def test_spliced_molecules_junction_and_exclusions(tmp_path: Path) -> None:
             "supporting_reads": "3",
             "annotated": "True",
             "annotated_transcript": "T1",
+            "counted_in_spliced_molecules": "True",
         }
     ]
+    assert summary["unique_junctions_excluded_noncanonical"] == "0"
+    assert summary["molecules_excluded_noncanonical"] == "0"
     assert (out / "splice.bam.bai").is_file()
 
 
@@ -397,3 +400,53 @@ def test_evidence_manifest_lists_the_splice_outputs(tmp_path: Path) -> None:
     outputs = json.loads(path.read_text())["outputs"]
     for name in ("splice.bam", "junctions.tsv", "splice_summary.tsv", "splice_manifest.json"):
         assert f"splice/{name}" in outputs
+
+
+@needs_tools
+def test_annotation_match_is_exact_and_canonical_unannotated_still_counts(tmp_path: Path) -> None:
+    """EVID-DECISIONS-01: a gap shifted by 1 bp is not annotated; a canonical motif still counts."""
+    ev = _evidence_dir(tmp_path)
+    shifted = tmp_path / "shifted.gtf"
+    shifted.write_text(
+        "\n".join(
+            f'chrV\ttest\texon\t{start}\t{end}\t.\t-\t.\tgene_id "G1"; transcript_id "T1";'
+            for start, end in ((EXON1[0], EXON1[1] + 1), EXON2)
+        )
+        + "\n"
+    )
+    splice.run_splice(ev, viral_fasta=_fasta(tmp_path), annotation_gtfs=[shifted])
+    out = ev / "splice"
+    (junction,) = _table(out / "junctions.tsv")
+    assert junction["annotated"] == "False"
+    summary = _table(out / "splice_summary.tsv")[0]
+    assert summary["spliced_molecules_annotated"] == "0"
+    assert summary["spliced_molecules"] == "2"  # GT-AG on the minus strand is canonical
+    assert junction["counted_in_spliced_molecules"] == "True"
+
+
+@needs_tools
+def test_noncanonical_unannotated_junction_is_excluded_but_counted_separately(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ev = _evidence_dir(tmp_path)
+    monkeypatch.setattr(splice, "motif_of", lambda genome, start, end: ("AA-CC", False, "."))
+    splice.run_splice(ev, viral_fasta=_fasta(tmp_path), annotation_gtfs=[_gtf(tmp_path, "intron")])
+    summary = _table(ev / "splice" / "splice_summary.tsv")[0]
+    assert summary["spliced_molecules"] == "0"
+    assert summary["unique_junctions"] == "1"
+    assert summary["unique_junctions_excluded_noncanonical"] == "1"
+    assert summary["molecules_excluded_noncanonical"] == "2"
+    assert _table(ev / "splice" / "junctions.tsv")[0]["counted_in_spliced_molecules"] == "False"
+
+
+@needs_tools
+def test_noncanonical_annotated_junction_still_counts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ev = _evidence_dir(tmp_path)
+    monkeypatch.setattr(splice, "motif_of", lambda genome, start, end: ("AA-CC", False, "."))
+    splice.run_splice(ev, viral_fasta=_fasta(tmp_path), annotation_gtfs=[_gtf(tmp_path, "exon")])
+    summary = _table(ev / "splice" / "splice_summary.tsv")[0]
+    assert summary["spliced_molecules"] == "2"
+    assert summary["spliced_molecules_annotated"] == "2"
+    assert summary["unique_junctions_excluded_noncanonical"] == "0"

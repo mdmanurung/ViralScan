@@ -56,6 +56,7 @@ from viralscan.evidence import (
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.molecule_verdict import (
     _read_number,
+    counted_read_numbers,
     select_representatives,
     write_from_bam,
     write_umi_query_fasta,
@@ -123,17 +124,75 @@ def _write_tsv(
 def _replay_whitelist(config: RunConfig, kb: KbCountOutputs) -> str | None:
     """On-list the primary ``kb count`` corrected against, if it corrected.
 
-    An explicit ``--whitelist`` wins. Otherwise kb leaves the on-list it used —
-    the copied packaged list or the ``bustools whitelist`` output — at
-    ``kb-python/whitelist.txt``. No file means the run had correction disabled
-    (``-w None``), so the replay must not correct either.
+    An explicit ``--whitelist`` wins. Otherwise kb leaves the on-list it used in
+    ``kb-python/``: the ``bustools whitelist`` output as ``whitelist.txt``, or the
+    copied packaged list under its own name (``10x_version3_whitelist.txt``,
+    ``10x_version2_whitelist.txt``, ...). Before EVID-ONLIST-01 only ``whitelist.txt``
+    was read, so replays of named-10x runs silently skipped correction. No file means
+    the run had correction disabled (``-w None``), so the replay must not correct either.
     """
     if config.whitelist:
         return str(config.whitelist)
     candidate = kb.root / "whitelist.txt"
     if candidate.exists():
         return str(candidate)
+    named = sorted(kb.root.glob("*_whitelist.txt"))
+    if len(named) > 1:
+        raise ValueError(
+            f"kb-python/ holds {len(named)} on-lists ({', '.join(p.name for p in named)}); "
+            "pass --whitelist to say which one the primary run used."
+        )
+    if named:
+        return str(named[0])
     return None
+
+
+def dedup_layers(bam: str, out: Path, mode: str, cores: int) -> tuple[str, str]:
+    """Return (read-start-profile BAM, UMI-deduplicated BAM).
+
+    --dedup picks the first only; every other "deduplicated" output (QC, coverage, flags,
+    maps) is the UMI layer.
+    """
+    profile_bam = deduplicate_bam(bam, str(out / f"competitive_reads.{mode}_dedup.bam"), mode, cores)
+    if mode == "umi":
+        return profile_bam, profile_bam
+    return profile_bam, deduplicate_bam(bam, str(out / "competitive_reads.umi_dedup.bam"), "umi", cores)
+
+
+def check_replay_matches_matrix(
+    lineage: Mapping[int, Mapping[str, Any]],
+    kb: KbCountOutputs,
+    replay_whitelist: str | None,
+) -> None:
+    """Fail when the replay did not correct barcodes the way the primary ``kb count`` did.
+
+    The whitelist is inferred from files, so a moved ``kb-python/whitelist.txt`` would silently turn
+    correction off. Two checks: the primary left ``output.unfiltered.bus`` (it corrected) but the replay
+    has no on-list; or a counted replay molecule has a barcode the primary matrix does not.
+    """
+    if replay_whitelist is None and kb.kb_corrected_bus.exists():
+        raise ValueError(
+            f"The primary run corrected barcodes ({kb.kb_corrected_bus} exists) but no on-list was "
+            f"found for the replay ({kb.root / 'whitelist.txt'} is missing); pass --whitelist."
+        )
+    if not kb.barcodes.is_file():
+        log.warning(
+            "%s is missing; replay barcodes were not checked against the matrix.", kb.barcodes
+        )
+        return
+    matrix_barcodes = set(kb.barcodes.read_text().split())
+    counted = {
+        str(row["cb"])
+        for row in lineage.values()
+        if row["assigned_weight"] not in ("", None) and float(row["assigned_weight"]) > 0
+    }
+    extra = counted - matrix_barcodes
+    if extra:
+        raise ValueError(
+            f"{len(extra)} of {len(counted)} replay barcodes with a counted read are not in the "
+            f"primary matrix {kb.barcodes} (for example {sorted(extra)[0]}); the replay corrected "
+            "barcodes differently from the primary run."
+        )
 
 
 def replay_fastqs(config: RunConfig) -> tuple[str, str]:
@@ -586,6 +645,7 @@ def run_evidence(args: argparse.Namespace) -> None:
                 {i for i, gene in enumerate(gene_ids) if gene in viral_ids},
                 config.multimap_method,
             )
+        check_replay_matches_matrix(lineage_by_number, kb, replay_whitelist)
     except (RuntimeError, ValueError) as exc:
         _die(str(exc))
     log.info("%d exact target read records found by replay", len(lineage_by_number))
@@ -675,7 +735,9 @@ def run_evidence(args: argparse.Namespace) -> None:
                 if (number := _read_number(name)) in lineage_by_number
             ]
             if competition is None:
-                write_molecule_support(Path(bam), out)  # Q137 flags, never a filter
+                write_molecule_support(  # Q137 flags, never a filter; counted molecules only
+                    Path(bam), out, counted_read_numbers(out / "read_lineage.tsv.gz")
+                )
             # VERDICT-01: which side wins per molecule, from the same competitive alignment.
             if competition is None:
                 write_from_bam(bam, out / "read_lineage.tsv.gz", out)
@@ -709,16 +771,7 @@ def run_evidence(args: argparse.Namespace) -> None:
             except (OSError, RuntimeError, ValueError, KeyError) as exc:
                 log.warning("strand_qc.tsv not written: %s", exc)
             dedup_mode = getattr(args, "dedup", "umi")
-            dedup_bam = deduplicate_bam(
-                bam,
-                str(out / f"competitive_reads.{dedup_mode}_dedup.bam"),
-                dedup_mode,
-                int(args.cores),
-            )
-            if dedup_mode != "umi":
-                dedup_bam = deduplicate_bam(
-                    bam, str(out / "competitive_reads.umi_dedup.bam"), "umi", int(args.cores)
-                )
+            profile_bam, dedup_bam = dedup_layers(bam, out, dedup_mode, int(args.cores))
             raw_cov = coverage_table(bam)
             dedup_cov = coverage_table(dedup_bam)
             raw_qc = alignment_qc_table(bam)
@@ -794,7 +847,7 @@ def run_evidence(args: argparse.Namespace) -> None:
 
                 if getattr(args, "read_start_profile", False):
                     profile = read_start_distribution(
-                        dedup_bam,
+                        profile_bam,
                         dedup="none",
                         bin_size=int(getattr(args, "bin_size", 1)),
                     )
@@ -882,11 +935,19 @@ def run_evidence(args: argparse.Namespace) -> None:
                 _write_tsv(out / "competitor_summary.tsv", [summary])
                 competition["summary"] = summary
             ambient = next((r for r in summary_rows if r["virus_name"] == target_label), None)
+            # BLAST fractions divide by every sampled read, no-hit reads included (EVID-DECISIONS-01).
+            sampling_path = out / "blast_sampling.json"
+            n_queried = (
+                int(json.loads(sampling_path.read_text())["sampled_reads"])
+                if blast_rows and sampling_path.is_file()
+                else None
+            )
             flag_rows = interpretation_flags(
                 [{"count_layer": "deduplicated", **r} for r in dedup_qc],
                 blast_rows,
                 support_lineage,
                 ambient=ambient,
+                n_queried=n_queried,
             )
             _write_tsv(out / "interpretation_flags.tsv", flag_rows)
         except (RuntimeError, ValueError) as exc:

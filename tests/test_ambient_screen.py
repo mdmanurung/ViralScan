@@ -35,6 +35,8 @@ def _adata(X, genes, cells, roles=None):
 
 
 def _stats(a, called, **kw):
+    # These fixtures hold 1-molecule infected cells: pin the pre-INFECTED-MINMOL-02 rule.
+    kw.setdefault("infected_min_molecules", 1.0)
     stats, _ = D.compute_stats(a, {}, {"V": ["v1"]}, ["v1"], called_mask=called, **kw)
     return stats["V"]
 

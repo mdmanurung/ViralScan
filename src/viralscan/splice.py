@@ -94,6 +94,7 @@ JUNCTION_FIELDS = (
     "supporting_reads",
     "annotated",
     "annotated_transcript",
+    "counted_in_spliced_molecules",
 )
 CATEGORY_FIELDS = (
     "counted_virus_best",
@@ -112,6 +113,8 @@ SUMMARY_FIELDS = (
     "spliced_molecules",
     "spliced_molecules_annotated",
     "unique_junctions",
+    "unique_junctions_excluded_noncanonical",
+    "molecules_excluded_noncanonical",
     "junction_calls_rejected",
     "annotation_status",
     "evidence_manifest_sha256",
@@ -577,10 +580,15 @@ def run_splice(
     rows: list[dict[str, object]] = []
     spliced_molecules: set[tuple[str, str]] = set()
     annotated_molecules: set[tuple[str, str]] = set()
+    excluded_molecules: set[tuple[str, str]] = set()
+    n_excluded = 0
     for (contig, start, end), support in sorted(found.items()):
         motif, canonical, strand = motif_of(genome[contig], start, end)
         transcripts = introns.get(contig, {}).get((start, end), [])
         matched = contig in evaluable
+        # A junction counts toward spliced_molecules if its motif is canonical or it matches an annotated
+        # intron exactly (EVID-DECISIONS-01); annotation matching has no tolerance.
+        counted = canonical or bool(transcripts)
         rows.append(
             {
                 "contig": contig,
@@ -593,9 +601,14 @@ def run_splice(
                 "supporting_reads": len(support["reads"]),
                 "annotated": (bool(transcripts) if matched else ""),
                 "annotated_transcript": ",".join(transcripts),
+                "counted_in_spliced_molecules": counted,
             }
         )
-        spliced_molecules |= support["molecules"]
+        if counted:
+            spliced_molecules |= support["molecules"]
+        else:
+            excluded_molecules |= support["molecules"]
+            n_excluded += 1
         if transcripts:
             annotated_molecules |= support["molecules"]
     summary.update(
@@ -608,6 +621,8 @@ def run_splice(
         if status != ANNOT_NOT_EVALUABLE
         else "",
         unique_junctions=len(rows),
+        unique_junctions_excluded_noncanonical=n_excluded,
+        molecules_excluded_noncanonical=len(excluded_molecules - spliced_molecules),
         junction_calls_rejected=sum(rejected.values()),
         annotation_status=status,
     )

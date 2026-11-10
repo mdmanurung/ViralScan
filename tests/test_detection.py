@@ -417,7 +417,9 @@ class TestHeadlineTotals:
     def test_totals_cover_only_viral_genes(self):
         from viralscan.scripts.detection import _headline_totals
 
-        totals = _headline_totals(self._adata(), {"A": ["V1"], "B": ["V2"]})
+        totals = _headline_totals(
+            self._adata(), {"A": ["V1"], "B": ["V2"]}, infected_min_molecules=1.0
+        )
 
         # X restricted to V1/V2: BC1 = 2.5 + 0.5, BC2 = 1.0
         assert totals["selected"] == 4.0
@@ -457,6 +459,7 @@ class TestHeadlineTotals:
             self._adata(),
             {"A": ["V1"], "B": ["V2"]},
             called_mask=np.array([False, True]),
+            infected_min_molecules=1.0,
         )
 
         # BC1 is infected by A (2.5) but not called; BC2 is infected by A (1.0) and called.
@@ -502,7 +505,9 @@ class TestHeadlineTotals:
     def test_genes_absent_from_the_matrix_are_ignored(self):
         from viralscan.scripts.detection import _headline_totals
 
-        totals = _headline_totals(self._adata(), {"A": ["V1", "NOT_IN_MATRIX"]})
+        totals = _headline_totals(
+            self._adata(), {"A": ["V1", "NOT_IN_MATRIX"]}, infected_min_molecules=1.0
+        )
 
         assert totals["cells_with_virus"] == 2
 
@@ -614,3 +619,22 @@ def test_enrichment_refuses_obs_barcodes_that_collide_after_suffix_strip(tmp_pat
     cfg = SimpleNamespace(cell_types=str(p), infected_min_molecules=1.0)
     with pytest.raises(ValueError, match="AAAC"):
         cell_type_enrichment(a, {"V": ["v1"]}, cfg)
+
+
+def test_default_infected_rule_needs_two_molecules():
+    """INFECTED-MINMOL-02: one molecule is sub-threshold by default, two infect the cell."""
+    import anndata as ad
+
+    from viralscan.defaults import DEFAULTS
+    from viralscan.scripts.detection import compute_stats
+
+    X = sp.csr_matrix([[1.0, 5.0], [2.0, 5.0], [0.0, 5.0]])
+    a = ad.AnnData(
+        X=X, obs=pd.DataFrame(index=["C1", "C2", "C3"]), var=pd.DataFrame(index=["v1", "h1"])
+    )
+    stats, _ = compute_stats(a, {}, {"V": ["v1"]}, [])
+    assert DEFAULTS["infected_min_molecules"] == 2.0
+    assert stats["V"]["infected_cells"] == 1  # C2 only
+    assert stats["V"]["infected_subthreshold_cells"] == 1  # C1 (1 molecule)
+    stats1, _ = compute_stats(a, {}, {"V": ["v1"]}, [], infected_min_molecules=1.0)
+    assert stats1["V"]["infected_cells"] == 2

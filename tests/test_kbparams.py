@@ -123,3 +123,22 @@ def test_auto_strand_returns_the_pilot_rates_without_a_manifest_lookup(monkeypat
     args = argparse.Namespace(resume=False, technology="10xv2", whitelist=None, cores=1)
     choice, rates = menu._resolve_auto_strand(args, tmp_path, "s", "r1", "r2", "idx", "t2g")
     assert (choice, rates) == ("forward", PILOT_FWD)
+
+
+def test_explicit_strand_gate_defers_to_kb_params_auto(tmp_path):
+    import argparse
+
+    from viralscan import menu
+
+    args = argparse.Namespace(
+        strand=None,
+        kb_params="auto",
+        sample1="a_R1.fq",
+        sample2="a_R2.fq",
+        resume=False,
+        technology="10xv2",
+    )
+    menu._require_explicit_strand(args, tmp_path, {})  # no SystemExit
+    args.kb_params = "off"
+    with pytest.raises(SystemExit):
+        menu._require_explicit_strand(args, tmp_path, {})

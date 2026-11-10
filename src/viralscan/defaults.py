@@ -40,7 +40,9 @@ DEFAULTS: dict[str, Any] = {
     # One "infected" rule for detection, enrichment and the UMAP (AUD-06): a cell is
     # infected for a virus when its summed allocated molecules reach this value.
     # Cells with 0 < weight < this are counted as sub-threshold, never dropped.
-    "infected_min_molecules": 1.0,
+    # 2.0 since 2026-11-09 (user decision, PLAN INFECTED-MINMOL-02): one molecule is
+    # too weak to call a cell infected. The sample-level `detection_threshold` stays 1.
+    "infected_min_molecules": 2.0,
     # Detection gate (AUD-07): distinct called cells that must be infected.
     "detection_min_cells": 1,
     "min_counts": 1000,

@@ -1001,6 +1001,15 @@ def errorhandler(args: argparse.Namespace) -> None:
         _die("--host-filter requires --host-index.", 2)
     if getattr(args, "host_filter_star_params", None) and not host_filter:
         _die("--host-filter-star-params requires --host-filter.", 2)
+    if host_index and cell_calling in ("none", "knee"):
+        # CELLCALL-PCT-01: the kb matrix of a host-filtered run holds only barcodes with a
+        # non-host read, so every rate would read 100 % against this denominator.
+        _die(
+            f"--cell-calling {cell_calling} cannot be used with --host-index: the matrix then "
+            "holds only barcodes with a non-host read, so the infected rates would all read "
+            "100 %. Use auto, emptydrops or external.",
+            2,
+        )
     if host_filter:
         host_index_path = str(host_index)
         if not os.path.exists(host_index_path):
@@ -1253,6 +1262,84 @@ def _tchem_second_opinion(
         _die(str(exc))
 
 
+def _kb_done(output_dir: Path, sample: str) -> bool:
+    return (output_dir / sample / "log" / "kb.done").is_file()
+
+
+def _strand_advice(
+    args: argparse.Namespace, s1: str, s2: str | None, block: dict[str, Any] | None
+) -> str:
+    """The ``kbparams`` advice for one sample, reusing the detection and tchem call already made."""
+    from viralscan import chemistry, kbparams, tchem
+
+    kwargs: dict[str, Any] = {
+        "tchem_mode": getattr(args, "tchem", "auto"),
+        "tchem_bin": getattr(args, "tchem_bin", None),
+        "tchem_whitelists": getattr(args, "tchem_whitelists", None),
+    }
+    if block is not None and "tchem" in block:
+        det = chemistry.Detection(**{k: v for k, v in block.items() if k != "tchem"})
+        saved = block["tchem"]
+        call = tchem.TchemCall(**saved["call"]) if saved.get("call") else None
+        op = tchem.Opinion(saved["status"], saved["reason"], call)
+        kwargs["detect"] = lambda _paths: [det]
+        kwargs["second_opinion"] = lambda *_a, **_k: op
+    try:
+        rec = kbparams.recommend_kb_parameters(s1, s2, **kwargs)
+    except (chemistry.ChemistryError, tchem.TchemError, OSError) as exc:
+        return f"no advice available ({exc})."
+    p = rec.strand
+    note = "; ".join(p.notes)
+    if p.value is None:
+        return f"advice: no safe value from the reads ({note})."
+    return f"advice: --strand {p.value} ({p.status}; {note})."
+
+
+def _require_explicit_strand(
+    args: argparse.Namespace, output_dir: Path, blocks: dict[str, dict[str, Any]]
+) -> None:
+    """Stop a run with no ``--strand`` unless tchem confirms a 3' chemistry (STRAND-EXPLICIT-01).
+
+    ``-x 10xv2`` names 3' and 5' libraries alike, so only a tchem match with a 3' layout
+    counts. On ``--resume`` the gate is skipped when the manifest records a strand (the
+    fingerprint check then reports any mismatch) or when kb already finished for every
+    unconfirmed sample, so an old unstranded run can still finish its later steps.
+    """
+    from viralscan import kbparams
+
+    # --kb-params auto pilots the strand itself and stops unless it is accepted (KBPARAMS-01).
+    if args.strand is not None or getattr(args, "kb_params", "off") == "auto":
+        return
+    unconfirmed = [
+        (s1, s2)
+        for s1, s2 in zip(split_comma_paths(args.sample1), split_comma_paths(args.sample2))
+        if not kbparams.is_confirmed_three_prime((blocks.get(_sample_id(s1)) or {}).get("tchem"))
+    ]
+    if not unconfirmed:
+        return
+    manifest = output_dir / "run_manifest.json"
+    if args.resume and manifest.is_file():
+        options = json.loads(manifest.read_text(encoding="utf-8")).get("options") or {}
+        if options.get("strand") is not None:
+            return
+        if all(_kb_done(output_dir, _sample_id(s1)) for s1, _ in unconfirmed):
+            return
+    lines = []
+    for s1, s2 in unconfirmed:
+        sid = _sample_id(s1)
+        layout = (((blocks.get(sid) or {}).get("tchem") or {}).get("call") or {}).get("layout")
+        lines.append(
+            f"{sid}: chemistry {args.technology}, tchem layout "
+            f"{layout or 'not confirmed'}; {_strand_advice(args, s1, s2, blocks.get(sid))}"
+        )
+    _die(
+        "--strand is required unless tchem confirms a 3' chemistry (10x 5' and unknown "
+        "chemistries lose reads under the wrong strand). Pass --strand "
+        "forward|reverse|unstranded|auto.\n  " + "\n  ".join(lines),
+        2,
+    )
+
+
 def _check_required_tools() -> None:
     missing = [t for t in REQUIRED_TOOLS if shutil.which(t) is None]
     if missing:
@@ -1442,6 +1529,7 @@ def _build_run_config(
             "se_threshold": args.se_threshold,
             "detection_threshold": args.detection_threshold,
             # None = not given; RunConfig resolves it to the default (AUD-06/AUD-07/B-16).
+            # `infected_min_molecules` always has a value from the CLI (default 2.0).
             "infected_min_molecules": getattr(args, "infected_min_molecules", None),
             "detection_min_cells": getattr(args, "detection_min_cells", None),
             "hostresponse_min_umi": getattr(args, "hostresponse_min_umi", None),
@@ -1945,6 +2033,7 @@ def _dispatch(args: argparse.Namespace) -> None:
     chemistry_blocks = _resolve_chemistry(args)
     output_dir = Path(args.output).resolve()
     samples1 = split_comma_paths(args.sample1)
+    _require_explicit_strand(args, output_dir, chemistry_blocks)
     _check_sample_ids(samples1)
     try:
         acquire_run_lock(output_dir)  # before prepare: --overwrite must not wipe a live run

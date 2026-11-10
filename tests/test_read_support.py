@@ -243,3 +243,24 @@ def test_summary_human_equal_or_better_counts_the_flag_not_the_gate() -> None:
     flagged = sum("human_equal_or_better" in r["flags"].split(";") for r in rows)
     assert flagged == 1
     assert rs.summarise_support(rows)["n_human_equal_or_better"] == flagged
+
+
+def test_uncounted_molecule_is_flagged_and_left_out_of_the_summary() -> None:
+    """EVID-COUNTED-01: a molecule made only of weight-0 reads is extracted but is not scored."""
+    counted = [_sam("CB_U1_1|r", 0, "VIRUS|v", 100, "90M", 150)]
+    ambiguous = [_sam("CB_U2_2|r", 0, "HOST|chr1", 100, "90M", 150)]  # host-best, weight 0
+    rows = rs.molecule_support_rows(counted + ambiguous, counted_reads={1})
+    assert {r["umi"]: r["counted"] for r in rows} == {"U1": True, "U2": False}
+    summary = rs.summarise_support(rows)
+    assert (summary["n_molecules"], summary["n_molecules_not_counted"]) == (1, 1)
+    assert summary["n_human_equal_or_better"] == 0
+    assert summary["fraction_pass_all_gates"] == 1.0
+    # no lineage given: every molecule counts, as before
+    every = rs.molecule_support_rows(counted + ambiguous)
+    assert all(r["counted"] for r in every) and rs.summarise_support(every)["n_molecules"] == 2
+    # a molecule is counted when any member read is
+    pair = [
+        _sam("CB_U3_5|r", 0, "VIRUS|v", 100, "90M", 150),
+        _sam("CB_U3_6|r", 0, "VIRUS|v", 100, "90M", 150),
+    ]
+    assert rs.molecule_support_rows(pair, counted_reads={6})[0]["counted"] is True
