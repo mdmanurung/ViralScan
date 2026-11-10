@@ -91,8 +91,19 @@ def test_host_loss_on_a_real_starsolo_run_and_its_primary_tree_guard(tmp_path: P
     from tests.integration.test_tiny_end_to_end import _run_tiny
 
     genome = _star_genome(tmp_path)
+    # --cell-calling none is refused with --host-index (CELLCALL-PCT-01): call cells externally.
     out = _run_tiny(
-        tmp_path, "--host-filter", "starsolo", "--host-index", str(genome), "--tchem", "off"
+        tmp_path,
+        "--host-filter",
+        "starsolo",
+        "--host-index",
+        str(genome),
+        "--tchem",
+        "off",
+        "--cell-calling",
+        "external",
+        "--called-cells-file",
+        str(FIXTURE / "called_cells.txt"),
     )
     (sample,) = [d for d in out.iterdir() if (d / "config.yaml").is_file()]
     assert (sample / "host_filtered" / "fragment_lineage.tsv.gz").is_file()

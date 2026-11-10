@@ -149,6 +149,12 @@ def _run_tiny(work: Path, *extra: str, manifest: bool = False) -> Path:
         "--cell-calling",
         "none",
         "--yes",
+        # The run requires an explicit strand unless tchem confirms a 3' chemistry
+        # (STRAND-EXPLICIT-01); unstranded is what the pinned kallisto ran before.
+        *(() if "--strand" in extra else ("--strand", "unstranded")),
+        # The synthetic fixture matches no real kit, so a locally installed tchem
+        # would reject it; CI has none. Keep the test independent of the host.
+        *(() if "--tchem" in extra else ("--tchem", "off")),
         *extra,
         cwd=repo,
     )
@@ -157,7 +163,9 @@ def _run_tiny(work: Path, *extra: str, manifest: bool = False) -> Path:
 
 @pytest.fixture(scope="module")
 def completed_run(tmp_path_factory) -> Path:
-    return _run_tiny(tmp_path_factory.mktemp("sw10"))
+    # The fixture's infected cells hold one viral molecule each; keep the pre-2.0 rule
+    # so the headline checks still see a detected virus (INFECTED-MINMOL-02, user 2026-11-10).
+    return _run_tiny(tmp_path_factory.mktemp("sw10"), "--infected-min-molecules", "1")
 
 
 @pytest.fixture(scope="module")
@@ -415,9 +423,13 @@ def documented_sequence(tmp_path_factory) -> dict:
         "--r1", str(FIXTURE / "R1.fastq"),
         "--r2", str(FIXTURE / "R2.fastq"),
         "-x", "10xv3",
+        "--strand", "unstranded",
+        "--tchem", "off",
         "-c", "2",
         "--cell-calling", "external",
         "--called-cells-file", str(FIXTURE / "called_cells.txt"),
+        # One-molecule fixture cells: keep the pre-2.0 rule (INFECTED-MINMOL-02, user 2026-11-10).
+        "--infected-min-molecules", "1",
         "--yes",
         cwd=repo,
     )  # fmt: skip
@@ -549,6 +561,11 @@ def star_confirm_run(tmp_path_factory) -> Path:
         tmp,
         "--host-filter", "starsolo", "--host-index", str(host_genome),
         "--star-confirm", "--star-hostvirus-index", str(hostvirus),
+        # --cell-calling none is refused with --host-index (CELLCALL-PCT-01).
+        "--cell-calling", "external",
+        "--called-cells-file", str(FIXTURE / "called_cells.txt"),
+        # Same rule as completed_run, so the detected labels compare like for like.
+        "--infected-min-molecules", "1",
     )  # fmt: skip
 
 

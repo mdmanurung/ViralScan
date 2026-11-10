@@ -226,6 +226,7 @@ def test_star_default_set_pins_the_same_flags_at_star_defaults() -> None:
 def test_starsolo_filter_passes_the_selected_param_set(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    pytest.importorskip("ngs_tools")  # the named-10x on-list comes from kb-python
     write_fastq(tmp_path / "in_R1.fastq.gz", [("kept/1", "A" * 28)])
     write_fastq(tmp_path / "in_R2.fastq.gz", [("kept/2", "ACGT")])
     calls = []
@@ -353,6 +354,7 @@ class TestStarsoloFilterWhitelist:
     def test_named_10x_without_w_gets_the_bundled_onlist(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, technology: str
     ) -> None:
+        pytest.importorskip("ngs_tools")  # the bundled on-list ships with kb-python
         from viralscan.chemistry import onlist_path
 
         arg = self._star_cmd(tmp_path, monkeypatch, technology, None)
