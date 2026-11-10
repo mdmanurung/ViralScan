@@ -98,3 +98,19 @@ def test_group_of_prefers_ictv_genus_and_falls_back(tmp_path) -> None:
         "sibling_group",
     )
     assert pks.group_of({"species": "Eyach virus"}, None, "Z") == ("Eyach virus", "species")
+
+
+def test_shares_any_matches_np_isin() -> None:
+    """PLAN KMER-SCREEN-SPEED-01: the binary search finds exactly what np.isin finds."""
+    import numpy as np
+
+    from viralscan.kmer_sharing import _shares_any
+
+    rng = np.random.default_rng(0)
+    union = np.unique(rng.integers(0, 10_000, 500).astype(np.uint64))
+    for _ in range(200):
+        host = np.unique(rng.integers(0, 20_000, rng.integers(0, 30)).astype(np.uint64))
+        assert _shares_any(host, union) == bool(np.isin(host, union, assume_unique=True).any())
+    assert not _shares_any(np.array([], dtype=np.uint64), union)
+    assert not _shares_any(union, np.array([], dtype=np.uint64))
+    assert _shares_any(np.array([union[-1]]), union)  # last element: the wrap-around index

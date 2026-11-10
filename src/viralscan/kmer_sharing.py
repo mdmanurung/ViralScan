@@ -90,6 +90,19 @@ def sharing(
     return out
 
 
+def _shares_any(kmers: np.ndarray, sorted_union: np.ndarray) -> bool:
+    """Whether any of *kmers* is in *sorted_union* (sorted, unique). A binary search per k-mer.
+
+    ``np.isin`` re-sorts the whole union on every call, which made the screen take hours with a
+    full host transcriptome (PLAN KMER-SCREEN-SPEED-01); the result is identical.
+    """
+    if not len(kmers) or not len(sorted_union):
+        return False
+    pos = np.searchsorted(sorted_union, kmers)
+    pos[pos == len(sorted_union)] = 0
+    return bool((sorted_union[pos] == kmers).any())
+
+
 def _sibling_group(name: str, group_of: dict[str, str]) -> str:
     return group_of.get(name) or group_of.get(name.split(".")[0], "")
 
@@ -123,7 +136,7 @@ def near_duplicate_pairs(
         for name, seq in records:
             if name not in viral_ids:
                 host = canonical_kmers(seq.encode(), k)
-                if np.isin(host, viral_union, assume_unique=True).any():
+                if _shares_any(host, viral_union):
                     kmers[name] = host
     if not sum(len(a) for a in kmers.values()):
         return []
