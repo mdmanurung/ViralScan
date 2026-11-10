@@ -8,7 +8,7 @@ The function :func:`recommend_kb_parameters` combines up to three independent si
 
 A parameter is recommended only when its signals agree. Anything else is reported
 with a reason and the run keeps asking for an explicit flag. The function is advisory:
-it changes no default and no run. Pilot rates must come from the caller, because the
+it changes no default. ``run --kb-params auto`` uses it and stops on anything but ``accepted``. Pilot rates must come from the caller, because the
 pilot needs a kallisto index.
 
 ``status`` per recommendation:
@@ -31,15 +31,6 @@ ACCEPTED = "accepted"
 REVIEW = "review"
 NEEDS_FLAG = "needs_flag"
 CONFLICT = "conflict"
-
-#: Strand pilot and tchem agree on a non-forward strand on 5' libraries, yet HHV-6B
-#: (SRR20710641) lost 57 % of its viral molecules under ``reverse`` (repro PLAN F-020).
-#: Rates alone cannot show that loss, so a non-forward strand stays ``review``.
-NONFORWARD_NOTE = (
-    "a non-forward strand is never 'accepted' from rates alone: reverse lost 57 % of "
-    "HHV-6B viral molecules although pilot and tchem both chose it (repro PLAN F-020)"
-)
-
 
 @dataclass
 class Param:
@@ -133,8 +124,6 @@ def _strand(
     assert value is not None
     if from_tchem is None or from_pilot is None:
         return Param(value, REVIEW, notes + ["only one signal available"])
-    if value != "forward":
-        return Param(value, REVIEW, notes + [NONFORWARD_NOTE])
     return Param(value, ACCEPTED, notes + ["tchem and pilot agree"])
 
 

@@ -56,11 +56,10 @@ def test_tchem_disagreement_is_a_conflict_and_its_strand_is_ignored():
     assert r.strand.status == kbparams.NEEDS_FLAG  # tchem's strand is for another chemistry
 
 
-def test_reverse_agreed_by_both_signals_stays_review_with_the_hhv6b_warning():
+def test_reverse_agreed_by_both_signals_is_accepted():
     r = rec(name="10xv2", op=_opinion("agree", "reverse"), pilot=PILOT_REV)
     assert r.strand.value == "reverse"
-    assert r.strand.status == kbparams.REVIEW
-    assert kbparams.NONFORWARD_NOTE in r.strand.notes
+    assert r.strand.status == kbparams.ACCEPTED
 
 
 def test_strand_conflict_falls_back_to_unstranded():
@@ -102,3 +101,12 @@ def test_tau_is_passed_to_the_pilot_inference(tau):
         second_opinion=_opinion("agree", "forward"),
     )
     assert r.evidence["strand_pilot"]["tau"] == tau
+
+
+def test_run_helper_stops_on_anything_but_accepted():
+    from viralscan import menu
+
+    r = rec(op=_opinion("agree", "forward"), pilot=None)  # strand is review: one signal
+    menu._kb_params_require(r, ("technology", "whitelist"), "s")
+    with pytest.raises(SystemExit):
+        menu._kb_params_require(r, ("strand",), "s")

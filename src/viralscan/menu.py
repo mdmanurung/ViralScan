@@ -1152,6 +1152,39 @@ def _precheck_run_config(args: argparse.Namespace) -> None:
         _die(str(exc), 2)
 
 
+def _kb_params_require(rec: Any, params: tuple[str, ...], sample: str) -> None:
+    """Stop the run unless each named parameter of ``rec`` is ``accepted`` (``--kb-params auto``)."""
+    from viralscan import kbparams
+
+    for name in params:
+        p = getattr(rec, name)
+        if p.status != kbparams.ACCEPTED:
+            _die(f"--kb-params auto: {name} for {sample} is {p.status}: {'; '.join(p.notes)}")
+
+
+def _kb_params_technology(args: argparse.Namespace) -> None:
+    """Set ``args.technology`` from the advice when ``-x`` is absent; samples must agree."""
+    from viralscan import kbparams
+
+    samples = split_comma_paths(args.sample1)
+    mates = split_comma_paths(args.sample2)
+    values = set()
+    for s1, r2 in zip(samples, mates):
+        rec = kbparams.recommend_kb_parameters(
+            s1,
+            r2,
+            tchem_mode=getattr(args, "tchem", "auto"),
+            tchem_bin=getattr(args, "tchem_bin", None),
+            tchem_whitelists=getattr(args, "tchem_whitelists", None),
+        )
+        _kb_params_require(rec, ("technology", "whitelist"), _sample_id(s1))
+        values.add(rec.technology.value)
+    if len(values) != 1:
+        _die(f"--kb-params auto: samples differ in chemistry ({sorted(map(str, values))}); pass -x")
+    args.technology = values.pop()
+    log.info("--kb-params auto: -x %s", args.technology)
+
+
 def _resolve_chemistry(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
     """Detect each sample's chemistry and set ``args.technology`` (WP1E Q6, F-005).
 
@@ -1907,6 +1940,8 @@ def _dispatch(args: argparse.Namespace) -> None:
         record_manifest_block,
     )
 
+    if getattr(args, "kb_params", "off") == "auto" and not args.technology:
+        _kb_params_technology(args)
     chemistry_blocks = _resolve_chemistry(args)
     output_dir = Path(args.output).resolve()
     samples1 = split_comma_paths(args.sample1)
@@ -1987,8 +2022,23 @@ def _dispatch(args: argparse.Namespace) -> None:
         out = _sample_id(s1)
         outs = os.path.join(output, out) + os.sep
         sample_args = args
-        if args.strand == "auto":
+        kb_auto = getattr(args, "kb_params", "off") == "auto" and args.strand in (None, "auto")
+        if args.strand == "auto" or kb_auto:
             chosen = _resolve_auto_strand(args, output_dir, out, s1, s2, index, transcripts)
+            if kb_auto:
+                from viralscan import kbparams
+
+                rates = recorded_strand_inference(output_dir, out)["rates"]
+                rec = kbparams.recommend_kb_parameters(
+                    s1,
+                    s2,
+                    pilot_rates=rates,
+                    tchem_mode=getattr(args, "tchem", "auto"),
+                    tchem_bin=getattr(args, "tchem_bin", None),
+                    tchem_whitelists=getattr(args, "tchem_whitelists", None),
+                )
+                _kb_params_require(rec, ("strand",), out)
+                chosen = str(rec.strand.value)
             sample_args = argparse.Namespace(**{**vars(args), "strand": chosen})
         run_config = _build_run_config(sample_args, outs, index, transcripts, f1, s1, s2)
         config_file = _write_run_config(run_config)

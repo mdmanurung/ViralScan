@@ -1630,6 +1630,14 @@ def _build_run_parser(subparsers: Any) -> None:
         ),
     )
     parser.add_argument(
+        "--kb-params",
+        choices=["off", "auto"],
+        default="off",
+        help="`auto` fills -x (when absent) and --strand (when absent or `auto`) from the "
+        "built-in detector, tchem and the strand pilot (PLAN KBPARAMS-01). It stops the run "
+        "unless every signal agrees. Default `off`.",
+    )
+    parser.add_argument(
         "--multimapping",
         action=argparse.BooleanOptionalAction,
         default=True,
