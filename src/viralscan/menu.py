@@ -1708,8 +1708,8 @@ def _build_kb_ref(
 
 def _resolve_auto_strand(
     args: argparse.Namespace, output_dir: Path, sample: str, s1: str, s2: str, index: str, t2g: str
-) -> str:
-    """Strand for ``--strand auto``: reuse the recorded choice on resume, else pilot."""
+) -> tuple[str, dict[str, float]]:
+    """Strand and pilot rates for ``--strand auto``: reuse the recorded choice on resume, else pilot."""
     from viralscan import strand as _strand
 
     block = recorded_strand_inference(output_dir, sample) if args.resume else None
@@ -1720,7 +1720,7 @@ def _resolve_auto_strand(
         record_strand_inference(output_dir, sample, block)
     choice = str(block["choice"])
     log.info("Strand for %s: %s (pilot rates %s)", sample, choice, block["rates"])
-    return choice
+    return choice, block["rates"]
 
 
 def main() -> None:
@@ -2024,11 +2024,10 @@ def _dispatch(args: argparse.Namespace) -> None:
         sample_args = args
         kb_auto = getattr(args, "kb_params", "off") == "auto" and args.strand in (None, "auto")
         if args.strand == "auto" or kb_auto:
-            chosen = _resolve_auto_strand(args, output_dir, out, s1, s2, index, transcripts)
+            chosen, rates = _resolve_auto_strand(args, output_dir, out, s1, s2, index, transcripts)
             if kb_auto:
                 from viralscan import kbparams
 
-                rates = recorded_strand_inference(output_dir, out)["rates"]
                 rec = kbparams.recommend_kb_parameters(
                     s1,
                     s2,

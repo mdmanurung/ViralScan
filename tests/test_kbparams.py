@@ -110,3 +110,16 @@ def test_run_helper_stops_on_anything_but_accepted():
     menu._kb_params_require(r, ("technology", "whitelist"), "s")
     with pytest.raises(SystemExit):
         menu._kb_params_require(r, ("strand",), "s")
+
+
+def test_auto_strand_returns_the_pilot_rates_without_a_manifest_lookup(monkeypatch, tmp_path):
+    """--kb-params auto leaves options.strand empty, so the rates must come from the pilot itself."""
+    import argparse
+
+    from viralscan import menu, strand
+
+    monkeypatch.setattr(strand, "run_pilot", lambda *a, **k: PILOT_FWD)
+    monkeypatch.setattr(menu, "record_strand_inference", lambda *a, **k: None)
+    args = argparse.Namespace(resume=False, technology="10xv2", whitelist=None, cores=1)
+    choice, rates = menu._resolve_auto_strand(args, tmp_path, "s", "r1", "r2", "idx", "t2g")
+    assert (choice, rates) == ("forward", PILOT_FWD)
