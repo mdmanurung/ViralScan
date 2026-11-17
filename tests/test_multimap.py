@@ -1,7 +1,7 @@
 """Tests for barcode processing and multimapping matrix logic in scripts/multimap.py.
 
 ``multimap.py`` now guards its Snakemake wiring behind ``run(ctx)``, so it is
-importable in the test environment. These tests exercise ``strip_10x_suffix``
+importable in the test environment. These tests exercise ``strip_gem_group``
 directly; only the ``*_buggy`` helpers below remain re-implementations — deliberate
 negative controls.
 
@@ -31,7 +31,7 @@ from scipy import sparse
 from viralscan.multimapping import build_multimap_layers
 from viralscan.scripts import multimap
 from viralscan.scripts.multimap import prepare_resolved_bus
-from viralscan.scripts.multimap import strip_10x_suffix as _strip_10x_suffix
+from viralscan.utils import strip_gem_group as _strip_10x_suffix
 
 
 def _fake_bustools_run(calls: list[list[str]]):

@@ -19,7 +19,7 @@ from viralscan.defaults import (
     MULTIMAP_METHODS,
 )
 from viralscan.runconfig import RunConfig
-from viralscan.utils import get_layer
+from viralscan.utils import get_layer, strip_gem_group
 
 MOLECULE_ASSIGNMENT_COLUMNS = (
     "barcode",
@@ -129,7 +129,7 @@ def _iter_bus_text_records(path: Path, buffering: int = -1) -> Iterator[tuple[st
             if len(fields) != 4:
                 raise ValueError(f"Malformed BUS text row {line_number}: expected four columns.")
             barcode, umi, ec_raw, count_raw = fields
-            yield barcode.removesuffix("-1"), umi, int(ec_raw), int(count_raw)
+            yield strip_gem_group(barcode), umi, int(ec_raw), int(count_raw)
 
 
 def iter_cb_umi_molecules(
@@ -605,7 +605,7 @@ def build_multimap_layers(
             return _iter_bus_text_records(bus_df, bus_buffer_size)
         ordered = bus_df.sort_values(["barcode", "umi", "ec"], kind="stable")
         return (
-            (str(row.barcode).removesuffix("-1"), str(row.umi), int(row.ec), int(row.count))
+            (strip_gem_group(str(row.barcode)), str(row.umi), int(row.ec), int(row.count))
             for row in ordered.itertuples(index=False)
         )
 

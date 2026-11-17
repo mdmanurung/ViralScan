@@ -33,6 +33,7 @@ from viralscan.multimapping import (
 from viralscan.outputs import V3Outputs, analysis_genes_path
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
+from viralscan.utils import strip_gem_group
 from viralscan.validation import require_schema_valid, tool_path
 from viralscan.virus_grouping import (
     identity_path,
@@ -77,15 +78,6 @@ def viral_gene_partition(run_output: str) -> set[str]:
             return {line.strip() for line in handle}
     log.warning("No virus identity table or analysis_genes.txt in %s: no viral genes.", run_output)
     return set()
-
-
-def strip_10x_suffix(barcode: str) -> str:
-    """Remove only the trailing '-1' lane suffix added by 10x Cell Ranger.
-
-    A global ``str.replace("-1", "")`` would corrupt any barcode containing
-    '-1' at a non-trailing position; ``removesuffix`` strips just the terminal one.
-    """
-    return barcode.removesuffix("-1")
 
 
 def define_paths() -> tuple[str, str, str, str, str, str, str, str, str]:
@@ -265,7 +257,7 @@ def load_barcodes(barcodes_file):
     """
     with open(barcodes_file) as f:
         barcodes = [line.strip() for line in f]
-    barcodes = [strip_10x_suffix(bc) for bc in barcodes]
+    barcodes = [strip_gem_group(bc) for bc in barcodes]
     if len(set(barcodes)) != len(barcodes):
         dupes = sorted({bc for bc in barcodes if barcodes.count(bc) > 1})
         raise ValueError(
@@ -411,7 +403,7 @@ def align_adata_to_text_files(adata_orig, barcode_to_idx, gene_ids):
     Returns:
         adata_orig (anndata.AnnData): rows follow barcodes.txt, columns genes.txt
     """
-    obs_stripped = [strip_10x_suffix(bc) for bc in adata_orig.obs_names]
+    obs_stripped = [strip_gem_group(bc) for bc in adata_orig.obs_names]
     barcodes = list(barcode_to_idx)
     var_names = list(adata_orig.var_names)
     problems = []

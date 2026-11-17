@@ -46,7 +46,7 @@ from typing import Any
 
 from scipy.stats import hypergeom
 
-from viralscan.scripts.cellcalling import _strip_suffix
+from viralscan.utils import strip_gem_group
 
 #: Conventional one-sided level for the descriptive label. Nothing gates on it.
 OVERLAP_ALPHA = 0.05
@@ -95,7 +95,7 @@ def _read_barcodes(path: Path, skip_header: bool = False) -> set[str]:
     with path.open(encoding="utf-8") as fh:
         if skip_header:
             fh.readline()
-        return {_strip_suffix(line.strip()) for line in fh if line.strip()}
+        return {strip_gem_group(line.strip()) for line in fh if line.strip()}
 
 
 def load_run(run_dir: Path) -> dict[str, Any]:
@@ -115,7 +115,7 @@ def load_run(run_dir: Path) -> dict[str, Any]:
         for row in csv.DictReader(fh, delimiter="\t"):
             bucket = "called" if row["is_called_cell"] == "True" else "noncalled"
             viral.setdefault(row["virus_name"], {"called": set(), "noncalled": set()})[bucket].add(
-                _strip_suffix(row["barcode"])
+                strip_gem_group(row["barcode"])
             )
     for virus, sets in viral.items():
         if not sets["noncalled"] <= universe:

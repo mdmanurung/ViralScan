@@ -199,12 +199,12 @@ def cell_metrics(out_dir: Path, in_panel, truth: dict[str, float]) -> dict:
 
 
 def load_truth(path: Path) -> dict[str, float]:
-    from viralscan.scripts.cellcalling import _strip_suffix
+    from viralscan.utils import strip_gem_group
 
     rows = tsv(path)
     if not rows or not {"barcode", "molecules"} <= set(rows[0]):
         sys.exit(f"{path}: needs columns barcode, molecules")
-    return {_strip_suffix(r["barcode"]): float(r["molecules"]) for r in rows}
+    return {strip_gem_group(r["barcode"]): float(r["molecules"]) for r in rows}
 
 
 def smallest_k(arms: list[dict]) -> dict:

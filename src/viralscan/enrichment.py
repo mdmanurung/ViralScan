@@ -18,7 +18,12 @@ from scipy.stats import false_discovery_control, fisher_exact
 
 from viralscan.defaults import DEFAULTS
 from viralscan.runconfig import RunConfig
-from viralscan.utils import infected_masks, resolve_count_matrix, virus_molecules_per_cell
+from viralscan.utils import (
+    infected_masks,
+    resolve_count_matrix,
+    strip_gem_group,
+    virus_molecules_per_cell,
+)
 
 log = logging.getLogger("viralscan")
 
@@ -84,7 +89,7 @@ def cell_type_enrichment(
         return pd.DataFrame()
 
     # A 10x "-1" suffix on only one side must not drop cells (RUN-CORRECT-01).
-    labels["barcode"] = labels["barcode"].astype(str).str.removesuffix("-1")
+    labels["barcode"] = labels["barcode"].astype(str).map(strip_gem_group)
     labels["cell_type"] = labels["cell_type"].astype(str)
     labels = labels.drop_duplicates()
     conflicts = labels.loc[labels["barcode"].duplicated(keep=False), "barcode"].unique()
@@ -92,7 +97,7 @@ def cell_type_enrichment(
         raise ValueError(f"Conflicting cell_type labels for barcode(s): {conflicts[:5].tolist()}")
 
     obs_labels = pd.DataFrame(
-        {"barcode": adata.obs_names.astype(str).str.removesuffix("-1"), "idx": range(adata.n_obs)}
+        {"barcode": adata.obs_names.astype(str).map(strip_gem_group), "idx": range(adata.n_obs)}
     )
     # "AAAC-1" and "AAAC" in obs would merge into one cell here and inflate n_total.
     distinct = obs_labels.assign(raw=adata.obs_names.astype(str)).drop_duplicates("raw")
