@@ -56,7 +56,6 @@ all and is invisible here, not "negative".
 from __future__ import annotations
 
 import csv
-import importlib.resources
 import os
 import re
 from collections.abc import Iterable
@@ -137,18 +136,14 @@ REQUIRED_COLUMNS = (
 )
 
 _TSV_FILENAME = "hpv_genes.tsv"
-_PACKAGE_DATA = "viralscan.data"
+_DATA_DIR = Path(__file__).resolve().parent / "data"
 
 Row = dict[str, Any]
 
 
 def _default_tsv_path() -> Path:
-    """Return the packaged catalogue via importlib.resources.
-
-    Mirrors ``gene_programs._default_tsv_path`` so every packaged table resolves
-    the same way regardless of how the package was installed.
-    """
-    return Path(str(importlib.resources.files(_PACKAGE_DATA).joinpath(_TSV_FILENAME)))
+    """Return the catalogue next to this module (it is not a packaged table)."""
+    return _DATA_DIR / _TSV_FILENAME
 
 
 def load_catalogue(path: str | os.PathLike[str] | None = None) -> list[Row]:

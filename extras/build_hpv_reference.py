@@ -1,4 +1,4 @@
-"""Generator for ``src/viralscan/data/hpv_genes.tsv``.
+"""Generator for ``extras/viralscan_curation/data/hpv_genes.tsv``.
 
 ViralScan's HPV reference is four accessions with ``HpV16gp1``-style gene IDs:
 RefSeq ``locus_tag`` values that say nothing about which open reading frame is
@@ -73,7 +73,7 @@ Per type, in order of preference:
    CDS set, then on accession.
 
 What the result supports is stated in the module docstring of
-``viralscan.hpv_genes``: an oncogene-versus-capsid contrast per genotype, and
+``extras.viralscan_curation.hpv_genes``: an oncogene-versus-capsid contrast per genotype, and
 **not** confident per-genotype attribution of L1 signal, because L1 is the most
 conserved coding region in the genus and cross-maps between all 16 genotypes
 here.
@@ -108,7 +108,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from viralscan.scripts import ncbi_fetch  # noqa: E402
 from viralscan.scripts.ncbi_fetch import DEFAULT_CACHE_DIR  # noqa: E402
 
-DATA_DIR = REPO_ROOT / "src" / "viralscan" / "data"
+DATA_DIR = REPO_ROOT / "extras" / "viralscan_curation" / "data"
 DEFAULT_OUT = DATA_DIR / "hpv_genes.tsv"
 
 #: The 14 oncogenic genotypes, plus the two cutaneous types the current index

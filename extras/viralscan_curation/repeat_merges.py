@@ -19,12 +19,11 @@ indices' bare ``HHV1gp00s01``); an index that uses neither is left alone.
 from __future__ import annotations
 
 import csv
-import importlib.resources
 import os
 from pathlib import Path
 
 _TSV_FILENAME = "repeat_gene_merges.tsv"
-_PACKAGE_DATA = "viralscan.data"
+_DATA_DIR = Path(__file__).resolve().parent / "data"
 _COLUMNS = ("gene_id", "merged_into", "virus", "rationale")
 
 #: File names a kb index directory may use for its t2g, in preference order.
@@ -32,7 +31,7 @@ T2G_NAMES = ("t2g.txt", "panel.t2g")
 
 
 def _default_tsv_path() -> Path:
-    return Path(str(importlib.resources.files(_PACKAGE_DATA).joinpath(_TSV_FILENAME)))
+    return _DATA_DIR / _TSV_FILENAME
 
 
 def load_repeat_merges(path: str | Path | None = None) -> dict[str, str]:
