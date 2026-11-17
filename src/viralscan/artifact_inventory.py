@@ -17,10 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from viralscan import __version__
+from viralscan.contract import COUNT_SCHEMA_VERSION, INVENTORY_SCHEMA_VERSION
 from viralscan.outputs import SAMPLE_LAYOUT, V3Outputs, run_readme, sample_readme
 
-INVENTORY_SCHEMA_VERSION = "1.1.0"
-COUNTING_VERSION = "3.0.0"  # the ``count_schema_version`` stamped into the h5ad files
 INTERMEDIATE_DIRS = frozenset(
     p.rstrip("/") for p, role, _ in SAMPLE_LAYOUT if role == "intermediate"
 )
@@ -73,7 +72,7 @@ def write_artifact_inventory(sample_dir: Path, options: dict[str, Any] | None = 
                 "path": rel,
                 "scope": "private",
                 "software_version": __version__,
-                "counting_version": COUNTING_VERSION,
+                "counting_version": COUNT_SCHEMA_VERSION,
                 "git_sha": git_sha,
                 "input_sha256s": [],
                 "reference_sha256s": [],

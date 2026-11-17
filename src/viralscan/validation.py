@@ -16,7 +16,8 @@ from typing import Any
 import numpy as np
 from scipy import sparse
 
-from viralscan.outputs import SUPPORTED_LAYOUT_VERSIONS, is_posthoc
+from viralscan.contract import COUNT_SCHEMA_VERSION, SCHEMA_VERSION, SUPPORTED_LAYOUT_VERSIONS
+from viralscan.outputs import is_posthoc
 from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file, sha256_path
 
 PYTHON_REQUIREMENTS = ("anndata", "jsonschema", "numpy", "pandas", "scipy")
@@ -504,7 +505,7 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
             )
             manifest = {}
 
-    if manifest and manifest.get("schema_version") != "3.0.0":
+    if manifest and manifest.get("schema_version") != SCHEMA_VERSION:
         issues.append(
             ValidationIssue(
                 "error", "wrong_schema", str(manifest.get("schema_version")), str(manifest_path)
@@ -600,7 +601,7 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
             continue
         if not multimapping_enabled:
             continue
-        if adata.uns.get("count_schema_version") != "3.0.0":
+        if adata.uns.get("count_schema_version") != COUNT_SCHEMA_VERSION:
             issues.append(
                 ValidationIssue("error", "legacy_h5ad", "Not a v3 count schema", str(path))
             )
@@ -612,7 +613,7 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
         issues.extend(_matrix_issues(adata, path, contract, audit_schema))
 
     return {
-        "schema_version": "3.0.0",
+        "schema_version": SCHEMA_VERSION,
         "run_dir": str(run_dir),
         "ok": not any(issue.level == "error" for issue in issues),
         "h5ad_files": [str(path) for path in h5ads],

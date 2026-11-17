@@ -61,6 +61,7 @@ from viralscan.molecule_verdict import (
     write_from_bam,
     write_umi_query_fasta,
 )
+from viralscan.contract import SCHEMA_VERSION
 from viralscan.outputs import analysis_genes_path, posthoc_dir
 from viralscan.read_support import write_molecule_support
 from viralscan.run_safety import RunSafetyError, refuse_primary_tree, sha256_file, software_identity
@@ -235,7 +236,7 @@ def _write_evidence_manifest(
         name: sha256_file(path) if path else None for name, path in references.items()
     }
     manifest: dict[str, Any] = {
-        "schema_version": "3.0.0",
+        "schema_version": SCHEMA_VERSION,
         "target": {"label": target_label, "genes": sorted(target_genes)},
         "method": method,
         "run_fingerprint": run_fingerprint,

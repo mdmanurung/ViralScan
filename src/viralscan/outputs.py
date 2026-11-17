@@ -24,9 +24,11 @@ from pathlib import Path
 from typing import Any, Union
 
 from viralscan import __version__
+from viralscan.contract import (  # noqa: F401  (re-exported)
+    LAYOUT_VERSION,
+    SUPPORTED_LAYOUT_VERSIONS,
+)
 
-LAYOUT_VERSION = 3
-SUPPORTED_LAYOUT_VERSIONS = (1, 2, 3)
 POSTHOC_DIRNAME = "posthoc"
 ANALYSIS_GENES = "results/analysis_genes.txt"  # v1/v2: log/analysis.txt
 FOUND_GENES = "results/found_genes.txt"  # v1/v2: log/found_genes.txt

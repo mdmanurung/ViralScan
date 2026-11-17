@@ -24,6 +24,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.multimapping import select_detection_matrix
+from viralscan.contract import COUNT_SCHEMA_VERSION
 from viralscan.outputs import found_genes_path
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
@@ -504,7 +505,7 @@ def main():
 
     adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
     if config.multimapping:
-        if adata.uns.get("count_schema_version") != "3.0.0":
+        if adata.uns.get("count_schema_version") != COUNT_SCHEMA_VERSION:
             raise ValueError("Multimapping output is not a ViralScan v3 count schema; rebuild it.")
 
     # Load found genes

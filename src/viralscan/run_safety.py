@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from viralscan import __version__
+from viralscan.contract import LAYOUT_VERSION, SCHEMA_VERSION
 from viralscan.defaults import DEFAULTS
-from viralscan.outputs import LAYOUT_VERSION
 
 log = logging.getLogger(__name__)
 
@@ -265,7 +265,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         json.dumps(reference_hashes, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
     payload = {
-        "schema_version": "3.0.0",
+        "schema_version": SCHEMA_VERSION,
         "viralscan_version": __version__,
         "quantification_unit": "bustools-resolved-cb-umi-molecule",
         "allocation_method": getattr(args, "multimap_method", None),
@@ -316,7 +316,7 @@ def build_run_complete(run_root: Path) -> dict[str, Any]:
         if (run_root / sample / rel).is_file()
     }
     return {
-        "schema_version": "3.0.0",
+        "schema_version": SCHEMA_VERSION,
         "run_fingerprint": manifest.get("run_fingerprint"),
         "viralscan_version": __version__,
         "samples": samples,
