@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import argparse
 import atexit
 import csv
-import functools
 import hashlib
 import json
 import logging
@@ -22,6 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from viralscan import __version__
+from viralscan.defaults import DEFAULTS
 from viralscan.outputs import LAYOUT_VERSION
 
 log = logging.getLogger(__name__)
@@ -153,9 +152,10 @@ def software_identity() -> dict[str, Any]:
     return identity
 
 
-# C-12: resource options are recorded in the manifest but never hashed, so a SLURM
-# resubmission with another allocation can still --resume.
-_INFORMATIONAL_OPTIONS = frozenset({"cores"})
+# Options recorded in the manifest but never hashed. C-12: resource options, so a SLURM
+# resubmission with another allocation can still --resume. `kb_params` only fills -x and
+# --strand, and those are hashed themselves (CONTRACT-FP-01).
+_INFORMATIONAL_OPTIONS = frozenset({"cores", "kb_params"})
 _HASHED_KEYS = (
     "schema_version",
     "viralscan_version",
@@ -168,93 +168,29 @@ _HASHED_KEYS = (
 )
 
 
-# Options that were added (or whose default changed) after manifests were written. A value
-# equal to the default is left out of the hash, so a manifest that predates the option and one
-# that stored the default both match an invocation that leaves it alone. One mechanism for
-# PROG-MINMOL-01, DISC-FP-BUILD-01 and FP-BASELINE-01.
-_OMIT_AT_DEFAULT = (
-    "programme_productive_min_molecules",
-    "programme_min_breadth",
-    "programme_min_umi",
-    "programme_latent_min_breadth",
-    "emptydrops_niters",
-    "emptydrops_seed",
-    "multimap_molecule_assignments",
-    "anello_align",
-    "anellovirus_gene_ids",
-    "discover",
-    "kraken2_db",
-    "star_confirm",
-    "star_hostvirus_index",
-    "tchem",
-    "tchem_bin",
-    "tchem_whitelists",
-    "gene_programs",
-    "positive_control_gene",
-    "positive_control_molecules",
-    "require_positive_control",
-)
-# Not a default: the value in force before INFECTED-MINMOL-02 raised the default to 2.0. A
-# manifest without the option was made at 1.0, so 1.0 is omitted and 2.0 is hashed.
-_OMIT_AT_LEGACY = {"infected_min_molecules": 1.0}
+def _resolved_option(key: str, value: Any) -> Any:
+    """The value a run actually uses: an unset option takes its ``DEFAULTS`` entry.
 
-
-@functools.lru_cache(maxsize=1)
-def _omittable_values() -> dict[str, Any]:
-    """Map each omittable option to the value that is left out of the hash.
-
-    Defaults come from the ``run`` parser, so there is no second copy to drift.
+    So ``--detection-min-cells 1`` and leaving the flag out hash the same, and a later
+    change of a default is a different run (the version is hashed too). Options with no
+    ``DEFAULTS`` entry keep ``None``: unset is a distinct state for them (``--strand``).
     """
-    from viralscan.cli.parsers import _build_run_parser
-
-    subparsers = argparse.ArgumentParser().add_subparsers()
-    _build_run_parser(subparsers)
-    run_parser = subparsers.choices["run"]
-    values = {key: run_parser.get_default(key) for key in _OMIT_AT_DEFAULT}
-    return {**values, **_OMIT_AT_LEGACY}
+    return DEFAULTS[key] if value is None and key in DEFAULTS else value
 
 
-def _omit_at_default(key: str, value: Any) -> bool:
-    """True when ``key`` is unset or equals the value that leaves the hash unchanged."""
-    omittable = _omittable_values()
-    return key in omittable and (value is None or value == omittable[key])
-
-
-def _without_default_options(manifest: dict[str, Any]) -> dict[str, Any]:
-    """Copy of ``manifest`` with the omittable options at their default removed."""
-    options = {
-        k: v for k, v in (manifest.get("options") or {}).items() if not _omit_at_default(k, v)
-    }
-    return {**manifest, "options": options}
-
-
-def _fingerprint(manifest: dict[str, Any], *, informational: bool = False) -> str:
-    """Hash the fingerprinted fields; ``informational=True`` hashes the pre-C-12 way."""
+def _fingerprint(manifest: dict[str, Any]) -> str:
+    """Hash the fingerprinted fields, leaving out the informational options."""
     payload = {key: manifest[key] for key in _HASHED_KEYS if key in manifest}
-    if not informational:
-        payload["options"] = {
-            k: v
-            for k, v in (payload.get("options") or {}).items()
-            if k not in _INFORMATIONAL_OPTIONS
-        }
+    payload["options"] = {
+        k: v for k, v in (payload.get("options") or {}).items() if k not in _INFORMATIONAL_OPTIONS
+    }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(canonical).hexdigest()
 
 
 def _fingerprint_matches(previous: dict[str, Any], manifest: dict[str, Any]) -> bool:
-    """True when ``previous`` is the same run; pre-C-12 manifests hashed ``cores``."""
-    stored = previous.get("run_fingerprint")
-    if stored == manifest.get("run_fingerprint"):
-        return True
-    # Old-style manifest: trust it only if its stored hash reproduces with cores
-    # included, then compare it to this invocation with cores left out.
-    wanted = manifest.get("run_fingerprint")
-    if stored == _fingerprint(previous, informational=True) and _fingerprint(previous) == wanted:
-        return True
-    # A manifest that stored an option at its default was hashed with it; this invocation
-    # leaves it out. Trust the stored hash only if it reproduces, then compare without them.
-    reproduces = stored in (_fingerprint(previous), _fingerprint(previous, informational=True))
-    return reproduces and _fingerprint(_without_default_options(previous)) == wanted
+    """True when ``previous`` is the same run made by the same ViralScan version."""
+    return previous.get("run_fingerprint") == manifest.get("run_fingerprint")
 
 
 def build_run_manifest(args: Any) -> dict[str, Any]:
@@ -304,49 +240,13 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "ncbi_api_key",
         "ncbi_email",
     }
-    # Options added after v3.0 manifests were first written. An unset (None) value
-    # is omitted, so a manifest that predates the option still matches an
-    # invocation that does not use it; any non-None value changes the fingerprint
-    # and refuses --resume against such a manifest (old counts were made with
-    # kb's default, not this value).
-    omit_when_unset = {
-        "strand",
-        "host_filter_star_params",
-        "read_filter",
-        "auto_evidence",
-        "host_fasta",
-        "viral_fasta",
-        "positive_control_scope",
-        "positive_control_virus_key",
-        "positive_control_receipt",
-        "hostresponse_cv",
-        "hostresponse_groups",
-        "hostresponse_cv_folds",
-        "hostresponse_cell_type_column",
-        "hostresponse_cell_types",
-        "hostresponse_panel_in_fold",
-        "hostresponse_permutations",
-        "hostresponse_permutation_unit",
-        "hostresponse_permutation_block",
-        "hostresponse_min_negative_cells",
-        "hostresponse_min_groups",
-        # AUD-06/AUD-07/B-16: unset keeps the pre-existing fingerprint.
-        # `infected_min_molecules` is not here: the CLI always sets it (default 2.0,
-        # INFECTED-MINMOL-02), so it is hashed and a manifest without it refuses --resume.
-        "detection_min_cells",
-        "hostresponse_min_umi",
-        # PROG-MIXED-VETO-01
-        "programme_mixed_veto",
-        "programme_mixed_veto_alpha",
-        # Label only (reference_manifest.json); default None. Omitted when unset so
-        # manifests from before the flag still resume; a set value stays hashed.
-        "reference_host_species",
-    }
     options = {
-        key: value
+        key: _resolved_option(key, value)
         for key, value in sorted(vars(args).items())
         if key not in excluded
         and not (key == "scautoqc" and value is False)
+        # An unset option with no DEFAULTS entry (--strand, --read-filter, ...) adds no key.
+        and not (value is None and key not in DEFAULTS)
         and (
             isinstance(value, (str, int, float, bool, type(None)))
             or (
@@ -355,13 +255,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
                 and all(isinstance(v, str) for v in value)
             )
         )
-        and not (key in omit_when_unset and value is None)
-        and not _omit_at_default(key, value)
     }
-    # Pre-fix manifests hashed these two as null when unset; keep a null so a run made
-    # without them still resumes. The values themselves are not recorded.
-    options["ncbi_api_key"] = None
-    options["ncbi_email"] = None
     reference_hashes = {
         key: value
         for key, value in input_fingerprints.items()
@@ -691,7 +585,13 @@ def prepare_output_directory(
             old_strand = old_opts.get("strand")
             new_strand = new_opts.get("strand")
             reason = ""
-            if old_strand != new_strand:
+            old_version = previous.get("viralscan_version")
+            if old_version != manifest.get("viralscan_version"):
+                reason = (
+                    f" (the run was made by ViralScan {old_version}; this is "
+                    f"{manifest.get('viralscan_version')}, and --resume needs the same version)"
+                )
+            elif old_strand != new_strand:
                 reason = (
                     f" (--strand differs: previous run used {old_strand or 'the kb default'!r}, "
                     f"this invocation uses {new_strand or 'the kb default'!r}; "

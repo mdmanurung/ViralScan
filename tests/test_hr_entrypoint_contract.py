@@ -60,7 +60,8 @@ def test_rerun_inherits_saved_group_settings_and_respects_explicit_zero():
     assert opts["permutations"] == 0
 
 
-def test_unset_evaluation_settings_preserve_old_fingerprint():
+def test_unset_evaluation_settings_do_not_change_the_fingerprint():
+    """Unset settings without a DEFAULTS entry add no key (CONTRACT-FP-01)."""
     old = argparse.Namespace(multimap_method="equal", cell_calling="none")
     new = argparse.Namespace(**vars(old), hostresponse_cv=None, hostresponse_cell_types=None)
     assert build_run_manifest(old)["run_fingerprint"] == build_run_manifest(new)["run_fingerprint"]

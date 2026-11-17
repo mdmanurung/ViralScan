@@ -2307,7 +2307,7 @@ def _build_run_parser(subparsers: Any) -> None:
         "--resume",
         action="store_true",
         default=False,
-        help="Resume only when run_manifest.json exactly matches this invocation.",
+        help="Resume only when run_manifest.json exactly matches this invocation and the run was made by the same ViralScan version.",
     )
     output_mode.add_argument(
         "--overwrite",

@@ -1,4 +1,4 @@
-"""Resume fingerprint: options added after v3.0 must not break --resume when unset."""
+"""CONTRACT-FP-01: an unset option equals its DEFAULTS value; an option with no default adds no key."""
 
 from __future__ import annotations
 
@@ -36,31 +36,24 @@ def _fp(args: argparse.Namespace) -> str:
     return rs.build_run_manifest(args)["run_fingerprint"]
 
 
-def test_old_manifest_without_the_keys_matches_the_parser_defaults(make_args) -> None:
-    """The parser sets reference_host_species=None and productive_min_molecules=1."""
-    old = _fp(make_args())
-    now = _fp(
-        make_args(
-            reference_host_species=None,
-            programme_productive_min_molecules=DEFAULTS["programme_productive_min_molecules"],
-        )
-    )
-    assert old == now
-
-
-def test_explicit_none_equals_absent_key(make_args) -> None:
-    assert _fp(make_args()) == _fp(
-        make_args(reference_host_species=None, programme_productive_min_molecules=None)
-    )
+def test_unset_equals_the_defaults_value(make_args) -> None:
+    key = "programme_productive_min_molecules"
+    assert _fp(make_args(**{key: None})) == _fp(make_args(**{key: DEFAULTS[key]}))
 
 
 def test_productive_min_molecules_above_default_changes_the_fingerprint(make_args) -> None:
-    assert _fp(make_args(programme_productive_min_molecules=2)) != _fp(make_args())
+    assert _fp(make_args(programme_productive_min_molecules=2)) != _fp(
+        make_args(programme_productive_min_molecules=None)
+    )
 
 
 def test_reference_host_species_is_hashed_only_when_set(make_args) -> None:
-    base = _fp(make_args())
+    base = _fp(make_args(reference_host_species=None))
     human = _fp(make_args(reference_host_species="Homo sapiens"))
     assert human != base
     assert human == _fp(make_args(reference_host_species="Homo sapiens"))
     assert human != _fp(make_args(reference_host_species="Mus musculus"))
+    assert (
+        "reference_host_species"
+        not in rs.build_run_manifest(make_args(reference_host_species=None))["options"]
+    )

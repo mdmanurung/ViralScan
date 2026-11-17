@@ -152,7 +152,7 @@ The default mode refuses a non-empty output directory. Reuse must be explicit:
 
 | Flag | Behavior |
 |------|----------|
-| `--resume` | Resume only when the existing `run_manifest.json` fingerprint exactly matches the current invocation and input bytes |
+| `--resume` | Resume only when the existing `run_manifest.json` fingerprint exactly matches the current invocation and input bytes, and the run was made by the same ViralScan version |
 | `--overwrite` | Replace only the resolved output target after an explicit confirmation |
 | `--yes`, `-y` | Answer the `--overwrite` confirmation, and the `--reference` prompt that asks whether to continue when `-i`/`-t`/`--f1` are also given (they are ignored; the reference is built into the output directory). It does not imply `--overwrite` or `--resume`. Without a terminal and without `--yes`, that prompt is an error, not a hang |
 
@@ -863,7 +863,7 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-differential` | `False` | Run a genome-wide depth-and-mito-adjusted differential expression test alongside the selection-frequency model (written to <output>/results/hostresponse/<virus>_differential.csv). |
 | `--enrichment` | `False` | Run pathway enrichment on above-threshold host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]'). |
 | `--enrichment-db DB` | *(none)* | Enrichment database for gget.enrichr. Default when unset: GO_Biological_Process_2023. |
-| `--resume` | `False` | Resume only when run_manifest.json exactly matches this invocation. |
+| `--resume` | `False` | Resume only when run_manifest.json exactly matches this invocation and the run was made by the same ViralScan version. |
 | `--overwrite` | `False` | Explicitly replace a non-empty output directory after confirmation. |
 | `--yes, -y` | `False` | Answer the --overwrite confirmation; does not imply overwrite or resume. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
