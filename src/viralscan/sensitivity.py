@@ -62,6 +62,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from viralscan.utils import warn_deprecated
+
 #: kallisto/bustools default and the value ``kb count`` used for every run in
 #: this repo's benchmarks (see kb-python/run_info.json: "k-mer length": 31).
 DEFAULT_K = 31
@@ -193,6 +195,9 @@ def fragment_capture(
     A **substitution-only heuristic**: it is never a measured capture and never
     sets ``capture_measured``.
     """
+    warn_deprecated(
+        "viralscan.sensitivity.fragment_capture", "fragment_capture_exact", stacklevel=2
+    )
     return fragment_capture_exact(divergence, read_length=read_length, k=k)
 
 

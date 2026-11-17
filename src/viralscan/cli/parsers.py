@@ -20,6 +20,7 @@ from viralscan.defaults import (
 )
 from viralscan.hostresponse_contract import CellTypesAction
 from viralscan.runconfig import CAPTURE_SCOPES
+from viralscan.utils import deprecation_message
 
 try:
     from pyfiglet import figlet_format as _figlet_format
@@ -2336,8 +2337,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = build_parser()
     if argv and argv[0].startswith("-") and argv[0] not in ("-h", "--help", "--version"):
         print(
-            "viralscan: warning: quantification without a subcommand is deprecated; "
-            "use `viralscan run ...`",
+            "viralscan: warning: "
+            + deprecation_message("quantification without a subcommand", "`viralscan run ...`"),
             file=sys.stderr,
         )
         argv.insert(0, "run")

@@ -35,6 +35,12 @@ def _bh_adjust(pvals: list[float] | npt.NDArray[np.float64]) -> npt.NDArray[np.f
     return adjusted
 
 
+__all__ = [
+    "cell_type_enrichment",
+    "write_cell_type_enrichment",
+]
+
+
 def cell_type_enrichment(
     adata: Any,
     group_by_virus: dict[str, list[str]],

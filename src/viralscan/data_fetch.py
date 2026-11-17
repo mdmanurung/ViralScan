@@ -46,6 +46,13 @@ def viral_data_dir(cache_dir: str | Path | None = None) -> Path:
     return cache_root(cache_dir) / "data"
 
 
+__all__ = [
+    "cache_valid",
+    "ensure_viral_data",
+    "fetch_viral_data",
+]
+
+
 def ensure_viral_data(cache_dir: str | Path | None = None) -> Path:
     """Return the viral data directory or raise with the user-facing fetch command."""
     data_dir = viral_data_dir(cache_dir)
