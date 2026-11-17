@@ -1685,7 +1685,14 @@ def _stacked_histogram(
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
-    import pyBigWig
+
+    try:
+        import pyBigWig
+    except ImportError as exc:  # not a declared pip dependency: it comes with the conda toolchain
+        raise ImportError(
+            "evidence-plot coverage tracks need pyBigWig. Install it with "
+            "`conda install -c bioconda pybigwig` (it is in environment.full.explicit.txt)."
+        ) from exc
 
     bins = max(1, min(length // 50, 1000))
     edges = np.linspace(0, length, bins + 1)

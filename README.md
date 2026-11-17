@@ -147,6 +147,9 @@ single-dash spellings (`-s1 -s2 -gtf -fasta -ref ...`) were removed in 3.0 (see
 viralscan run -t transcripts.txt -i index.idx -o output/ --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz
 ```
 
+`run` stops (exit 2) unless the chemistry is confirmed as 3'. For 10x 5' or an unconfirmed library,
+add `--strand forward|reverse|unstranded|auto` or `--kb-params auto`.
+
 ### Option 2 - ViralScan creates the index from FASTA + GTF
 
 Provide the GTF and FASTA file(s). The index is placed in the output directory, in
@@ -319,6 +322,8 @@ schema including optional files (`cell_type_enrichment.tsv`, UMAP plots, etc.).
 ---
 
 ## Limitations
+
+See also [what ViralScan cannot tell you](docs/limitations.md).
 
 - **Formal v3 sensitivity, specificity, and comparative performance are not yet established.**
   The preregistered truth-panel holdout and harmonized comparator program must pass before those

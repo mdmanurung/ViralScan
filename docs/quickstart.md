@@ -87,6 +87,11 @@ viralscan run \
 The sample directory is inferred from the R1 filename before the first
 underscore, so this run writes to `output/sample/`.
 
+`run` stops with exit code 2 unless the library chemistry is confirmed as 3' (10x 3', Drop-seq). For
+10x 5' or an unconfirmed library, add `--strand forward|reverse|unstranded|auto`, or add
+`--kb-params auto` to let the built-in detector, tchem and the strand pilot choose and stop when they
+disagree. `viralscan check-chemistry` shows what each signal sees.
+
 Defaults worth knowing:
 
 - `--multimap-method conservative` (recorded as `host-conservative`) keeps host–virus ambiguous molecule mass

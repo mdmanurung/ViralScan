@@ -1,5 +1,9 @@
 # ViralScan — Publication Readiness Assessment
 
+> **Superseded.** This is a v2.x-era assessment (2026-07). Its test counts, status words and
+> numbers are not v3 evidence and must not be cited. The v3 status is the gate dashboard in `PLAN.md`;
+> the manuscript is `docs/manuscript_draft.md`, which states it is not a submission draft.
+
 _Assessed 2026-07-03 (v2.4.0 + v2.5 scientific-hardening on `claude/multimap-memory-and-showcase`)._
 
 ## Verdict — two separate tracks

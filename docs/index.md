@@ -57,6 +57,7 @@ the [release policy](release_policy.md) and [reference maintenance](reference_ma
 installation
 quickstart
 results
+limitations
 vignettes/README
 ```
 

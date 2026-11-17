@@ -1348,9 +1348,11 @@ def _check_required_tools() -> None:
     if missing:
         _die(
             "The following required external tools are not on PATH: "
-            f"{', '.join(missing)}. The full workflow needs kb-python (provides 'kb') and "
-            "snakemake: install the 'full' extra (pip install \"viralscan[full]\") or use "
-            "environment.yml (Python 3.11, linux-64)."
+            f"{', '.join(missing)}. The full workflow needs kb-python (provides 'kb', kallisto "
+            "and bustools), STAR and snakemake 9, on Python 3.11 and linux-64. Create the "
+            "environment from environment.yml (conda or pixi). pip can add snakemake only "
+            '(pip install "viralscan[full]", Python 3.11+); kb, kallisto, bustools and STAR '
+            "always come from conda (see docs/installation.md)."
         )
 
 
