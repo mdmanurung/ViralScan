@@ -152,7 +152,7 @@ The default mode refuses a non-empty output directory. Reuse must be explicit:
 
 | Flag | Behavior |
 |------|----------|
-| `--resume` | Resume only when the existing `run_manifest.json` fingerprint exactly matches the current invocation and input bytes |
+| `--resume` | Resume only when the existing `run_manifest.json` fingerprint exactly matches the current invocation and input bytes, and the run was made by the same ViralScan version |
 | `--overwrite` | Replace only the resolved output target after an explicit confirmation |
 | `--yes`, `-y` | Answer the `--overwrite` confirmation, and the `--reference` prompt that asks whether to continue when `-i`/`-t`/`--f1` are also given (they are ignored; the reference is built into the output directory). It does not imply `--overwrite` or `--resume`. Without a terminal and without `--yes`, that prompt is an error, not a hang |
 
@@ -828,7 +828,7 @@ the sections above add context. Do not edit between the markers.
 | `--called-cells-file CALLED_CELLS_FILE` | *(none)* | Path to an external called-cell barcode list (one per line, optional -1 suffix) used when --cell-calling external. Typically a CellRanger/STARsolo filtered barcodes.tsv(.gz). |
 | `--emptydrops-seed EMPTYDROPS_SEED` | `100` | Random seed for DropletUtils::emptyDrops. It is a Monte-Carlo test, so this decides which borderline barcodes are called. Set it from the preregistered seed when running under a frozen protocol. Default: 100. |
 | `--emptydrops-niters EMPTYDROPS_NITERS` | `10000` | Monte-Carlo iterations for DropletUtils::emptyDrops. Default: 10000. |
-| `--multimap-method {conservative,em,equal}` | `conservative` | How to allocate multi-gene EC counts. 'conservative' excludes host-virus ambiguous EC mass from viral genes (recommended for combined host+virus references); 'em' iterates the allocation using cell-local evidence; 'equal' splits reads equally (fast, unbiased first pass). Use 'viralscan rerun-multimap' to switch methods after the run without redoing the pseudoalignment. Default: conservative. |
+| `--multimap-method {conservative,em,equal}` | `host-conservative` | How to allocate multi-gene EC counts. 'conservative' excludes host-virus ambiguous EC mass from viral genes (recommended for combined host+virus references); 'em' iterates the allocation using cell-local evidence; 'equal' splits reads equally (fast, unbiased first pass). Use 'viralscan rerun-multimap' to switch methods after the run without redoing the pseudoalignment. Default: conservative. |
 | `--multimap-pseudocount MULTIMAP_PSEUDOCOUNT` | `1.0` | Positive pseudocount used by --multimap-method unique-weighted. Default: 1.0. |
 | `--multimap-primary-call MULTIMAP_PRIMARY_CALL` | `selected-method` | V3 detection-count contract. The only supported value is 'selected-method': summaries use the complete molecule matrix for --multimap-method, while unique and ambiguous evidence remain separately reported. Default: selected-method. |
 | `--multimap-em-max-iter MULTIMAP_EM_MAX_ITER` | `100` | Maximum EM iterations for --multimap-method em. Default: 100. |
@@ -863,7 +863,7 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-differential` | `False` | Run a genome-wide depth-and-mito-adjusted differential expression test alongside the selection-frequency model (written to <output>/results/hostresponse/<virus>_differential.csv). |
 | `--enrichment` | `False` | Run pathway enrichment on above-threshold host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]'). |
 | `--enrichment-db DB` | *(none)* | Enrichment database for gget.enrichr. Default when unset: GO_Biological_Process_2023. |
-| `--resume` | `False` | Resume only when run_manifest.json exactly matches this invocation. |
+| `--resume` | `False` | Resume only when run_manifest.json exactly matches this invocation and the run was made by the same ViralScan version. |
 | `--overwrite` | `False` | Explicitly replace a non-empty output directory after confirmation. |
 | `--yes, -y` | `False` | Answer the --overwrite confirmation; does not imply overwrite or resume. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |

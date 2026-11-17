@@ -130,7 +130,7 @@ def test_validation_accepts_a_complete_opt_in(tmp_path, fastas):
             errorhandler(_args(tmp_path, host_fasta=str(host)))
 
 
-def test_default_invocation_keeps_its_run_fingerprint():
+def test_default_invocation_records_the_resolved_defaults():
     from viralscan.menu import create_help
 
     with patch("sys.argv", ["viralscan", "run", "-o", "o", "--r1", "a_R1.fq", "--r2", "a_R2.fq"]):
@@ -139,7 +139,9 @@ def test_default_invocation_keeps_its_run_fingerprint():
     from viralscan.run_safety import build_run_manifest
 
     options = build_run_manifest(args)["options"]
-    assert not {"auto_evidence", "host_fasta", "viral_fasta"} & set(options)
+    # CONTRACT-FP-01: an unset option with a DEFAULTS entry hashes at that value.
+    assert options["auto_evidence"] is False
+    assert not {"host_fasta", "viral_fasta"} & set(options)
 
 
 def _gene(gene_id, name, family):

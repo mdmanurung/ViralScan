@@ -590,6 +590,9 @@ def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) 
     manifest["derived_from"] = str(source_dir)
     manifest["parent_run_fingerprint"] = manifest.get("run_fingerprint")
     manifest["allocation_method"] = new_method
+    # Keep the recorded option in step with the allocation the copy now holds.
+    if isinstance(manifest.get("options"), dict) and "multimap_method" in manifest["options"]:
+        manifest["options"]["multimap_method"] = new_method
     manifest["layout_version"] = LAYOUT_VERSION  # the copy is rewritten by this version
     manifest["completion_marker"] = True
     # input_paths (C-04) is run-location metadata, not part of the derived fingerprint.
@@ -928,7 +931,7 @@ def errorhandler(args: argparse.Namespace) -> None:
             **{
                 key: default if getattr(args, key, None) is None else getattr(args, key)
                 for key, default in (
-                    ("cores", 6),
+                    ("cores", DEFAULTS["cores"]),
                     ("emptydrops_fdr", DEFAULTS["emptydrops_fdr"]),
                     ("emptydrops_niters", DEFAULTS["emptydrops_niters"]),
                     ("hostresponse_n_stab_iter", DEFAULTS["hostresponse_n_stab_iter"]),

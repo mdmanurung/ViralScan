@@ -225,35 +225,6 @@ def test_force_technology_does_not_change_the_fingerprint(tmp_path: Path) -> Non
     assert plain["options"]["technology"] == "10xv3"
 
 
-# Fingerprint of a plain run at aca8998 (before C-13), with __version__ pinned.
-_LEGACY_PLAIN_RUN_FINGERPRINT = "3199343e8d011316ed404647f812115debcfd904f1f80146f6db197d4656c2c9"
-# C-12: same run with `cores` no longer hashed (it is still recorded in the manifest).
-_PLAIN_RUN_FINGERPRINT = "6a88eb4301cf7126f67e252a792d2a14b55f0c720e8e393c0defe4043acbbc89"
-
-
-def test_plain_run_fingerprint_is_unchanged_by_c13(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Runs that use none of the newly hashed inputs must keep resuming."""
-    import viralscan.run_safety as rs
-
-    monkeypatch.setattr(rs, "__version__", "0.0.test")
-    monkeypatch.chdir(tmp_path)
-    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
-        Path(name).write_text(text)
-    Path("t2g.txt").write_text("a\tb\n")
-    args = argparse.Namespace(
-        sample1="R1.fastq", sample2="R2.fastq", index="idx.idx", transcripts="t2g.txt",
-        gtf=None, fasta=None, f1=None, whitelist=None, called_cells_file=None,
-        host_index=None, host_h5ad=None, cell_types=None, host_fasta=None, viral_fasta=None,
-        positive_control_receipt=None, cores=4, multimap_method="equal",
-        cell_calling="emptydrops", technology="10xv3", output="o", resume=False,
-        overwrite=False, yes=False, verbose=False, quiet=False, ncbi_accession=None,
-        ncbi_api_key="k", ncbi_email="e", strand=None, umap=True,
-    )  # fmt: skip
-    assert rs.build_run_manifest(args)["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
-
-
 def _plain_args_d1(**extra: object) -> argparse.Namespace:
     return argparse.Namespace(
         sample1="R1.fastq", sample2="R2.fastq", index="idx.idx", transcripts="t2g.txt",
@@ -264,77 +235,6 @@ def _plain_args_d1(**extra: object) -> argparse.Namespace:
         overwrite=False, yes=False, verbose=False, quiet=False, ncbi_accession=None,
         ncbi_api_key="k", ncbi_email="e", strand=None, umap=True, **extra,
     )  # fmt: skip
-
-
-@pytest.mark.parametrize(
-    "key, value",
-    [("detection_min_cells", 2), ("hostresponse_min_umi", 5)],
-)
-def test_d1_options_keep_the_plain_fingerprint_unless_set(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, value: object
-) -> None:
-    """AUD-06/AUD-07/B-16: unset (None) adds no manifest key; a set value changes it."""
-    import viralscan.run_safety as rs
-
-    monkeypatch.setattr(rs, "__version__", "0.0.test")
-    monkeypatch.chdir(tmp_path)
-    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
-        Path(name).write_text(text)
-    Path("t2g.txt").write_text("a\tb\n")
-    unset = _plain_args_d1(detection_min_cells=None, hostresponse_min_umi=None)
-    assert rs.build_run_manifest(unset)["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
-    assert rs.build_run_manifest(_plain_args_d1(**{key: value}))["run_fingerprint"] != (
-        _PLAIN_RUN_FINGERPRINT
-    )
-
-
-@pytest.mark.parametrize(
-    "key, value", [("programme_mixed_veto", "betabinomial"), ("programme_mixed_veto_alpha", 0.05)]
-)
-def test_mixed_veto_options_keep_the_plain_fingerprint_unless_set(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, value: object
-) -> None:
-    """PROG-MIXED-VETO-01: an unset flag adds no manifest key; a set value changes it."""
-    import viralscan.run_safety as rs
-
-    monkeypatch.setattr(rs, "__version__", "0.0.test")
-    monkeypatch.chdir(tmp_path)
-    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
-        Path(name).write_text(text)
-    Path("t2g.txt").write_text("a\tb\n")
-    base = dict(detection_min_cells=None, hostresponse_min_umi=None)
-    unset = _plain_args_d1(**base, programme_mixed_veto=None, programme_mixed_veto_alpha=None)
-    assert rs.build_run_manifest(unset)["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
-    assert rs.build_run_manifest(_plain_args_d1(**{**base, key: value}))["run_fingerprint"] != (
-        _PLAIN_RUN_FINGERPRINT
-    )
-
-
-def test_reference_host_species_and_default_min_molecules_keep_the_plain_fingerprint(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """DISC-FP-BUILD-01: options added after old manifests keep --resume working when unused."""
-    import viralscan.run_safety as rs
-
-    monkeypatch.setattr(rs, "__version__", "0.0.test")
-    monkeypatch.chdir(tmp_path)
-    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
-        Path(name).write_text(text)
-    Path("t2g.txt").write_text("a\tb\n")
-    base = dict(infected_min_molecules=None, detection_min_cells=None, hostresponse_min_umi=None)
-    plain = _plain_args_d1(
-        **base, reference_host_species=None, programme_productive_min_molecules=1
-    )
-    manifest = rs.build_run_manifest(plain)
-    assert manifest["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
-    assert "reference_host_species" not in manifest["options"]
-    assert "programme_productive_min_molecules" not in manifest["options"]
-    for key, value in [
-        ("reference_host_species", "human"),
-        ("programme_productive_min_molecules", 2),
-    ]:
-        changed = _plain_args_d1(**{**base, key: value})
-        assert rs.build_run_manifest(changed)["run_fingerprint"] != _PLAIN_RUN_FINGERPRINT
 
 
 def test_scautoqc_is_fingerprinted_only_when_enabled(tmp_path, monkeypatch):
@@ -399,44 +299,6 @@ def test_resume_with_different_cores_is_allowed_and_cores_is_recorded(tmp_path: 
     assert prepare_output_directory(out, new, resume=True, overwrite=False, yes=False) == "resume"
 
 
-def test_resume_of_a_pre_c12_manifest_with_other_cores(tmp_path: Path) -> None:
-    """Old manifests hashed cores; they resume with any cores, and still refuse real changes."""
-    import viralscan.run_safety as rs
-
-    out = _started_run(tmp_path)
-    path = out / "run_manifest.json"
-    old = json.loads(path.read_text())
-    assert old["options"]["cores"] == 4
-    old["run_fingerprint"] = rs._fingerprint(old, informational=True)  # the pre-C-12 hash
-    assert old["run_fingerprint"] != rs._fingerprint(old)
-    path.write_text(json.dumps(old))
-    again = build_run_manifest(_args(tmp_path, cores=12))
-    assert prepare_output_directory(out, again, resume=True, overwrite=False, yes=False) == "resume"
-    path.write_text(json.dumps(old))
-    other = build_run_manifest(_args(tmp_path, cores=12, multimap_method="equal"))
-    with pytest.raises(RunSafetyError, match=r"Options that differ: --multimap-method\."):
-        prepare_output_directory(out, other, resume=True, overwrite=False, yes=False)
-    # A manifest whose stored hash is not a genuine legacy hash is not trusted.
-    old["run_fingerprint"] = "0" * 64
-    path.write_text(json.dumps(old))
-    with pytest.raises(RunSafetyError, match="fingerprint"):
-        prepare_output_directory(out, again, resume=True, overwrite=False, yes=False)
-
-
-def test_legacy_plain_fingerprint_resumes_under_the_new_hash(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The real pre-C-12 hash (cores=4 hashed) is accepted against the new one."""
-    import viralscan.run_safety as rs
-
-    monkeypatch.setattr(rs, "__version__", "0.0.test")
-    monkeypatch.chdir(tmp_path)
-    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
-        Path(name).write_text(text)
-    Path("t2g.txt").write_text("a\tb\n")
-    new = rs.build_run_manifest(_plain_args_d1(cores=4)) if False else None  # noqa: F841
-
-
 def test_host_index_directory_and_extra_inputs_are_hashed(tmp_path: Path) -> None:
     """C-13: a STAR index directory and the extra file inputs enter the fingerprint."""
     idx = tmp_path / "star"
@@ -495,25 +357,76 @@ def test_resume_refuses_purged_counts(tmp_path: Path) -> None:
     )
 
 
-def test_infected_min_molecules_is_hashed_and_old_manifests_refuse_resume(
-    tmp_path: Path,
+# ── CONTRACT-FP-01: one fingerprint rule ──────────────────────────────────────────────
+
+
+def _plain_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **extra: object) -> dict:
+    import viralscan.run_safety as rs
+
+    monkeypatch.setattr(rs, "__version__", "0.0.test")
+    monkeypatch.chdir(tmp_path)
+    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
+        Path(name).write_text(text)
+    Path("t2g.txt").write_text("a\tb\n")
+    return rs.build_run_manifest(_plain_args_d1(**extra))
+
+
+# Golden hash of a plain run with __version__ pinned. It changes only when the fingerprint
+# contract does, which is a breaking change: update it in the same PR as the migration note.
+_PLAIN_RUN_FINGERPRINT = "3548b7a1fc28b197247dbb679176405ce71edad75b533db755e4f5e0dc7140df"
+
+
+def test_plain_run_fingerprint_is_pinned(tmp_path, monkeypatch) -> None:
+    assert _plain_run(tmp_path, monkeypatch)["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
+
+
+@pytest.mark.parametrize(
+    "key, value",
+    [
+        ("detection_min_cells", 2),
+        ("hostresponse_min_umi", 5),
+        ("programme_mixed_veto", "betabinomial"),
+        ("programme_mixed_veto_alpha", 0.05),
+        ("infected_min_molecules", 1.0),
+    ],
+)
+def test_unset_equals_the_default_and_a_changed_value_differs(
+    tmp_path, monkeypatch, key: str, value: object
 ) -> None:
-    """INFECTED-MINMOL-02: the CLI default (2.0) is in the fingerprint, so a run made
-    before the default moved (manifest without the key) refuses --resume unless it is
-    resumed with --infected-min-molecules 1."""
-    old_args = _args(tmp_path)  # no infected_min_molecules attribute, as before the change
-    out = Path(old_args.output)
-    prepare_output_directory(
-        out, build_run_manifest(old_args), resume=False, overwrite=False, yes=False
-    )
-    (out / "partial.txt").write_text("partial")
-    two = build_run_manifest(_args(tmp_path, infected_min_molecules=2.0))
-    one = build_run_manifest(_args(tmp_path, infected_min_molecules=1.0))
-    assert two["options"]["infected_min_molecules"] == 2.0
-    assert two["run_fingerprint"] != one["run_fingerprint"]
-    # FP-BASELINE-01: 1.0 is the value an old run used, so it is left out of the hash and
-    # the old run resumes; the new default 2.0 is hashed and refuses.
-    assert "infected_min_molecules" not in one["options"]
-    with pytest.raises(RunSafetyError, match="--infected-min-molecules"):
-        prepare_output_directory(out, two, resume=True, overwrite=False, yes=False)
-    assert prepare_output_directory(out, one, resume=True, overwrite=False, yes=False) == "resume"
+    """An unset option takes its DEFAULTS value, so an explicit default hashes the same."""
+    from viralscan.defaults import DEFAULTS
+
+    unset = _plain_run(tmp_path, monkeypatch, **{key: None})
+    explicit = _plain_run(tmp_path, monkeypatch, **{key: DEFAULTS[key]})
+    changed = _plain_run(tmp_path, monkeypatch, **{key: value})
+    assert unset["options"][key] == DEFAULTS[key]
+    assert unset["run_fingerprint"] == explicit["run_fingerprint"]
+    assert changed["run_fingerprint"] != unset["run_fingerprint"]
+
+
+def test_unset_option_without_a_default_adds_no_key(tmp_path, monkeypatch) -> None:
+    manifest = _plain_run(tmp_path, monkeypatch, reference_host_species=None)
+    assert "reference_host_species" not in manifest["options"]
+    named = _plain_run(tmp_path, monkeypatch, reference_host_species="Homo sapiens")
+    assert named["run_fingerprint"] != manifest["run_fingerprint"]
+
+
+def test_kb_params_is_recorded_but_not_hashed(tmp_path, monkeypatch) -> None:
+    off = _plain_run(tmp_path, monkeypatch, kb_params="off")
+    auto = _plain_run(tmp_path, monkeypatch, kb_params="auto")
+    assert auto["options"]["kb_params"] == "auto"
+    assert auto["run_fingerprint"] == off["run_fingerprint"]
+
+
+def test_resume_across_versions_is_refused_and_says_why(tmp_path, monkeypatch) -> None:
+    import viralscan.run_safety as rs
+
+    old = _plain_run(tmp_path, monkeypatch)
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "run_manifest.json").write_text(json.dumps(old))
+    monkeypatch.setattr(rs, "__version__", "0.0.next")
+    new = rs.build_run_manifest(_plain_args_d1())
+    assert new["run_fingerprint"] != old["run_fingerprint"]
+    with pytest.raises(RunSafetyError, match=r"made by ViralScan 0\.0\.test.*same version"):
+        prepare_output_directory(out, new, resume=True, overwrite=False, yes=False)
