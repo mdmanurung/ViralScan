@@ -644,7 +644,7 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
         total = np.asarray(adata.X).sum(axis=1)
     else:
         raise CellCallingError(f"Unknown cell_calling method: {method!r}")
-    return knee_cells(total, min_umi=float(getattr(config, "knee_min_umi", 10.0)))
+    return knee_cells(total, min_umi=float(getattr(config, "knee_min_umi", DEFAULTS["knee_min_umi"])))
 
 
 def read_emptydrops_mask(obs_names, out_tsv) -> np.ndarray:

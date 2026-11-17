@@ -42,6 +42,7 @@ from viralscan.gene_programs import (
     validate_catalogue,
     write_program_outputs,
 )
+from viralscan.defaults import DEFAULTS
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.cellcalling import load_called_mask
@@ -362,28 +363,28 @@ def main(
     called = load_called_mask(adata, config, output)
     adata = adata[called].copy()
     veto_settings = load_veto_settings()
-    veto_override = str(getattr(config, "programme_mixed_veto", "catalogue"))
+    veto_override = str(getattr(config, "programme_mixed_veto", DEFAULTS["programme_mixed_veto"]))
     cells = run_one(
         adata,
         viruses,
         catalogue,
-        min_breadth=int(getattr(config, "programme_min_breadth", 2)),
+        min_breadth=int(getattr(config, "programme_min_breadth", DEFAULTS["programme_min_breadth"])),
         form=_panel_form(config),
         identity=load_run_identity(output),
-        latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", 1)),
-        min_umi=float(getattr(config, "programme_min_umi", 0.0)),
-        productive_min_molecules=int(getattr(config, "programme_productive_min_molecules", 1)),
+        latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"])),
+        min_umi=float(getattr(config, "programme_min_umi", DEFAULTS["programme_min_umi"])),
+        productive_min_molecules=int(getattr(config, "programme_productive_min_molecules", DEFAULTS["programme_productive_min_molecules"])),
         veto_settings=veto_settings,
         mixed_veto_override=veto_override,
-        mixed_veto_alpha=float(getattr(config, "programme_mixed_veto_alpha", 0.01)),
+        mixed_veto_alpha=float(getattr(config, "programme_mixed_veto_alpha", DEFAULTS["programme_mixed_veto_alpha"])),
     )
     summary = summarise_programs(
         cells,
         catalogue,
-        min_breadth=int(getattr(config, "programme_min_breadth", 2)),
-        latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", 1)),
-        min_umi=float(getattr(config, "programme_min_umi", 0.0)),
-        productive_min_molecules=int(getattr(config, "programme_productive_min_molecules", 1)),
+        min_breadth=int(getattr(config, "programme_min_breadth", DEFAULTS["programme_min_breadth"])),
+        latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"])),
+        min_umi=float(getattr(config, "programme_min_umi", DEFAULTS["programme_min_umi"])),
+        productive_min_molecules=int(getattr(config, "programme_productive_min_molecules", DEFAULTS["programme_productive_min_molecules"])),
         viruses=viruses,
         marker_resolution=cells.attrs.get("marker_resolution"),
     )
@@ -410,7 +411,7 @@ def main(
         vetoes[v].rho if v in vetoes else None for v in summary["virus_name"]
     ]
     summary["mixed_veto_alpha"] = [
-        float(getattr(config, "programme_mixed_veto_alpha", 0.01)) if r == "betabinomial" else None
+        float(getattr(config, "programme_mixed_veto_alpha", DEFAULTS["programme_mixed_veto_alpha"])) if r == "betabinomial" else None
         for r in summary["mixed_veto_rule"]
     ]
     cells["lytic_programme"] = lytic_programme_flags(cells["state"])

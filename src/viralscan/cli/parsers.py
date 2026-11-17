@@ -1542,9 +1542,9 @@ def _build_run_parser(subparsers: Any) -> None:
     parser.add_argument(
         "--cores",
         "-c",
-        default=6,
+        default=DEFAULTS["cores"],
         type=int,
-        help="The amount of cores the workflow can use. Default: 6.",
+        help=f"The amount of cores the workflow can use. Default: {DEFAULTS['cores']}.",
     )
     parser.add_argument(
         "--reference",
@@ -1629,7 +1629,7 @@ def _build_run_parser(subparsers: Any) -> None:
     parser.add_argument(
         "--kb-params",
         choices=["off", "auto"],
-        default="off",
+        default=DEFAULTS["kb_params"],
         help="`auto` fills -x (when absent) and --strand (when absent or `auto`) from the "
         "built-in detector, tchem and the strand pilot (PLAN KBPARAMS-01). It stops the run "
         "unless every signal agrees. Default `off`.",
@@ -2073,7 +2073,7 @@ def _build_run_parser(subparsers: Any) -> None:
         "--multimap-method",
         type=_multimap_method,
         metavar=_MULTIMAP_METHOD_METAVAR,
-        default="conservative",
+        default=DEFAULTS["multimap_method"],
         help=(
             "How to allocate multi-gene EC counts. "
             "'conservative' excludes host-virus ambiguous EC mass from viral genes "
