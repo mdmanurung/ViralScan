@@ -942,6 +942,11 @@ def _fetch_one(
     return fasta_path, gtf_path
 
 
+__all__ = [
+    "fetch_reference",
+]
+
+
 def fetch_reference(
     accessions: Iterable[str],
     out_dir: str | os.PathLike[str],

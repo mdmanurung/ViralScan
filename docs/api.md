@@ -11,6 +11,19 @@ details, not a stable Python API.
 
 ---
 
+## Stability
+
+The names listed under "Common imports", "Shared Helpers" and "Constants" below are the
+stable Python API of 3.x. Each is in its module's `__all__`, and a change to one follows
+the deprecation rule in [release policy](release_policy.md): a `FutureWarning` that names the
+replacement, and at least one MINOR release before removal.
+
+Everything else is provisional and may change in any release, including the `viralscan.scripts.*`
+worker modules and any name that starts with an underscore. The two reference-building
+functions live under `viralscan.scripts` for historical reasons and are stable by this list.
+
+---
+
 ## Common imports
 
 ```python
@@ -109,15 +122,6 @@ print(path)
 ```
 
 Returns the written path as a string, or `None` when the input table is empty.
-
-### `_bh_adjust`
-
-```python
-def _bh_adjust(pvals: list[float] | numpy.ndarray) -> numpy.ndarray: ...
-```
-
-Internal helper for Benjamini-Hochberg FDR correction. It is documented for
-contributors. Downstream code should call `cell_type_enrichment()` instead.
 
 ---
 
@@ -288,15 +292,6 @@ def setup_script_logging() -> logging.Logger: ...
 
 Initializes logging for Snakemake worker subprocesses and returns the
 `viralscan` logger.
-
-### `load_config`
-
-```python
-def load_config(path: str | pathlib.Path) -> dict[str, Any]: ...
-```
-
-Loads a YAML configuration file and returns a plain dictionary. Raises
-`ValueError` when the top-level YAML object is not a mapping.
 
 ---
 

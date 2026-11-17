@@ -1462,6 +1462,12 @@ def _list_ensembl_files(species_name: str, url_base: str, retries: int = 3) -> l
     return parser.links
 
 
+__all__ = [
+    "build_combined_reference",
+    "fetch_host_cdna",
+]
+
+
 def fetch_host_cdna(
     species: str,
     out_dir: os.PathLike[str] | str,
