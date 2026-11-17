@@ -160,6 +160,22 @@ def onlist_path(name: str) -> Optional[str]:
     return path
 
 
+def onlist_path_or_none(name: str) -> Optional[str]:
+    """:func:`onlist_path`, with ``None`` for a chemistry that has no list.
+
+    ``None`` means Drop-seq or an explicit ``bc:umi:seq`` geometry: kb had no on-list either. A
+    missing ``ngs_tools`` (:class:`ChemistryError`) is not "no list": it propagates, so a caller
+    never runs without barcode correction because an install is broken. This is the one place
+    that decides it (PLAN ONLIST-01).
+    """
+    try:
+        return onlist_path(name)
+    except ChemistryError:
+        raise
+    except ValueError:
+        return None
+
+
 def kb_whitelist_arg(technology: str, whitelist: Optional[str]) -> str:
     """The ``kb count -w`` value: the user's list, ``""`` (kb's on-list) or ``"None"``.
 

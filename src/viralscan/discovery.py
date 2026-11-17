@@ -34,7 +34,7 @@ from typing import Any
 
 import numpy as np
 
-from viralscan.chemistry import cb_umi_geometry, kb_whitelist_arg, onlist_path
+from viralscan.chemistry import cb_umi_geometry, kb_whitelist_arg, onlist_path_or_none
 from viralscan.evidence import _canonical_fastq_id, _run
 from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file, sha256_path
 from viralscan.star_run import plain_whitelist
@@ -734,10 +734,7 @@ def resolve_onlist(technology: str, whitelist: str | None) -> str | None:
         return None
     if arg:
         return arg
-    try:
-        return onlist_path(technology)
-    except ValueError:  # explicit bc:umi:seq geometry without -w: kb had no on-list either
-        return None
+    return onlist_path_or_none(technology)
 
 
 def bustools_barcodes(out_dir: Path, onlist: str | None, threads: int) -> Path:

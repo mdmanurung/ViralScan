@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from viralscan import star_hostvirus, star_run
+from viralscan import chemistry, star_hostvirus, star_run
 from viralscan.star_hostvirus import (
     STAR_SUMMARY_COLUMNS,
     align_cmd,
@@ -73,7 +73,7 @@ def test_resolve_whitelist_default_explicit_and_none(tmp_path, monkeypatch):
     gz = tmp_path / "list.txt.gz"
     with gzip.open(gz, "wt") as fh:
         fh.write("ACGT\nTTTT\n")
-    monkeypatch.setattr(star_hostvirus, "onlist_path", lambda tech: str(gz))
+    monkeypatch.setattr(chemistry, "onlist_path", lambda tech: str(gz))
     plain = resolve_whitelist("10xv2", None, tmp_path)
     assert plain == str(tmp_path / "whitelist.txt")  # gunzipped: STAR cannot read .gz
     assert (tmp_path / "whitelist.txt").read_text() == "ACGT\nTTTT\n"
@@ -147,7 +147,7 @@ def test_align_host_unmapped_default_onlist_reaches_star(tmp_path, monkeypatch):
     gz = tmp_path / "list.txt.gz"
     with gzip.open(gz, "wt") as fh:
         fh.write("ACGT\n")
-    monkeypatch.setattr(star_hostvirus, "onlist_path", lambda tech: str(gz))
+    monkeypatch.setattr(chemistry, "onlist_path", lambda tech: str(gz))
     cmd, _ = _capture_align(tmp_path, monkeypatch, "10xv2")
     wl = cmd[cmd.index("--soloCBwhitelist") + 1]
     assert wl == str(tmp_path / "o" / "whitelist.txt")  # not STAR's raw "None"
@@ -159,7 +159,7 @@ def test_align_host_unmapped_default_onlist_reaches_star(tmp_path, monkeypatch):
 def test_align_host_unmapped_passes_barcode_length_to_run_star(
     tmp_path, monkeypatch, technology, cb_len
 ):
-    monkeypatch.setattr(star_hostvirus, "onlist_path", lambda tech: "None")
+    monkeypatch.setattr(chemistry, "onlist_path", lambda tech: "None")
     cmd, got = _capture_align(tmp_path, monkeypatch, technology, whitelist="wl.txt")
     assert got == cb_len
     assert cmd[cmd.index("--soloCBlen") + 1] == str(cb_len)

@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`run` refuses `--cell-calling none` or `knee` together with `--host-index` (PLAN `CELLCALL-PCT-01`),** exit 2.
 - **Output contract.** `h5ad_contract.json` requires `adata.uns["multimap_diagnostics"]`, and `run_manifest.schema.json` requires `run_fingerprint` and `options` (PLAN `CONTRACT-DIAG-01`, `CONTRACT-VERSIONS-01`). Layout and schema versions are unchanged (layout 3, schema 3.0.0).
 
+### Fixed since 3.0.0rc1
+
+- **A missing `ngs_tools` stops the anellovirus alignment and discovery arms (PLAN `ONLIST-01`).** Both caught the error as "this chemistry has no on-list" and ran without barcode correction. One rule in `chemistry.onlist_path_or_none` now gives `None` only for Drop-seq and explicit geometries; a broken kb-python install raises.
+
 ### Added since 3.0.0rc1
 
 - **`run --kb-params auto` (PLAN `KBPARAMS-01`)** fills `-x` (when absent) and `--strand` (when absent or `auto`) from the built-in detector, tchem and the strand pilot, and stops the run unless every signal agrees.
