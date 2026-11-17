@@ -998,6 +998,18 @@ when this file exists, so it never describes a different method than its tree.
 
 ---
 
+## `viral_loci.tsv`
+
+Written by the `analysis` rule (PLAN `LOCK-01` D1). One row per viral gene with the interval it occupies and its
+independent locus: genes whose annotated intervals share at least one base on either strand form one locus.
+
+| Column | Description | Kind |
+|--------|-------------|------|
+| `gene_id` | Viral gene identifier, as in `virus_identity.tsv` | observation |
+| `seqname` | Name of the viral genome sequence the gene lies on | observation |
+| `start`, `end` | 1-based interval of the gene on `seqname` | observation |
+| `locus_id` | Identifier of the independent locus the gene belongs to | observation |
+
 ## `host_homology_loci.tsv` (PLAN `ANDET-02`)
 
 One row per host-homology locus that `viralscan build-ref --genome-dlist` retained for a viral
