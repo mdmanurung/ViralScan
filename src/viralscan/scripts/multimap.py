@@ -24,8 +24,12 @@ from scipy import sparse
 
 from viralscan import star_run
 from viralscan.kb_outputs import KbCountOutputs
-from viralscan.multimapping import build_multimap_layers, viral_group_matrices
 from viralscan.contract import COUNT_SCHEMA_VERSION
+from viralscan.multimapping import (
+    build_multimap_layers,
+    em_nonconvergence_note,
+    viral_group_matrices,
+)
 from viralscan.outputs import V3Outputs, analysis_genes_path
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
@@ -596,6 +600,9 @@ def final_results(
         **(drop_audit or {}),
     }
     adata.uns["multimap_diagnostics"] = layers.method_diagnostics
+    note = em_nonconvergence_note(layers.method_diagnostics)
+    if note:
+        log.warning(note)
 
     audit = adata.uns["molecule_audit"]
     # The count audit is a published artifact with a shipped schema, and until

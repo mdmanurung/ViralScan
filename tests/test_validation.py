@@ -67,6 +67,7 @@ def _valid_run(tmp_path: Path, relative_inputs: bool = False) -> Path:
     # read the contract.
     adata.uns["quantification_unit"] = "bustools-resolved-cb-umi-molecule"
     adata.uns["multimap_method"] = "equal"
+    adata.uns["multimap_diagnostics"] = {"method": "equal", "model_scope": "deterministic"}
     # All seven fields count_audit.schema.json requires.
     adata.uns["molecule_audit"] = {
         "input_molecules": 2,
@@ -298,6 +299,7 @@ def test_matrix_checks_are_driven_by_the_packaged_contract() -> None:
         "quantification_unit",
         "multimap_method",
         "molecule_audit",
+        "multimap_diagnostics",
     }
 
 

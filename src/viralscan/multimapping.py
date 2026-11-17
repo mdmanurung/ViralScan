@@ -257,6 +257,33 @@ def _csr_from_entries(
     return sparse.csr_matrix((data, (rows, cols)), shape=(n_cells, n_genes), dtype=float)
 
 
+def em_nonconvergence_note(diagnostics: dict[str, Any] | None) -> str | None:
+    """One sentence when an EM fit stopped at ``max_iter``; ``None`` for converged or non-EM runs.
+
+    The fit is still used (the last iterate), so the output is valid but not at the tolerance
+    asked for. Raising ``--multimap-em-max-iter`` or loosening ``--multimap-em-tol`` is the fix.
+    """
+    if not diagnostics:
+        return None
+    parts = []
+    global_model = diagnostics.get("global_model")
+    if isinstance(global_model, dict) and global_model.get("converged") is False:
+        parts.append(f"the global model stopped after {global_model.get('iterations')} iterations")
+    cells = diagnostics.get("cell_models")
+    if isinstance(cells, dict):
+        failed = int(cells.get("n_cells", 0)) - int(cells.get("n_converged", 0))
+        if failed > 0:
+            parts.append(f"{failed} of {cells.get('n_cells')} cell models stopped at the limit")
+    if not parts:
+        return None
+    return (
+        f"EM allocation ({diagnostics.get('method')}) did not reach tolerance "
+        f"{diagnostics.get('tolerance')}: " + "; ".join(parts) + f" (--multimap-em-max-iter "
+        f"{diagnostics.get('max_iter')}). The last iterate is used; raise --multimap-em-max-iter "
+        "or loosen --multimap-em-tol to check the allocation is stable."
+    )
+
+
 def em_gene_abundances(
     ec_counts: dict[tuple[int, ...], float],
     unique_per_gene: np.ndarray,
