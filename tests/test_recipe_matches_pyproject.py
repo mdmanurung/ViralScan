@@ -3,7 +3,9 @@
 import re
 from pathlib import Path
 
-import tomllib
+import pytest
+
+tomllib = pytest.importorskip("tomllib", reason="tomllib needs Python 3.11")
 
 ROOT = Path(__file__).resolve().parents[1]
 RECIPE = (ROOT / "conda-recipe" / "meta.yaml").read_text(encoding="utf-8")

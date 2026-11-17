@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking since 3.0.0rc1
 
-`3.0.0rc1` was never published, so these changes reach only runs made by development builds. Each one is listed in [migration](docs/migration.md#migrating-from-300rc1).
+`3.0.0rc1` was never published, so these changes reach only runs made by development builds. Each one is listed under "Migrating from 3.0.0rc1" in `docs/migration.md`.
 
 - **`--resume` needs the same ViralScan version (PLAN `CONTRACT-FP-01`).** The run fingerprint hashes every option at its resolved value (an unset option takes its documented default, so `--detection-min-cells 1` and no flag are the same run) and the ViralScan version. A run from another version is refused, and the message names both versions. `cores` and `--kb-params` are recorded and never hashed. The omit-at-default tables and the legacy-hash branches are gone.
 - **`--infected-min-molecules` defaults to 2.0 (PLAN `INFECTED-MINMOL-02`), output-changing.** A cell counts as infected with a virus only with at least two summed allocated molecules; `--infected-min-molecules 1` restores the earlier rule. `detection_threshold`, `detection_min_cells` and `hostresponse_min_umi` are unchanged. The effect on infected-cell counts has not been validated against the truth panel (G5).
