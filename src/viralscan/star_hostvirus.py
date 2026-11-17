@@ -24,7 +24,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any, TextIO, cast
 
-from viralscan.chemistry import cb_umi_geometry, onlist_path
+from viralscan.chemistry import cb_umi_geometry, onlist_path_or_none
 from viralscan.star_run import plain_whitelist, run_star
 
 #: ``--genomeSAindexNbases 14`` is STAR's value for a 3 Gb genome (the host filter
@@ -373,13 +373,8 @@ def resolve_whitelist(
     """
     if whitelist:
         return plain_whitelist(str(whitelist), Path(work_dir))
-    try:
-        found = onlist_path(technology)
-    except ValueError as exc:
-        if type(exc) is not ValueError:  # ChemistryError (no ngs_tools) must not look list-less
-            raise
-        return None
-    return plain_whitelist(found, Path(work_dir))
+    found = onlist_path_or_none(technology)
+    return plain_whitelist(found, Path(work_dir)) if found else None
 
 
 def align_host_unmapped(

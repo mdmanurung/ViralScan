@@ -30,7 +30,7 @@ from viralscan.anello_align import (
     virus_summary,
     write_accession_tsv,
 )
-from viralscan.chemistry import cb_umi_geometry, onlist_path
+from viralscan.chemistry import cb_umi_geometry, onlist_path_or_none
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.host_filter import starsolo_barcode_args
 from viralscan.star_run import plain_whitelist, run_star
@@ -64,14 +64,6 @@ def _alignments(bam: Path) -> Iterator[Alignment]:
         raise subprocess.CalledProcessError(proc.returncode, ["samtools", "view", str(bam)])
 
 
-def _onlist(technology: str) -> Optional[str]:
-    """kb's bundled on-list for *technology*, or None (geometry strings, no list)."""
-    try:
-        return onlist_path(technology)
-    except ValueError:
-        return None
-
-
 def _star_version() -> str:
     return subprocess.run(
         ["STAR", "--version"], capture_output=True, text=True, check=True
@@ -92,7 +84,7 @@ def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -
 
     # Correct barcodes against the list kb uses, so molecules line up with the
     # kallisto matrix. With no list (SW-21 chemistries) STARsolo keeps raw CBs.
-    whitelist = plain_whitelist(config.whitelist or _onlist(config.technology), work)
+    whitelist = plain_whitelist(config.whitelist or onlist_path_or_none(config.technology), work)
     cmd = align_cmd(
         "STAR",
         index,
