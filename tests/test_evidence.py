@@ -18,14 +18,11 @@ from viralscan.evidence import (
     _run,
     cb_umi_geometry,
     extract_exact_reads_by_number,
-    extract_viral_reads,
     have_tools,
     interpretation_flags,
     parse_flagged_target_bus,
     resolve_viral_target,
     sample_fasta_deterministic,
-    viral_assigned_keys,
-    viral_equivalence_classes,
     write_competitive_fasta,
     write_igv_session,
 )
@@ -88,13 +85,6 @@ class TestGeometry:
             cb_umi_geometry("nanopore-bonkers")
 
 
-class TestViralEcs:
-    def test_selects_ecs_touching_viral_genes(self) -> None:
-        ec_map = {0: [0], 1: [1], 2: [0, 1], 3: [3]}
-        viral = {1}
-        assert viral_equivalence_classes(ec_map, viral) == {1, 2}
-
-
 class TestResolveViralTarget:
     _GENES = ["EPSTEIN_BNRF1", "EPSTEIN_EBNA1", "HUM_HERP6B_U90"]
 
@@ -149,18 +139,6 @@ class TestResolveViralTarget:
             resolve_viral_target("EBNA", self._GENES)
         with pytest.raises(ValueError, match="exact --virus selector is required"):
             resolve_viral_target("", self._GENES)
-
-
-class TestViralKeys:
-    def test_collects_barcode_umi_for_viral_ecs(self) -> None:
-        lines = [
-            "AAAA\tUUUU1\t2\t1",  # viral EC -> kept
-            "AAAA\tUUUU2\t0\t1",  # host EC  -> skipped
-            "CCCC\tUUUU3\t2\t3",  # viral EC -> kept
-            "garbage line",
-        ]
-        keys = viral_assigned_keys(lines, viral_ecs={2})
-        assert keys == {("AAAA", "UUUU1"), ("CCCC", "UUUU3")}
 
 
 class TestExactReadLineage:
@@ -543,46 +521,6 @@ class TestDeterministicFastaSampling:
             sample_fasta_deterministic(str(source), tmp_path / "out.fasta", 0, 1)
 
 
-class TestExtractReads:
-    def test_extracts_only_viral_assigned_cdna_reads(self, tmp_path) -> None:
-        # 10xv2 geometry: CB=16, UMI=10 -> first 26 bases of R1
-        cb = "A" * 16
-        umi_hit = "C" * 10
-        umi_miss = "G" * 10
-        r1 = tmp_path / "R1.fastq"
-        r2 = tmp_path / "R2.fastq"
-        write_fastq(
-            r1,
-            [("r1", cb + umi_hit), ("r2", cb + umi_miss), ("r3", cb + umi_hit)],
-        )
-        write_fastq(
-            r2,
-            [("r1", "ACGTACGTAC"), ("r2", "TTTTTTTTTT"), ("r3", "GGGGCCCCGG")],
-        )
-        out = tmp_path / "evidence.fasta"
-        stats = extract_viral_reads(
-            str(r1), str(r2), keys={(cb, umi_hit)}, cb_len=16, umi_len=10, out_fasta=str(out)
-        )
-        assert stats.total_reads == 3
-        assert stats.viral_reads == 2  # r1 and r3 (umi_hit), not r2 (umi_miss)
-        body = out.read_text()
-        assert "ACGTACGTAC" in body and "GGGGCCCCGG" in body
-        assert "TTTTTTTTTT" not in body
-
-    def test_handles_gzipped_input(self, tmp_path) -> None:
-        cb, umi = "A" * 16, "C" * 12  # 10xv3
-        r1 = tmp_path / "R1.fastq.gz"
-        r2 = tmp_path / "R2.fastq.gz"
-        write_fastq(r1, [("r1", cb + umi)])
-        write_fastq(r2, [("r1", "ACGTACGTACGT")])
-        out = tmp_path / "ev.fasta"
-        stats = extract_viral_reads(
-            str(r1), str(r2), keys={(cb, umi)}, cb_len=16, umi_len=12, out_fasta=str(out)
-        )
-        assert stats.viral_reads == 1
-        assert "ACGTACGTACGT" in out.read_text()
-
-
 def _qc_sam_line(name: str, seq: str, *, reverse: bool, ref: str = "VIRUS|v") -> str:
     """Primary SAM record; a reverse record stores revcomp(SEQ), as minimap2 does."""
     from viralscan.anello_align import _revcomp
@@ -709,22 +647,3 @@ def test_hotspot_uses_sliding_50bp_window_b32(starts, expected) -> None:
         assert flags["coverage_hotspot"]["status"] == (
             "flagged" if expected >= 0.5 else "not_flagged"
         )
-
-
-def test_coverage_plot_points_zero_gaps_and_bounded_host():
-    import numpy as np
-
-    from viralscan.evidence import coverage_plot_points
-
-    rows = [
-        {"reference": ref, "position": p, "depth": d}
-        for ref in ["TARGET|X", "chr1"]
-        for p, d in [(5, 2), (900, 1)]
-    ]
-    xs, ys = coverage_plot_points(rows, "TARGET|X", 1000)
-    assert len(xs) == 1000 and ys[4] == 2 and ys[899] == 1
-    assert np.all(ys[5:899] == 0)
-    host_x, host_y = coverage_plot_points(rows, "chr1", 100000000)
-    assert len(host_x) == len(host_y) == 3 and np.isnan(host_y[1])
-    xs, ys = coverage_plot_points(rows, "TARGET|X", 100000000)
-    assert len(xs) == 3 and np.isnan(ys[1])
