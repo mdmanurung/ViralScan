@@ -142,7 +142,7 @@ class RunConfig:
     transcripts: str = ""
     sample1: str = ""
     sample2: str = ""
-    cores: int = 6
+    cores: int = DEFAULTS["cores"]
     overwrite: str = "yes"
     gtf: Union[str, None] = None
     fasta: Union[str, None] = None
@@ -195,15 +195,15 @@ class RunConfig:
     hostresponse_differential: bool = DEFAULTS["hostresponse_differential"]
     hostresponse_cv: str = "auto"
     hostresponse_groups: Union[str, None] = None
-    hostresponse_cv_folds: int = 5
+    hostresponse_cv_folds: int = DEFAULTS["hostresponse_cv_folds"]
     hostresponse_cell_type_column: Union[str, None] = None
     hostresponse_cell_types: Union[list[str], None] = None
     hostresponse_panel_in_fold: bool = False
-    hostresponse_permutations: int = 0
+    hostresponse_permutations: int = DEFAULTS["hostresponse_permutations"]
     hostresponse_permutation_unit: Union[str, None] = None
     hostresponse_permutation_block: Union[str, None] = None
-    hostresponse_min_negative_cells: int = 10
-    hostresponse_min_groups: int = 2
+    hostresponse_min_negative_cells: int = DEFAULTS["hostresponse_min_negative_cells"]
+    hostresponse_min_groups: int = DEFAULTS["hostresponse_min_groups"]
     # Cell-calling: report viral rates over called cells (primary) + all barcodes
     cell_calling: str = DEFAULTS["cell_calling"]
     called_cells_file: Union[str, None] = None
@@ -263,10 +263,10 @@ class RunConfig:
 
         hr_cv = _opt(cfg_in.get("hostresponse_cv")) or "auto"
         hr_groups = _opt(cfg_in.get("hostresponse_groups"))
-        hr_folds = hr_int("cv_folds", 5)
-        hr_permutations = hr_int("permutations", 0)
-        hr_min_negative = hr_int("min_negative_cells", 10)
-        hr_min_groups = hr_int("min_groups", 2)
+        hr_folds = hr_int("cv_folds", DEFAULTS["hostresponse_cv_folds"])
+        hr_permutations = hr_int("permutations", DEFAULTS["hostresponse_permutations"])
+        hr_min_negative = hr_int("min_negative_cells", DEFAULTS["hostresponse_min_negative_cells"])
+        hr_min_groups = hr_int("min_groups", DEFAULTS["hostresponse_min_groups"])
         hr_n_seeds = hr_int("n_seeds", DEFAULTS["hostresponse_n_seeds"])
         if not 1 <= hr_n_seeds <= HOSTRESPONSE_MAX_SEEDS:
             raise ValueError(
@@ -521,7 +521,7 @@ class RunConfig:
                 )
 
         # C-10: these reached snakemake/scanpy unchecked (--cores 0, umap_n_neighbors 0, ...).
-        cores = int(cfg_in.get("cores", 6))
+        cores = int(cfg_in.get("cores", DEFAULTS["cores"]))
         se_threshold = int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"]))
         min_counts = int(cfg_in.get("min_counts", DEFAULTS["min_counts"]))
         min_genes = int(cfg_in.get("min_genes", DEFAULTS["min_genes"]))

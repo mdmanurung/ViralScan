@@ -72,6 +72,15 @@ DEFAULTS: dict[str, Any] = {
     "hostresponse_depth_match": False,
     "hostresponse_control_mito": True,
     "hostresponse_differential": False,
+    # Evaluation settings for `hostresponse` (were literals in runconfig.py and menu.py).
+    "hostresponse_cv_folds": 5,
+    "hostresponse_permutations": 0,
+    "hostresponse_min_negative_cells": 10,
+    "hostresponse_min_groups": 2,
+    # Threads for `viralscan run`. Utility subcommands keep their own smaller defaults.
+    "cores": 6,
+    # `run --kb-params`: off | auto (PLAN KBPARAMS-01). Informational for resume.
+    "kb_params": "off",
     # Cell-calling (non-empty-droplet identification for the primary denominator)
     "cell_calling": DEFAULT_CELL_CALLING,
     "emptydrops_fdr": 0.01,

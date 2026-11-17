@@ -928,7 +928,7 @@ def errorhandler(args: argparse.Namespace) -> None:
             **{
                 key: default if getattr(args, key, None) is None else getattr(args, key)
                 for key, default in (
-                    ("cores", 6),
+                    ("cores", DEFAULTS["cores"]),
                     ("emptydrops_fdr", DEFAULTS["emptydrops_fdr"]),
                     ("emptydrops_niters", DEFAULTS["emptydrops_niters"]),
                     ("hostresponse_n_stab_iter", DEFAULTS["hostresponse_n_stab_iter"]),
