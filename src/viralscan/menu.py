@@ -36,12 +36,12 @@ from viralscan.cli.parsers import (  # noqa: F401  (private builders re-exported
     build_parser,
     parse_args,
 )
+from viralscan.contract import COUNT_SCHEMA_VERSION, LAYOUT_VERSION
 from viralscan.defaults import (
     DEFAULTS,
 )
 from viralscan.outputs import (
     ANALYSIS_GENES,
-    LAYOUT_VERSION,
     POSTHOC_DIRNAME,
     V3Outputs,
     analysis_genes_path,
@@ -112,7 +112,7 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
     selected = adata.layers.get(layer_name)
     host_viral = get_layer(adata, host_viral_layer_name)
     if (
-        adata.uns.get("count_schema_version") != "3.0.0"
+        adata.uns.get("count_schema_version") != COUNT_SCHEMA_VERSION
         or unique is None
         or selected is None
         or host_viral is None

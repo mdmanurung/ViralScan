@@ -25,6 +25,7 @@ from scipy import sparse
 from viralscan import star_run
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.multimapping import build_multimap_layers, viral_group_matrices
+from viralscan.contract import COUNT_SCHEMA_VERSION
 from viralscan.outputs import V3Outputs, analysis_genes_path
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
@@ -580,7 +581,7 @@ def final_results(
     adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper
     adata.uns["multimap_method"] = config.multimap_method
     adata.uns["multimap_pseudocount"] = config.multimap_pseudocount
-    adata.uns["count_schema_version"] = "3.0.0"
+    adata.uns["count_schema_version"] = COUNT_SCHEMA_VERSION
     adata.uns["quantification_unit"] = "bustools-resolved-cb-umi-molecule"
     adata.uns["molecule_audit"] = {
         "input_molecules": layers.audit.input_molecules,

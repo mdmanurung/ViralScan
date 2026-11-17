@@ -33,6 +33,7 @@ from viralscan.multimapping import (
     summarize_multimap_evidence,
     write_multimap_evidence,
 )
+from viralscan.contract import COUNT_SCHEMA_VERSION, SCHEMA_VERSION
 from viralscan.outputs import result_files
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
@@ -257,7 +258,7 @@ def preprocessing():
             "unique gene_ids (kb ref collapses one var_name per gene_id)."
         )
     if config.multimapping:
-        if adata.uns.get("count_schema_version") != "3.0.0":
+        if adata.uns.get("count_schema_version") != COUNT_SCHEMA_VERSION:
             raise ValueError("Multimapping output is not a ViralScan v3 count schema; rebuild it.")
 
     if identity is not None:
@@ -1672,7 +1673,7 @@ def write_control_report(
     results_dir = os.path.join(outputpath, "results")
     os.makedirs(results_dir, exist_ok=True)
     payload = dict(control_detail)
-    payload["schema_version"] = "3.0.0"
+    payload["schema_version"] = SCHEMA_VERSION
     certified = sorted(certified_targets)
     informative = sorted(
         certified if informative_negative_targets is None else informative_negative_targets

@@ -11,7 +11,9 @@
     "reference_fingerprint",
     "input_fingerprints",
     "cell_calling",
-    "quantification_unit"
+    "quantification_unit",
+    "run_fingerprint",
+    "options"
   ],
   "properties": {
     "resume_attempts": {
@@ -61,6 +63,23 @@
     },
     "completion_marker": {
       "type": "boolean"
+    },
+    "run_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "options": {
+      "type": "object"
+    },
+    "layout_version": {
+      "type": "integer",
+      "enum": [1, 2, 3]
+    },
+    "input_paths": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "defaults_status": {
       "enum": [
