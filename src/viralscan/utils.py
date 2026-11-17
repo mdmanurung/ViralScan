@@ -6,6 +6,7 @@ import gzip
 import logging
 import os
 import sys
+import warnings
 from typing import IO, Any, cast
 
 import numpy as np
@@ -21,6 +22,23 @@ OLD_LAYER_NAMES = {
 }
 
 
+#: Earliest release that may remove an interface deprecated in 3.0 (docs/release_policy.md: one
+#: MINOR release after the one that deprecates it).
+DEPRECATION_REMOVAL = "3.1.0"
+
+
+def deprecation_message(old: str, new: str, removal: str = DEPRECATION_REMOVAL) -> str:
+    """One sentence naming the replacement and the first release that may remove ``old``."""
+    return f"{old} is deprecated; use {new}. It may be removed in {removal} or later."
+
+
+def warn_deprecated(
+    old: str, new: str, removal: str = DEPRECATION_REMOVAL, *, stacklevel: int = 2
+) -> None:
+    """Warn (``FutureWarning``) that a Python API name is deprecated (docs/release_policy.md)."""
+    warnings.warn(deprecation_message(old, new, removal), FutureWarning, stacklevel=stacklevel)
+
+
 def get_layer(adata: Any, name: str, default: Any = None) -> Any:
     """Return layer ``name``, else its pre-2026-11-01 alias, else ``default``."""
     layers = adata.layers
@@ -31,6 +49,12 @@ def get_layer(adata: Any, name: str, default: Any = None) -> Any:
     if alias is None or alias not in layers:
         return default
     return layers[alias]
+
+
+__all__ = [
+    "configure_logging",
+    "setup_script_logging",
+]
 
 
 def configure_logging(verbose: bool = False, quiet: bool = False) -> None:

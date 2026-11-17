@@ -60,7 +60,8 @@ supported-versions table above.
 | Python (pip tier) | `>=3.10`; CI runs 3.10, 3.11 and 3.12 on ubuntu and macOS | `pyproject.toml`, `.github/workflows/ci.yml` |
 | Full workflow toolchain | Python 3.11 on `linux-64`; `kb-python` 0.30.2, kallisto 0.52.0, bustools 0.45.1, STAR 2.7.11b, snakemake 9.23.1 | `environment.yml` |
 | Release channel | tag `vMAJOR.MINOR.PATCH` publishes to PyPI and may advance the container `latest`; any other tag goes to TestPyPI | `.github/workflows/release.yml` |
-| Manifest schema | `reference_manifest.json` `schema_version` accepts `3.0.0` and `3.0.1` | `src/viralscan/schemas/v3/reference_manifest.schema.json` |
+| Reference manifest schema | `reference_manifest.json` `schema_version` accepts `3.0.0` and `3.0.1` | `src/viralscan/schemas/v3/reference_manifest.schema.json` |
+| Run contract versions | JSON `schema_version` `3.0.0`; `count_schema_version` `3.0.0`; output layout 3 (readers accept layouts 1, 2 and 3); inventory schema `1.1.0` | `src/viralscan/contract.py` |
 
 ## Versioning
 
@@ -77,6 +78,17 @@ The mapping of change types to version parts below is accepted. Releases use
   deviation record.
 - **MAJOR**: removal of a deprecated interface, or a change to the molecule
   counting contract or an output schema major version.
+
+## Resuming a run across versions
+
+`viralscan run --resume` continues a run only when the run was made by the same ViralScan version and
+the same options and inputs. The version is part of the run fingerprint, so a patch release also
+refuses a resume, with a message that names both versions. Start the run again in a new output
+directory, or finish it with the version that began it. `validate-run` reads output written by any
+3.x version, because the layout and schema versions above do not change within a MAJOR line.
+
+An unset option takes its documented default, so `--detection-min-cells 1` and leaving the flag out
+are the same run. Changing a default is a MINOR change and therefore also a different run.
 
 ## Patch releases
 
@@ -111,7 +123,10 @@ versions and which output tables are affected.
 ## Deprecation
 
 The whole section is accepted, including the minimum of one MINOR release
-before removal. No deprecation mechanism exists in the code yet; this describes the intended one.
+before removal. The mechanism is `viralscan.utils.deprecation_message` (the CLI prints it as a `viralscan: warning:`
+line) and `viralscan.utils.warn_deprecated` (a `FutureWarning` for a Python name). Both name the
+replacement and the first release that may remove the interface, `DEPRECATION_REMOVAL` (3.1.0 for
+anything deprecated in 3.0). `tests/test_deprecation.py` pins the wording.
 
 - A CLI flag, output column, config key or Python API name is deprecated
   by (a) emitting a warning that names the replacement and the first release in

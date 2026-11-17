@@ -751,6 +751,18 @@ directory; without it the command refuses rather than emitting empty tables.
 
 ---
 
+## Exit codes
+
+Every subcommand uses the same codes (PLAN `CLI-EXITS-01`). A pipeline can branch on them.
+
+| Code | Meaning |
+|-----:|---------|
+| `0` | The command finished. A valid run with no virus found is still `0`. |
+| `1` | A runtime failure: a missing tool, an unreadable or truncated input, a failed step, or a declined prompt. One `ERROR` line names the cause; add `--verbose` for the traceback. |
+| `2` | A usage error: an unknown, removed or conflicting flag, a value out of range, or `--strand` required but not given. The command stops before it touches the output directory. |
+| `130` | Interrupted with Ctrl-C (SIGINT). |
+| `143` | Terminated by SIGTERM, for example a Slurm cancel. The tool and its child processes are stopped first. |
+
 ## Complete flag index (generated)
 
 These tables are generated from the argument parser by
