@@ -54,6 +54,7 @@ def smoke(work: Path) -> None:
             "count_schema_version": "3.0.0",
             "quantification_unit": "bustools-resolved-cb-umi-molecule",
             "multimap_method": "equal",
+            "multimap_diagnostics": {"method": "equal", "model_scope": "deterministic"},
             "molecule_audit": {
                 "input_molecules": 1,
                 "resolved_molecules": 1,

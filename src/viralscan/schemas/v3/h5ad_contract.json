@@ -10,5 +10,5 @@
     "all matrices are finite and non-negative",
     "counts_unique and counts_ambiguous_allocated are non-overlapping molecule partitions"
   ],
-  "required_uns": ["count_schema_version", "quantification_unit", "multimap_method", "molecule_audit"]
+  "required_uns": ["count_schema_version", "quantification_unit", "multimap_method", "molecule_audit", "multimap_diagnostics"]
 }

@@ -28,6 +28,7 @@ from viralscan.constants import SIBLING_CROSSMAP_RATIO_THRESHOLD
 from viralscan.defaults import DEFAULTS
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.multimapping import (
+    em_nonconvergence_note,
     select_detection_matrix,
     should_write_multimap_evidence,
     summarize_multimap_evidence,
@@ -2506,6 +2507,9 @@ def main():
             + "), cells holding at least "
             f"{config.infected_min_molecules:g} molecules of a detected virus\n"
         )
+        em_note = em_nonconvergence_note(adata.uns.get("multimap_diagnostics"))
+        if em_note:
+            summary.write(f"Warning: {em_note}\n")
         if len(found_genes_sorted) > 0:
             summary.write(
                 "Gene counts above cover all barcodes, empty droplets included, and list "
