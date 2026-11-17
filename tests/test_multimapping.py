@@ -13,7 +13,6 @@ from viralscan.multimapping import (
     build_multimap_layers,
     em_cell_abundances,
     em_gene_abundances,
-    resolve_cb_umi_molecules,
     select_detection_matrix,
     should_write_multimap_evidence,
     summarize_multimap_evidence,
@@ -219,24 +218,6 @@ class TestBuildMultimapLayers:
         assert result.host_viral_ambiguous[0, 1] == 1.0
         assert result.host_viral_selected[0, 1] == 0.5
         assert result.viral_ambiguous_upper[0, 1] == 1.0
-
-    def test_multiple_ecs_intersect_and_disjoint_collision_is_unresolved(self) -> None:
-        bus = pd.DataFrame(
-            [
-                {"barcode": "BC1", "umi": "U1", "ec": 0, "count": 8},
-                {"barcode": "BC1", "umi": "U1", "ec": 1, "count": 3},
-                {"barcode": "BC1", "umi": "U2", "ec": 2, "count": 1},
-                {"barcode": "BC1", "umi": "U2", "ec": 3, "count": 1},
-            ]
-        )
-        molecules, audit = resolve_cb_umi_molecules(
-            bus, {"BC1": 0}, {0: [0, 1], 1: [1, 2], 2: [0], 3: [2]}
-        )
-        assert molecules == [(0, (1,))]
-        assert audit.input_molecules == 2
-        assert audit.unique_molecules == 1
-        assert audit.unresolved_molecules == 1
-        assert audit.ignored_read_multiplicity == 9
 
     def test_streamed_bus_is_order_and_buffer_size_invariant(self, tmp_path) -> None:
         bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()

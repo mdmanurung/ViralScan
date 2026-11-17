@@ -114,14 +114,6 @@ def validate_paired_fastq_ids(r1_path: str, r2_path: str) -> int:
     return sum(1 for _ in iter_paired_fastq_ids(r1_path, r2_path))
 
 
-def filter_fastq_pairs(*_args, **_kwargs):
-    """Reject the pre-v3 CB–UMI-wide subtraction API."""
-    raise RuntimeError(
-        "CB–UMI-wide FASTQ subtraction was removed in ViralScan v3 because it can "
-        "delete unrelated fragments. Use exact read identifiers via STAR host filtering."
-    )
-
-
 def _write_filter_audit(
     out_dir: Path,
     original_pairs: int,
@@ -381,7 +373,6 @@ def starsolo_barcode_args(technology: str, whitelist: Optional[str]) -> list[str
     ]
 
 
-_plain_whitelist = plain_whitelist  # lifted to star_run (shared with star_hostvirus)
 
 
 # ── STARsolo mode ─────────────────────────────────────────────────────────────

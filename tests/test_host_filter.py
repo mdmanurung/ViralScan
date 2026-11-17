@@ -13,9 +13,9 @@ from viralscan.scripts import host_filter
 from viralscan.scripts.host_filter import (
     canonical_read_id,
     check_host_filter_tools,
-    filter_fastq_pairs,
     validate_paired_fastq_ids,
 )
+from viralscan.star_run import plain_whitelist
 
 
 def test_host_filter_script_compiles_after_snakemake_preamble() -> None:
@@ -63,10 +63,6 @@ class TestExactReadIdentity:
             handle.write("@truncated\n")
         with pytest.raises(ValueError, match="Truncated FASTQ"):
             validate_paired_fastq_ids(str(r1), str(r2))
-
-    def test_cb_umi_wide_api_is_disabled(self) -> None:
-        with pytest.raises(RuntimeError, match="removed in ViralScan v3"):
-            filter_fastq_pairs()
 
 
 def test_filter_audit_records_retained_read_ids(tmp_path: Path) -> None:
@@ -295,12 +291,12 @@ class TestStarsoloBarcodeArgs:
         with gzip.open(gz, "wt") as fh:
             fh.write("AAACCCAAGAAACACT\nAAACCCAAGAAACCAT\n")
 
-        plain = host_filter._plain_whitelist(str(gz), tmp_path)
+        plain = plain_whitelist(str(gz), tmp_path)
 
         assert plain is not None and not plain.endswith(".gz")
         assert Path(plain).read_text() == "AAACCCAAGAAACACT\nAAACCCAAGAAACCAT\n"
-        assert host_filter._plain_whitelist("/x/wl.txt", tmp_path) == "/x/wl.txt"
-        assert host_filter._plain_whitelist(None, tmp_path) is None
+        assert plain_whitelist("/x/wl.txt", tmp_path) == "/x/wl.txt"
+        assert plain_whitelist(None, tmp_path) is None
 
 
 class TestHostFilterToolPreflight:

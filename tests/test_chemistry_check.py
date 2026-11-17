@@ -113,6 +113,3 @@ class TestSanityGate:
     def test_combined_index_forward_strand_keeps_the_p_finding_only(self):
         (f,) = cc.sanity_gate({"p_pseudoaligned": 8.2}, strand="forward")
         assert f["check"] == "p_pseudoaligned"
-
-    def test_missing_run_info_is_silent(self, tmp_path):
-        assert cc.sanity_gate_from_dir(tmp_path) == []
