@@ -38,8 +38,8 @@ from pathlib import Path
 
 import pytest
 
-from viralscan import hpv_genes
-from viralscan.hpv_genes import (
+from extras.viralscan_curation import hpv_genes
+from extras.viralscan_curation.hpv_genes import (
     CAPSID_GENES,
     HIGH_RISK_GENOTYPES,
     REQUIRED_COLUMNS,
@@ -801,7 +801,7 @@ class TestCatalogueHasNotDrifted:
 
 
 def test_tsv_is_tab_separated_with_a_single_header() -> None:
-    path = REPO_ROOT / "src" / "viralscan" / "data" / "hpv_genes.tsv"
+    path = REPO_ROOT / "extras" / "viralscan_curation" / "data" / "hpv_genes.tsv"
     with open(path, newline="", encoding="utf-8") as handle:
         reader = csv.reader(handle, delimiter="\t")
         header = next(reader)

@@ -591,6 +591,7 @@ def _check_gtf_manifest(repo: Path, manifest: Path) -> None:
 def main() -> None:
     repo = _find_repo_root()
     sys.path.insert(0, str(repo / "src"))
+    sys.path.insert(0, str(repo))  # extras.viralscan_curation (not shipped in the wheel)
 
     from viralscan.scripts.build_reference import validate_reference_records
 
@@ -945,7 +946,7 @@ def main() -> None:
 
     # PROG-13: HSV-1 / VZV repeat copies are 31-mer-identical, so merge them to one gene in
     # the t2g (the index is untouched). Idempotent; src/ is on sys.path since step 1.
-    from viralscan.repeat_merges import apply_repeat_merges
+    from extras.viralscan_curation.repeat_merges import apply_repeat_merges
 
     print(f"  repeat-copy gene merges (PROG-13): {apply_repeat_merges(panel_t2g)} t2g row(s)")
 

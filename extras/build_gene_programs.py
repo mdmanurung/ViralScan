@@ -1315,7 +1315,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
-    from viralscan.repeat_merges import load_repeat_merges
+    sys.path.insert(0, REPO_ROOT)  # extras.viralscan_curation (not shipped in the wheel)
+    from extras.viralscan_curation.repeat_merges import load_repeat_merges
 
     repeat_merges = load_repeat_merges()
     rows: list[dict[str, object]] = []
