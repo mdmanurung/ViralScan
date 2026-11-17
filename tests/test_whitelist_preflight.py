@@ -4,7 +4,7 @@ import gzip
 
 import pytest
 
-from viralscan.whitelist_preflight import (
+from viralscan.chemistry import (
     check_whitelist,
     load_whitelist,
     whitelist_match_rate,
@@ -109,3 +109,30 @@ class TestCheckWhitelist:
         bcs = [_bc(i) for i in range(20)]
         r1 = _write_fastq(tmp_path / "r1.fastq", bcs)
         assert check_whitelist(r1, set(bcs), "dropseq").cb_len == 12
+
+
+class TestFoldedIntoChemistry:
+    """PLAN WHITELIST-FOLD-01: the preflight lives in chemistry; the old path re-exports it."""
+
+    def test_old_module_reexports_same_objects(self):
+        from viralscan import chemistry, whitelist_preflight
+
+        for name in whitelist_preflight.__all__:
+            assert getattr(whitelist_preflight, name) is getattr(chemistry, name)
+
+    def test_defaults_match_chemistry_constants(self):
+        from viralscan import chemistry
+
+        assert chemistry.DEFAULT_SAMPLE == chemistry.SAMPLE_READS == 100_000
+        assert chemistry.DEFAULT_MIN_MATCH_RATE == 0.5
+
+    def test_gem_group_rule_differs_from_onlist_barcode_rule(self, tmp_path):
+        # Pinned on purpose: `load_whitelist` drops a trailing -N only, `_barcode` splits at the
+        # first "-". They agree on "-1"; a merge needs a maintainer decision (WHITELIST-FOLD-01).
+        from viralscan import chemistry
+
+        p = tmp_path / "wl.txt"
+        p.write_text("AAAA-1\nCCCC-2\nGGGG-1-2\n")
+        assert chemistry.load_whitelist(str(p)) == {"AAAA", "CCCC", "GGGG-1"}
+        names = ("AAAA-1", "CCCC-2", "GGGG-1-2")
+        assert [chemistry._barcode(x) for x in names] == ["AAAA", "CCCC", "GGGG"]
