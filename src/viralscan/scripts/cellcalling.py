@@ -43,7 +43,7 @@ import numpy as np
 
 from viralscan.defaults import DEFAULTS
 from viralscan.outputs import analysis_genes_path
-from viralscan.utils import open_maybe_gzip
+from viralscan.utils import open_maybe_gzip, strip_gem_group
 
 #: Total-UMI floor for the strategy-independent denominator, in host molecules
 #: per barcode. Chosen to sit above the empty-droplet mode and below the knee of
@@ -84,14 +84,6 @@ def _nonzero_totals(barcodes, totals) -> dict[str, float]:
     return {b: float(t) for b, t in zip(barcodes, totals) if t > 0}
 
 
-def _strip_suffix(bc: str) -> str:
-    """Drop a trailing 10x ``-1`` (or ``-N``) gem-group suffix if present."""
-    i = bc.rfind("-")
-    if i != -1 and bc[i + 1 :].isdigit():
-        return bc[:i]
-    return bc
-
-
 class CellCallingError(RuntimeError):
     """Raised when cell calling cannot produce a trustworthy mask.
 
@@ -112,7 +104,7 @@ def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> np.ndarra
     path = Path(barcode_file)
     wanted = _external_barcodes(path)
 
-    canonical = [_strip_suffix(str(b)) for b in obs_names]
+    canonical = [strip_gem_group(str(b)) for b in obs_names]
     duplicates = len(canonical) - len(set(canonical))
     if duplicates:
         # Two raw barcodes collapsing to one canonical form makes membership
@@ -140,7 +132,7 @@ def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> np.ndarra
 
 def _external_barcodes(path: Path) -> set[str]:
     with open_maybe_gzip(path) as fh:
-        wanted = {_strip_suffix(line.strip()) for line in fh if line.strip()}
+        wanted = {strip_gem_group(line.strip()) for line in fh if line.strip()}
     if not wanted:
         raise CellCallingError(f"cell_calling=external: the called-cell list {path} is empty")
     return wanted
@@ -354,7 +346,7 @@ def read_host_matrix_totals(raw: Path) -> tuple[list[str], np.ndarray]:
     from scipy.io import mmread
     from scipy.sparse import coo_matrix
 
-    barcodes = [_strip_suffix(b) for b in (raw / "barcodes.tsv").read_text().splitlines()]
+    barcodes = [strip_gem_group(b) for b in (raw / "barcodes.tsv").read_text().splitlines()]
     matrix = coo_matrix(mmread(raw / "matrix.mtx"))
     n_features = len((raw / "features.tsv").read_text().splitlines())
     if matrix.shape != (n_features, len(barcodes)) or len(set(barcodes)) != len(barcodes):

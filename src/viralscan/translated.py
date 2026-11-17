@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from viralscan.run_safety import RunSafetyError, require_fresh_output, sha256_file
-from viralscan.utils import open_maybe_gzip
+from viralscan.utils import open_maybe_gzip, strip_gem_group
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class TranslatedError(RuntimeError):
 
 
 def normalize_barcode(barcode: str) -> str:
-    return _SUFFIX.sub("", barcode.strip().upper())
+    return strip_gem_group(barcode.strip().upper())
 
 
 def read_barcodes(path: Path) -> list[str]:

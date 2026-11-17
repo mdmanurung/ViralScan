@@ -936,7 +936,8 @@ def load_called_cells(
     barcodes that carry viral reads. Its barcode space comes from the ``cell_calling_input.json``
     beside it, never from the sample.
     """
-    from viralscan.scripts.cellcalling import CALLED_CELLS_TSV, _strip_suffix
+    from viralscan.scripts.cellcalling import CALLED_CELLS_TSV
+    from viralscan.utils import strip_gem_group
 
     override = path is not None
     path = path if path is not None else sample_dir / CALLED_CELLS_TSV
@@ -944,7 +945,7 @@ def load_called_cells(
         raise DiscoveryError(f"{path} is missing; discovery needs the primary's called cells.")
     with path.open(encoding="utf-8") as handle:
         handle.readline()
-        called = sorted({_strip_suffix(line.strip()) for line in handle if line.strip()})
+        called = sorted({strip_gem_group(line.strip()) for line in handle if line.strip()})
     receipt_path = path.parent / "cell_calling_input.json"
     receipt = json.loads(receipt_path.read_text()) if receipt_path.is_file() else {}
     # Two-step EmptyDrops on the host filter's STARsolo matrix calls cells in STAR's barcode
@@ -1338,7 +1339,7 @@ def build_star_evidence(
     A candidate without panel accession gets no row; with accessions but no molecule an all-zero row.
     Raises when a file is missing, no molecule exists, or no molecule CB is a called cell.
     """
-    from viralscan.scripts.cellcalling import _strip_suffix
+    from viralscan.utils import strip_gem_group
     from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
 
     called, _ = load_called_cells(sample_dir)
@@ -1374,7 +1375,7 @@ def build_star_evidence(
             )
     reads: dict[str, list[Any]] = {}  # qname -> [molecule key | None, NH, contigs]
     for qname, contig, nh, cb, ub in (record_reader or _star_records)(bam):
-        key = None if cb in (None, "-") or ub in (None, "-") else (_strip_suffix(cb), ub)
+        key = None if cb in (None, "-") or ub in (None, "-") else (strip_gem_group(cb), ub)
         reads.setdefault(qname, [key, nh, []])[2].append(contig)
     mol_reads: dict[tuple[str, str], int] = {}
     adj_reads: dict[tuple[tuple[str, str], int], int] = {}

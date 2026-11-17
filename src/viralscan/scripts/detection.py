@@ -38,7 +38,7 @@ from viralscan.contract import COUNT_SCHEMA_VERSION, SCHEMA_VERSION
 from viralscan.outputs import result_files
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
-from viralscan.scripts.cellcalling import COMPARABLE_CELL_MIN_UMI, _strip_suffix
+from viralscan.scripts.cellcalling import COMPARABLE_CELL_MIN_UMI
 from viralscan.sensitivity import (
     SENSITIVITY_COLUMNS,
     CaptureScope,
@@ -59,6 +59,7 @@ from viralscan.utils import (
     matrix_for_genes,
     resolve_count_matrix,
     setup_script_logging,
+    strip_gem_group,
     virus_molecules_per_cell,
 )
 from viralscan.viral_loci import read_loci
@@ -107,8 +108,8 @@ def _in_barcode_set(obs_names, barcodes) -> np.ndarray:
 
     The host sets are suffix-stripped (cellcalling), so the raw obs_names must be too (B-10).
     """
-    wanted = {_strip_suffix(str(b)) for b in barcodes}
-    mask = np.array([_strip_suffix(str(b)) in wanted for b in obs_names], dtype=bool)
+    wanted = {strip_gem_group(str(b)) for b in barcodes}
+    mask = np.array([strip_gem_group(str(b)) in wanted for b in obs_names], dtype=bool)
     if not mask.any():
         # B-10 (user decision 2026-11-04): zero overlap is a valid outcome for an external host list.
         # Warn with the counts and continue; the caller's empty mask gives NA rates, never a raise.
@@ -882,7 +883,7 @@ def _ambient_context(
             return _AmbientContext(
                 "no STARsolo GeneFull/raw host totals for this run, host depth is unknown"
             )
-        names = [_strip_suffix(str(b)) for b in adata.obs_names]
+        names = [strip_gem_group(str(b)) for b in adata.obs_names]
         present = set(names)
         totals = totals + np.array([host_totals.get(b, 0.0) for b in names])
         extra_called = np.array(

@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed since 3.0.0rc1
 
+- **One barcode rule: a trailing `-N` gem-group suffix is dropped everywhere (PLAN `BARCODE-01`).** Multimap and enrichment dropped only `-1`, so barcodes ending `-2` or higher did not join to cell calling. Output changes only for such multi-lane runs; `-1` and bare barcodes are unchanged.
 - **A missing `ngs_tools` stops the anellovirus alignment and discovery arms (PLAN `ONLIST-01`).** Both caught the error as "this chemistry has no on-list" and ran without barcode correction. One rule in `chemistry.onlist_path_or_none` now gives `None` only for Drop-seq and explicit geometries; a broken kb-python install raises.
 
 ### Added since 3.0.0rc1

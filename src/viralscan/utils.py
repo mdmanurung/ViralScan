@@ -209,6 +209,18 @@ def infected_masks(per_cell: Any, min_molecules: float) -> tuple[Any, Any]:
     return infected, (weight > 0) & ~infected
 
 
+def strip_gem_group(barcode: str) -> str:
+    """Drop one trailing 10x ``-N`` gem-group suffix; leave other text alone.
+
+    The single barcode rule for every module (PLAN BARCODE-01): ``ACGT-1``
+    and ``ACGT-2`` both give ``ACGT``; an inner ``-1`` and a bare barcode stay.
+    """
+    i = barcode.rfind("-")
+    if i != -1 and barcode[i + 1 :].isdigit():
+        return barcode[:i]
+    return barcode
+
+
 def open_maybe_gzip(path: str | os.PathLike[str], mode: str = "rt", **kwargs: Any) -> IO[str]:
     """Open *path* with ``gzip.open`` when it ends in ``.gz``, else with ``open``."""
     if str(path).endswith(".gz"):
