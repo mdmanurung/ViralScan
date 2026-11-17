@@ -47,6 +47,7 @@ from viralscan.anello_align import (
 )
 from viralscan.anellovirus import anello_name_map
 from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
+from viralscan.sam import int_tag, view_lines
 from viralscan.utils import open_maybe_gzip as _open_maybe_gzip  # noqa: F401  (re-exported)
 from viralscan.utils import to_float, to_int  # noqa: F401  (re-exported)
 from viralscan.validation import tool_path
@@ -1439,20 +1440,6 @@ def _mapped_counts(bam: str) -> dict[str, int]:
     return {f[0]: int(f[2]) for f in (line.split("\t") for line in out.splitlines()) if len(f) >= 3}
 
 
-def _sam_lines(bam: str, *opts: str, region: str | None = None) -> Iterable[str]:
-    """Stream SAM records from ``samtools view`` (constant memory)."""
-    with subprocess.Popen(
-        ["samtools", "view", *opts, bam, *([region] if region else [])],
-        stdout=subprocess.PIPE,
-        text=True,
-        bufsize=1 << 20,
-    ) as proc:
-        assert proc.stdout is not None
-        yield from proc.stdout
-    if proc.returncode:
-        raise subprocess.CalledProcessError(proc.returncode, proc.args)
-
-
 def _star_categories(
     bam: str, reference: str, qnames: Path, wanted: set[tuple[str, bool]]
 ) -> dict[tuple[str, bool], str]:
@@ -1463,7 +1450,7 @@ def _star_categories(
     hits are not competition.
     """
     partners: dict[tuple[str, bool], set[str]] = {k: set() for k in wanted}
-    for line in _sam_lines(bam, "-N", str(qnames)):
+    for line in view_lines(bam, "-N", str(qnames)):
         f = line.split("\t", 3)
         key = (f[0], bool(int(f[1]) & 0x80))
         if key in partners and f[2] != reference and f[2] != "*":
@@ -1484,7 +1471,7 @@ def _split_by_category(bam: str, reference: str, work: Path) -> dict[str, Path]:
     multi: set[tuple[str, bool]] = set()
     saw_sa = False
     with open(target, "w", encoding="utf-8") as dst:
-        for line in _sam_lines(bam, region=reference):
+        for line in view_lines(bam, region=reference):
             dst.write(line)
             tags = line.split("\t")[11:]
             saw_sa = saw_sa or any(t.startswith("SA:Z:") for t in tags)
@@ -2343,17 +2330,6 @@ def _primary_fields(line: str) -> Optional[list[str]]:
     return fields
 
 
-def _int_tag(fields: list[str], name: str) -> Optional[int]:
-    prefix = f"{name}:i:"
-    for tag in fields[11:]:
-        if tag.startswith(prefix):
-            try:
-                return int(tag[len(prefix) :])
-            except ValueError:
-                return None
-    return None
-
-
 def _representative_rank(fields: list[str], line: str) -> tuple[object, ...]:
     """Sort key, best first, for choosing a molecule's representative alignment.
 
@@ -2363,7 +2339,7 @@ def _representative_rank(fields: list[str], line: str) -> tuple[object, ...]:
     full record, so the choice never depends on input order.
     """
     mapq = int(fields[4])
-    as_score, nm = _int_tag(fields, "AS"), _int_tag(fields, "NM")
+    as_score, nm = int_tag(fields, "AS"), int_tag(fields, "NM")
     span = Alignment(fields[0], int(fields[1]), fields[2], int(fields[3]), fields[5], "*", {})
     return (
         1 if mapq == 255 else -mapq,
