@@ -152,16 +152,6 @@ def sanity_gate(
     return findings
 
 
-def sanity_gate_from_dir(
-    kb_dir: str | Path, *, host_in_index: bool = True, strand: Optional[str] = None
-) -> list[dict[str, str]]:
-    """:func:`sanity_gate` on ``<kb_dir>/run_info.json``; a missing file yields no findings."""
-    path = Path(kb_dir) / "run_info.json"
-    if not path.is_file():
-        return []
-    return sanity_gate(json.loads(path.read_text()), host_in_index=host_in_index, strand=strand)
-
-
 def sanity_report(
     kb_dir: str | Path, *, host_in_index: bool = True, strand: Optional[str] = None
 ) -> dict[str, Any]:

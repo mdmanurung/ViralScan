@@ -197,42 +197,6 @@ def iter_cb_umi_molecules(
         yield resolved
 
 
-def resolve_cb_umi_molecules(
-    bus_df: pd.DataFrame,
-    barcode_to_idx: dict[str, int],
-    ec_map: dict[int, list[int]],
-) -> tuple[list[tuple[int, tuple[int, ...]]], MoleculeAudit]:
-    """Resolve corrected BUS records into at most one molecule per CB-UMI.
-
-    The input must be the corrected, sorted BUS stream. Record ``count`` is read
-    multiplicity and is deliberately excluded from molecule mass. When a
-    corrected CB-UMI has multiple EC observations, compatible genes are
-    intersected. Disjoint observations are retained in the audit as unresolved
-    UMI collisions and do not receive a forced assignment.
-    """
-    required = {"barcode", "umi", "ec", "count"}
-    missing = required.difference(bus_df.columns)
-    if missing:
-        raise ValueError(f"BUS molecule resolution requires columns: {sorted(missing)}")
-
-    work = bus_df.loc[:, ["barcode", "umi", "ec", "count"]].copy()
-    work["barcode"] = work["barcode"].astype(str).str.removesuffix("-1")
-    work["cell"] = work["barcode"].map(barcode_to_idx)
-    work = work.dropna(subset=["cell", "umi", "ec"])
-    if (work["count"] < 1).any():
-        raise ValueError("BUS record multiplicity must be a positive integer.")
-    work = work.astype({"cell": "int64", "ec": "int64"})
-
-    work = work.sort_values(["barcode", "umi", "ec"], kind="stable")
-    counter = _AuditCounter()
-    records = (
-        (str(row.barcode), str(row.umi), int(row.ec), int(row.count))
-        for row in work.itertuples(index=False)
-    )
-    resolved = list(iter_cb_umi_molecules(records, barcode_to_idx, ec_map, counter))
-    return resolved, counter.freeze()
-
-
 def _empty_matrix(n_cells: int, n_genes: int) -> sparse.csr_matrix:
     return sparse.csr_matrix((n_cells, n_genes), dtype=float)
 

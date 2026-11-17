@@ -234,33 +234,6 @@ def resolve_viral_target(
     )
 
 
-def viral_equivalence_classes(
-    ec_map: dict[int, list[int]], viral_gene_indices: set[int]
-) -> set[int]:
-    """Return EC ids whose gene set includes at least one viral gene."""
-    return {ec for ec, genes in ec_map.items() if any(g in viral_gene_indices for g in genes)}
-
-
-def viral_assigned_keys(bus_text: Iterable[str], viral_ecs: set[int]) -> set[tuple[str, str]]:
-    """Collect ``(barcode, umi)`` pairs whose EC is viral, from BUS text lines.
-
-    *bus_text* yields ``bustools text`` output lines: ``barcode\\tumi\\tec\\tcount``.
-    A pair is viral-assigned if any of its records maps to a viral EC.
-    """
-    keys: set[tuple[str, str]] = set()
-    for line in bus_text:
-        parts = line.rstrip("\n").split("\t")
-        if len(parts) < 3:
-            continue
-        try:
-            ec = int(parts[2])
-        except ValueError:
-            continue
-        if ec in viral_ecs:
-            keys.add((parts[0], parts[1]))
-    return keys
-
-
 @dataclass
 class ExtractionStats:
     total_reads: int
@@ -573,53 +546,6 @@ def replay_exact_target_bus(
     return _capture_flagged_text(
         bustools, bus_dir, quant_bus, target_transcripts, work / "target", threads
     )
-
-
-def extract_viral_reads(
-    r1_path: str,
-    r2_path: str,
-    keys: set[tuple[str, str]],
-    cb_len: int,
-    umi_len: int,
-    out_fasta: str,
-    strip_suffix: str = "-1",
-) -> ExtractionStats:
-    """Write the cDNA (R2) reads whose (CB, UMI) from R1 is in *keys* to FASTA.
-
-    The CB occupies bases ``0:cb_len`` of every R1 read and the UMI
-    ``cb_len:cb_len+umi_len`` (10x/Drop-seq layout). Output is FASTA (one record
-    per surviving read) named ``<CB>_<UMI>_<n>`` so reads remain traceable to
-    their cell. Returns counts for a quick yield report.
-    """
-    bc_end = cb_len + umi_len
-    total = 0
-    kept = 0
-    Path(out_fasta).parent.mkdir(parents=True, exist_ok=True)
-    with (
-        _open_maybe_gzip(r1_path) as fq1,
-        _open_maybe_gzip(r2_path) as fq2,
-        open(out_fasta, "w") as out,
-    ):
-        while True:
-            h1 = fq1.readline()
-            s1 = fq1.readline()
-            fq1.readline()
-            fq1.readline()
-            h2 = fq2.readline()
-            s2 = fq2.readline()
-            fq2.readline()
-            fq2.readline()
-            if not h1 or not h2:
-                break
-            total += 1
-            seq1 = s1.rstrip("\n")
-            cb = seq1[:cb_len]
-            umi = seq1[cb_len:bc_end]
-            # BUS barcodes carry no lane suffix; the counts matrix may. Match raw.
-            if (cb, umi) in keys or (cb, umi.rstrip()) in keys:
-                kept += 1
-                out.write(f">{cb}_{umi}_{kept}\n{s2.rstrip()}\n")
-    return ExtractionStats(total_reads=total, viral_reads=kept)
 
 
 # ---------------------------------------------------------------------------
@@ -1485,36 +1411,6 @@ def reference_lengths(bam: str) -> dict[str, int]:
 def is_viral_reference(reference: str) -> bool:
     """Require an explicit viral class; unprefixed host contigs are not viral."""
     return reference.startswith(("VIRUS|", "TARGET|", "SAMEGROUP|", "RELATED|", "DECOY|"))
-
-
-def coverage_plot_points(
-    rows: list[dict[str, object]], reference: str, length: int | None = None
-) -> tuple[Any, Any]:
-    """Bounded zero-filled viral coordinates, or sparse coordinates with gap breaks."""
-    import numpy as np
-
-    selected = sorted(
-        (to_int(r["position"]), to_int(r["depth"])) for r in rows if r["reference"] == reference
-    )
-    if any(p < 1 or (length is not None and p > length) or d < 0 for p, d in selected):
-        raise ValueError(f"Invalid coverage coordinate/depth for {reference}, length={length}")
-    if is_viral_reference(reference) and length is not None and length <= 5_000_000:
-        xs = np.arange(1, length + 1)
-        ys = np.zeros(length, dtype=float)
-        for position, depth in selected:
-            ys[position - 1] = depth
-        return xs, ys
-    sparse_x: list[float] = []
-    sparse_y: list[float] = []
-    previous = None
-    for position, depth in selected:
-        if previous is not None and position > previous + 1:
-            sparse_x.append(float("nan"))
-            sparse_y.append(float("nan"))
-        sparse_x.append(position)
-        sparse_y.append(depth)
-        previous = position
-    return np.asarray(sparse_x), np.asarray(sparse_y)
 
 
 #: Competition categories for a read's alignment to a viral reference, by where its other (``SA``)
@@ -2490,7 +2386,7 @@ def select_molecule_representatives(
     """One deterministic representative alignment per corrected molecule.
 
     A molecule is a corrected (CB, UMI) on one reference, read from the
-    ``<CB>_<UMI>_<n>`` names ``extract_viral_reads`` writes. Start, strand and
+    ``<CB>_<UMI>_<n>`` read names. Start, strand and
     CIGAR are deliberately NOT part of the key, so one molecule aligned at two
     starts survives once. Among a molecule's primary mapped alignments the best by
     ``_representative_rank`` wins. Records without a parseable CB/UMI have no
