@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, TextIO, cast
 
 from viralscan.chemistry import cb_umi_geometry, onlist_path_or_none
-from viralscan.star_run import plain_whitelist, run_star
+from viralscan.star_run import plain_whitelist, run_star, starsolo_barcode_args
 
 #: ``--genomeSAindexNbases 14`` is STAR's value for a 3 Gb genome (the host filter
 #: index uses it too). ``--genomeChrBinNbits 15``: with ~2,500 contigs STAR's
@@ -345,18 +345,13 @@ def align_cmd(
     """
     if strand not in SOLO_STRAND:
         raise ValueError(f"strand must be one of {sorted(SOLO_STRAND)}, got {strand!r}")
-    cb_len, umi_len = cb_umi_geometry(technology)
     gz = str(r1).endswith(".gz") or str(r2).endswith(".gz")
     return [
         star, "--runThreadN", str(threads), "--genomeDir", str(index),
         "--readFilesIn", str(r2), str(r1),
         "--readFilesCommand", "zcat" if gz else "-",
         "--outFileNamePrefix", prefix,
-        "--soloType", "CB_UMI_Simple",
-        "--soloCBstart", "1", "--soloCBlen", str(cb_len),
-        "--soloUMIstart", str(cb_len + 1), "--soloUMIlen", str(umi_len),
-        "--soloBarcodeReadLength", "0",
-        "--soloCBwhitelist", str(whitelist) if whitelist else "None",
+        *starsolo_barcode_args(technology, whitelist),
         "--limitBAMsortRAM", str(bam_sort_ram),
         "--soloStrand", SOLO_STRAND[strand],
         *ALIGN_ARGS,
@@ -655,7 +650,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             tech = json.loads(Path(args.chem_json).read_text())["chemistry"]["chemistry"]
         if not tech:
             p.error("give --technology or --chem-json")
-        if shutil.which("STAR") is None:
+        from viralscan.validation import missing_tools
+
+        if missing_tools(("STAR",)):
             sys.exit("STAR not on PATH")
         print(align_host_unmapped(
             args.r1, args.r2, args.index, args.out_dir, tech, args.whitelist, args.threads,

@@ -1,6 +1,7 @@
 """Shared STAR helpers: gunzipped whitelist and the exit-139 Solo fallback (ANDET-09-STAR139).
 
-Used by ``scripts/anello_align`` and ``star_hostvirus``. Python standard library only.
+Used by ``scripts/anello_align``, ``scripts/host_filter`` and ``star_hostvirus``.
+Python standard library plus ``viralscan.chemistry``.
 """
 
 import gzip
@@ -10,11 +11,43 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from viralscan.chemistry import cb_umi_geometry
+
 log = logging.getLogger(__name__)
 
 _MAPPED_LINE = re.compile(
     r"(?:Uniquely mapped reads number|Number of reads mapped to multiple loci)\s*\|\s*(\d+)"
 )
+
+
+def starsolo_barcode_args(technology: str, whitelist: str | Path | None) -> list[str]:
+    """STARsolo barcode/UMI arguments, the one builder (pure; SW-15, TOOLCHECK-01).
+
+    ``--soloBarcodeReadLength 0`` disables STAR's check that the barcode read is
+    exactly CB+UMI long. 10x 5' libraries ship a 150 bp R1 (barcode, UMI, TSO,
+    then cDNA), and without it STAR aborts with "barcode read length 150 not
+    equal to expected 28". *whitelist* must already be plain text; ``None`` (or an
+    empty value) passes STAR's literal ``None`` (accept every barcode). Callers
+    resolve a named chemistry's on-list first, so ``None`` reaches STAR only for
+    Drop-seq and custom geometries.
+    """
+    cb_len, umi_len = cb_umi_geometry(technology)
+    return [
+        "--soloType",
+        "CB_UMI_Simple",
+        "--soloCBstart",
+        "1",
+        "--soloCBlen",
+        str(cb_len),
+        "--soloUMIstart",
+        str(cb_len + 1),
+        "--soloUMIlen",
+        str(umi_len),
+        "--soloBarcodeReadLength",
+        "0",
+        "--soloCBwhitelist",
+        str(whitelist) if whitelist else "None",
+    ]
 
 
 def plain_whitelist(
