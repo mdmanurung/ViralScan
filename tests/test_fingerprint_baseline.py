@@ -1,7 +1,8 @@
-"""FP-BASELINE-01: options at their default stay out of the run fingerprint.
+"""CONTRACT-FP-01: one fingerprint rule for `viralscan run`.
 
-Manifests written before these options existed, and manifests that stored them at the default,
-must both resume against an invocation that leaves them alone. A changed value must refuse.
+An unset option takes its DEFAULTS value, so an explicit default and a missing flag hash the
+same. The ViralScan version is hashed, so --resume across versions is refused. Resource and
+helper options (`cores`, `kb_params`) are recorded and never hashed.
 """
 
 import argparse
@@ -33,7 +34,6 @@ def _args(tmp_path: Path, **extra) -> argparse.Namespace:
         index=str(tmp_path / "idx.idx"),
         transcripts=str(tmp_path / "t2g.txt"),
         output=str(tmp_path / "out"),
-        # A 3' kit with a stated strand; the strand check is not under test here.
         strand="forward",
     )
     base.update(extra)
@@ -45,14 +45,16 @@ def _fixed_version(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(rs, "__version__", "0.0.test")
 
 
-def test_every_listed_option_is_omitted_at_its_parser_default(tmp_path: Path) -> None:
+def test_the_omit_at_default_machinery_is_gone() -> None:
+    for name in ("_OMIT_AT_DEFAULT", "_OMIT_AT_LEGACY", "_omittable_values", "_omit_at_default"):
+        assert not hasattr(rs, name), name
+
+
+def test_every_defaulted_option_is_recorded_at_its_resolved_value(tmp_path: Path) -> None:
     options = rs.build_run_manifest(_args(tmp_path))["options"]
-    defaults = _run_defaults()
-    for key in rs._OMIT_AT_DEFAULT:
-        assert key in defaults, f"{key} is not an option of `viralscan run`"
-        assert key not in options, key
-    # The legacy value is not a default: 2.0 is hashed, 1.0 is not.
-    assert options["infected_min_molecules"] == DEFAULTS["infected_min_molecules"] == 2.0
+    for key, value in DEFAULTS.items():
+        if key in _run_defaults():
+            assert options[key] == value, key
 
 
 @pytest.mark.parametrize(
@@ -78,6 +80,7 @@ def test_every_listed_option_is_omitted_at_its_parser_default(tmp_path: Path) ->
         ("positive_control_molecules", 10),
         ("require_positive_control", True),
         ("programme_productive_min_molecules", 3),
+        ("infected_min_molecules", 1.0),
     ],
 )
 def test_a_non_default_value_changes_the_fingerprint(tmp_path: Path, key, value) -> None:
@@ -88,74 +91,38 @@ def test_a_non_default_value_changes_the_fingerprint(tmp_path: Path, key, value)
     assert changed["options"][key] == value
 
 
-def test_infected_min_molecules_one_is_omitted_and_two_is_hashed(tmp_path: Path) -> None:
-    one = rs.build_run_manifest(_args(tmp_path, infected_min_molecules=1.0))
-    two = rs.build_run_manifest(_args(tmp_path, infected_min_molecules=2.0))
-    assert "infected_min_molecules" not in one["options"]
-    assert two["options"]["infected_min_molecules"] == 2.0
-    assert one["run_fingerprint"] != two["run_fingerprint"]
-
-
-def _old_manifest(tmp_path: Path, *, stored_defaults: bool) -> dict:
-    """What an earlier release wrote: hashed over its own options, with or without the keys."""
-    new = rs.build_run_manifest(_args(tmp_path, infected_min_molecules=1.0))
-    old = json.loads(json.dumps(new))
-    if stored_defaults:
-        for key, value in _run_defaults().items():
-            if key in rs._OMIT_AT_DEFAULT:
-                old["options"][key] = value
-    old["run_fingerprint"] = rs._fingerprint(old)
-    return old
-
-
-@pytest.mark.parametrize("stored_defaults", [False, True])
-def test_old_manifest_resumes_with_infected_min_molecules_one(
-    tmp_path: Path, stored_defaults: bool
-) -> None:
-    old = _old_manifest(tmp_path, stored_defaults=stored_defaults)
-    new = rs.build_run_manifest(_args(tmp_path, infected_min_molecules=1.0))
-    assert rs._fingerprint_matches(old, new)
-    # End to end: the output directory check accepts --resume.
-    out = tmp_path / "out"
-    out.mkdir()
-    (out / "run_manifest.json").write_text(json.dumps(old))
-    args = _args(tmp_path, infected_min_molecules=1.0, resume=True)
-    assert (
-        prepare_output_directory(
-            out, rs.build_run_manifest(args), resume=True, overwrite=False, yes=False
-        )
-        == "resume"
-    )
-
-
-def test_old_manifest_refuses_under_the_new_default_of_two(tmp_path: Path) -> None:
-    old = _old_manifest(tmp_path, stored_defaults=True)
+def test_a_run_from_another_version_never_matches(tmp_path: Path, monkeypatch) -> None:
+    old = rs.build_run_manifest(_args(tmp_path))
+    monkeypatch.setattr(rs, "__version__", "0.0.next")
     new = rs.build_run_manifest(_args(tmp_path))
+    assert old["viralscan_version"] != new["viralscan_version"]
     assert not rs._fingerprint_matches(old, new)
 
 
-def test_a_stored_non_default_value_still_refuses(tmp_path: Path) -> None:
-    old = _old_manifest(tmp_path, stored_defaults=True)
-    old["options"]["emptydrops_seed"] = 7
-    old["run_fingerprint"] = rs._fingerprint(old)
-    new = rs.build_run_manifest(_args(tmp_path, infected_min_molecules=1.0))
-    assert not rs._fingerprint_matches(old, new)
-
-
-def test_a_manifest_whose_hash_does_not_reproduce_is_not_trusted(tmp_path: Path) -> None:
-    old = _old_manifest(tmp_path, stored_defaults=True)
+def test_a_legacy_hash_is_not_accepted(tmp_path: Path) -> None:
+    """The pre-3.0.0rc2 compatibility branches are gone: only an exact match resumes."""
+    new = rs.build_run_manifest(_args(tmp_path))
+    old = json.loads(json.dumps(new))
     old["run_fingerprint"] = "0" * 64
-    new = rs.build_run_manifest(_args(tmp_path, infected_min_molecules=1.0))
     assert not rs._fingerprint_matches(old, new)
 
 
 def test_refused_resume_names_the_option_that_differs(tmp_path: Path) -> None:
-    old = _old_manifest(tmp_path, stored_defaults=False)
+    first = rs.build_run_manifest(_args(tmp_path))
     out = tmp_path / "out"
     out.mkdir()
-    (out / "run_manifest.json").write_text(json.dumps(old))
-    args = _args(tmp_path, resume=True, infected_min_molecules=1.0, emptydrops_seed=7)
+    (out / "run_manifest.json").write_text(json.dumps(first))
+    args = _args(tmp_path, resume=True, emptydrops_seed=7)
     with pytest.raises(RunSafetyError, match="--emptydrops-seed"):
         prepare_output_directory(
             out, rs.build_run_manifest(args), resume=True, overwrite=False, yes=False
         )
+
+
+def test_resume_with_the_same_options_and_version_is_accepted(tmp_path: Path) -> None:
+    first = rs.build_run_manifest(_args(tmp_path))
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "run_manifest.json").write_text(json.dumps(first))
+    again = rs.build_run_manifest(_args(tmp_path, resume=True))
+    assert prepare_output_directory(out, again, resume=True, overwrite=False, yes=False) == "resume"
