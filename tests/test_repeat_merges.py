@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from viralscan.repeat_merges import (
+from extras.viralscan_curation.repeat_merges import (
     apply_repeat_merges,
     find_t2g,
     load_repeat_merges,

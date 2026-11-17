@@ -4,7 +4,7 @@
 HSV-1 LAT / RL2 (ICP0) / RS1 (ICP4) and VZV ORF62 / ORF63 each exist twice in the genome and
 RefSeq annotates each copy as a gene, so reads from them are multi-gene and never reach the
 uniquely-placing layer. This rewrites the gene column of the index's ``t2g.txt`` (or
-``panel.t2g``) in place, per ``src/viralscan/data/repeat_gene_merges.tsv``. The index
+``panel.t2g``) in place, per ``extras/viralscan_curation/data/repeat_gene_merges.tsv``. The index
 (``index.idx``) is untouched. New builds already do this
 (``scripts/build_bundled_panel_ref.py``); use this for an index built before.
 
@@ -26,9 +26,9 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from viralscan.repeat_merges import (  # noqa: E402
+from extras.viralscan_curation.repeat_merges import (  # noqa: E402
     apply_repeat_merges,
     find_t2g,
     load_repeat_merges,
