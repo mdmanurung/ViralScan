@@ -6,8 +6,11 @@ ViralScan installs in two tiers.
   `validate-run`, `doctor --profile pip`. No Snakemake or native tools needed.
 - **Full tier** (quantification workflow): Python 3.11 on `linux-64` (the canonical,
   tested toolchain), [kb-python](https://www.kallistobus.tools/) (`kb` command) and
-  [Snakemake](https://snakemake.readthedocs.io/en/stable/) ≥ 7.0, plus kallisto, bustools and STAR.
-  EmptyDrops cell calling additionally needs R with `DropletUtils`.
+  [Snakemake](https://snakemake.readthedocs.io/en/stable/) 9 (`>=9,<10`; it installs on Python 3.11
+  and later only), plus kallisto, bustools and STAR. EmptyDrops cell calling additionally needs R with
+  `DropletUtils`. `pip install "ViralScan[full]"` adds the Python packages of this tier, not the native
+  tools: on Python 3.10 it installs no Snakemake, and `kb`, kallisto, bustools and STAR always come
+  from conda. `evidence-plot` coverage tracks also need `pyBigWig` (`conda install -c bioconda pybigwig`).
 
 ## Conda (recommended)
 

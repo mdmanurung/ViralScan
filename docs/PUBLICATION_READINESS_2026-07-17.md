@@ -1,5 +1,9 @@
 # ViralScan — Publication Readiness (delta review, 2026-07-17)
 
+> **Superseded.** This is a v2.x-era assessment (2026-07). Its test counts, status words and
+> numbers are not v3 evidence and must not be cited. The v3 status is the gate dashboard in `PLAN.md`;
+> the manuscript is `docs/manuscript_draft.md`, which states it is not a submission draft.
+
 > Path placeholders: `$SITE_ROOT` = site work root (institutional filesystem paths, replaced by placeholders).
 
 _Independent multi-agent delta review (7 dimensions, adversarially verified) against

@@ -16,6 +16,27 @@ are not reconstructable from pre-v3 result files.
 See the [output reference](output_reference.md) for the v3 schema and the
 [FAQ](faq.md) for which comparisons across strategies are valid.
 
+## Migrating from 3.0.0rc1
+
+`3.0.0rc1` was never published. If you ran a development build of 3.0, these changes apply
+(details in the [changelog](changelog.md)).
+
+- **Finish or restart runs begun by another version.** `--resume` refuses a run made by a different
+  ViralScan version, and says which version made it. Start the run again in a new `--output`, or
+  finish it with the version that began it. `validate-run` still reads the finished output.
+- **Pass `--strand` for 5' and unconfirmed chemistries.** `run` without `--strand` exits 2 unless
+  tchem confirms a 3' chemistry. Use `--strand forward|reverse|unstranded|auto`, or `--kb-params auto`
+  to let the built-in detector, tchem and the strand pilot choose and stop on disagreement.
+- **The infected-cell rule is stricter.** `--infected-min-molecules` defaults to 2.0, so `pct_infected`
+  and the infected-cell counts fall for cells with a single molecule. To reproduce an earlier run, pass
+  `--infected-min-molecules 1`. The new default has not been validated against the truth panel.
+- **`--host-filter starsolo` uses the barcode on-list** for named 10x chemistries. Rerun a host-filtered
+  run to get the new counts.
+- **`--cell-calling none` and `knee` cannot be combined with `--host-index`.** Use `emptydrops` or
+  `external`.
+- **Output files.** `adata_multimap.h5ad` always carries `uns["multimap_diagnostics"]`; the layout
+  (version 3) and the schema (3.0.0) are unchanged.
+
 ## Command-line changes
 
 Quantification is now the `run` subcommand. A bare `viralscan [OPTIONS]` still runs it, with a

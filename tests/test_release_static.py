@@ -15,6 +15,7 @@ from scripts.check_release_ci import successful_ci_run
 from scripts.check_versions import version_errors
 from scripts.release_sif_definition import definition
 from scripts.write_explicit_lock import explicit_lines
+from viralscan import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -142,7 +143,7 @@ def test_actual_release_tag_step_preserves_latest_for_prereleases(tmp_path, tag,
 
 def test_versions_agree_and_recipe_drift_is_detected(tmp_path):
     assert version_errors(ROOT) == []
-    assert version_errors(ROOT, "v3.0.0rc1") == []
+    assert version_errors(ROOT, f"v{__version__}") == []
     assert any("release tag" in e for e in version_errors(ROOT, "v0.0.0"))
     for rel in [
         "src/viralscan/__init__.py",
