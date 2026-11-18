@@ -30,6 +30,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, Optional
 
+from viralscan.fasta_reader import iter_fasta
+from viralscan.gtf_reader import iter_gtf_fields, parse_attributes
 from viralscan.validation import kb_tools, tool_path
 
 log = logging.getLogger("viralscan")
@@ -140,15 +142,7 @@ def _union_bases(intervals: Iterable[tuple[int, int]]) -> int:
 
 def fasta_lengths(path: Path) -> dict[str, int]:
     """``{first header token: sequence length}`` for a FASTA."""
-    lengths: dict[str, int] = {}
-    name = None
-    for line in path.read_text().splitlines():
-        if line.startswith(">"):
-            name = line[1:].split()[0]
-            lengths[name] = 0
-        elif name is not None:
-            lengths[name] += len(line.strip())
-    return lengths
+    return {name: len(sequence) for name, sequence in iter_fasta(path)}
 
 
 HOST_CROSSTALK_COLUMNS = (
@@ -276,7 +270,6 @@ def check_programme_markers(
 #: The row's own expectation ("gene count grows ~10-50x"); exceeding it is a warning only.
 EXPECTED_GROWTH = (10, 50)
 FLOAT64_BYTES = 8
-_ATTR = re.compile(r'(\w+)\s+"([^"]*)"')
 
 
 def gtf_scale(gtf: Path) -> dict[str, int]:
@@ -286,11 +279,8 @@ def gtf_scale(gtf: Path) -> dict[str, int]:
     contigs: set[str] = set()
     exon_bp = 0
     with gtf.open() as handle:
-        for line in handle:
-            cols = line.rstrip("\n").split("\t")
-            if line.startswith("#") or len(cols) < 9:
-                continue
-            attrs = dict(_ATTR.findall(cols[8]))
+        for cols in iter_gtf_fields(handle):
+            attrs = parse_attributes(cols[8])
             contigs.add(cols[0])
             if "gene_id" in attrs:
                 genes.add(attrs["gene_id"])

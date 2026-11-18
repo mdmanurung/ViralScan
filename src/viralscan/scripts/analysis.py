@@ -14,13 +14,13 @@ reachable through :func:`run` / :func:`obtain_gtf` for direct testing.
 
 # Importing packages
 import json
-import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 from viralscan.anellovirus import candidate_gene_ids
 from viralscan.data_fetch import ViralScanDataError, ensure_viral_data, viral_data_dir
+from viralscan.gtf_reader import gene_ids
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging, split_comma_paths
@@ -36,8 +36,6 @@ from viralscan.virus_identity import (
 
 log = setup_script_logging()
 
-_GENE_ID_RE = re.compile(r'gene_id "([^"]+)"')
-
 
 def _custom_gtf_paths(value: Any) -> list[str]:
     """Return configured custom GTF paths, ignoring unset Snakemake sentinels."""
@@ -46,23 +44,8 @@ def _custom_gtf_paths(value: Any) -> list[str]:
     return [path for path in split_comma_paths(str(value)) if path.lower() not in {"none", "null"}]
 
 
-def extract_gene_ids(lines: Iterable[str]) -> set[str]:
-    """Extract ``gene_id`` values from GTF lines.
-
-    Skips comment lines and rows with fewer than 9 tab-separated columns. Pure
-    and importable — this is the parsing core the tests exercise directly.
-    """
-    accessions: set[str] = set()
-    for line in lines:
-        if line.startswith("#"):
-            continue
-        cols = line.split("\t")
-        if len(cols) < 9:
-            continue
-        m = _GENE_ID_RE.search(cols[8])
-        if m:
-            accessions.add(m.group(1))
-    return accessions
+#: ``gene_id`` values of GTF lines (the one reader, ``gtf_reader.gene_ids``); the tests call it by this name.
+extract_gene_ids = gene_ids
 
 
 def _bundled_panel_gene_ids(config: RunConfig, custom_gtf_paths: list[str]) -> set[str]:

@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from viralscan.evidence import reference_class
+from viralscan.fasta_reader import read_fasta
 from viralscan.molecule_verdict import VERDICTS, deduplicate_competitive_alignments, verdict_of
 from viralscan.sam import cigar_ops, int_tag, view_lines
 from viralscan.utils import to_int
@@ -214,18 +215,6 @@ def _parse_sam(lines: Iterable[str]) -> dict[str, ReadLane]:
     return reads
 
 
-def _read_fasta(path: Path) -> dict[str, str]:
-    seqs: dict[str, list[str]] = {}
-    name = ""
-    for line in path.read_text().splitlines():
-        if line.startswith(">"):
-            name = line[1:].strip().split()[0]
-            seqs[name] = []
-        elif name:
-            seqs[name].append(line.strip().upper())
-    return {k: "".join(v) for k, v in seqs.items()}
-
-
 def _opt_int(value: str | None) -> int | None:
     return None if value in (None, "", "None") else to_int(value)
 
@@ -252,7 +241,7 @@ def load_lanes(evidence_dir: str | Path, layer: str = "umi") -> list[ReadLane]:
         if layer == "umi":
             raise FileNotFoundError(f"{bam} is required for post-alignment UMI deduplication")
         log.warning("%s has no competitive_reads.raw.bam; lanes show no alignments", d)
-    seqs = _read_fasta(fasta) if fasta.is_file() else {}
+    seqs = read_fasta(fasta, upper=True) if fasta.is_file() else {}
     lanes: list[ReadLane] = []
     if verdicts.is_file():
         with gzip.open(verdicts, "rt", newline="") as handle:

@@ -73,11 +73,13 @@ from pathlib import Path
 from typing import Any, Union, cast
 
 from viralscan import __version__ as _VIRALSCAN_VERSION
-from viralscan import virus_catalog
+from viralscan import gtf_reader, virus_catalog
 from viralscan.outputs import analysis_genes_path
-from viralscan.utils import open_maybe_gzip
 
 log = logging.getLogger(__name__)
+
+#: Every ``gene_id`` of a GTF (plain or ``.gz``): the one reader, kept under the name callers import.
+gtf_gene_ids = gtf_reader.gtf_gene_ids
 
 TABLE_FILENAME = "virus_identity.tsv"
 
@@ -412,7 +414,6 @@ MANIFEST_SUFFIX = ".build_manifest.json"
 MANIFEST_SCHEMA_VERSION = "1.0"
 
 _VERSION_SUFFIX = re.compile(r"\.\d+$")
-_GENE_ID_RE = re.compile(r'gene_id "([^"]+)"')
 
 
 class BuildManifestContradiction(ValueError):
@@ -428,21 +429,6 @@ def manifest_path_for_index(index: PathLike) -> Path:
     """Where the build manifest of the kb index at ``index`` lives (next to it)."""
     index = Path(index)
     return index.with_name(index.name + MANIFEST_SUFFIX)
-
-
-def gtf_gene_ids(path: PathLike) -> set[str]:
-    """Every ``gene_id`` of a GTF (plain or ``.gz``)."""
-    ids: set[str] = set()
-    with open_maybe_gzip(path, encoding="utf-8", errors="replace") as handle:
-        for line in handle:
-            if line.startswith("#"):
-                continue
-            cols = line.split("\t")
-            if len(cols) >= 9:
-                match = _GENE_ID_RE.search(cols[8])
-                if match:
-                    ids.add(match.group(1))
-    return ids
 
 
 @dataclass(frozen=True)
