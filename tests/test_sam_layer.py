@@ -43,6 +43,7 @@ def test_tag_value():
     assert tag_value(FIELDS, "UB:Z:") is None
 
 
+@pytest.mark.skipif(shutil.which("samtools") is None, reason="samtools not installed")
 def test_view_failure_raises_called_process_error(tmp_path):
     missing = tmp_path / "none.bam"
     with pytest.raises(subprocess.CalledProcessError):
