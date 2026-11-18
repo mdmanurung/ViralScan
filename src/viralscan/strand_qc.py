@@ -40,7 +40,6 @@ from __future__ import annotations
 import csv
 import gzip
 import re
-import subprocess
 from bisect import bisect_right
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
@@ -49,6 +48,7 @@ from typing import NamedTuple
 
 from viralscan.chemistry import CHEMISTRIES
 from viralscan.molecule_verdict import SKIP_FLAGS
+from viralscan.sam import cigar_ops, int_tag, view_lines
 
 #: Fewest unambiguous host blocks a library needs before its orientation is trusted.
 MIN_HOST_BLOCKS = 200
@@ -64,7 +64,6 @@ CATEGORIES = (
     "counted_unaligned",
     "not_counted",
 )
-_CIGAR = re.compile(r"(\d+)([MIDNSHP=X])")
 _GENE_ID = re.compile(r'gene_id\s+"([^"]*)"')
 
 FIELDS = (
@@ -151,7 +150,7 @@ def aligned_blocks(pos: int, cigar: str) -> list[tuple[int, int]]:
     """1-based inclusive reference blocks of an alignment; an ``N`` gap starts a new block."""
     blocks: list[tuple[int, int]] = []
     start, cursor = pos, pos
-    for n, op in ((int(n), op) for n, op in _CIGAR.findall(cigar)):
+    for n, op in cigar_ops(cigar):
         if op in "M=XD":
             cursor += n
         elif op == "N":
@@ -206,7 +205,7 @@ def _best_records(
         number = _number(f[0])
         if number not in wanted or f[2].startswith("HOST|") != (side == "host"):
             continue
-        score = next((int(t[5:]) for t in f[11:] if t.startswith("AS:i:")), None)
+        score = int_tag(f, "AS", strict=True)
         if score is None:
             continue
         hit = _Hit(-score, f[2], int(f[3]), int(f[1]), f[5])
@@ -362,13 +361,7 @@ def write_strand_qc(
                    reason="verdicts_not_produced_in_competitor_mode")
         ]  # fmt: skip
     else:
-        with subprocess.Popen(
-            ["samtools", "view", str(bam)], stdout=subprocess.PIPE, text=True
-        ) as proc:
-            assert proc.stdout is not None
-            sam = list(proc.stdout)
-        if proc.returncode:
-            raise RuntimeError(f"samtools view failed (exit {proc.returncode}) on {bam}")
+        sam = list(view_lines(bam))
         references = {line.split("\t", 3)[2] for line in sam if not line.startswith("@")}
         host_ids = {r.removeprefix("HOST|") for r in references if r.startswith("HOST|")}
         host_features = (

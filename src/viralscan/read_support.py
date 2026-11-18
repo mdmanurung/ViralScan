@@ -44,7 +44,6 @@ from pathlib import Path
 
 from viralscan.anello_align import body_span
 from viralscan.molecule_verdict import (
-    _CIGAR,
     _read_number,
     counted_read_numbers,
     matched_bases,
@@ -52,6 +51,7 @@ from viralscan.molecule_verdict import (
     side_score,
     verdict_of,
 )
+from viralscan.sam import cigar_ops
 
 log = logging.getLogger("viralscan")
 
@@ -157,14 +157,14 @@ def load_loci(path: str | Path = LOCI_TSV) -> list[dict[str, str]]:
 
 
 def _ref_span(cigar: str) -> int:
-    return sum(int(n) for n, op in _CIGAR.findall(cigar) if op in "MDN=X")
+    return sum(n for n, op in cigar_ops(cigar) if op in "MDN=X")
 
 
 def _aligned_positions(cigar: str, reverse: bool) -> tuple[set[int], int]:
     """M/=/X read positions (sequencing orientation) and the full read length, hard clips included."""
     pos = 0
     out: set[int] = set()
-    for num, op in _CIGAR.findall(cigar):
+    for num, op in cigar_ops(cigar):
         n = int(num)
         if op in "M=X":
             out.update(range(pos, pos + n))

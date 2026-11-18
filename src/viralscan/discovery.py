@@ -1308,12 +1308,18 @@ def _star_records(bam: Path) -> Iterator[tuple[str, str, int, str | None, str | 
     samtools = shutil.which("samtools")
     if samtools is None:
         raise DiscoveryError("samtools not found on PATH; cannot read the STAR BAM.")
-    from viralscan.star_hostvirus import _sam_lines, _tag
+    from viralscan.sam import tag_value, view_fields
 
-    for f in _sam_lines(samtools, str(bam)):
+    for f in view_fields(bam, samtools=samtools):
         if int(f[1]) & 0x4 or f[2] == "*":
             continue
-        yield f[0], f[2], int(_tag(f, "NH:i:") or 1), _tag(f, "CB:Z:"), _tag(f, "UB:Z:")
+        yield (
+            f[0],
+            f[2],
+            int(tag_value(f, "NH:i:") or 1),
+            tag_value(f, "CB:Z:"),
+            tag_value(f, "UB:Z:"),
+        )
 
 
 def build_star_evidence(
@@ -1413,14 +1419,14 @@ READ_SUPPORT_SOURCE = "minimap2"
 
 def _best_scores_from_bam(bam: str) -> dict[str, dict[str, int]]:
     """``read name -> {reference: best AS}`` from ``samtools view`` (secondaries included)."""
-    from viralscan.evidence import _sam_lines
+    from viralscan.sam import int_tag, view_lines
 
     hits: dict[str, dict[str, int]] = {}
-    for line in _sam_lines(bam):
+    for line in view_lines(bam):
         f = line.split("\t")
         if int(f[1]) & 4:
             continue
-        score = next((int(t[5:]) for t in f[11:] if t.startswith("AS:i:")), None)
+        score = int_tag(f, "AS", strict=True)
         if score is None:
             raise DiscoveryError(f"{bam}: alignment of {f[0]} has no AS tag.")
         refs = hits.setdefault(f[0], {})

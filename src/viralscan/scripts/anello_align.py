@@ -18,6 +18,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from viralscan.sam import view_lines
 from viralscan.anello_align import (
     ACCESSION_TSV,
     SUMMARY_COLUMNS,
@@ -52,16 +53,10 @@ def _acc_to_virus(identity_tsv: Path) -> dict[str, str]:
 
 def _alignments(bam: Path) -> Iterator[Alignment]:
     """Stream mapped records of *bam* through ``samtools view``."""
-    with subprocess.Popen(
-        ["samtools", "view", str(bam)], stdout=subprocess.PIPE, text=True
-    ) as proc:
-        assert proc.stdout is not None
-        for line in proc.stdout:
-            a = parse_sam_line(line)
-            if a is not None:
-                yield a
-    if proc.returncode:
-        raise subprocess.CalledProcessError(proc.returncode, ["samtools", "view", str(bam)])
+    for line in view_lines(bam):
+        a = parse_sam_line(line)
+        if a is not None:
+            yield a
 
 
 def _star_version() -> str:

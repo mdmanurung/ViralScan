@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import csv
 import gzip
-import re
 import subprocess
 from collections import Counter
 from collections.abc import Iterable, Iterator
@@ -35,8 +34,7 @@ from pathlib import Path
 
 from viralscan.anello_align import iter_fasta
 from viralscan.evidence import _cb_umi
-
-_CIGAR = re.compile(r"(\d+)([MIDNSHP=X])")
+from viralscan.sam import cigar_ops, int_tag
 
 #: SAM flags skipped: unmapped (0x4) and supplementary (0x800). Secondary (0x100) is kept on purpose.
 SKIP_FLAGS = 0x804
@@ -46,7 +44,7 @@ VERDICTS = ("virus_best", "host_best", "tie", "unaligned")
 
 def matched_bases(cigar: str) -> int:
     """Query bases aligned by M/=/X (insertions and clips excluded)."""
-    return sum(int(n) for n, op in _CIGAR.findall(cigar) if op in "M=X")
+    return sum(int(n) for n, op in cigar_ops(cigar) if op in "M=X")
 
 
 def _read_rank(records: list[list[str]]) -> tuple[object, ...]:
@@ -136,13 +134,6 @@ def write_umi_query_fasta(sam_lines: Iterable[str], reads_fasta: Path, output: P
         raise ValueError("Post-alignment UMI representatives are missing from extracted FASTA")
 
 
-def _score(fields: list[str]) -> int | None:
-    for tag in fields[11:]:
-        if tag.startswith("AS:i:"):
-            return int(tag[5:])
-    return None
-
-
 def _read_number(qname: str) -> int | None:
     """Read number from an extracted-read name ``<CB>_<UMI>_<n>|<read id>``, else None."""
     parts = qname.split("_")
@@ -158,7 +149,7 @@ def side_score(fields: list[str]) -> tuple[str, int] | None:
     """``(side, AS)`` of one SAM record (``host`` / ``virus``), None if it has no usable alignment."""
     if len(fields) < 11 or int(fields[1]) & SKIP_FLAGS or fields[2] == "*":
         return None
-    score = _score(fields)
+    score = int_tag(fields, "AS", strict=True)
     if score is None:
         return None
     return ("host" if fields[2].startswith("HOST|") else "virus"), score
