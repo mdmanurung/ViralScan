@@ -10,7 +10,6 @@ import pytest
 
 from viralscan import chemistry
 from viralscan import read_support as rs
-from viralscan import whitelist_preflight as wp
 from viralscan.scripts.host_filter import starsolo_barcode_args
 
 SEQ = "".join(random.Random(3).choices("ACGT", k=90))
@@ -47,8 +46,10 @@ def test_suffixed_whitelist_matches_like_plain(tmp_path: Path) -> None:
     (tmp_path / "wl_suf.txt").write_text("\n".join(b + "-1" for b in bcs) + "\n")
     reads = "".join(f"@r{i}\n{bcs[i % 50]}{'A' * 10}\n+\n{'I' * 26}\n" for i in range(200))
     (tmp_path / "r1.fq").write_text(reads)
-    plain = wp.check_whitelist(str(tmp_path / "r1.fq"), str(tmp_path / "wl.txt"), "10xv2")
-    suffixed = wp.check_whitelist(str(tmp_path / "r1.fq"), str(tmp_path / "wl_suf.txt"), "10xv2")
+    plain = chemistry.check_whitelist(str(tmp_path / "r1.fq"), str(tmp_path / "wl.txt"), "10xv2")
+    suffixed = chemistry.check_whitelist(
+        str(tmp_path / "r1.fq"), str(tmp_path / "wl_suf.txt"), "10xv2"
+    )
     assert plain.ok and suffixed.ok
     assert suffixed.match_rate == plain.match_rate == 1.0
 
@@ -56,7 +57,7 @@ def test_suffixed_whitelist_matches_like_plain(tmp_path: Path) -> None:
 def test_load_whitelist_strips_only_terminal_gem_group(tmp_path: Path) -> None:
     p = tmp_path / "wl.txt"
     p.write_text("AAAA-1\nCCCC-12\nGGGG\nTTTT-0\n")
-    assert wp.load_whitelist(str(p)) == {"AAAA", "CCCC", "GGGG", "TTTT-0"}
+    assert chemistry.load_whitelist(str(p)) == {"AAAA", "CCCC", "GGGG", "TTTT-0"}
 
 
 # P4-06 ---------------------------------------------------------------------

@@ -749,7 +749,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
 
 def _run_check_whitelist_subcommand(args: argparse.Namespace) -> None:
     """Run the barcode/whitelist match-rate preflight and exit non-zero on mismatch."""
-    from viralscan.whitelist_preflight import check_whitelist
+    from viralscan.chemistry import check_whitelist
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
     if not os.path.exists(args.sample1):
