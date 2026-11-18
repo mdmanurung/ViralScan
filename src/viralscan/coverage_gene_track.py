@@ -6,11 +6,12 @@ draws the result. The rules come from the round 2026-11-02 prototype (CDS-only g
 the gene row's UTR ends, repeat copies split, long spliced transcripts left out).
 """
 
-import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from viralscan.gtf_reader import iter_gtf_fields, parse_attributes
 
 #: Transcripts or genes longer than this are left out and counted. EBV latency transcripts
 #: span most of the genome and would hide every other box; 20 kb keeps all lytic genes.
@@ -75,12 +76,11 @@ def read_gtf_rows(path: str | Path, seqids: Iterable[str]) -> list[GtfRow]:
     wanted = set(seqids)
     rows: list[GtfRow] = []
     with open(path, encoding="utf-8") as handle:
-        for line in handle:
-            fields = line.rstrip("\n").split("\t")
-            if line.startswith("#") or len(fields) != 9 or fields[0] not in wanted:
+        for fields in iter_gtf_fields(handle, exact=True):
+            if fields[0] not in wanted:
                 continue
             if fields[2] in {"gene", "transcript", "exon", "CDS"}:
-                attributes = dict(re.findall(r'(\w+)\s+"([^"]*)"', fields[8]))
+                attributes = parse_attributes(fields[8])
                 rows.append(
                     GtfRow(fields[2], int(fields[3]), int(fields[4]), fields[6], attributes)
                 )

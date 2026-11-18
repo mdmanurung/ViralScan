@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **One barcode rule: a trailing `-N` gem-group suffix is dropped everywhere (PLAN `BARCODE-01`).** Multimap and enrichment dropped only `-1`, so barcodes ending `-2` or higher did not join to cell calling. Output changes only for such multi-lane runs; `-1` and bare barcodes are unchanged.
 - **A missing `ngs_tools` stops the anellovirus alignment and discovery arms (PLAN `ONLIST-01`).** Both caught the error as "this chemistry has no on-list" and ran without barcode correction. One rule in `chemistry.onlist_path_or_none` now gives `None` only for Drop-seq and explicit geometries; a broken kb-python install raises.
+- **One FASTA reader and one GTF reader (PLAN `SEQIO-01`).** `fasta_reader` and `gtf_reader` replace seven FASTA parsers and eight GTF row or attribute parsers; outputs are unchanged, `.gz` FASTA now opens everywhere, and a `>` line with no identifier raises a named error instead of `IndexError`. Two GTF `gene_id` rules that disagree on `ref_gene_id`, repeated keys and empty values are kept apart for a maintainer decision.
 
 ### Added since 3.0.0rc1
 

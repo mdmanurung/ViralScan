@@ -29,6 +29,8 @@ from pathlib import Path
 from typing import Any
 
 from viralscan.evidence import _run
+from viralscan.fasta_reader import FastaError, read_fasta
+from viralscan.gtf_reader import iter_gtf_fields, parse_attributes
 from viralscan.molecule_verdict import _read_number
 from viralscan.run_safety import sha256_file
 from viralscan.splice import (
@@ -47,7 +49,6 @@ from viralscan.splice import (
     _stream_bam,
     junctions_of,
 )
-from viralscan.utils import open_maybe_gzip
 
 # ---------------------------------------------------------------------------
 # Page rules. Fixed before any real data were looked at; change them only with a PLAN row.
@@ -125,18 +126,11 @@ def plain_contig(name: str) -> str:
 def read_genome(viral_fasta: str | Path, contigs: Iterable[str]) -> dict[str, str]:
     """Sequences of the named contigs (first header token) of a FASTA; a missing one is an error."""
     wanted = set(contigs)
-    genome: dict[str, str] = {}
-    name: str | None = None
-    with open_maybe_gzip(viral_fasta) as handle:
-        for line in handle:
-            if line.startswith(">"):
-                name = line[1:].split()[0]
-                if name in genome:
-                    raise IgvError(f"Duplicate FASTA ID {name!r} in {viral_fasta}")
-                if name in wanted:
-                    genome[name] = ""
-            elif name in genome:
-                genome[name] += line.strip()
+    try:
+        records = read_fasta(viral_fasta, unique=True)
+    except FastaError as exc:
+        raise IgvError(str(exc)) from exc
+    genome = {name: seq for name, seq in records.items() if name in wanted}
     absent = wanted - set(genome)
     if absent:
         raise IgvError(f"{sorted(absent)} are in the BAM but not in {viral_fasta}")
@@ -171,15 +165,12 @@ def bed12(
     n_rows = 0
     for path in gtfs:
         with open(path, encoding="utf-8") as handle:
-            for line in handle:
-                f = line.rstrip("\n").split("\t")
-                if line.startswith("#") or len(f) != 9 or plain_contig(f[0]) not in wanted:
+            for f in iter_gtf_fields(handle, exact=True):
+                if plain_contig(f[0]) not in wanted:
                     continue
                 if f[2] not in ("gene", "transcript", "exon", "CDS"):
                     continue
-                by_contig[plain_contig(f[0])].append(
-                    (f, dict(re.findall(r'(\w+)\s+"([^"]*)"', f[8])))
-                )
+                by_contig[plain_contig(f[0])].append((f, parse_attributes(f[8])))
                 n_rows += 1
     lines: list[str] = []
     left_out: list[tuple[str, str, int]] = []

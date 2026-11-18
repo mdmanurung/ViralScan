@@ -7,16 +7,15 @@ A gene with no ``gene`` row takes the span of its CDS/exon rows. Loci are positi
 not look at counts. ``results/viral_loci.tsv`` is written by the ``analysis`` rule and read by ``detection``.
 """
 
-import re
 from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
 
+from viralscan.gtf_reader import gene_id_of, iter_gtf_fields
 from viralscan.utils import open_maybe_gzip
 
 LOCI_FILENAME = "viral_loci.tsv"
 LOCI_COLUMNS = ["gene_id", "seqname", "start", "end", "locus_id"]
-_GENE_ID = re.compile(r'gene_id "([^"]+)"')
 _FALLBACK_FEATURES = {"CDS", "exon", "start_codon", "stop_codon"}
 
 
@@ -26,14 +25,13 @@ def gene_intervals(
     """``{gene_id: [(seqname, start, end), ...]}``: ``gene`` rows, else the CDS/exon span of that gene."""
     genes: dict[str, list[tuple[str, int, int]]] = defaultdict(list)
     fallback: dict[str, dict[str, list[int]]] = defaultdict(dict)
-    for line in lines:
-        cols = line.rstrip("\n").split("\t")
-        if line.startswith("#") or len(cols) < 9 or cols[2] not in {"gene", *_FALLBACK_FEATURES}:
+    for cols in iter_gtf_fields(lines):
+        if cols[2] not in {"gene", *_FALLBACK_FEATURES}:
             continue
-        m = _GENE_ID.search(cols[8])
-        if not m or (gene_ids is not None and m.group(1) not in gene_ids):
+        gid = gene_id_of(cols[8])
+        if not gid or (gene_ids is not None and gid not in gene_ids):
             continue
-        gid, start, end = m.group(1), int(cols[3]), int(cols[4])
+        start, end = int(cols[3]), int(cols[4])
         if start > end:
             raise ValueError(f"{gid}: start {start} > end {end}")
         if cols[2] == "gene":

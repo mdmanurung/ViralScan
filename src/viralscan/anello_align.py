@@ -30,6 +30,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+from viralscan.fasta_reader import iter_fasta
+
 #: Directory, next to the kb index, that holds the STAR anellovirus index.
 INDEX_DIRNAME = "anello_star"
 
@@ -228,23 +230,6 @@ SUMMARY_COLUMNS: tuple[str, ...] = (
 
 
 # ── Index ─────────────────────────────────────────────────────────────────────
-def iter_fasta(path: Path) -> Iterable[tuple[str, str]]:
-    """Yield ``(first header token, sequence)`` from a plain FASTA."""
-    name: Optional[str] = None
-    chunks: list[str] = []
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            line = line.rstrip("\n")
-            if line.startswith(">"):
-                if name is not None:
-                    yield name, "".join(chunks)
-                name, chunks = line[1:].split()[0], []
-            elif line:
-                chunks.append(line)
-    if name is not None:
-        yield name, "".join(chunks)
-
-
 def write_star_reference(
     viral_fasta: Path, accessions: set[str], out_dir: Path
 ) -> tuple[Path, Path, int]:
