@@ -33,6 +33,7 @@ from viralscan.fasta_reader import FastaError, read_fasta
 from viralscan.gtf_reader import iter_gtf_fields, parse_attributes
 from viralscan.molecule_verdict import VERDICTS, _read_number
 from viralscan.run_safety import sha256_file
+from viralscan.sam import cigar_ops, view_lines
 
 # ---------------------------------------------------------------------------
 # Junction rules. Fixed before any real data were looked at; change them only with a PLAN row.
@@ -205,7 +206,6 @@ def annotated_introns(
 # Junctions from one alignment
 # ---------------------------------------------------------------------------
 
-_CIGAR = re.compile(r"(\d+)([MIDNSHP=X])")
 _COMPLEMENT = str.maketrans("ACGTNacgtn", "TGCANtgcan")
 
 
@@ -224,7 +224,7 @@ def junctions_of(
     rejected: Counter[str] = Counter()
     if flag & (SKIP_FLAGS | 0x4) or cigar == "*":
         return [], rejected
-    ops = [(int(n), op) for n, op in _CIGAR.findall(cigar)]
+    ops = cigar_ops(cigar)
     if not any(op == "N" for _, op in ops):
         return [], rejected
     n_introns = sum(op == "N" for _, op in ops)
@@ -319,14 +319,11 @@ def _member_reads(path: Path, molecules: set[tuple[str, str]]) -> dict[int, tupl
 
 def _stream_bam(bam: Path) -> Iterator[list[str]]:
     """SAM fields of every non-supplementary record, streamed from ``samtools view``."""
-    with subprocess.Popen(
-        ["samtools", "view", "-F", "0x800", str(bam)], stdout=subprocess.PIPE, text=True
-    ) as proc:
-        assert proc.stdout is not None
-        for line in proc.stdout:
+    try:
+        for line in view_lines(bam, "-F", "0x800"):
             yield line.rstrip("\n").split("\t")
-    if proc.returncode:
-        raise SpliceError(f"samtools view failed (exit {proc.returncode}) on {bam}")
+    except subprocess.CalledProcessError as exc:
+        raise SpliceError(f"samtools view failed (exit {exc.returncode}) on {bam}") from exc
 
 
 def _read_sequences(

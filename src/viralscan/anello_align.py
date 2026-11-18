@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from viralscan.fasta_reader import iter_fasta
+from viralscan.sam import cigar_ops
 
 #: Directory, next to the kb index, that holds the STAR anellovirus index.
 INDEX_DIRNAME = "anello_star"
@@ -329,7 +330,6 @@ def status_for(enabled: bool, host_index: Optional[str], anello_index: Optional[
 
 
 # ── SAM parsing ───────────────────────────────────────────────────────────────
-_CIGAR_RE = re.compile(r"(\d+)([MIDNSHP=X])")
 
 
 @dataclass
@@ -355,7 +355,7 @@ class Alignment:
         return int(self.tags.get("NH", "1"))
 
     def ops(self) -> list[tuple[int, str]]:
-        return [(int(n), op) for n, op in _CIGAR_RE.findall(self.cigar)]
+        return cigar_ops(self.cigar)
 
     def aligned_bases(self) -> int:
         return sum(n for n, op in self.ops() if op in "MI=X")

@@ -19,7 +19,6 @@ import csv
 import gzip
 import logging
 import re
-import subprocess
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -29,6 +28,7 @@ from typing import Any
 from viralscan.evidence import reference_class
 from viralscan.fasta_reader import read_fasta
 from viralscan.molecule_verdict import VERDICTS, deduplicate_competitive_alignments, verdict_of
+from viralscan.sam import cigar_ops, int_tag, view_lines
 from viralscan.utils import to_int
 
 log = logging.getLogger("viralscan")
@@ -63,7 +63,6 @@ VERDICT_COLOURS = {
     "tie": COLOURS["tie"],
     "unaligned": COLOURS["unaligned"],
 }
-_CIGAR = re.compile(r"(\d+)([MIDNSHP=X])")
 _COMP = str.maketrans("ACGTN", "TGCAN")
 
 
@@ -156,7 +155,7 @@ def _segment(
     ref: str, pos: int, reverse: bool, cigar: str, kind: str, score: int | None
 ) -> Segment | None:
     """Aligned query interval of one CIGAR, flipped into the original read orientation for ``-`` strand hits."""
-    ops = [(int(n), op) for n, op in _CIGAR.findall(cigar)]
+    ops = cigar_ops(cigar)
     if not ops:
         return None
     lead = trail = aligned = matched = 0
@@ -196,7 +195,7 @@ def _parse_sam(lines: Iterable[str]) -> dict[str, ReadLane]:
             lane.length = len(seq)
         if flag & 4 or f[2] == "*":
             continue
-        score = next((int(t[5:]) for t in f[11:] if t.startswith("AS:i:")), None)
+        score = int_tag(f, "AS", strict=True)
         kind = "supplementary" if flag & 0x800 else "secondary" if flag & 0x100 else "primary"
         seg = _segment(f[2], int(f[3]), bool(flag & 16), f[5], kind, score)
         if seg:
@@ -236,15 +235,8 @@ def load_lanes(evidence_dir: str | Path, layer: str = "umi") -> list[ReadLane]:
         )
     aligned: dict[str, ReadLane] = {}
     if bam.is_file():
-        with subprocess.Popen(
-            ["samtools", "view", str(bam)], stdout=subprocess.PIPE, text=True
-        ) as proc:
-            assert proc.stdout is not None
-            aligned = _parse_sam(
-                deduplicate_competitive_alignments(proc.stdout) if layer == "umi" else proc.stdout
-            )
-        if proc.returncode:
-            raise RuntimeError(f"samtools view failed (exit {proc.returncode}) on {bam}")
+        lines = view_lines(bam)
+        aligned = _parse_sam(deduplicate_competitive_alignments(lines) if layer == "umi" else lines)
     else:
         if layer == "umi":
             raise FileNotFoundError(f"{bam} is required for post-alignment UMI deduplication")
