@@ -26,6 +26,7 @@ of v2, close to the 9.3 % seen on v2 reads).
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from typing import IO, Any, Optional
@@ -373,3 +374,104 @@ def resolve(requested: Optional[str], detections: list[Detection], force: bool =
     chemistry = detections[0].chemistry
     assert chemistry is not None  # no problem raised, so no sample was ambiguous
     return chemistry
+
+
+# -- barcode whitelist preflight (behind `viralscan check-whitelist`) -------------------
+# Chemistry/whitelist mismatch is a silent failure: with the wrong whitelist (or the
+# wrong --technology) `bustools correct` drops nearly every read and kb writes an
+# all-empty matrix with no error (finding F-005: a GEM-X 5' library labelled 10xv3 lost
+# 96.5% of its reads). The preflight samples the first R1 reads, cuts the cell barcode
+# with the technology's CB geometry and reports the fraction found in the whitelist, so
+# a mismatch shows in seconds. Folded in from `whitelist_preflight` (PLAN WHITELIST-FOLD-01).
+
+DEFAULT_SAMPLE = SAMPLE_READS
+DEFAULT_MIN_MATCH_RATE = 0.5
+#: Cell Ranger's terminal GEM-well suffix (``AAAC...-1``); R1 carries the bare barcode.
+#: Separate from :func:`_barcode`, which splits at the first ``-`` (PLAN WHITELIST-FOLD-01).
+_GEM_GROUP = re.compile(r"-[1-9][0-9]*$")
+
+
+def load_whitelist(path: str) -> set[str]:
+    """Read a barcode whitelist (one barcode per line; optionally gzipped).
+
+    A Cell Ranger ``-<n>`` GEM-group suffix is dropped, as the main-run chemistry check does
+    (``chemistry._barcode``), so a suffixed list is not diagnosed as the wrong chemistry (P4-04).
+    """
+    wl: set[str] = set()
+    with _open(path) as fh:
+        for line in fh:
+            bc = _GEM_GROUP.sub("", line.strip())
+            if bc:
+                wl.add(bc)
+    return wl
+
+
+def whitelist_match_rate(
+    r1_fastq: str, whitelist: str | set[str], cb_len: int, n_sample: int = DEFAULT_SAMPLE
+) -> tuple[float, int]:
+    """Fraction of sampled R1 barcodes (bases ``0:cb_len``) present in the whitelist.
+
+    ``whitelist`` may be a path (str) or a preloaded ``set``. Reads at most
+    ``n_sample`` records. Returns ``(match_rate, n_sampled)``; the rate is 0.0
+    when no full-length barcode could be sampled.
+    """
+    wl = whitelist if isinstance(whitelist, set) else load_whitelist(whitelist)
+    if not wl:
+        raise ValueError("whitelist is empty")
+    n = 0
+    matched = 0
+    with _open(r1_fastq) as fh:
+        for i, line in enumerate(fh):
+            # In a 4-line FASTQ record the sequence is the 2nd line (index % 4 == 1).
+            if i % 4 != 1:
+                continue
+            bc = line.strip()[:cb_len]
+            if len(bc) < cb_len:
+                continue
+            n += 1
+            if bc in wl:
+                matched += 1
+            if n >= n_sample:
+                break
+    return (matched / n if n else 0.0), n
+
+
+@dataclass
+class WhitelistCheck:
+    match_rate: float
+    n_sampled: int
+    cb_len: int
+    ok: bool
+    message: str
+
+
+def check_whitelist(
+    r1_fastq: str,
+    whitelist: str | set[str],
+    technology: str,
+    min_match_rate: float = DEFAULT_MIN_MATCH_RATE,
+    n_sample: int = DEFAULT_SAMPLE,
+) -> WhitelistCheck:
+    """Run the barcode match-rate check for one R1 file against ``whitelist``.
+
+    ``cb_len`` is resolved from ``technology`` via :func:`cb_umi_geometry`, so a
+    wrong ``--technology`` (which changes the barcode length/offset) also shows up
+    as a low match rate.
+    """
+    cb_len, _ = cb_umi_geometry(technology)
+    rate, n = whitelist_match_rate(r1_fastq, whitelist, cb_len, n_sample=n_sample)
+    ok = rate >= min_match_rate
+    if ok:
+        msg = (
+            f"{rate:.1%} of {n} sampled R1 barcodes match the whitelist "
+            f"(technology={technology}, CB={cb_len}bp) — OK."
+        )
+    else:
+        msg = (
+            f"Only {rate:.1%} of {n} sampled R1 barcodes match the whitelist "
+            f"(technology={technology}, CB={cb_len}bp). This usually means "
+            f"--technology / --whitelist do not match the library chemistry; "
+            f"bustools will discard most reads and produce an all-empty matrix "
+            f"(finding F-005). Verify the chemistry (3' vs 5', v2 vs v3, GEM-X)."
+        )
+    return WhitelistCheck(match_rate=rate, n_sampled=n, cb_len=cb_len, ok=ok, message=msg)
