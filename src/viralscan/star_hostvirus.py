@@ -20,11 +20,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, TextIO, cast
 
 from viralscan.chemistry import cb_umi_geometry, onlist_path_or_none
+from viralscan.sam import tag_value, view_fields
 from viralscan.star_run import plain_whitelist, run_star, starsolo_barcode_args
 
 #: ``--genomeSAindexNbases 14`` is STAR's value for a 3 Gb genome (the host filter
@@ -425,18 +426,18 @@ def _collect_viral_reads(bam: Path, samtools: str = "samtools") -> dict[str, dic
         if not _viral_bed(bam, samtools, bed):
             return reads
         multi: set[str] = set()
-        for f in _sam_lines(samtools, "-L", str(bed), str(bam)):
+        for f in view_fields(bam, "-L", str(bed), samtools=samtools):
             r = reads.setdefault(f[0], {"contigs": set(), "primary": None, "cb": None, "ub": None})
             r["contigs"].add(f[2])  # type: ignore[attr-defined]
             if not int(f[1]) & 0x100:
                 r["primary"] = f[2]
-            r["cb"], r["ub"] = _tag(f, "CB:Z:"), _tag(f, "UB:Z:")
-            if int(_tag(f, "NH:i:") or 1) > 1:
+            r["cb"], r["ub"] = tag_value(f, "CB:Z:"), tag_value(f, "UB:Z:")
+            if int(tag_value(f, "NH:i:") or 1) > 1:
                 multi.add(f[0])
         if multi:
             names = Path(tmp) / "names.txt"
             names.write_text("".join(f"{q}\n" for q in sorted(multi)), encoding="utf-8")
-            for f in _sam_lines(samtools, "-N", str(names), str(bam)):
+            for f in view_fields(bam, "-N", str(names), samtools=samtools):
                 if f[0] in multi and f[2] != "*":
                     r = reads[f[0]]
                     r["contigs"].add(f[2])  # type: ignore[attr-defined]
@@ -485,18 +486,6 @@ STAR_SUMMARY_COLUMNS: tuple[str, ...] = (
 )
 
 
-def _sam_lines(samtools: str, *args: str) -> Iterator[list[str]]:
-    proc = subprocess.Popen(
-        [samtools, "view", *args], stdout=subprocess.PIPE, text=True, encoding="utf-8"
-    )
-    assert proc.stdout is not None
-    with proc.stdout:
-        for line in proc.stdout:
-            yield line.rstrip("\n").split("\t")
-    if proc.wait():
-        raise subprocess.CalledProcessError(proc.returncode, proc.args)
-
-
 def _viral_bed(bam: Path, samtools: str, bed: Path) -> int:
     """Write a BED of the VIRUS| contigs with mapped reads (idxstats); returns their count."""
     stats = subprocess.run(
@@ -506,13 +495,6 @@ def _viral_bed(bam: Path, samtools: str, bed: Path) -> int:
     viral = [(r[0], r[1]) for r in rows if r[0].startswith("VIRUS|") and int(r[2]) > 0]
     bed.write_text("".join(f"{c}\t0\t{n}\n" for c, n in viral), encoding="utf-8")
     return len(viral)
-
-
-def _tag(fields: list[str], key: str) -> str | None:
-    for t in fields[11:]:
-        if t.startswith(key):
-            return t[len(key) :]
-    return None
 
 
 def summarise_by_virus(
