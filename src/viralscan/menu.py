@@ -1083,7 +1083,9 @@ def errorhandler(args: argparse.Namespace) -> None:
             _die("--auto-evidence requires --viral-fasta (no viral.fa next to the index).", 2)
         if not args.multimapping:
             _die("--auto-evidence needs multimapping; drop --no-multimapping.", 2)
-        missing = [t for t in ("minimap2", "samtools") if shutil.which(t) is None]
+        from viralscan.validation import missing_tools
+
+        missing = missing_tools(("minimap2", "samtools"))
         if missing:
             _die(f"--auto-evidence needs {', '.join(missing)} on PATH.")
 
@@ -1344,7 +1346,9 @@ def _require_explicit_strand(
 
 
 def _check_required_tools() -> None:
-    missing = [t for t in REQUIRED_TOOLS if shutil.which(t) is None]
+    from viralscan.validation import missing_tools
+
+    missing = missing_tools(REQUIRED_TOOLS)
     if missing:
         _die(
             "The following required external tools are not on PATH: "
@@ -1391,7 +1395,9 @@ def _check_cell_caller_tools(method: str, rscript: str) -> None:
 def _check_host_filter_tools(aligner: str) -> None:
     """Verify that tools required by the chosen host-filter aligner are on PATH."""
     if aligner == "starsolo":
-        if shutil.which("STAR") is None:
+        from viralscan.validation import missing_tools
+
+        if missing_tools(("STAR",)):
             _die(
                 "--host-filter starsolo requires 'STAR' on PATH. "
                 "Install STARsolo: https://github.com/alexdobin/STAR"
@@ -1404,7 +1410,9 @@ def _run_star_index(args: argparse.Namespace) -> None:
     from viralscan import star_hostvirus
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
-    if shutil.which("STAR") is None:
+    from viralscan.validation import missing_tools
+
+    if missing_tools(("STAR",)):
         _die(
             "'viralscan star-index' requires 'STAR' on PATH. See https://github.com/alexdobin/STAR"
         )
@@ -2006,7 +2014,9 @@ def _dispatch(args: argparse.Namespace) -> None:
     if getattr(args, "scautoqc", False):
         _check_scautoqc_deps()
     if getattr(args, "star_confirm", False):
-        missing = [t for t in ("STAR", "samtools") if shutil.which(t) is None]
+        from viralscan.validation import missing_tools
+
+        missing = missing_tools(("STAR", "samtools"))
         if missing:
             _die(f"--star-confirm requires {', '.join(missing)} on PATH.")
     if getattr(args, "discover", False):
