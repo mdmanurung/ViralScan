@@ -109,3 +109,11 @@ def test_gtf_gene_ids_plain_gz_and_lines(tmp_path):
     assert gene_ids(text.splitlines(keepends=True)) == {"A", "B"}
     assert gtf_gene_ids(_write(tmp_path, "x.gtf", text)) == {"A", "B"}
     assert gtf_gene_ids(_write(tmp_path, "x.gtf.gz", text)) == {"A", "B"}
+
+
+def test_read_fasta_only_ignores_repeated_unrelated_id(tmp_path):
+    fa = tmp_path / "g.fa"
+    fa.write_text(">a\nAC\n>zz\nGG\n>zz\nTT\n")
+    assert read_fasta(fa, unique=True, only={"a"}) == {"a": "AC"}
+    with pytest.raises(FastaError):
+        read_fasta(fa, unique=True, only={"zz"})

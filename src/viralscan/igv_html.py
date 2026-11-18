@@ -127,10 +127,9 @@ def read_genome(viral_fasta: str | Path, contigs: Iterable[str]) -> dict[str, st
     """Sequences of the named contigs (first header token) of a FASTA; a missing one is an error."""
     wanted = set(contigs)
     try:
-        records = read_fasta(viral_fasta, unique=True)
+        genome = read_fasta(viral_fasta, unique=True, only=wanted)
     except FastaError as exc:
         raise IgvError(str(exc)) from exc
-    genome = {name: seq for name, seq in records.items() if name in wanted}
     absent = wanted - set(genome)
     if absent:
         raise IgvError(f"{sorted(absent)} are in the BAM but not in {viral_fasta}")

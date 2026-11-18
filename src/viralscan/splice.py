@@ -362,10 +362,9 @@ def _read_sequences(
 def _write_target_genome(viral_fasta: str, contigs: set[str], out: Path) -> dict[str, str]:
     """Write the named contigs of *viral_fasta* (first header token) to *out*; return their sequences."""
     try:
-        records = read_fasta(viral_fasta, unique=True)
+        genome = read_fasta(viral_fasta, unique=True, only=contigs)
     except FastaError as exc:
         raise SpliceError(str(exc)) from exc
-    genome = {name: seq for name, seq in records.items() if name in contigs}
     absent = contigs - set(genome)
     if absent:
         raise SpliceError(f"{sorted(absent)} are in the competitive BAM but not in {viral_fasta}")

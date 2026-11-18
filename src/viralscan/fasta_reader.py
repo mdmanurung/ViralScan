@@ -9,7 +9,7 @@ What a caller does with a repeated identifier is its own rule, so ``iter_fasta``
 ``read_fasta`` takes ``unique=`` (``False``: the last record wins; ``True``: raise).
 """
 
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from pathlib import Path
 
 from viralscan.utils import open_maybe_gzip
@@ -41,10 +41,22 @@ def iter_fasta(path: str | Path, *, upper: bool = False) -> Iterator[tuple[str, 
         yield name, "".join(chunks).upper() if upper else "".join(chunks)
 
 
-def read_fasta(path: str | Path, *, upper: bool = False, unique: bool = False) -> dict[str, str]:
-    """``{identifier: sequence}``; with ``unique=True`` a repeated identifier raises ``FastaError``."""
+def read_fasta(
+    path: str | Path,
+    *,
+    upper: bool = False,
+    unique: bool = False,
+    only: Collection[str] | None = None,
+) -> dict[str, str]:
+    """``{identifier: sequence}``.
+
+    With ``unique=True`` a repeated identifier raises ``FastaError``. With *only*, other records are
+    dropped before that check, so a repeated identifier outside *only* is not an error.
+    """
     records: dict[str, str] = {}
     for name, sequence in iter_fasta(path, upper=upper):
+        if only is not None and name not in only:
+            continue
         if unique and name in records:
             raise FastaError(f"Duplicate FASTA ID {name!r} in {path}")
         records[name] = sequence
