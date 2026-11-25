@@ -33,8 +33,7 @@ from viralscan.anello_align import (
 )
 from viralscan.chemistry import cb_umi_geometry, onlist_path_or_none
 from viralscan.runconfig import RunConfig
-from viralscan.scripts.host_filter import starsolo_barcode_args
-from viralscan.star_run import plain_whitelist, run_star
+from viralscan.star_run import plain_whitelist, run_star, starsolo_barcode_args
 
 log = logging.getLogger(__name__)
 
