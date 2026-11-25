@@ -42,11 +42,11 @@ from viralscan.anello_align import (
     Alignment,
     has_reagent,
     is_complex_body,
-    iter_fasta,
     parse_sam_line,
 )
 from viralscan.anellovirus import anello_name_map
 from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
+from viralscan.fasta_reader import iter_fasta
 from viralscan.sam import int_tag, view_lines
 from viralscan.utils import open_maybe_gzip as _open_maybe_gzip  # noqa: F401  (re-exported)
 from viralscan.utils import to_float, to_int  # noqa: F401  (re-exported)
