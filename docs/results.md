@@ -1,6 +1,6 @@
 # Results
 
-After `viralscan validate-run --run-dir output/` reports `"ok": true`, open
+After `viralscan check run --run-dir output/` reports `"ok": true`, open
 `output/<sample>/report.html` for the overview and then read the tables below.
 The first half of this page says what the main results mean; the second half
 gives five checks that move a `detected` row from "the run is technically sound"
@@ -147,7 +147,7 @@ calibrated probabilities.
 
 ### 1. Run integrity
 
-**Artifacts.** `viralscan validate-run --run-dir output/` and its JSON report;
+**Artifacts.** `viralscan check run --run-dir output/` and its JSON report;
 `output/run_complete.json`; `output/run_manifest.json`;
 `results/reference_provenance.json`.
 
@@ -203,7 +203,7 @@ does not say which. Check that the denominator matches the experiment:
   `results/called_cells.tsv` records its intersection with the viral matrix.
 
 Check chemistry before trusting an all-empty or all-background pattern.
-`viralscan check-whitelist` reports the barcode–whitelist match rate; the main
+`viralscan check whitelist` reports the barcode–whitelist match rate; the main
 run also detects chemistry from the first 100k R1 reads and stops when the reads
 fit no single chemistry, when samples in one run disagree, or when an explicit
 `--technology` contradicts the reads. `--require-chemistry-sanity` turns an
@@ -247,7 +247,7 @@ Separate the evidence by where the molecules came from:
   `reference_risk_flags` likewise qualify a call without suppressing it.
 
 **Next action.** For a call that matters, re-run allocation with
-`viralscan rerun-multimap --run-dir output/ -o output_equal/ --multimap-method equal`
+`viralscan rerun multimap --run-dir output/ -o output_equal/ --multimap-method equal`
 as an explicit comparison, and inspect reads for the exact target with check 4.
 If reference coverage is the problem, rebuild with the host genome or the
 expanded anellovirus panel; see [Reference panel](reference_panel.md). The

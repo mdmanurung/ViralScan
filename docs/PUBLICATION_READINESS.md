@@ -89,7 +89,7 @@ leakage is controlled; depth is not).
 abstract, highlights, or eTOC — so the revision is contained.
 
 Fix (code already produces the honest numbers — see `analysis/hostresponse_ebv_matched/scripts/reconcile_package_hostresponse.py`):
-1. Re-run `viralscan hostresponse … --label cpm` (and/or `--depth-match --differential
+1. Re-run `viralscan rerun hostresponse … --label cpm` (and/or `--depth-match --differential
    --gene-symbols`) to regenerate `results/hostresponse_ebv_matched/hostresponse_metrics.csv`.
 2. Update `:89` to the ~0.67 figure, **report the depth-alone baseline (0.97) alongside it**,
    and revise the `:85` heading.
@@ -126,7 +126,7 @@ A scaffold for the comparison is available under `analysis/dedicated_tool_compar
   preserved as provenance only — see `analysis/reference_strategy_benchmark/` (exclusion note +
   tracked `run_packets/2026-06-28_fresh12/`). Reintroduce only after all 12 rows complete.
 - **Reproducibility gap:** the headline benchmarks used a private "evonk" Serratus index, not
-  a `viralscan build-ref` output. A reviewer cannot reproduce Figure 2 from the documented
+  a `viralscan build ref` output. A reviewer cannot reproduce Figure 2 from the documented
   build command. Re-run the key benchmark from a `build-ref` reference, or document the exact
   index and publish it.
 

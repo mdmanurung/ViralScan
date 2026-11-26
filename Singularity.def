@@ -17,4 +17,4 @@ From: OCI_DIGEST_REQUIRED
     exec /opt/conda/envs/viralscan/bin/viralscan "$@"
 
 %test
-    /opt/conda/envs/viralscan/bin/viralscan doctor --profile full
+    /opt/conda/envs/viralscan/bin/viralscan check env --profile full

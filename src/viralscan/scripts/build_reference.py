@@ -783,7 +783,7 @@ def _warn_if_host_like(gtf: Path, viral_ids: set[str], n_genes: int) -> None:
     log.warning(
         "%s looks like a host genome annotation (%d genes; chromosome-like seqnames: %s). "
         "--reference treats EVERY GTF gene as viral: its sequences are dust-masked and its "
-        "genes are labelled viral in the manifest and outputs. Use `viralscan build-ref` for "
+        "genes are labelled viral in the manifest and outputs. Use `viralscan build ref` for "
         "a host + virus reference, or supply a viral-only FASTA/GTF.",
         gtf,
         n_genes,
@@ -1463,7 +1463,7 @@ def fetch_host_cdna(
     ----------
     species:
         Short species name, e.g. ``"human"``, ``"mouse"``.  Run
-        ``viralscan build-ref --list-species`` to see all supported names.
+        ``viralscan build ref --list-species`` to see all supported names.
     out_dir:
         Directory where downloaded files will be *copied* (symlinked from cache).
     cache_dir:
@@ -2692,7 +2692,7 @@ def build_anellovirus_reference(
 
 
 def build_ref_main(args: argparse.Namespace) -> None:
-    """Orchestrator called by ``viralscan build-ref``."""
+    """Orchestrator called by ``viralscan build ref``."""
     from viralscan.utils import configure_logging
 
     configure_logging(

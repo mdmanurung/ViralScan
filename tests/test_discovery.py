@@ -1,4 +1,4 @@
-"""DISC-02/03/06/07: `viralscan discover` refuses unsafe inputs, never touches the source run, and
+"""DISC-02/03/06/07: `viralscan discover run` refuses unsafe inputs, never touches the source run, and
 resolves the host-unmapped pair fail-closed."""
 
 import argparse
@@ -208,10 +208,10 @@ def test_stage_and_publish(tmp_path):
 
 
 def _discover(root: Path, out: Path, db: Path, *extra: str, kraken=_fake_kraken2) -> int:
-    """Run `viralscan discover` against the stand-in Kraken2; returns the exit code."""
+    """Run `viralscan discover run` against the stand-in Kraken2; returns the exit code."""
     from viralscan.menu import main
 
-    argv = ["viralscan", "discover", "--run-dir", str(root), "-o", str(out)]
+    argv = ["viralscan", "discover", "run", "--run-dir", str(root), "-o", str(out)]
     argv += ["--kraken2-db", str(db), *extra]
     with (
         patch("sys.argv", argv),
@@ -845,7 +845,7 @@ def test_run_kraken2_failure_is_a_discovery_error(tmp_path):
 def test_discover_parser_rejects_bad_kraken2_settings(tmp_path, flag, value):
     from viralscan.menu import build_parser
 
-    argv = ["discover", "--run-dir", "r", "-o", "o", "--kraken2-db", "d", flag, value]
+    argv = ["discover", "run", "--run-dir", "r", "-o", "o", "--kraken2-db", "d", flag, value]
     with pytest.raises(SystemExit):
         build_parser().parse_args(argv)
 
@@ -1214,10 +1214,10 @@ def test_collapse_rank_errors_and_cli(tmp_path):
 
     with pytest.raises(DiscoveryError, match="not found"):
         discovery.collapse_rank(tmp_path, "genus")
-    ns = build_parser().parse_args(["discover-collapse", "o", "--rank", "family"])
+    ns = build_parser().parse_args(["discover", "collapse", "o", "--rank", "family"])
     assert (ns._subcommand, ns.rank, ns.output_file) == ("discover-collapse", "family", None)
     with pytest.raises(SystemExit):
-        build_parser().parse_args(["discover-collapse", "o", "--rank", "order"])
+        build_parser().parse_args(["discover", "collapse", "o", "--rank", "order"])
 
 
 def _cand(taxid, host=0, viral_only=0):

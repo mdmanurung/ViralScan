@@ -384,7 +384,7 @@ def host_homology_by_virus(
 ) -> dict[str, dict[str, Any]]:
     """virus display name -> :data:`HOST_HOMOLOGY_COLUMNS`, from the index's reference manifest.
 
-    ``viralscan build-ref --genome-dlist`` measures each viral genome against the host
+    ``viralscan build ref --genome-dlist`` measures each viral genome against the host
     genome and records the maximum alignment per genome in ``reference_manifest.json``
     beside the index. A virus reports the maximum over its genomes. ``status`` is
     ``measured`` (every genome), ``partial`` (some) or ``not_measured`` (none, or no

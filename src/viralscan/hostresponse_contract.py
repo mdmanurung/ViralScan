@@ -1,6 +1,6 @@
 """Host-response evaluation rules shared by every entry point.
 
-The integrated pipeline (``RunConfig``), ``viralscan hostresponse`` and
+The integrated pipeline (``RunConfig``), ``viralscan rerun hostresponse`` and
 ``scripts/hostresponse.run_hostresponse`` must reject the same invalid
 combinations, and the pipeline must do so before ``kb count`` rather than inside
 the ``hostresponse`` rule hours later. This module is import-light on purpose

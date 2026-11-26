@@ -1,6 +1,6 @@
-# Kraken2 taxonomic discovery (`viralscan discover`)
+# Kraken2 taxonomic discovery (`viralscan discover run`)
 
-`viralscan discover` classifies the reads a completed run could not place on the host
+`viralscan discover run` classifies the reads a completed run could not place on the host
 genome with [Kraken2](https://github.com/DerrickWood/kraken2), then groups them by cell
 barcode and UMI. It reports which taxa those reads resemble in which cells. It is a
 separate command with its own output directory and its own fingerprint. It never writes
@@ -35,7 +35,7 @@ does not say the organism is present, replicating, or in that cell.
 
   ```bash
   conda env create -f environment.discovery.yml   # kraken2 only; layer it on the main env
-  viralscan doctor --profile discovery
+  viralscan check env --profile discovery
   ```
 
 - A Kraken2 database directory (`hash.k2d`, `opts.k2d`, `taxo.k2d`). ViralScan never
@@ -58,7 +58,7 @@ does not say the organism is present, replicating, or in that cell.
 ## Command
 
 ```bash
-viralscan discover --run-dir run/ --sample SAMPLE \
+viralscan discover run --run-dir run/ --sample SAMPLE \
     --kraken2-db k2_pluspf_16/ --threads 8
 ```
 
@@ -72,10 +72,10 @@ viralscan run ... --host-filter starsolo --host-index star_hg38/ \
 runs the same discovery on every sample after the run completes, with the defaults below,
 into `<output>/<sample>/posthoc/discovery/`. The primary results are written and
 `run_complete.json` exists before discovery starts; a discovery failure exits non-zero but
-leaves the run valid. For other settings run `viralscan discover` afterwards.
+leaves the run valid. For other settings run `viralscan discover run` afterwards.
 
 `--sample` is required only when the run holds more than one. Outputs go to
-`run/SAMPLE/posthoc/discovery` (layout version 3; `validate-run` ignores `posthoc/`), or to
+`run/SAMPLE/posthoc/discovery` (layout version 3; `check run` ignores `posthoc/`), or to
 `-o DIR` outside the run. Either must be empty, absent or a previous publication. The defaults are
 `--confidence 0.05` and `--minimum-hit-groups 4` (the Cellsnake documented defaults, not
 calibrated here: the DISC-12 benchmark could not evaluate its default rule, see below; Kraken2's own are 0.0 and 2) and `--polya-trim` on. See the
@@ -114,7 +114,7 @@ user at 4 CPUs and 8 GB).
 #SBATCH --mem=24G
 #SBATCH --time=02:00:00
 
-viralscan discover --run-dir run/ --sample SAMPLE -o discovery/ \
+viralscan discover run --run-dir run/ --sample SAMPLE -o discovery/ \
     --kraken2-db k2_pluspf_16/ --threads "$SLURM_CPUS_PER_TASK"
 ```
 
@@ -181,7 +181,7 @@ documented constants, not calibrated.
 ### Candidate states
 
 ```bash
-viralscan discover-states run/S1/posthoc/discovery --run-dir run/
+viralscan discover states run/S1/posthoc/discovery --run-dir run/
 ```
 
 writes `candidate_states.tsv` beside `candidates.tsv` (`taxid`, `name`, `rank`, `state`,
@@ -217,7 +217,7 @@ shared cell (route ii also one shared molecule). These cut-offs are documented c
 (`MIN_TAXON_BEST`, `MIN_TAXON_BEST_FRACTION`), not calibrated. Malformed, duplicate or
 unmatched evidence rows abort.
 
-`build_kb_evidence(discovery_dir, sample_dir)` (what `discover-states` runs for `source=kb`) writes the route (i)
+`build_kb_evidence(discovery_dir, sample_dir)` (what `discover states` runs for `source=kb`) writes the route (i)
 `source=kb` table `evidence_kb.tsv` from the primary run's
 `results/molecule_assignments.tsv.gz` (needs `--multimap-molecule-assignments`) and
 `results/virus_identity.tsv`. A viral panel gene belongs to a candidate when its `taxid` equals
@@ -232,7 +232,7 @@ and `n_taxon_best` cover all barcodes; the shared counts cover called cells only
 gene gets no row (`not_assessed`); one with panel genes but no molecule gets a zero row
 (`negative`). An empty molecule file, or one with no molecule in a called cell, aborts. It refuses unless the called cells are in kb barcode space (a STARsolo or unknown
 space, or kb molecules sharing no barcode with the called cells, aborts). 
-`build_star_evidence(discovery_dir, sample_dir)` (run by `discover-states` when the STAR BAM exists) is the `source=star`
+`build_star_evidence(discovery_dir, sample_dir)` (run by `discover states` when the STAR BAM exists) is the `source=star`
 counterpart (`evidence_star.tsv`). It reads the run's pruned `star_hostvirus/viral.bam`
 (`VIRUS|` records only), maps `VIRUS|<accession>` to taxids through `results/virus_identity.tsv`
 (same lineage rule as above) and counts molecules as distinct (CB, UB) with the `-N` suffix of the
@@ -243,7 +243,7 @@ so a read is taxon-best for a taxon only when its visible records on matching co
 overlap, a missing BAM or no molecule aborts.
 
 `build_read_support_evidence(discovery_dir, sample_dir, r1, r2, host_fasta, {taxid: candidate_fasta})`
-(run by `discover-states --minimap2`; no genome download) writes the route (ii) `source=minimap2` table
+(run by `discover states --minimap2`; no genome download) writes the route (ii) `source=minimap2` table
 `evidence_read_support.tsv` for at most `max_candidates` (default 3) taxa. `r1`/`r2` must be the
 resolved pair discovery classified (read IDs are checked). The R2 reads of the taxon's resolved
 called-cell groups are aligned competitively to host, the candidate FASTA and optionally a panel
@@ -252,7 +252,7 @@ whose best alignment score on the candidate is strictly above any host or panel 
 or panel wins are not). A taxon with no resolved called-cell read gets no row (`not_assessed`).
 
 To count at species, genus or family level, run
-`viralscan discover-collapse OUT --rank {species,genus,family}`. It sums columns into the
+`viralscan discover collapse OUT --rank {species,genus,family}`. It sums columns into the
 rank ancestor without reclassifying; taxa above the rank stay as themselves with
 `above_rank = True`.
 

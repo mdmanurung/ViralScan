@@ -45,9 +45,15 @@ def test_flag_combination_error_exits_2():
     assert exc.value.code == 2
 
 
-@pytest.mark.parametrize("cmd", ["star-index", "translated-index", "translated", "discover"])
-def test_threads_is_alias_of_cores(cmd):
-    flags = {f for a in _sub(cmd)._actions for f in a.option_strings}
+@pytest.mark.parametrize(
+    "path",
+    [("build", "star-index"), ("build", "translated-index"), ("translated",), ("discover", "run")],
+)
+def test_threads_is_alias_of_cores(path):
+    sub = build_parser()
+    for word in path:
+        sub = sub._subparsers._group_actions[0].choices[word]
+    flags = {f for a in sub._actions for f in a.option_strings}
     assert {"--cores", "-c", "--threads"} <= flags
 
 
@@ -65,7 +71,7 @@ def test_translated_index_output_and_cores_aliases():
 
 def test_verbose_quiet_exclusive():
     with pytest.raises(SystemExit) as exc:
-        build_parser().parse_args(["doctor", "--verbose", "--quiet"])
+        build_parser().parse_args(["check", "env", "--verbose", "--quiet"])
     assert exc.value.code == 2
 
 
@@ -181,7 +187,7 @@ def test_build_ref_missing_host_exits_2(tmp_path):
     from viralscan.scripts.build_reference import build_ref_main
 
     args = build_parser().parse_args(
-        ["build-ref", "--output", str(tmp_path), "--virus-accessions", "NC_1"]
+        ["build", "ref", "--output", str(tmp_path), "--virus-accessions", "NC_1"]
     )
     assert _exit_code(build_ref_main, args) == 2
 
@@ -204,7 +210,7 @@ def test_validate_run_malformed_manifest_reports_issues(tmp_path, manifest):
 
 
 def test_json_report_unwritable_path_exits_2(tmp_path, monkeypatch, capsys):
-    argv = ["viralscan", "validate-run", "--run-dir", str(tmp_path)]
+    argv = ["viralscan", "check", "run", "--run-dir", str(tmp_path)]
     monkeypatch.setattr(sys, "argv", argv + ["--json", str(tmp_path / "no" / "x.json")])
     assert _exit_code(menu.main) == 2
     assert "Cannot write --json" in capsys.readouterr().err
@@ -228,9 +234,9 @@ def test_bad_inputs_give_one_error_line(tmp_path, case):
     argv = {
         "outfile": [*run, "-o", str(good)],
         "dir_as_t": [*run, "-t", str(tmp_path), "-o", str(tmp_path / "o")],
-        "dir_whitelist": ["check-whitelist", "--r1", str(good), "--whitelist", str(tmp_path)],
-        "trunc_gz": ["check-chemistry", "--r1", str(trunc)],
-        "dir_r1": ["check-chemistry", "--r1", str(tmp_path)],
+        "dir_whitelist": ["check", "whitelist", "--r1", str(good), "--whitelist", str(tmp_path)],
+        "trunc_gz": ["check", "chemistry", "--r1", str(trunc)],
+        "dir_r1": ["check", "chemistry", "--r1", str(tmp_path)],
     }[case]
     r = subprocess.run([sys.executable, "-m", "viralscan", *argv], capture_output=True, text=True)
     assert r.returncode in (1, 2), r.stderr

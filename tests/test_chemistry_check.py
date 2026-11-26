@@ -70,7 +70,7 @@ class TestInferEnd:
 class TestSanityGate:
     def test_low_rate_is_an_error_that_points_at_check_chemistry(self):  # F-020: 8.2 %
         (f,) = cc.sanity_gate({"p_pseudoaligned": 8.2})
-        assert f["level"] == "error" and "check-chemistry" in f["message"]
+        assert f["level"] == "error" and "check chemistry" in f["message"]
 
     def test_no_strand_is_not_blamed_on_a_forward_default(self):
         # kallisto 0.52.0 (pinned): no flag is unstranded, so the "forward-strand default"
@@ -104,7 +104,7 @@ class TestSanityGate:
         # silently loses 85-93% of reads (F-020). Warn-level only: forward is right for 3'.
         (f,) = cc.sanity_gate({"p_pseudoaligned": 8.0}, host_in_index=False, strand="forward")
         assert f["level"] == "warning" and f["check"] == "strand"
-        assert "5'" in f["message"] and "check-chemistry" in f["message"]
+        assert "5'" in f["message"] and "check chemistry" in f["message"]
 
     @pytest.mark.parametrize("strand", [None, "unstranded", "reverse"])
     def test_two_step_without_forward_strand_stays_silent(self, strand):

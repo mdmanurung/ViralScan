@@ -3,7 +3,7 @@
 ViralScan uses **195 viral GTF annotation files**, kept as the bundled cache
 (the GTFs in `src/viralscan/data/` of the source tree, read from
 `~/.cache/viralscan/data/`). It is required only for an index that has no
-`<index>.build_manifest.json`; an index built by `viralscan build-ref` carries its
+`<index>.build_manifest.json`; an index built by `viralscan build ref` carries its
 own viral gene list.
 
 > **Distribution status (PLAN `REF-11`, user decision 2026-11-04).** The panel archive is meant for
@@ -25,7 +25,7 @@ Use the bundled cache for ViralScan's viral annotations or helper code that expe
 cached panel (once the DOI is live, `viralscan data fetch` fills it). Use it also for an index that has no
 `<index>.build_manifest.json`, because the analysis step then reads the viral gene
 list from the panel. The cache is not needed in three cases: the index has a build
-manifest (every index from `viralscan build-ref`), every run supplies custom GTF
+manifest (every index from `viralscan build ref`), every run supplies custom GTF
 files with `--reference --gtf ...`, or a run uses `--ncbi-accession` to fetch a
 reference on demand.
 
@@ -61,7 +61,7 @@ The panel covers the following virus families and genera (non-exhaustive):
 - **Adenoviridae** — Human adenovirus
 - **Anelloviridae** — *Alphatorquevirus*, *Betatorquevirus*, *Gammatorquevirus*,
   *Memtorquevirus*, *Samektorquevirus* (Torque teno virus spp.); ~2,000 accessions
-  via `viralscan build-ref --anellovirus`; 20 RefSeq genomes in the Zenodo panel
+  via `viralscan build ref --anellovirus`; 20 RefSeq genomes in the Zenodo panel
 - **Arenaviridae** — Lassa virus, Lymphocytic choriomeningitis virus
 - **Bunyaviridae / Hantaviridae** — Hantaan virus, Seoul virus, Bunyamwera virus, La Crosse virus
 - **Caliciviridae** — Norwalk virus, Sapporo virus
@@ -96,7 +96,7 @@ host-aware work, use the combined host + virus index with the default
 Build one index from the host transcriptome and the viral accessions:
 
 ```bash
-viralscan build-ref \
+viralscan build ref \
   --host human \
   --virus-accessions NC_045512.2 NC_002021.3 \
   --output ref_human_virus/ \
@@ -228,13 +228,13 @@ NCBI requires a contact email when a sequence has to be downloaded; pass
 `--ncbi-email` or set `NCBI_EMAIL`. Accessions already in
 `~/.cache/viralscan/ncbi/` are reused without a download.
 
-For host-aware competitive mapping, use `viralscan build-ref` and include
+For host-aware competitive mapping, use `viralscan build ref` and include
 both the host transcriptome and viral accessions in one index. The default
 `--multimap-method host-conservative` then keeps host-virus ambiguous signal
 out of primary viral counts:
 
 ```bash
-viralscan build-ref \
+viralscan build ref \
   --host human \
   --virus-accessions NC_045512.2 NC_002021.3 \
   --output ref_human_virus/ \
@@ -254,7 +254,7 @@ NC_001477.1  RefSeq  gene  1  10735  .  +  .  gene_id "DENV_DV1_gp1"; ...
 The `gene_id` prefix (e.g. `DENV`) is used by `detection.py` to look up the
 human-readable virus name in `VIRUS_NAME_MAP` (`constants.py`).
 
-Anellovirus GTFs produced by `viralscan build-ref --anellovirus` use accession-
+Anellovirus GTFs produced by `viralscan build ref --anellovirus` use accession-
 based gene_ids (e.g. `NC_002076.2_gene1`). These are resolved to genus labels
 via the bundled `anellovirus_accessions.tsv` + `merged_name_map()`.
 
@@ -286,7 +286,7 @@ it publishes no licence.
 ### Building the anellovirus reference
 
 ```bash
-viralscan build-ref --reference-panel anellovirus \
+viralscan build ref --reference-panel anellovirus \
     --output anellovirus_ref/ \
     --ncbi-email you@example.org
 ```
@@ -347,7 +347,7 @@ and note that ViralScan redistributes none of its sequences or annotations (acce
 
 ## Translated protein index (exploratory)
 
-`viralscan translated-index` builds a kallisto translated-search index from the panel's
+`viralscan build translated-index` builds a kallisto translated-search index from the panel's
 annotated proteins (`scripts/prepare_viral_proteins.py`, GenBank CDS translations) plus the
 PalmDB RdRP set (Edgar et al. 2022; CC0; downloaded from the kallisto tutorial, sha256
 pinned), following Luebbert et al. 2025. Host masking is a plain nucleotide D-list; the

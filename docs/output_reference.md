@@ -223,7 +223,7 @@ and `reason`:
 - `retained` / `host_unmapped`: STAR left the pair unmapped to the host, so it
   reached viral quantification.
 - `removed` / `host_mapped`: the pair is absent from STAR's unmapped output,
-  meaning it was host-aligned or ambiguous. `viralscan host-loss --truth TSV` joins a truth
+  meaning it was host-aligned or ambiguous. `viralscan dev host-loss --truth TSV` joins a truth
   list to this file and writes `posthoc/host_loss/host_loss.json` (D15 fragments, D16
   molecules); that loss is a lower bound, because reads the filter never saw are invisible,
   and the sensitivity cost of the STARsolo path (`HOST-05`) stays unmeasured until the
@@ -257,13 +257,13 @@ kinds, so an observed count is never read as a model output or a conclusion:
 
 Written at the run root (beside `run_manifest.json`) only after every sample has finished, and again in the new result directory of `rerun-multimap`. It is the completion marker: a run without it was interrupted or is still in progress. Fields: `schema_version`, `run_fingerprint` (must equal the manifest's), `viralscan_version`, `samples`, `completed_at`, and `artifacts`, a map of `<sample>/<path>` to sha256 for the narrow set `results/viral_summary.tsv`, `results/virus_identity.tsv`, `results/multimap_evidence.tsv` and `kb-python/counts_unfiltered/adata_multimap.h5ad` (each only if present).
 
-The marker is deleted whenever a run starts, resumes or overwrites, and never touched by post-hoc commands. New runs set `completion_marker: true` in `run_manifest.json`; `viralscan validate-run` then treats a missing marker, a fingerprint mismatch or an artifact hash mismatch as an error. Runs whose manifest lacks the field only get a warning for a missing marker. Schema: `schemas/v3/run_complete.schema.json`.
+The marker is deleted whenever a run starts, resumes or overwrites, and never touched by post-hoc commands. New runs set `completion_marker: true` in `run_manifest.json`; `viralscan check run` then treats a missing marker, a fingerprint mismatch or an artifact hash mismatch as an error. Runs whose manifest lacks the field only get a warning for a missing marker. Schema: `schemas/v3/run_complete.schema.json`.
 
 A `--resume` keeps the first attempt's `chemistry_detection` and `tool_binaries` blocks and logs its own in `resume_attempts` (a list of `{at, chemistry_detection, tool_binaries}`). `Runtime` in a sample's `summary.txt` adds up the finished attempts, so a resume that finds nothing to do leaves it unchanged.
 
 `run_manifest.json` also carries `defaults_status`. It is `provisional` on every `3.0.0.devN` build: the detection defaults are not yet validated against the truth panel (gate G5), so any number from such a run is provisional. It becomes `final` from the release candidate. Like `completion_marker`, the field is outside `run_fingerprint`, so `--resume` still matches older manifests.
 
-Two more `run_manifest.json` fields are also outside `run_fingerprint`. `input_paths` maps each hashed input (`<option>:<index>`, as in `input_fingerprints`) to its resolved absolute path, so `viralscan validate-run` finds the inputs from any working directory; manifests without it fall back to the option value. `fetched_reference` is written by an `--ncbi-accession` run once the NCBI FASTA and GTF have been fetched or read from the cache: the accessions and the sha256 of both files. On `--resume` a different hash is refused (the accession changed upstream); use `--overwrite`.
+Two more `run_manifest.json` fields are also outside `run_fingerprint`. `input_paths` maps each hashed input (`<option>:<index>`, as in `input_fingerprints`) to its resolved absolute path, so `viralscan check run` finds the inputs from any working directory; manifests without it fall back to the option value. `fetched_reference` is written by an `--ncbi-accession` run once the NCBI FASTA and GTF have been fetched or read from the cache: the accessions and the sha256 of both files. On `--resume` a different hash is refused (the accession changed upstream); use `--overwrite`.
 
 ---
 
@@ -334,7 +334,7 @@ alignment branch below.
 | `eve_risk` | Flag copied from the identity table's `risk_class` (`eve` families: germline endogenous viral elements). No shipped family has it: Anelloviridae were cleared on 2026-10-03, because no germline human anellovirus EVE is known (F-019 revised the original basis) | diagnostic flag |
 | `artifact_risk` | `low_complexity` when the virus's family is prone to low-complexity read artefacts (poly-G no-signal reads, poly-A sinks; F-019, F-021), otherwise empty. Today this is Anelloviridae only. It is a label, **not a filter**: anelloviruses are commensal and a real call is expected. Check reads with `viralscan evidence` | diagnostic flag |
 | `claim_scope` | What the call may claim. `screening_only` for Anelloviridae (by catalogue family; genus-name fallback on legacy indexes): no orthogonally confirmed anellovirus-positive sample exists (`REF-10`), so a call is a screen, never a confirmed infection or a sensitivity claim. Empty means no scope restriction | diagnostic flag |
-| `host_homology_status` | Genome-level host homology of the virus's reference genomes, read from `reference_manifest.json` beside the index (`viralscan build-ref --genome-dlist`): `measured` (every genome), `partial` (some) or `not_measured` (none, or no manifest). `not_measured` is not zero homology; indexes built without a host genome, or by another builder, always report it (the build now logs a warning when it records this status, AUD3-05) | observation |
+| `host_homology_status` | Genome-level host homology of the virus's reference genomes, read from `reference_manifest.json` beside the index (`viralscan build ref --genome-dlist`): `measured` (every genome), `partial` (some) or `not_measured` (none, or no manifest). `not_measured` is not zero homology; indexes built without a host genome, or by another builder, always report it (the build now logs a warning when it records this status, AUD3-05) | observation |
 | `host_homology_max_identity` | Highest minimap2 `asm10` identity of any alignment of the virus's genomes to the host genome (maximum over genomes). Empty when `not_measured`. No threshold is applied; where reads land is the evidence route's question (`ANDET-02`, `REF-08`) | observation |
 | `host_homology_max_query_coverage` | Fraction of the genome covered by its longest host alignment (maximum over genomes). Empty when `not_measured` | observation |
 | `host_homology_max_aligned_bases` | Length in bases of the longest host alignment (maximum over genomes). Empty when `not_measured` | observation |
@@ -1012,7 +1012,7 @@ independent locus: genes whose annotated intervals share at least one base on ei
 
 ## `host_homology_loci.tsv` (PLAN `ANDET-02`)
 
-One row per host-homology locus that `viralscan build-ref --genome-dlist` retained for a viral
+One row per host-homology locus that `viralscan build ref --genome-dlist` retained for a viral
 genome of the index (read from `reference_manifest.json` beside the index). The file is always
 written, with the header only when the index carries no measurement. It records **where** the
 homology lies; no call, `detected` value or `eve_risk` changes because of it (demotion waits for
@@ -1080,7 +1080,7 @@ call is expected. No row is a confirmed infection (`REF-10`).
 
 `viralscan run --star-confirm --star-hostvirus-index DIR` re-aligns the reads kallisto counted to one STAR
 index holding the host genome (`HOST|` contigs) and the viral panel (`VIRUS|`), built once by
-`viralscan star-index`. Multimappers are kept (up to 100 loci), so a viral read that also fits the host stays
+`viralscan build star-index`. Multimappers are kept (up to 100 loci), so a viral read that also fits the host stays
 visible. Barcodes are corrected against the chemistry's on-list; `--strand` maps to `--soloStrand`
 (`unstranded` when unset).
 
@@ -1089,7 +1089,7 @@ visible. Barcodes are corrected against the chemistry's on-list; `--strand` maps
 - `star_hostvirus/star_read_fates.tsv.gz` (`STAR-FATE-01`): one row per read with a `VIRUS|` record,
   written before the prune: `read_id`, `cb`, `ub`, `primary` contig, `viral_contigs` (`;`-joined
   accessions), `host_competing` (1 when the read also placed on a `HOST|` contig). A read STAR placed on
-  the host alone does not appear; use `viralscan host-loss` with a truth list for that.
+  the host alone does not appear; use `viralscan dev host-loss` with a truth list for that.
 - `results/star_support_by_virus.tsv`: one row per `virus_name` with `star_reads_primary`, `star_reads_any`,
   `star_molecules`, `star_host_competing`, `star_other_virus` (same definitions as the `viral_summary.tsv`
   columns above). Viruses STAR placed nothing on carry 0.
@@ -1170,7 +1170,8 @@ The one exception is `rerun-multimap`, which copies the whole run and so writes
 ### Post-hoc records (`posthoc/records/`, PLAN `EVID-01`)
 
 Every post-hoc verb in the table above, plus `discover-collapse`, writes one JSON record per invocation,
-whatever its outcome. `viralscan status --run-dir RUN` lists them.
+whatever its outcome. The record's `verb` is the canonical name that the table uses (the top-level name from before the
+command groups: `rerun-multimap`, `hostresponse`, `discover`, ...), whichever spelling was typed. `viralscan status --run-dir RUN` lists them.
 
 - **Where.** `<run root>/posthoc/records/<attempt_id>.json` when the output is inside the run (the default).
   With `--output` outside the run, the record goes to `<output>.records/` beside that output and the run is
@@ -1428,7 +1429,7 @@ Reference: [Single-cell best practices: shifted logarithm](https://www.sc-best-p
 
 ## `hostresponse/` — host-response outputs
 
-Written by `viralscan hostresponse` (or a main run with `--host-h5ad`) under
+Written by `viralscan rerun hostresponse` (or a main run with `--host-h5ad`) under
 `<sample>/results/hostresponse/` (the post-hoc command: `<sample>/posthoc/hostresponse/`; layout v1/v2 runs wrote `<sample>/hostresponse/`). See the CLI reference for the flags; the key point is
 that the raw candidate-support label can be **depth-confounded**, so interpret
 the model AUC together with the depth baseline, cohort balance, and sensitivity
@@ -1534,9 +1535,9 @@ Four alias layers written by earlier versions are gone (output change, 2026-11-0
 
 ---
 
-## `viralscan discover` output (PLAN `DISC`)
+## `viralscan discover run` output (PLAN `DISC`)
 
-A separate directory written by `viralscan discover -o DIR`, never inside the run. It holds
+A separate directory written by `viralscan discover run -o DIR`, never inside the run. It holds
 Kraken2 classifications of host-unmapped reads grouped by (corrected barcode, UMI). They
 are taxonomic observations, not infection calls, and nothing here changes `detected`, the
 tiers or the primary H5AD layers. Full description, `qc.json` reading guide and limits:
@@ -1552,7 +1553,7 @@ tiers or the primary H5AD layers. Full description, `qc.json` reading guide and 
 | `reads.tsv.gz`, `barcodes.tsv.gz`, `classifications.tsv.gz`, `kraken.out.gz`, `kraken_report.txt`, `kraken_input.fa.gz` | Per-fragment audit trail |
 | `qc.json`, `provenance.json`, `discovery_complete.json` | Invariant counts; hashes, versions and settings; output sha256s and the discovery fingerprint (written last) |
 
-`viralscan discover-collapse OUT --rank {species,genus,family}` writes
+`viralscan discover collapse OUT --rank {species,genus,family}` writes
 `cell_taxon_<rank>.h5ad` beside these (not listed in `discovery_complete.json`).
 
 ## Multiple samples

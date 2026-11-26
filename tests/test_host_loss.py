@@ -1,4 +1,4 @@
-"""HOST-05a: ``viralscan host-loss`` writes the D15/D16 truth loss as a lower bound under posthoc/."""
+"""HOST-05a: ``viralscan dev host-loss`` writes the D15/D16 truth loss as a lower bound under posthoc/."""
 
 import argparse
 import csv

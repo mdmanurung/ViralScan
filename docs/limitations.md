@@ -26,7 +26,7 @@ a control or measured capture supports the negative. `indeterminate` is not a ne
 - 3' chemistries (10x 3', Drop-seq) are the supported default. For 10x 5' and unconfirmed
   libraries, `run` stops unless you state `--strand`; reads can be lost under the wrong strand, and no
   accuracy claim is made for 5'.
-- Human host droplet data is the design target. Other hosts need `build-ref --host` and have not been
+- Human host droplet data is the design target. Other hosts need `build ref --host` and have not been
   validated.
 
 ## Allocation and thresholds are model choices

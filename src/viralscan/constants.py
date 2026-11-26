@@ -356,7 +356,7 @@ VIRUS_GENE_ID_ALIASES: dict[str, str] = {
     "Ydv": "Yaba-like disease virus",  # panel token is lower-case v
 }
 
-# Ensembl species registry used by `viralscan build-ref`.
+# Ensembl species registry used by `viralscan build ref`.
 # Keys are the short names accepted on the CLI (case-insensitive).
 # Values are (ensembl_species_name, genome_assembly_name) tuples.
 # Species names match the directory layout at

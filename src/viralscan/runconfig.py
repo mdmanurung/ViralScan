@@ -236,7 +236,7 @@ class RunConfig:
     # kb index's directory (anello_star/) unless given; None means no index.
     anello_align: bool = DEFAULTS["anello_align"]
     anello_index: Union[str, None] = None
-    # STARsolo host+virus confirmation arm (PLAN STAR-04); the index comes from `viralscan star-index`.
+    # STARsolo host+virus confirmation arm (PLAN STAR-04); the index comes from `viralscan build star-index`.
     star_confirm: bool = DEFAULTS["star_confirm"]
     star_hostvirus_index: Union[str, None] = None
     # Read-level evidence with host confirmation for detected anellovirus genera

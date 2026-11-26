@@ -30,10 +30,10 @@ The whole documented sequence, one fixture (SW-10)
 ``TestDocumentedSequence`` chains every documented CLI step on the same tiny
 pair, in order, each step consuming the previous step's real output:
 
-1. ``viralscan doctor --profile full`` (needs STAR, blastn, makeblastdb,
+1. ``viralscan check env --profile full`` (needs STAR, blastn, makeblastdb,
    minimap2, samtools, Rscript, cd-hit-est, kb, snakemake on PATH).
 2. Reference build through the documented ``-ref -fasta -gtf`` path
-   (``kb ref``), not a hand-run ``kallisto index``. ``viralscan build-ref`` is
+   (``kb ref``), not a hand-run ``kallisto index``. ``viralscan build ref`` is
    not usable here because it downloads Ensembl/NCBI sequence; the offline
    equivalent is ``-ref`` on ``reference.fasta`` + ``combined.gtf``. Fixture
    rule: the viral genome record must NOT share its name with a transcript ID,
@@ -44,7 +44,7 @@ pair, in order, each step consuming the previous step's real output:
 5. ``viralscan evidence --run-dir <run root> ... --blast`` against the
    real run (not the hand-faked layout of ``test_exact_lineage.py``), asserting
    the 15 artifacts that test lists.
-6. ``viralscan validate-run`` again after evidence.
+6. ``viralscan check run`` again after evidence.
 
 The pre-existing ``completed_run`` tests above keep the cheaper
 ``kallisto index`` + ``--no-visual`` path.

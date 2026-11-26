@@ -67,6 +67,8 @@ def tables() -> dict[str, str]:
 
     def walk(prefix: str, parser: argparse.ArgumentParser) -> None:
         for name, sub in _subparsers(parser).items():
+            if sub.get_default("_alias_for"):  # old top-level name kept for one MINOR (CMDGROUP-01)
+                continue
             key = f"{prefix} {name}".strip()
             out[key] = _table(sub)
             walk(key, sub)

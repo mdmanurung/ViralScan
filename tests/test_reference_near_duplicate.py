@@ -126,7 +126,7 @@ def test_build_ref_cli_flag_defaults_off_and_toggles():
     from viralscan.menu import create_help
 
     def parse(*extra):
-        with patch("sys.argv", ["viralscan", "build-ref", *extra]):
+        with patch("sys.argv", ["viralscan", "build", "ref", *extra]):
             return create_help()
 
     assert parse().strict_reference is False

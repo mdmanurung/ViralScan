@@ -32,7 +32,7 @@ column is in the [CLI reference](cli_reference.md) and the
   and UMI. 10x 3′ and 5′ chemistries are detected from the reads before counting;
   Drop-seq is supported.
 - **Reference:** a kallisto `index.idx` and `t2g.txt`. For host-aware work, build
-  a combined host + virus index with `viralscan build-ref`, or reuse a compatible
+  a combined host + virus index with `viralscan build ref`, or reuse a compatible
   index that carries its build manifest. The bundled panel and host-control
   strategies are described under [Reference panel](reference_panel.md).
 - **Samples:** one or more FASTQ pairs per run; separate multiple samples with

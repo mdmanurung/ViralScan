@@ -21,6 +21,6 @@ body:
   - type: textarea
     id: validation
     attributes:
-      label: Doctor and validate-run output
+      label: `viralscan check env` and `viralscan check run` output
     validations:
       required: true

@@ -16,7 +16,7 @@ From: ghcr.io/prefix-dev/pixi:latest
 %post
     cd /opt/viralscan
     pixi install -e default
-    pixi run -e default viralscan doctor --profile full
+    pixi run -e default viralscan check env --profile full
 
 %environment
     export PATH="/opt/viralscan/.pixi/envs/default/bin:$PATH"
@@ -25,7 +25,7 @@ From: ghcr.io/prefix-dev/pixi:latest
     exec /opt/viralscan/.pixi/envs/default/bin/viralscan "$@"
 
 %test
-    /opt/viralscan/.pixi/envs/default/bin/viralscan doctor --profile full
+    /opt/viralscan/.pixi/envs/default/bin/viralscan check env --profile full
 
 %labels
     Description ViralScan and its tool suite (kb-python, kallisto, bustools, STAR, samtools, minimap2, BLAST, CD-HIT, R/DropletUtils)

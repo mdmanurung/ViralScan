@@ -32,7 +32,7 @@ jobs:
         run: |
           python -m pip install pytest nbmake ipykernel
           python -m pip install --no-deps .
-          viralscan doctor --profile full
+          viralscan check env --profile full
       - name: Execute the two heavy notebooks
         env:
           MPLBACKEND: Agg

@@ -357,7 +357,7 @@ panel; surface the reference annotation provenance in outputs (the manuscript ar
 discussion. *Medium.*
 
 #### G2 · Mouse / non-human host support — **P3**
-Confirm/extend `build-ref --host mouse` (Ensembl) for non-human single-cell viral studies.
+Confirm/extend `build ref --host mouse` (Ensembl) for non-human single-cell viral studies.
 *Grounding:* generality. *Medium.*
 
 ---

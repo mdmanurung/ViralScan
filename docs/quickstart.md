@@ -12,12 +12,12 @@ Check the toolchain before starting a long job:
 
 ```bash
 viralscan --help
-viralscan doctor --profile full
+viralscan check env --profile full
 kb info
 snakemake --version
 ```
 
-`viralscan doctor --profile full` prints a JSON dependency report and exits
+`viralscan check env --profile full` prints a JSON dependency report and exits
 nonzero when a required full-workflow tool is missing. A green `pip` profile does
 not imply that `kb`, `snakemake` or STAR are installed.
 
@@ -45,7 +45,7 @@ viral features share one index, so host–virus ambiguity stays visible instead 
 being deleted before viral quantification.
 
 ```bash
-viralscan build-ref \
+viralscan build ref \
   --host human \
   --virus-accessions NC_045512.2 NC_002021.3 \
   --output ref_human_virus/ \
@@ -53,7 +53,7 @@ viralscan build-ref \
 ```
 
 Replace the accessions with the viruses you expect. Run
-`viralscan build-ref --list-species` for the supported host names. The build
+`viralscan build ref --list-species` for the supported host names. The build
 writes:
 
 - `ref_human_virus/index.idx` — pass to `-i`
@@ -67,7 +67,7 @@ only for an explicit screening reference. Builds fail closed on missing
 accessions, duplicate identifiers or sequences, and unavailable tools.
 
 **Already have a compatible index?** Skip this step and pass its `index.idx` and
-`t2g.txt` to Step 2. An index from `viralscan build-ref` carries
+`t2g.txt` to Step 2. An index from `viralscan build ref` carries
 `<index>.build_manifest.json` (beside `index.idx`) and needs nothing else. For an
 index without that manifest, run `viralscan data fetch` once so the viral gene
 list comes from the bundled panel; custom `--gtf` runs and `--ncbi-accession` runs do not
@@ -90,7 +90,7 @@ underscore, so this run writes to `output/sample/`.
 `run` stops with exit code 2 unless the library chemistry is confirmed as 3' (10x 3', Drop-seq). For
 10x 5' or an unconfirmed library, add `--strand forward|reverse|unstranded|auto`, or add
 `--kb-params auto` to let the built-in detector, tchem and the strand pilot choose and stop when they
-disagree. `viralscan check-chemistry` shows what each signal sees.
+disagree. `viralscan check chemistry` shows what each signal sees.
 
 Defaults worth knowing:
 
@@ -125,7 +125,7 @@ denominator is diluted by empty droplets.
 ## Step 3 — Validate the run
 
 ```bash
-viralscan validate-run --run-dir output/
+viralscan check run --run-dir output/
 ```
 
 Validation prints a JSON report. A successful run has `"ok": true` and no
@@ -184,7 +184,7 @@ Anelloviridae panel) and the host-control choices beyond the combined reference
 (STARsolo pre-subtraction, genome D-list masking) are in the
 [Reference panel](reference_panel.md); read
 {ref}`Host control and reference strategies <host-control>` before choosing one.
-Without `--genome-dlist`, `build-ref` warns that host homology was not measured
+Without `--genome-dlist`, `build ref` warns that host homology was not measured
 (which is not the same as zero), and it warns about reference records that are
 near-copies of each other on either strand; `--strict-reference` fails the build
 on such a pair instead (see [Panel integrity](panel_integrity.md)).

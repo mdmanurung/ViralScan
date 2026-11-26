@@ -24,7 +24,7 @@ SHELL ["conda", "run", "-n", "viralscan", "/bin/bash", "-c"]
 RUN --mount=type=bind,from=wheel,source=.,target=/tmp/dist,ro \
     python -m pip install --no-deps /tmp/dist/*.whl \
     && python -m pip check \
-    && viralscan doctor --profile full
+    && viralscan check env --profile full
 
 WORKDIR /data
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "viralscan", "viralscan"]
