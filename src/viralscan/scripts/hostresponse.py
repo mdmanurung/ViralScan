@@ -3621,14 +3621,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--called-cells",
         default=None,
         help="the run's results/called_cells.tsv; only these host barcodes are modelled "
-        "(results/host_called_cells.tsv beside it is preferred when present). Required "
-        "unless --all-barcodes is given.",
-    )
-    p.add_argument(
-        "--all-barcodes",
-        action="store_true",
-        default=False,
-        help="model every host barcode, empty droplets included (manifest source not_given).",
+        "(results/host_called_cells.tsv beside it is preferred when present). Required.",
     )
     p.add_argument("--min-negative-cells", type=int, default=MIN_VIRUS_CELLS)
     p.add_argument("--min-groups", type=int, default=2)
@@ -3645,10 +3638,8 @@ if __name__ == "__main__":
 
     _parser = _build_parser()
     args = _parser.parse_args()
-    if args.called_cells is None and not args.all_barcodes:
-        _parser.error(
-            "--called-cells is required (or pass --all-barcodes to include every droplet)"
-        )
+    if args.called_cells is None:
+        _parser.error("--called-cells is required: hostresponse models only called cells")
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
