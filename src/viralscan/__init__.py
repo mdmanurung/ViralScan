@@ -11,3 +11,7 @@ value at build time via ``[tool.setuptools.dynamic] version = {attr =
 """
 
 __version__ = "3.0.0rc1"
+
+from viralscan.run import Run, open_run  # noqa: E402
+
+__all__ = ["Run", "__version__", "open_run"]

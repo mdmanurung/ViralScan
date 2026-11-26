@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added since 3.0.0rc1
 
+- **`viralscan.open_run(path)` (PLAN `API-FACADE-01`)** opens a finished run read-only: `.summary()` (`viral_summary.tsv`), `.cells()` (`per_cell_viral.tsv`) and `.adata()` (`adata_multimap.h5ad`). It accepts a run root or a sample directory and writes nothing. Documented in `docs/api.md`.
 - **`run --kb-params auto` (PLAN `KBPARAMS-01`)** fills `-x` (when absent) and `--strand` (when absent or `auto`) from the built-in detector, tchem and the strand pilot, and stops the run unless every signal agrees.
 - **EM non-convergence is visible (PLAN `CONTRACT-DIAG-01`).** A run whose EM allocation stops at `--multimap-em-max-iter` logs a warning and writes it into `summary.txt`.
 - **`viralscan.contract`** holds the schema, count-schema, layout and inventory versions in one module (PLAN `CONTRACT-VERSIONS-01`); defaults are one table in `viralscan.defaults` (PLAN `CONTRACT-DEFAULTS-01`).
