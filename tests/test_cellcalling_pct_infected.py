@@ -1,4 +1,4 @@
-"""CELLCALL-PCT-01: what ``pct_infected`` divides by under ``--cell-calling none`` and ``knee``.
+"""CELLCALL-PCT-01: what ``pct_infected_barcodes`` divides by under ``--cell-calling none`` and ``knee``.
 
 The compute_stats tests pin the all-barcode behaviour. With a host index, ``none`` and ``knee``
 are refused in ``menu.errorhandler`` (decision (a), 2026-11-09), so the two-step matrix never
@@ -56,15 +56,17 @@ def _combined():
 def test_none_divides_by_every_barcode_of_the_matrix():
     s, called = _stats(_combined(), "none")
     assert called.all()
-    assert s["n_called_cells"] == s["total_cells"] == 1000
-    assert s["pct_infected_called"] == s["pct_infected"] == 0.2  # 2 / 1000, empty droplets in
+    assert s["n_called_cells"] == s["n_barcodes"] == 1000
+    assert (
+        s["pct_infected_called"] == s["pct_infected_barcodes"] == 0.2
+    )  # 2 / 1000, empty droplets in
 
 
 def test_knee_keeps_a_called_subset_on_a_combined_matrix():
     s, called = _stats(_combined(), "knee")
     assert 0 < called.sum() < 1000
     assert s["n_called_cells"] == int(called.sum())
-    assert s["pct_infected"] == 0.2  # the all-barcode rate never uses the called set
+    assert s["pct_infected_barcodes"] == 0.2  # the all-barcode rate never uses the called set
 
 
 def _run_args(tmp_path, **kw):

@@ -158,7 +158,7 @@
           {% for virus, s in virus_stats.items() %}
           <tr>
             <td>
-              {% if s.infected_cells > 0 and s.get('detected', True) %}
+              {% if s.infected_barcodes > 0 and s.get('detected', True) %}
               <span class="badge badge-found">{{ virus }}</span>
               {% else %}
               <span class="badge badge-none">{{ virus }}</span>
@@ -168,10 +168,10 @@
             <td>{{ virus_facts[virus].role or 'uncurated/unknown' if virus in virus_facts else 'uncurated/unknown' }}</td>
             <td>{{ virus_facts[virus].reference_risk_flags | join('|') if virus in virus_facts else '' }}</td>
             <td>
-              {% if s.get('detected', True) %}passed{% else %}candidate only: {{ s.get('infected_called', 0) }} infected called cell(s), {{ s.get('background_umis', 0) }} molecules in non-called barcodes{% endif %}
+              {% if s.get('detected', True) %}passed{% else %}candidate only: {{ s.get('infected_called_cells', 0) }} infected called cell(s), {{ s.get('background_molecules', 0) }} molecules in non-called barcodes{% endif %}
             </td>
             {# generate_html_report passes `rates` (detection.primary_rate); a bare render falls back to the called columns #}
-            {% set r = rates[virus] if rates else {'basis': 'called cells', 'num': s.get('infected_called', s.infected_cells), 'den': s.get('n_called_cells', s.total_cells), 'pct': s.get('pct_infected_called', s.pct_infected)} %}
+            {% set r = rates[virus] if rates else {'basis': 'called cells', 'num': s.get('infected_called_cells', s.infected_barcodes), 'den': s.get('n_called_cells', s.n_barcodes), 'pct': s.get('pct_infected_called', s.pct_infected_barcodes)} %}
             <td class="number">{{ r.num if r.num is not none else 'NA' }}</td>
             <td class="number">{{ r.den if r.den is not none else 'NA' }}</td>
             <td class="number" title="{{ r.basis }}">
@@ -184,8 +184,8 @@
               {% if r.basis != 'called cells' %}<small>({{ r.basis }})</small>{% endif %}
             </td>
             <td class="number">
-              {% if s.pct_infected is none %}NA{% else %}{{ "%.2f"|format(s.pct_infected) }}%
-              <small>({{ s.infected_cells }} / {{ s.total_cells }})</small>{% endif %}
+              {% if s.pct_infected_barcodes is none %}NA{% else %}{{ "%.2f"|format(s.pct_infected_barcodes) }}%
+              <small>({{ s.infected_barcodes }} / {{ s.n_barcodes }})</small>{% endif %}
             </td>
             <td class="number">{% if s.viral_molecules_per_10k_est is none %}NA{% else %}{{ "%.2f"|format(s.viral_molecules_per_10k_est) }}{% endif %}</td>
           </tr>

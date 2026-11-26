@@ -125,7 +125,7 @@ def write_group_summaries(frames: dict[str, pd.DataFrame], outputpath: str) -> N
 def assignment_columns(
     frames: dict[str, pd.DataFrame], identity: VirusIdentityTable | None
 ) -> dict[str, dict[str, Any]]:
-    """virus_name -> the ``viral_summary.tsv`` columns ``molecules_unique_to_virus``,
+    """virus_name -> the ``viral_summary.tsv`` columns ``molecules_unique``,
     ``molecules_compatible``, ``unique_fraction`` and ``aggregate_note``.
 
     The note names the first level up whose own unique fraction clears
@@ -162,7 +162,7 @@ def assignment_columns(
                 if g_frac >= ASSIGNMENT_UNIQUE_FRACTION_MIN:
                     break
         out[name] = {
-            "molecules_unique_to_virus": float(v["molecules_unique"]),
+            "molecules_unique": float(v["molecules_unique"]),
             "molecules_compatible": float(v["molecules_compatible"]),
             "unique_fraction": frac,
             "aggregate_note": note,

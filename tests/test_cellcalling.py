@@ -579,9 +579,9 @@ class TestReportBothDenominators:
         stats, _ = compute_stats(self.adata, {}, self.group, [], infected_min_molecules=1.0)
         s = stats["virusA"]
         # 4 of 5 barcodes have viral UMI (bc0,1,2,4)
-        assert s["infected_cells"] == 4
-        assert s["total_cells"] == 5
-        assert s["pct_infected"] == pytest.approx(80.0)
+        assert s["infected_barcodes"] == 4
+        assert s["n_barcodes"] == 5
+        assert s["pct_infected_barcodes"] == pytest.approx(80.0)
         # with no mask, called == all
         assert s["n_called_cells"] == 5
         assert s["pct_infected_called"] == pytest.approx(80.0)
@@ -592,10 +592,10 @@ class TestReportBothDenominators:
         )
         s = stats["virusA"]
         # all-barcode view stays the same
-        assert s["infected_cells"] == 4 and s["total_cells"] == 5
+        assert s["infected_barcodes"] == 4 and s["n_barcodes"] == 5
         # called view: 2 called cells, both viral+
         assert s["n_called_cells"] == 2
-        assert s["infected_called"] == 2
+        assert s["infected_called_cells"] == 2
         assert s["pct_infected_called"] == pytest.approx(100.0)
 
     def test_per_cell_df_flags_called_cells(self):
@@ -624,8 +624,8 @@ class TestReportBothDenominators:
         s = stats["virusA"]
 
         assert s["viral_molecules_total_est"] == 10
-        assert s["infected_cells"] == 1
-        assert s["pct_infected"] == pytest.approx(20.0)
+        assert s["infected_barcodes"] == 1
+        assert s["pct_infected_barcodes"] == pytest.approx(20.0)
         assert s["viral_molecules_per_10k_est"] == pytest.approx(10 / self.adata.X.sum() * 10_000)
         assert per_cell["barcode"].tolist() == ["bc0"]
 

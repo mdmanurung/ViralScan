@@ -122,11 +122,11 @@ or doublets, and the null is not yet calibrated (on pure-noise host cells the vi
 gave p < 0.05 in 4 of 15 runs; PLAN `AUD3-02-OPEN`), so treat it as descriptive. With fewer than two
 highly variable host genes the test is skipped and the annotation says so.
 
-### How is `pct_infected` calculated? Why are there two infection percentages?
+### How is `pct_infected_barcodes` calculated? Why are there two infection percentages?
 
 ```
-pct_infected           = candidate-support cells / ALL barcodes               × 100
-pct_infected_called    = candidate-support cells / CALLED cells               × 100
+pct_infected_barcodes   = candidate-support barcodes / ALL barcodes             × 100
+pct_infected_called     = candidate-support cells / CALLED cells               × 100
 pct_infected_comparable = candidate-support cells / CALLED cells clearing the host floor × 100
 ```
 
@@ -134,7 +134,7 @@ The field names are retained for schema compatibility; they do not establish
 biological infection. The all-barcode value is diluted by empty droplets, so it is
 secondary: `summary.txt` and `report.html` lead with `pct_infected_called` (the report
 badge uses it too). **Two-step caveat:** with `--host-filter starsolo` the kallisto
-matrix holds only barcodes with a non-host read, so `pct_infected` (and
+matrix holds only barcodes with a non-host read, so `pct_infected_barcodes` (and
 `viral_molecules_per_10k_est`) would have a host-filtered denominator and read 100 % /
 10,000 for any virus present. They are written as NA in that mode, with the reason in
 the `denominator_note` column; use `pct_infected_called` or `pct_infected_comparable`. In v3,
@@ -177,7 +177,7 @@ infected for a virus when its summed allocated molecules reach
 `--infected-min-molecules` (default 2.0); weaker cells are counted as
 `infected_subthreshold_cells`, not dropped. Viruses seen only in the all-barcode
 screen stay in `viral_summary.tsv` as candidates (`detected` = False) with their
-`background_umis`.
+`background_molecules`.
 
 `pct_infected_called` divides by the called cells of *this run*. When host
 pre-subtraction is used, cell calling runs after it, so the denominator moves. Host filtering changes

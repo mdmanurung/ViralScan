@@ -160,7 +160,7 @@ BASE = {
     "virus_name": "",
     "viral_molecules_total_est": 5,
     "n_called_cells": 100,
-    "total_cells": 900,
+    "n_barcodes": 900,
     "n_comparable_cells": 80,
 }
 

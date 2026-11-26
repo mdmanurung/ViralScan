@@ -63,12 +63,12 @@ def _write_branch_output(run: Path, rows):
 def _stats(name, molecules):
     return {
         "viral_molecules_total_est": molecules,
-        "infected_cells": 2,
-        "total_cells": 100,
-        "pct_infected": 2.0,
+        "infected_barcodes": 2,
+        "n_barcodes": 100,
+        "pct_infected_barcodes": 2.0,
         "viral_molecules_per_10k_est": 1.0,
         "n_called_cells": 50,
-        "infected_called": 1,
+        "infected_called_cells": 1,
         "pct_infected_called": 2.0,
         "infected_comparable": 1,
         "n_comparable_cells": 40,

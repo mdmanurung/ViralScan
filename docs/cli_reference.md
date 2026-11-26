@@ -98,7 +98,7 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--detection-threshold N` | `1` | Min estimated viral molecules summed over the **called cells** for a virus to pass the detection gate; molecules in non-called barcodes are reported as `background_umis` |
+| `--detection-threshold N` | `1` | Min estimated viral molecules summed over the **called cells** for a virus to pass the detection gate; molecules in non-called barcodes are reported as `background_molecules` |
 | `--detection-min-cells N` | `1` | Distinct called cells that must be infected for a virus to pass the gate. Viruses seen only in the all-barcode screen stay in `viral_summary.tsv` as candidates (`detected` = False). With `--cell-calling none` every barcode counts as called |
 | `--infected-min-molecules X` | `2.0` | A cell is infected for a virus when its summed allocated molecules reach X (one rule for detection, enrichment and the UMAP). Cells with 0 < weight < X are counted in `infected_subthreshold_cells`, not dropped |
 | `--hostresponse-min-umi N` | `10` | Per-cell positive label for host-response (the sample gate stays `--detection-threshold`) |
@@ -821,7 +821,7 @@ the sections above add context. Do not edit between the markers.
 | `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher E-utilities request rates with --ncbi-accession. Falls back to $NCBI_API_KEY. |
 | `--cache-dir PATH` | *(none)* | Root cache directory for ViralScan's fetched viral annotation panel. Default: $VIRALSCAN_CACHE or ~/.cache/viralscan/. |
 | `--se-threshold SE_THRESHOLD` | `10` | Selected-method viral molecule estimate above which a cell is flagged as a 'super-expressor'. Default: 10. |
-| `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum selected-method viral molecule estimate, summed over the called cells, required for a virus to pass the called-cell detection gate (see --detection-min-cells). Molecules in non-called barcodes (empty droplets) do not count and are reported as background_umis. Default: 1. |
+| `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum selected-method viral molecule estimate, summed over the called cells, required for a virus to pass the called-cell detection gate (see --detection-min-cells). Molecules in non-called barcodes (empty droplets) do not count and are reported as background_molecules. Default: 1. |
 | `--detection-min-cells N` | *(none)* | Minimum number of distinct called cells that must be infected (see --infected-min-molecules) for a virus to pass the detection gate. A virus seen only in the all-barcode screen is listed as a candidate, never dropped. With --cell-calling none every barcode counts as a called cell. Default: 1. |
 | `--infected-min-molecules X` | `2.0` | A cell is infected for a virus when its summed allocated molecules across that virus's genes reach X. One rule for detection, cell-type enrichment and the UMAP. Cells with 0 < weight < X are counted as sub-threshold (infected_subthreshold_cells), not dropped. Fractional EM or multimapper weights make a bare 'greater than 0' rule too permissive. Default: 2.0. |
 | `--positive-control-gene GENE_ID` | *(none)* | Gene ID of a spike-in planted at a known molecule count. It is the only way to measure the k-mer capture term, and therefore the only way to turn 'no virus detected' into a certifiable negative rather than a sampling statement. Must be given together with --positive-control-molecules. |
