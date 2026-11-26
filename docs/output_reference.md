@@ -67,7 +67,9 @@ floor; they remain unavailable when the host matrix or gene partition is unavail
 
 Grouped host-response evaluation writes `hostresponse_manifest.json` alongside its tables.
 It records input and output digests, software identity, raw-depth source, fold memberships
-and training features, seeds, cell-type strata, and the declared permutation settings.
+and training features, seeds, cell-type strata, and the declared permutation settings. Its `called_cells` block holds the host barcode count,
+the called-cell count, and how many host barcodes were excluded as not called: only the run's
+called cells (`results/called_cells.tsv`) enter the models.
 Failed strata and permutation replicates remain visible; these software diagnostics do
 not establish scientific validity. The existing cell-split panel metric retains its
 documented descriptive interpretation; group-split panel selection uses training folds.

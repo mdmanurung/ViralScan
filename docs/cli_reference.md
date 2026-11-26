@@ -114,7 +114,7 @@ requires `pip install "viralscan[enrichment]"`.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--host-h5ad PATH` | *(none)* | Host gene-expression h5ad (cells × genes). Triggers host-response analysis when provided. |
+| `--host-h5ad PATH` | *(none)* | Host gene-expression h5ad (cells × genes). Triggers host-response analysis when provided. Only the run's called cells (`results/called_cells.tsv`) are used. |
 | `--hostresponse-n-seeds N` | `6` | Number of random seeds for the multi-seed L2 regression |
 | `--hostresponse-n-stab-iter N` | `100` | Iterations for randomized Lasso stability selection |
 | `--hostresponse-use-hvg` / `--no-hostresponse-use-hvg` | on | Use highly variable genes as features (disable to use all genes) |
@@ -873,7 +873,7 @@ removed in 3.0.0b1 and exit 2 with a message (PLAN `FLAGS-01`, see [migration](m
 | `--read-filter READ_FILTER` | *(none)* | Read-artefact filter before kb count (after --host-filter, if any). 'off' (the default) counts every read. 'artefact' drops pairs whose R1 carries the 10x TSO in the barcode/UMI span, whose R2 is reagent (TSO\|poly-T, TruSeq chimera), or whose R2 has no complex body before its first >=15 nt homopolymer in either orientation. It also drops genuine low-complexity viral reads. 'tso-trim' keeps every pair but cuts the 10x TSO (30 nt) from the start of R2, because TSO-led host reads that STAR's host filter misses pseudoalign to viral CAG tracts (F-028). Writes read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz. |
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | *(none)* | STAR filter parameter set for --host-filter starsolo. 'pinned' (the default) removes only near-identical, near-full-length host alignments (at most 4 mismatches, 90% of the read aligned, up to 20 loci). 'star-default' uses STAR's own defaults (10 mismatches, 66% aligned, up to 10 loci). Both are passed explicitly and recorded in host_filter_audit.tsv. |
 | `--host-index PATH` | *(none)* | Path to the STAR host-genome directory required by --host-filter, built with STAR --runMode genomeGenerate. |
-| `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2025 approach) and writes results to <output>/results/hostresponse/. |
+| `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2025 approach) and writes results to <output>/results/hostresponse/. Only the run's called cells (results/called_cells.tsv) are used. |
 | `--hostresponse-cv HOSTRESPONSE_CV` | *(none)* | CV scheme (default: auto). auto = group-disjoint CV on --groups, or on the one donor/sample-like obs column if there is exactly one, else cell-level CV with a leakage warning (also if group CV cannot run on that auto-selected column); cell = legacy cell-level CV (a donor can span train and test); group = group-disjoint CV, requires --groups, fails closed. |
 | `--hostresponse-groups HOSTRESPONSE_GROUPS` | *(none)* | obs column declaring donor/sample groups; used by --cv group and --cv auto (ignored, with a warning, under --cv cell). |
 | `--hostresponse-cv-folds HOSTRESPONSE_CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
@@ -1147,7 +1147,7 @@ the row not estimable.
 | `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use --run-dir RUN --sample NAME. |
 | `--sample SAMPLE` | *(none)* | Sample subdirectory of --run-dir; needed only when the run has several samples. |
 | `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/<sample>/posthoc/hostresponse). |
-| `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
+| `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). Only the run's called cells (results/called_cells.tsv) are used; other barcodes are ignored. |
 | `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
 | `--n-stab-iter N` | *(none)* | Selection-frequency (randomized-Lasso) iterations (default: from config or 100). |
 | `--use-hvg, --no-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-use-hvg uses all genes. |
