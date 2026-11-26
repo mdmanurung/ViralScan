@@ -564,7 +564,7 @@ def test_discovery_star_pass_writes_only_under_output(tmp_path):
     before = _inventory(root)
     args = _args(host_subtract="starsolo", host_index=str(host_index))
     with (
-        patch("viralscan.runconfig.RunConfig.from_yaml", return_value=config),
+        patch("viralscan.runconfig.RunConfig.load", return_value=config),
         patch("viralscan.scripts.host_filter.check_host_filter_tools"),
         patch("viralscan.scripts.host_filter._starsolo_filter", side_effect=_fake_starsolo) as star,
     ):
@@ -588,7 +588,7 @@ def test_discovery_star_pass_checks_primary_fastqs(tmp_path, kw, match):
     root, config, host_index = _star_run(tmp_path, **kw)
     args = _args(host_subtract="starsolo", host_index=str(host_index))
     with (
-        patch("viralscan.runconfig.RunConfig.from_yaml", return_value=config),
+        patch("viralscan.runconfig.RunConfig.load", return_value=config),
         patch("viralscan.scripts.host_filter._starsolo_filter") as star,
         pytest.raises(DiscoveryError, match=match),
     ):

@@ -5,8 +5,10 @@ coerced and validated. It is the single write-side checkpoint: ``menu`` builds a
 ``RunConfig`` with :meth:`from_snakemake_config` and ``menu._write_run_config`` — the
 sole writer of ``config.yaml`` — serialises it with :meth:`to_yaml`. Snakemake reads
 that typed file (``--configfile``) and every downstream rule reads it back with
-:meth:`from_yaml`, a *trusted* typed load that performs no re-validation, because
-nothing but ``_write_run_config`` ever writes that file (PLAN ``MECH-C``).
+:meth:`load`, a *trusted* typed load that performs no re-validation, because
+nothing but ``_write_run_config`` ever writes that file (PLAN ``MECH-C``). A rerun
+verb that changes a value reads the file with :meth:`load` and calls
+:meth:`with_overrides`, which validates the result again (PLAN ``CONFIG-LOAD-01``).
 
 See ``CONTEXT.md`` ("Run Config") for the vocabulary.
 """
@@ -16,7 +18,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 from typing import Any, Union
 
@@ -701,12 +703,13 @@ class RunConfig:
         )
 
     @classmethod
-    def from_yaml(cls, path: Union[str, Path]) -> RunConfig:
+    def load(cls, path: Union[str, Path]) -> RunConfig:
         """Trusted typed load of a ``config.yaml`` written by :meth:`to_yaml`.
 
-        Performs no semantic re-validation (the file is produced by ``menu._write_run_config``
-        after ``from_snakemake_config`` validated it) except that ``virus_key`` stays rejected.
-        Unknown keys (e.g. from a hand-edited file) are ignored.
+        The one reader of a run's ``config.yaml``. Performs no semantic re-validation (the file
+        is produced by ``menu._write_run_config`` after ``from_snakemake_config`` validated it)
+        except that ``virus_key`` stays rejected. Unknown keys (e.g. from a hand-edited file)
+        are ignored. A caller that changes a value goes on with :meth:`with_overrides`.
         """
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
@@ -727,6 +730,20 @@ class RunConfig:
         if isinstance(out, str) and out and not out.endswith(os.sep):
             kwargs["output"] = out + os.sep
         return cls(**kwargs)
+
+    @classmethod
+    def from_yaml(cls, path: Union[str, Path]) -> RunConfig:
+        """Alias of :meth:`load`, kept for the Snakemake worker scripts."""
+        return cls.load(path)
+
+    def with_overrides(self, **overrides: Any) -> RunConfig:
+        """Copy with *overrides* applied, validated by :meth:`from_snakemake_config`.
+
+        ``dataclasses.replace`` rejects an unknown field name (``TypeError``). The result
+        then goes through the constructor's coercion and checks, so a legacy string boolean
+        becomes a bool and a bad value raises the same ``ValueError`` a fresh run would.
+        """
+        return type(self).from_snakemake_config(replace(self, **overrides).to_dict())
 
     # ── serialisation ─────────────────────────────────────────────────────
     def to_dict(self) -> dict[str, Any]:
