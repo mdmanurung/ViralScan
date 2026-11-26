@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from viralscan import __version__, virus_catalog
+from viralscan import __version__, virus_catalog, virus_identity
 from viralscan.contract import LAYOUT_VERSION, SCHEMA_VERSION
 from viralscan.defaults import DEFAULTS
 from viralscan.errors import ViralScanError
@@ -37,7 +37,6 @@ from viralscan.manifest_io import (
 )
 from viralscan.manifest_io import write_manifest_atomic as _write_manifest_atomic
 from viralscan.outputs import POSTHOC_DIRNAME, V3Outputs
-from viralscan.virus_identity import load_build_manifest, manifest_path_for_index
 
 log = logging.getLogger(__name__)
 
@@ -287,7 +286,9 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     if index:
         # Analysis validates the build manifest; absence cannot establish a match.
         with suppress(OSError, ValueError):
-            expected = load_build_manifest(manifest_path_for_index(index)).catalogue_sha256
+            expected = virus_identity.load_build_manifest(
+                virus_identity.manifest_path_for_index(index)
+            ).catalogue_sha256
     payload["reference_catalogue"] = {
         "expected_sha256": expected,
         "observed_sha256": observed,
