@@ -486,9 +486,9 @@ def _build_evidence_parser(subparsers: Any) -> None:
             "coverage and BLAST evidence. These outputs are diagnostic and do not by themselves "
             "confirm infection.\n\n"
             "Example:\n"
-            "  viralscan evidence --run-dir output/sample/ --viral-fasta viruses.fa \\\n"
+            "  viralscan evidence --run-dir output/ --sample S1 --viral-fasta viruses.fa \\\n"
             "      --virus EBV --blast\n\n"
-            "Writes to <run-dir>/posthoc/evidence/<virus>/ unless --output is given."
+            "Writes to <run-dir>/<sample>/posthoc/evidence/<virus>/ unless --output is given."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -500,13 +500,18 @@ def _build_evidence_parser(subparsers: Any) -> None:
     p.add_argument(
         "--run-dir",
         required=True,
-        help="A completed SAMPLE directory (holds config.yaml and kb-python/), not the run root.",
+        help="Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use --run-dir RUN --sample NAME.",
+    )
+    p.add_argument(
+        "--sample",
+        default=None,
+        help="Sample subdirectory of --run-dir; needed only when the run has several samples.",
     )
     p.add_argument(
         "--output",
         "-o",
         default=None,
-        help="Directory for evidence outputs (default: <run-dir>/posthoc/evidence/<virus>).",
+        help="Directory for evidence outputs (default: <run-dir>/<sample>/posthoc/evidence/<virus>).",
     )
     p.add_argument(
         "--viral-fasta",
@@ -936,7 +941,7 @@ def _build_host_loss_parser(subparsers: Any) -> None:
             "and molecules (D16) the host filter removed, plus the host-virus-mixed boundary "
             "count with --mixed-manifest. The figure is a lower bound on the sensitivity cost "
             "of --host-filter starsolo (HOST-05): truth reads the lineage never saw make the "
-            "row not estimable. Writes <run-dir>/posthoc/host_loss/host_loss.json; nothing in "
+            "row not estimable. Writes <run-dir>/<sample>/posthoc/host_loss/host_loss.json; nothing in "
             "the run changes."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -945,7 +950,12 @@ def _build_host_loss_parser(subparsers: Any) -> None:
         "--run-dir",
         required=True,
         metavar="DIR",
-        help="A completed SAMPLE directory (holds host_filtered/), not the run root.",
+        help="Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use --run-dir RUN --sample NAME.",
+    )
+    p.add_argument(
+        "--sample",
+        default=None,
+        help="Sample subdirectory of --run-dir; needed only when the run has several samples.",
     )
     p.add_argument(
         "--truth", required=True, metavar="TSV", help="read_id, label[, molecule_id] table."
@@ -960,7 +970,11 @@ def _build_host_loss_parser(subparsers: Any) -> None:
         help="mixed_host_virus_manifest.tsv (read_id column).",
     )
     p.add_argument(
-        "--output", "-o", default=None, metavar="DIR", help="Default <run-dir>/posthoc/host_loss."
+        "--output",
+        "-o",
+        default=None,
+        metavar="DIR",
+        help="Default <run-dir>/<sample>/posthoc/host_loss.",
     )
     _add_force_arg(p)
     _add_verbosity_args(p)
@@ -1014,7 +1028,7 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
         description=(
             "Run layer 2 (latent vs productive gene programme) over an existing run,\n"
             "writing results/gene_program_summary.tsv and results/gene_program_cells.tsv\n"
-            "under <run-dir>/posthoc/programs/ unless --output is given.\n\n"
+            "under <run-dir>/<sample>/posthoc/programs/ unless --output is given.\n\n"
             "Layer 2 only reads the count matrices and layer 1's viral_summary.tsv. It\n"
             "changes no counts and modifies nothing of the run's own outputs, so there is\n"
             "no need to copy the run.\n\n"
@@ -1027,14 +1041,19 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
         "--run-dir",
         required=True,
         metavar="DIR",
-        help="A completed SAMPLE directory (holds config.yaml, kb-python/ and results/), not the run root.",
+        help="Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use --run-dir RUN --sample NAME.",
+    )
+    p.add_argument(
+        "--sample",
+        default=None,
+        help="Sample subdirectory of --run-dir; needed only when the run has several samples.",
     )
     p.add_argument(
         "--output",
         "-o",
         default=None,
         metavar="DIR",
-        help="Directory to write results/gene_program_*.tsv under (default: <run-dir>/posthoc/programs).",
+        help="Directory to write results/gene_program_*.tsv under (default: <run-dir>/<sample>/posthoc/programs).",
     )
     p.add_argument(
         "--programme-min-breadth",
@@ -1143,7 +1162,9 @@ def _build_status_parser(subparsers: Any) -> None:
         ),
     )
     p.add_argument(
-        "--run-dir", required=True, help="Completed run root (holds run_manifest.json) or a sample."
+        "--run-dir",
+        required=True,
+        help="Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use the run root.",
     )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="status")
@@ -1216,10 +1237,10 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
             "(Luebbert et al. 2025 approach) on a completed viralscan run.\n\n"
             "The viralscan output directory must already contain a config.yaml and a\n"
             "completed multimap step (log/multimap.done).  Results are written to\n"
-            "<run-dir>/posthoc/hostresponse/ unless --output is given.\n\n"
+            "<run-dir>/<sample>/posthoc/hostresponse/ unless --output is given.\n\n"
             "Examples:\n"
-            "  viralscan hostresponse --run-dir out/sample/ --host-h5ad host.h5ad\n"
-            "  viralscan hostresponse --run-dir out/sample/ --host-h5ad host.h5ad \\\n"
+            "  viralscan hostresponse --run-dir out/ --sample S1 --host-h5ad host.h5ad\n"
+            "  viralscan hostresponse --run-dir out/ --sample S1 --host-h5ad host.h5ad \\\n"
             "    --n-stab-iter 200 --enrichment"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1227,13 +1248,18 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
     p.add_argument(
         "--run-dir",
         required=True,
-        help="A completed SAMPLE directory (input; holds config.yaml), not the run root.",
+        help="Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use --run-dir RUN --sample NAME.",
+    )
+    p.add_argument(
+        "--sample",
+        default=None,
+        help="Sample subdirectory of --run-dir; needed only when the run has several samples.",
     )
     p.add_argument(
         "--output",
         default=None,
         metavar="DIR",
-        help="Directory hostresponse writes to (default: <run-dir>/posthoc/hostresponse).",
+        help="Directory hostresponse writes to (default: <run-dir>/<sample>/posthoc/hostresponse).",
     )
     p.add_argument(
         "--host-h5ad",

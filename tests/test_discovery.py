@@ -143,7 +143,7 @@ def test_refuses_bad_run(tmp_path, samples, sample, complete, match):
 def test_refuses_output_inside_run_or_non_empty(tmp_path):
     root = _run(tmp_path)
     for inside in (root, root / "S1" / "discovery"):
-        with pytest.raises(DiscoveryError, match="outside --run-dir"):
+        with pytest.raises(DiscoveryError, match="inside the ViralScan run"):
             discovery.check_output_dir(inside, root)
     busy = tmp_path / "busy"
     busy.mkdir()

@@ -398,8 +398,9 @@ cccDNA pool produce no reads, so they are **invisible, not latent**. And
 `indeterminate` is not a negative — it means the virus was detected but no
 programme met its threshold, which is a statement about breadth, not virology.
 
-Already have a run? `viralscan rerun-programs --run-dir <dir>` writes its tables under
-`<dir>/posthoc/programs/`, because layer 2 only reads the counts and layer 1's summary.
+Already have a run? `viralscan rerun-programs --run-dir <run root>` writes its tables under
+`<run root>/<sample>/posthoc/programs/` (add `--sample NAME` when the run has several samples),
+because layer 2 only reads the counts and layer 1's summary.
 The [Output reference](output_reference.md) lists every state, field and caveat.
 
 ---

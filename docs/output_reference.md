@@ -1149,7 +1149,7 @@ There is one post-hoc level: `<sample>/posthoc/<verb>/`. Each verb writes there 
 never modifies the run's own outputs (matrix, `results/`, `config.yaml`, `run_manifest.json`,
 `run_complete.json`). `--output` overrides the location. `validate-run` ignores `posthoc/`.
 A verb refuses an `--output` that already holds files; `host-loss`, `rerun-programs` and `hostresponse` take `--force` to write into it (same-named files are replaced, nothing is deleted). `rerun-multimap` and `translated` need an empty or absent directory, and `discover` and `evidence` check their own earlier publication.
-`--run-dir` is the **run root** for `rerun-multimap`, `discover`, `translated` and `validate-run`, and a **sample directory** for `host-loss`, `rerun-programs`, `hostresponse` and `evidence`.
+`--run-dir` is the **run root** for every post-hoc verb. `host-loss`, `rerun-programs`, `hostresponse`, `evidence`, `discover`, `discover-states` and `translated` act on one sample and take `--sample NAME`, which is optional when the run has one sample; `rerun-multimap`, `validate-run` and `status` act on the whole run. A run that is not finished (no `run_complete.json`) is refused. Before 3.0.0b1 `host-loss`, `rerun-programs`, `hostresponse` and `evidence` took the sample directory as `--run-dir`; that form still works, with a deprecation warning, until 3.1.0.
 The one exception is `rerun-multimap`, which copies the whole run and so writes
 `<run>/posthoc/multimap_<method>/`. Layout v2 put `discover` and `translated` under
 `<run>/posthoc/<verb>/<sample>/`; those directories are still readable.
@@ -1645,8 +1645,8 @@ raw and deduplicated depth TSVs and samtools depth policy are unchanged.
 ### Candidate evidence review
 
 ```bash
-viralscan evidence --review-candidates --run-dir completed/sample \
-    --output completed/sample/posthoc/evidence/review
+viralscan evidence --review-candidates --run-dir completed/ --sample SAMPLE \
+    --output completed/SAMPLE/posthoc/evidence/review
 ```
 
 This opt-in diagnostic writes `evidence_review.tsv` in the output directory (default `posthoc/evidence/review_candidates/`), one row per

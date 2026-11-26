@@ -1837,6 +1837,10 @@ def _dispatch(args: argparse.Namespace) -> None:
 
 
 def _run_subcommand(args: argparse.Namespace) -> None:
+    from viralscan import rundir
+
+    if getattr(args, "_subcommand", None) in rundir.SAMPLE_VERBS:
+        rundir.use_sample_dir(args)  # --run-dir (+ --sample) -> the sample directory (RUNDIR-01)
     # Dispatch to build-ref subcommand if requested.
     if getattr(args, "_subcommand", None) == "data-fetch":
         configure_logging(verbose=args.verbose, quiet=args.quiet)
@@ -1937,7 +1941,10 @@ def _run_subcommand(args: argparse.Namespace) -> None:
     if getattr(args, "_subcommand", None) == "status":
         from viralscan.posthoc_record import status_table
 
-        print(status_table(Path(args.run_dir)), end="")
+        status_dir = Path(args.run_dir).resolve()
+        if rundir.is_sample_dir(status_dir):
+            rundir.warn_sample_dir(status_dir)
+        print(status_table(status_dir), end="")
         return
 
     if getattr(args, "_subcommand", None) in ("doctor", "validate-run"):

@@ -369,8 +369,9 @@ confirm infection.
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--run-dir PATH` | | *(required)* | A completed ViralScan run output directory |
-| `--output PATH` | `-o` | `<run-dir>/posthoc/evidence/<virus>` | Directory for evidence outputs |
+| `--run-dir PATH` | | *(required)* | Completed run root (holds `run_manifest.json`) |
+| `--sample NAME` | | *(the run's only sample)* | Sample subdirectory when the run has several |
+| `--output PATH` | `-o` | `<run-dir>/<sample>/posthoc/evidence/<virus>` | Directory for evidence outputs |
 | `--viral-fasta PATH` | | *(none)* | Exact target-virus FASTA; enables competitive BAM/coverage/QC and requires `--host-fasta` |
 | `--host-fasta PATH` | | *(none)* | Full host-genome FASTA required with `--viral-fasta` |
 | `--virus STRING` | | *(required)* | Exact accession/gene, registered alias, or canonical detected call; substring matching is forbidden |
@@ -387,12 +388,12 @@ Example:
 
 ```bash
 viralscan evidence \
-  --run-dir output/sample/ \
+  --run-dir output/ \
   --viral-fasta EBV.fa \
   --host-fasta GRCh38.fa \
   --virus EBV \
   --blast --read-start-profile --cell-tags
-# writes output/sample/posthoc/evidence/EBV/; pass -o DIR to write elsewhere
+# writes output/<sample>/posthoc/evidence/EBV/; pass -o DIR to write elsewhere
 ```
 
 ---
@@ -488,11 +489,12 @@ processes in the above-threshold gene set.
 
 The viralscan output directory must already contain `config.yaml` and a
 completed multimap step (`log/multimap.done`). Results are written to
-`<run-dir>/posthoc/hostresponse/` unless `--output` is given.
+`<run-dir>/<sample>/posthoc/hostresponse/` unless `--output` is given.
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--run-dir PATH` | | *(required)* | Existing viralscan sample output directory (input; contains `config.yaml`) |
+| `--run-dir PATH` | | *(required)* | Completed run root (holds `run_manifest.json`) |
+| `--sample NAME` | | *(the run's only sample)* | Sample subdirectory when the run has several |
 | `--output DIR` | | `<run-dir>/posthoc/hostresponse` | Directory hostresponse writes to (`-o` was removed; it meant the run directory) |
 | `--host-h5ad PATH` | | *(required)* | Host gene-expression h5ad (cells × genes, matched barcodes) |
 | `--n-seeds N` | | from config or `6` | Random seeds for multi-seed L2 regression |
@@ -552,23 +554,23 @@ Examples:
 
 ```bash
 # Minimal — run with defaults from config (raw label; still reports the depth baseline)
-viralscan hostresponse --run-dir output/sample/ --host-h5ad host_genes.h5ad
+viralscan hostresponse --run-dir output/ --host-h5ad host_genes.h5ad
 
 # Depth-normalized label + %mito control + gene symbols
 viralscan hostresponse \
-  -o output/sample/ \
+  --run-dir output/ \
   --host-h5ad host_genes.h5ad \
   --label cpm --gene-symbols
 
 # Depth-matched cohort + genome-wide differential table
 viralscan hostresponse \
-  -o output/sample/ \
+  --run-dir output/ \
   --host-h5ad host_genes.h5ad \
   --depth-match --differential
 
 # With stability tuning and pathway enrichment
 viralscan hostresponse \
-  -o output/sample/ \
+  --run-dir output/ \
   --host-h5ad host_genes.h5ad \
   --n-stab-iter 200 \
   --enrichment
@@ -725,10 +727,10 @@ or broken count invariants make validation fail rather than silently downgrade.
 
 ## `viralscan rerun-programs` — re-score gene programmes
 
-Run layer 2 over a completed run; results go to `<run-dir>/posthoc/programs/` by default:
+Run layer 2 over a completed run; results go to `<run-dir>/<sample>/posthoc/programs/` by default:
 
 ```bash
-viralscan rerun-programs --run-dir output/sample/ --programme-min-breadth 2
+viralscan rerun-programs --run-dir output/ --programme-min-breadth 2
 ```
 
 `--programme-productive-min-molecules N` makes a productive marker count toward productive
@@ -750,6 +752,20 @@ the run's own outputs are not modified. It requires `log/detection.done` in the 
 directory; without it the command refuses rather than emitting empty tables.
 
 ---
+
+## Where a post-hoc command finds its run
+
+Every post-hoc command takes `--run-dir RUN`, the run root (the `-o` directory of `run`, which holds
+`run_manifest.json` and `run_complete.json`). A command that reads one sample (`evidence`,
+`rerun-programs`, `hostresponse`, `host-loss`, `discover`, `discover-states`, `translated`) also takes
+`--sample NAME`; it is optional when the run has one sample and required when it has several. The run
+must be finished. `rerun-multimap`, `validate-run` and `status` act on the whole run and take no
+`--sample`. `evidence-plot` and `discover-collapse` read published post-hoc directories, not a run.
+
+Before 3.0.0b1, `evidence`, `rerun-programs`, `hostresponse`, `host-loss` and `status` accepted a sample
+directory as `--run-dir`. That form still works, prints `viralscan: warning: ... is deprecated; use
+--run-dir RUN --sample NAME ...` on stderr, and is removed in 3.1.0. A post-hoc `--output` inside the
+run's own tree, outside `posthoc/`, is refused with exit 1, `--force` included.
 
 ## Exit codes
 
@@ -938,8 +954,9 @@ the sections above add context. Do not edit between the markers.
 | Flag | Default | Help |
 |------|---------|------|
 | `--review-candidates` | `False` | Review all Anelloviridae candidates, including below-gate and STAR-only rows; write evidence_review.tsv under the output directory. |
-| `--run-dir RUN_DIR` | *required* | A completed SAMPLE directory (holds config.yaml and kb-python/), not the run root. |
-| `--output, -o OUTPUT` | *(none)* | Directory for evidence outputs (default: <run-dir>/posthoc/evidence/<virus>). |
+| `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use --run-dir RUN --sample NAME. |
+| `--sample SAMPLE` | *(none)* | Sample subdirectory of --run-dir; needed only when the run has several samples. |
+| `--output, -o OUTPUT` | *(none)* | Directory for evidence outputs (default: <run-dir>/<sample>/posthoc/evidence/<virus>). |
 | `--viral-fasta VIRAL_FASTA` | *(none)* | Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). Omit for read-extraction only. |
 | `--host-fasta HOST_FASTA` | *(none)* | Full host-genome FASTA required with --viral-fasta for competitive v3 alignment and BLAST. |
 | `--host-gtf HOST_GTF` | *(none)* | Host annotation GTF (exon rows) used to calibrate strand_qc.tsv on host reads. Without it strand_qc.tsv is written as not_assessed. |
@@ -1086,11 +1103,12 @@ the row not estimable.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir DIR` | *required* | A completed SAMPLE directory (holds host_filtered/), not the run root. |
+| `--run-dir DIR` | *required* | Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use --run-dir RUN --sample NAME. |
+| `--sample SAMPLE` | *(none)* | Sample subdirectory of --run-dir; needed only when the run has several samples. |
 | `--truth TSV` | *required* | read_id, label[, molecule_id] table. |
 | `--viral-label VIRAL_LABEL` | `viral` | Truth label of viral reads. Default: viral. |
 | `--mixed-manifest TSV` | *(none)* | mixed_host_virus_manifest.tsv (read_id column). |
-| `--output, -o DIR` | *(none)* | Default <run-dir>/posthoc/host_loss. |
+| `--output, -o DIR` | *(none)* | Default <run-dir>/<sample>/posthoc/host_loss. |
 | `--force` | `False` | Write into --output although it already holds files (same-named files are replaced; nothing is deleted). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
@@ -1103,8 +1121,9 @@ the row not estimable.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir DIR` | *required* | A completed SAMPLE directory (holds config.yaml, kb-python/ and results/), not the run root. |
-| `--output, -o DIR` | *(none)* | Directory to write results/gene_program_*.tsv under (default: <run-dir>/posthoc/programs). |
+| `--run-dir DIR` | *required* | Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use --run-dir RUN --sample NAME. |
+| `--sample SAMPLE` | *(none)* | Sample subdirectory of --run-dir; needed only when the run has several samples. |
+| `--output, -o DIR` | *(none)* | Directory to write results/gene_program_*.tsv under (default: <run-dir>/<sample>/posthoc/programs). |
 | `--programme-min-breadth N` | *(none)* | Distinct non-overlapping overlap groups required before a programme is called. Must be >= 1. Default: the run's own config (2 if it set none). |
 | `--programme-latent-min-breadth N` | *(none)* | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: the run's own config (1 if it set none). |
 | `--programme-min-umi X` | *(none)* | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: the run's own config (0.0 if it set none). |
@@ -1123,8 +1142,9 @@ the row not estimable.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir RUN_DIR` | *required* | A completed SAMPLE directory (input; holds config.yaml), not the run root. |
-| `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/posthoc/hostresponse). |
+| `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use --run-dir RUN --sample NAME. |
+| `--sample SAMPLE` | *(none)* | Sample subdirectory of --run-dir; needed only when the run has several samples. |
+| `--output DIR` | *(none)* | Directory hostresponse writes to (default: <run-dir>/<sample>/posthoc/hostresponse). |
 | `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
 | `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
 | `--n-stab-iter N` | *(none)* | Selection-frequency (randomized-Lasso) iterations (default: from config or 100). |
@@ -1232,7 +1252,7 @@ the row not estimable.
 
 | Flag | Default | Help |
 |------|---------|------|
-| `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json) or a sample. |
+| `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use the run root. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

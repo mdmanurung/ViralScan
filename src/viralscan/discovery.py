@@ -175,16 +175,18 @@ def resolve_sample_dir(run_root: Path, sample: str | None) -> Path:
 def check_output_dir(output: Path, run_root: Path) -> None:
     """Refuse an output inside the run (except under a ``posthoc/`` folder) or one holding unfinished results.
 
+    The primary-tree rule is the shared guard ``run_safety.refuse_primary_tree`` (RUNDIR-01).
     A published output (``COMPLETE_JSON``) is allowed through; ``run_discover`` then compares
     fingerprints to decide between a no-op and a refusal.
     """
-    from viralscan.outputs import is_posthoc
+    from viralscan.run_safety import RunSafetyError, refuse_primary_tree
 
-    if output == run_root or (run_root in output.parents and not is_posthoc(output, run_root)):
+    try:
+        refuse_primary_tree(output)
+    except RunSafetyError as exc:
         raise DiscoveryError(
-            f"--output must be outside --run-dir or under its posthoc/ folder: {output} is "
-            f"inside {run_root}. Discovery never writes into a primary run's own files."
-        )
+            f"{exc} Discovery never writes into a primary run's own files."
+        ) from exc
     if (
         output.exists()
         and not (output / COMPLETE_JSON).is_file()

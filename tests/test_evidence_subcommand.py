@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -188,11 +189,22 @@ class TestEvidenceParser:
 # ── Dispatch tests ────────────────────────────────────────────────────────────
 
 
+def _completed_run(tmp_path: Path) -> Path:
+    """A run root with one finished sample ``S1`` (what ``--run-dir`` resolves since RUNDIR-01)."""
+    root = tmp_path / "run"
+    (root / "S1").mkdir(parents=True)
+    (root / "S1" / "config.yaml").write_text("output: x\n")
+    (root / "run_manifest.json").write_text("{}\n")
+    (root / "run_complete.json").write_text("{}\n")
+    return root
+
+
 def _make_evidence_args(**overrides) -> MagicMock:
     """Build a minimal argparse Namespace for the evidence dispatch path."""
     args = MagicMock()
     args._subcommand = "evidence"
     args.run_dir = "run/"
+    args.sample = None
     args.output = "out/"
     args.viral_fasta = None
     args.virus = None
@@ -206,9 +218,11 @@ def _make_evidence_args(**overrides) -> MagicMock:
 
 
 class TestEvidenceDispatch:
-    def test_calls_run_evidence(self) -> None:
+    def test_calls_run_evidence(self, tmp_path: Path) -> None:
         """The real argv parser must route `evidence` to run_evidence exactly once."""
         from viralscan.menu import main
+
+        root = _completed_run(tmp_path)
 
         with (
             patch(
@@ -217,9 +231,9 @@ class TestEvidenceDispatch:
                     "viralscan",
                     "evidence",
                     "--run-dir",
-                    "run/",
+                    str(root),
                     "-o",
-                    "out/",
+                    str(tmp_path / "out"),
                     "--virus",
                     "EBV",
                 ],
@@ -230,12 +244,14 @@ class TestEvidenceDispatch:
 
         mock_run.assert_called_once()
         dispatched = mock_run.call_args.args[0]
-        assert dispatched.run_dir == "run/"
+        assert dispatched.run_dir == str((root / "S1").resolve())  # the run root names its sample
         assert dispatched.virus == "EBV"
 
-    def test_evidence_subcommand_routes_to_run_evidence(self) -> None:
+    def test_evidence_subcommand_routes_to_run_evidence(self, tmp_path: Path) -> None:
         """main() with _subcommand='evidence' imports and calls run_evidence."""
-        args = _make_evidence_args()
+        args = _make_evidence_args(
+            run_dir=str(_completed_run(tmp_path)), output=str(tmp_path / "out")
+        )
 
         with (
             patch("viralscan.menu.create_help", return_value=args),
@@ -247,9 +263,11 @@ class TestEvidenceDispatch:
 
         mock_run.assert_called_once_with(args)
 
-    def test_non_evidence_subcommand_does_not_call_run_evidence(self) -> None:
+    def test_non_evidence_subcommand_does_not_call_run_evidence(self, tmp_path: Path) -> None:
         """A different subcommand does not dispatch to run_evidence."""
-        args = _make_evidence_args()
+        args = _make_evidence_args(
+            run_dir=str(_completed_run(tmp_path)), output=str(tmp_path / "out")
+        )
         args._subcommand = "hostresponse"
 
         with (

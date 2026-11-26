@@ -34,6 +34,12 @@ See the [output reference](output_reference.md) for the v3 schema and the
   run to get the new counts.
 - **`--cell-calling none` and `knee` cannot be combined with `--host-index`.** Use `emptydrops` or
   `external`.
+- **Post-hoc verbs take the run root.** `evidence`, `rerun-programs`, `hostresponse` and `host-loss`
+  used to take one sample directory as `--run-dir`. Pass the run root (the `-o` directory of `run`)
+  as `--run-dir`, and `--sample NAME` when it has several samples. The old form still works, prints a
+  `viralscan: warning:` line that names the replacement, and is removed in 3.1.0. A root without
+  `run_complete.json` is refused. Outputs and their default locations (`<sample>/posthoc/<verb>/`)
+  are unchanged.
 - **Output files.** `adata_multimap.h5ad` always carries `uns["multimap_diagnostics"]`; the layout
   (version 3) and the schema (3.0.0) are unchanged.
 
@@ -55,6 +61,8 @@ the replacement named. Configuration keys, `config.yaml` and `run_fingerprint` a
 | `run` | `--hostresponse-control-mito` | `--hostresponse-mito-control` |
 | `hostresponse` | `--hostresponse-min-umi`, `--detection-threshold` | `--min-umi` |
 | `hostresponse` | `-o RUN_DIR` (an input run directory) | `--run-dir RUN_DIR`; `--output DIR` now optionally names where hostresponse writes (default `<run-dir>/posthoc/hostresponse`) |
+| `evidence`, `rerun-programs`, `hostresponse`, `host-loss` | `--run-dir SAMPLE_DIR` | `--run-dir RUN_ROOT [--sample NAME]`; the sample-directory form is deprecated (warning, removed in 3.1.0) |
+| `status` | `--run-dir` a sample directory | `--run-dir RUN_ROOT`; the sample-directory form is deprecated (warning, removed in 3.1.0) |
 | `hostresponse` | `--no-use-hvg` (still valid) | also `--use-hvg` |
 | `validate-run` | positional `RUN_DIR` | `--run-dir RUN_DIR` |
 | `validate-run` | `--json-output PATH` | `--json PATH` |
