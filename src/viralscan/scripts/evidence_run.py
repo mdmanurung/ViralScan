@@ -205,7 +205,7 @@ def replay_fastqs(config: RunConfig) -> tuple[str, str]:
     """
     if config.kb_r1 and config.kb_r2:
         return config.kb_r1, config.kb_r2
-    if getattr(config, "host_index", None):
+    if config.host_index:
         filtered = os.path.join(config.output, "host_filtered")
         return os.path.join(filtered, "R1.fastq.gz"), os.path.join(filtered, "R2.fastq.gz")
     return config.sample1, config.sample2
@@ -607,7 +607,7 @@ def run_evidence(args: argparse.Namespace) -> None:
         "Replay barcode correction: %s",
         replay_whitelist or "disabled (the primary run corrected nothing)",
     )
-    replay_strand = getattr(config, "strand", None)
+    replay_strand = config.strand
     if replay_strand == "auto":
         # `--strand auto` is resolved to a concrete choice before config.yaml is
         # written; this guard only fires on a hand-edited config.

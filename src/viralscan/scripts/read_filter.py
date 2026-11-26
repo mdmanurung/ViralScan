@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Any
 from viralscan import anello_align as aa
 from viralscan.chemistry import cb_umi_geometry
 from viralscan.utils import open_maybe_gzip
-from viralscan.runconfig import RunConfig
+from viralscan.run_context import RunContext
 from viralscan.scripts.host_filter import canonical_read_id
 from viralscan.utils import setup_script_logging
 
@@ -182,7 +182,9 @@ def _write_audit(out_dir: Path, counts: dict[str, int], reasons: tuple[str, ...]
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
-def main(config: RunConfig, r1_in: str, r2_in: str, done_path: str) -> None:
+def run(ctx: RunContext, r1_in: str, r2_in: str, done_path: str) -> None:
+    """Entry point: read-artefact filter for one Run."""
+    config = ctx.config
     out_dir = Path(config.output) / "read_filtered"
     out_dir.mkdir(parents=True, exist_ok=True)
     log.info("Read-artefact filter (%s): %s, %s", config.read_filter, r1_in, r2_in)
@@ -202,9 +204,9 @@ if TYPE_CHECKING:
     snakemake: Any  # injected by the Snakemake runner; declared for the type checker only
 
 if "snakemake" in globals():
-    main(
-        config=RunConfig.from_yaml(snakemake.params.configfile),  # noqa: F821
-        r1_in=str(snakemake.input.r1),  # noqa: F821
-        r2_in=str(snakemake.input.r2),  # noqa: F821
-        done_path=str(snakemake.output.done),  # noqa: F821
+    run(
+        RunContext.from_yaml(snakemake.params.configfile),  # noqa: F821
+        str(snakemake.input.r1),  # noqa: F821
+        str(snakemake.input.r2),  # noqa: F821
+        str(snakemake.output.done),  # noqa: F821
     )

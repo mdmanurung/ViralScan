@@ -1201,8 +1201,8 @@ def measure_positive_control(adata, config, count_matrix=None, depth=None):
     (:func:`control_claim`); use :func:`positive_control_from` and
     :func:`certified_viruses` to learn which rows it covers.
     """
-    gene = getattr(config, "positive_control_gene", None)
-    expected = getattr(config, "positive_control_expected_molecules", None)
+    gene = config.positive_control_gene
+    expected = config.positive_control_expected_molecules
     if not gene or expected is None:
         return None, {"status": "not-configured"}
     if not float(expected) > 0:
@@ -1237,7 +1237,7 @@ def measure_positive_control(adata, config, count_matrix=None, depth=None):
         "implied_divergence": substitution_model_implied_divergence(capture),
         "implied_divergence_note": IMPLIED_DIVERGENCE_NOTE,
     }
-    if getattr(config, "positive_control_scope", None) == "exact_sequence":
+    if config.positive_control_scope == "exact_sequence":
         table = load_run_identity(config.output) if config.output else identity
         layer = "X" if matrix is adata.X else "unverified_alternate_matrix"
         detail.update(verify_exact_control(config, table, layer))
@@ -1344,10 +1344,10 @@ def control_claim(config):
     warning.
     """
     global _LEGACY_SCOPE_WARNED
-    scope = getattr(config, "positive_control_scope", None)
+    scope = config.positive_control_scope
     if scope:
-        return CaptureScope(scope), getattr(config, "positive_control_virus_key", None)
-    if getattr(config, "positive_control_gene", None) and not _LEGACY_SCOPE_WARNED:
+        return CaptureScope(scope), config.positive_control_virus_key
+    if config.positive_control_gene and not _LEGACY_SCOPE_WARNED:
         _LEGACY_SCOPE_WARNED = True
         log.warning(
             "positive_control_gene is set without positive_control_scope: treating it "
@@ -1877,9 +1877,9 @@ def anello_evidence(config, outputpath, identity_table):
         return None
     names = {g.virus_name for g in identity_table.genes if g.viral and g.family == "Anelloviridae"}
     status = anello_align.status_for(
-        getattr(config, "anello_align", False),
-        getattr(config, "host_index", None),
-        getattr(config, "anello_index", None),
+        config.anello_align,
+        config.host_index,
+        config.anello_index,
     )
     evidence = {}
     path = os.path.join(outputpath, "results", "anello_alignment_by_virus.tsv")
@@ -1909,7 +1909,7 @@ STAR_TSV = "star_support_by_virus.tsv"
 
 def star_evidence(config, outputpath):
     """``{virus_name: {star_* column: value}}`` from the star_confirm rule, or ``None`` when off."""
-    if str(getattr(config, "star_confirm", False)).lower() != "true":
+    if str(config.star_confirm).lower() != "true":
         return None
     path = os.path.join(outputpath, "results", STAR_TSV)
     if not os.path.isfile(path):
@@ -2205,7 +2205,7 @@ def generate_html_report(
         else [],
         "sensitivity_statement": sensitivity_statement or "",
         "control_line": control_line or "",
-        "output_files": result_files(lambda option: bool(getattr(config, option, False))),
+        "output_files": result_files(lambda option: bool(getattr(config, option))),
     }
 
     html = template.render(**ctx)
@@ -2315,7 +2315,7 @@ def main():
         detection_min_cells=config.detection_min_cells,
         cell_calling_method=resolve_method(config),
         ambient_max_molecules=float(
-            getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])
+            config.emptydrops_lower
         ),
     )
     # virus_stats holds every candidate of the all-barcode screen (nothing disappears
@@ -2404,9 +2404,9 @@ def main():
     # recovery). Either way the run cannot certify a negative, and saying so is
     # the whole point of requiring the control.
     nothing_detected = not detected_stats
-    if nothing_detected and getattr(config, "require_positive_control", False):
+    if nothing_detected and config.require_positive_control:
         exact_unverified = (
-            getattr(config, "positive_control_scope", None) == "exact_sequence"
+            config.positive_control_scope == "exact_sequence"
             and control_detail.get("verification_status") != "verified"
         )
         if measured_capture is None or exact_unverified:
