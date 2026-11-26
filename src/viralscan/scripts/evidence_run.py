@@ -388,7 +388,7 @@ def run_evidence(args: argparse.Namespace) -> None:
     if getattr(args, "review_candidates", False):
         from viralscan.scripts.auto_evidence import review_candidates
 
-        config = RunConfig.from_yaml(Path(args.run_dir) / "config.yaml")
+        config = RunConfig.load(Path(args.run_dir) / "config.yaml")
         review_candidates(
             Path(args.run_dir),
             config,
@@ -444,7 +444,7 @@ def run_evidence(args: argparse.Namespace) -> None:
     cfg_path = run_dir / "config.yaml"
     if not cfg_path.exists():
         _die(f"No config.yaml in {run_dir}; point --run-dir at a completed ViralScan run.")
-    config = RunConfig.from_yaml(cfg_path)
+    config = RunConfig.load(cfg_path)
     kb = KbCountOutputs.from_config_output(os.path.join(str(run_dir), ""))
 
     bus_text = kb.resolved_bus_txt

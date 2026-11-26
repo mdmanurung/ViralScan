@@ -364,7 +364,7 @@ class TestReplayFastqs:
         )
 
         with (
-            patch.object(evidence_run.RunConfig, "from_yaml", return_value=config),
+            patch.object(evidence_run.RunConfig, "load", return_value=config),
             patch.object(evidence_run.KbCountOutputs, "from_config_output", return_value=kb),
             patch.object(evidence_run, "load_transcripts", return_value=(["tx1"], {"tx1": "g1"})),
             patch.object(evidence_run, "_replay_ec_map", return_value={}),
