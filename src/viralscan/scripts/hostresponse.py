@@ -84,6 +84,9 @@ from viralscan.run_safety import sha256_file as _sha256_file
 from viralscan.run_safety import software_identity
 from viralscan.run_context import RunContext
 from viralscan.scripts.cellcalling import CALLED_CELLS_TSV
+
+#: Full host-called set written by detection for two-step and external-host runs.
+HOST_CALLED_CELLS_TSV = "host_called_cells.tsv"
 from viralscan.utils import _sparse_row_block, setup_script_logging
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_identity, group_genes_by_virus, identity_path
@@ -2877,8 +2880,11 @@ def _restrict_to_called_cells(host_adata, called_cells_file):
     """Keep the host barcodes the run called as cells; return the subset and a manifest block.
 
     The set is the run's ``results/called_cells.tsv`` (every barcode when cell calling is
-    ``none``). A missing file fails closed: it never falls back to all barcodes, which
-    would add empty droplets to the models.
+    ``none``). In two-step and external-host runs that file lists only barcodes present in
+    the viral matrix, so the full host-called set in the sibling
+    ``results/host_called_cells.tsv`` is used when it exists: host-called cells with no
+    viral read stay in as true negatives. A missing file fails closed: it never falls back
+    to all barcodes, which would add empty droplets to the models.
     """
     from viralscan.scripts.cellcalling import read_called_barcodes
 
@@ -2894,6 +2900,10 @@ def _restrict_to_called_cells(host_adata, called_cells_file):
             "n_excluded_not_called": 0,
         }
     path = Path(called_cells_file)
+    host_set = path.with_name(HOST_CALLED_CELLS_TSV)
+    source = "called_cells_tsv"
+    if host_set.is_file():
+        path, source = host_set, "host_called_cells_tsv"
     if not path.is_file():
         raise ViralScanError(
             f"{path} is missing; hostresponse uses only the run's called cells and will not "
@@ -2914,7 +2924,7 @@ def _restrict_to_called_cells(host_adata, called_cells_file):
         n_host - n_kept,
     )
     block = {
-        "source": "called_cells_tsv",
+        "source": source,
         "path": str(path),
         "sha256": _sha256_file(path),
         "n_host_barcodes": n_host,
@@ -3413,6 +3423,7 @@ def _write_manifest(out_dir, provenance: dict, status_rows: list) -> None:
 
 # ── Snakemake entry point ─────────────────────────────────────────────────────
 
+
 def run(ctx: RunContext, done_file: str) -> None:
     """Entry point: host-response analysis for one Run, then touch done_file."""
     cfg = ctx.config
@@ -3606,6 +3617,19 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cv-folds", type=int, default=DEFAULT_CV_FOLDS)
     p.add_argument("--cell-type-column", default=None)
     p.add_argument("--cell-types", nargs="+", action=CellTypesAction, default=None)
+    p.add_argument(
+        "--called-cells",
+        default=None,
+        help="the run's results/called_cells.tsv; only these host barcodes are modelled "
+        "(results/host_called_cells.tsv beside it is preferred when present). Required "
+        "unless --all-barcodes is given.",
+    )
+    p.add_argument(
+        "--all-barcodes",
+        action="store_true",
+        default=False,
+        help="model every host barcode, empty droplets included (manifest source not_given).",
+    )
     p.add_argument("--min-negative-cells", type=int, default=MIN_VIRUS_CELLS)
     p.add_argument("--min-groups", type=int, default=2)
     p.add_argument("--panel-in-fold", action="store_true")
@@ -3619,7 +3643,12 @@ def _build_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     import sys  # noqa: PLC0415
 
-    args = _build_parser().parse_args()
+    _parser = _build_parser()
+    args = _parser.parse_args()
+    if args.called_cells is None and not args.all_barcodes:
+        _parser.error(
+            "--called-cells is required (or pass --all-barcodes to include every droplet)"
+        )
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
@@ -3654,4 +3683,5 @@ if __name__ == "__main__":
         permutations=args.permutations,
         permutation_unit=args.permutation_unit,
         permutation_block=args.permutation_block,
+        called_cells_file=args.called_cells,
     )

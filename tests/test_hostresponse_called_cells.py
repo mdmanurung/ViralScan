@@ -143,3 +143,43 @@ def test_snakemake_entry_passes_the_run_called_cells_file(tmp_path):
     assert Path(mock_run.call_args.kwargs["called_cells_file"]) == (
         tmp_path / "results" / "called_cells.tsv"
     )
+
+
+def test_host_called_set_beside_called_cells_is_preferred(tmp_path):
+    """Two-step runs: called_cells.tsv holds viral-matrix barcodes only; keep every host-called cell."""
+    called = _called(tmp_path, [f"cell_{i}" for i in range(N_CALLED)])
+    host_called = called.with_name("host_called_cells.tsv")
+    host_called.write_text(
+        "barcode\n" + "".join(f"cell_{i}\n" for i in range(N_CALLED + N_EMPTY - 10))
+    )
+    prov = _run(tmp_path, called)
+    block = prov["called_cells"]
+    assert block["source"] == "host_called_cells_tsv"
+    assert block["path"] == str(host_called)
+    assert block["n_host_called"] == N_CALLED + N_EMPTY - 10
+    assert block["n_excluded_not_called"] == 10
+
+
+def test_module_entry_point_requires_called_cells(tmp_path):
+    import subprocess
+    import sys
+
+    res = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "viralscan.scripts.hostresponse",
+            "--virus-h5ad",
+            "v",
+            "--host-h5ad",
+            "h",
+            "--viral-accessions",
+            "a",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 2
+    assert "--called-cells is required" in res.stderr
