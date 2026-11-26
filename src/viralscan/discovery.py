@@ -305,7 +305,7 @@ def discovery_star_pass(
     from viralscan.runconfig import RunConfig
     from viralscan.scripts.host_filter import _starsolo_filter, check_host_filter_tools
 
-    config = RunConfig.from_yaml(str(sample_dir / "config.yaml"))
+    config = RunConfig.load(sample_dir / "config.yaml")
     manifest = json.loads((run_root / RUN_MANIFEST).read_text(encoding="utf-8"))
     recorded = {
         path: manifest.get("input_fingerprints", {}).get(key)
@@ -1980,7 +1980,7 @@ def run_discover(args: argparse.Namespace) -> None:
     args._posthoc_output = output
     check_output_dir(output, run_root)
     validate_kraken2_db(db)
-    config = RunConfig.from_yaml(str(sample_dir / "config.yaml"))
+    config = RunConfig.load(sample_dir / "config.yaml")
     cb_len, umi_len = barcode_geometry(config.technology)
 
     from viralscan.run_safety import software_identity
