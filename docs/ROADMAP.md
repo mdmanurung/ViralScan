@@ -22,7 +22,9 @@ Status as of 2026-11-26. Status words come from `PLAN.md`, the reproducibility r
 |---|---|---|
 | `3.0.0b1` | Laboratories test the install, the first run and the API. The CLI and outputs can still change on their feedback. No validation claim. | Consolidation Phases A to F merged; owner steps in section 5 done; tester packet ready. |
 | `3.0.0rc1` | Contract frozen; fixes only. Defaults provisional until G5. | Laboratory feedback closed (`RC-05`); default decision rows approved from G5 output; `defaults_status` set to `final`. |
-| `3.0.0` | Stable and citable. | G3, G4, G5 and G6 closed; DOIs; archives; manuscript audited. |
+| `3.0.0` | Stable and citable. | G3, G4 and G5 closed; G6a and G7 closed; software DOI reserved. The manuscript (G6) and Bioconda do not block the tag (user, 2026-11-26, `R35-REOPEN-01`). |
+
+Superseded 2026-11-26 (kept for the record): the gate for `3.0.0` read "G3, G4, G5 and G6 closed; DOIs; archives; manuscript audited." The user reopened that rule on 2026-11-26. The manuscript, archives, Bioconda and submission (`G6`, `G8`) follow the tag.
 
 A laboratory-driven rename is allowed during `b1`. After `rc1`, anything breaking is 4.0.
 
@@ -123,9 +125,11 @@ These decide whether the defaults are validated.
 
 If any default changes, ship a new release candidate on that build and rerun the gates on it. Then `defaults_status` becomes `final` (it is outside the fingerprint, so resume is unaffected).
 
-5. **G6a and G6, documentation and manuscript.** Make `validate_claim_registry.py --coverage` a failing check, put the manuscript in scope, regenerate `docs/manuscript_draft.md` from artifacts, run the independent audits. Today 3 of 10 registry claims are validated and the manuscript is a placeholder.
+5. **G6a and G6, documentation and manuscript.** (2026-11-26: G6a gates `rc1`; G6 does not gate the `3.0.0` tag, `R35-REOPEN-01`.) Make `validate_claim_registry.py --coverage` a failing check, put the manuscript in scope, regenerate `docs/manuscript_draft.md` from artifacts, run the independent audits. Today 3 of 10 registry claims are validated and the manuscript is a placeholder.
 
 ## 8. Stable `3.0.0`
+
+2026-11-26 (user, `R35-REOPEN-01`): the tag follows G3 to G5, G6a and G7. `STB-04` (Bioconda) and the manuscript submission in `STB-05` come after the tag and do not block it.
 
 `STB-01` prove the release-candidate fixes did not change frozen outputs; `STB-02` reserve the software and benchmark DOIs (owner); `STB-03` final metadata, Production/Stable classifier, tag, wheel, sdist, OCI image with `latest`, SIF, locks, checksums, SBOM, attestations; `STB-04` put the PyPI sdist SHA-256 into the Bioconda recipe, lint, build and submit; `STB-05` archive, verify every DOI and link, update `CITATION.cff`, submit the manuscript.
 
