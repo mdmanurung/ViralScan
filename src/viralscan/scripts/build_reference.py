@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import Any, NamedTuple, Optional, cast
 
 from viralscan.constants import ENSEMBL_SPECIES
+from viralscan.fasta_reader import iter_fasta
 from viralscan.kmer_sharing import near_duplicate_pairs
 from viralscan.reference_gates import record_index_inspect
 from viralscan.resources import (
@@ -161,26 +162,7 @@ def _verify_cached_download(path: Path) -> None:
 
 
 def _fasta_records(path: Path, *, upper: bool = True) -> list[tuple[str, str]]:
-    records: list[tuple[str, str]] = []
-    identifier: str | None = None
-    sequence: list[str] = []
-    with open(path) as handle:
-        for raw in handle:
-            line = raw.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                if identifier is not None:
-                    records.append(
-                        (identifier, "".join(sequence).upper() if upper else "".join(sequence))
-                    )
-                identifier = line[1:].split()[0]
-                sequence = []
-            else:
-                sequence.append(line)
-    if identifier is not None:
-        records.append((identifier, "".join(sequence).upper() if upper else "".join(sequence)))
-    return records
+    return list(iter_fasta(path, upper=upper))
 
 
 #: dustmasker windows (union of both) and level behind the shipped panel (PLAN MASK-01).

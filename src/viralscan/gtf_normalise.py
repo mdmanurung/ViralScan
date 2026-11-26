@@ -59,6 +59,8 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from viralscan.gtf_reader import parse_attributes
+
 log = logging.getLogger("viralscan")
 
 #: Gaps between CDS blocks shorter than this are frameshifts (e.g. influenza PA-X), not introns.
@@ -70,7 +72,6 @@ MIN_INTRON_BP = 11
 #: retains an intron is NOT verified, so the span transcript is kept as a conservative second.
 RETAINED_INTRON_GENES = frozenset({"HUM_CYTO_HHV5wtgp098"})
 
-_ATTR = re.compile(r'(\w+)\s+"([^"]*)"')
 _TX_ATTR = re.compile(r'transcript_id\s+"[^"]*"')
 _GENE_ATTR = re.compile(r'gene_id\s+"[^"]*"\s*;?')
 _CDS_LIKE = ("CDS", "start_codon", "stop_codon")
@@ -100,7 +101,7 @@ def _parse(index: int, line: str) -> _Row:
         return _Row(index, line)
     if int(cols[3]) < 1 or int(cols[3]) > int(cols[4]):
         raise ValueError(f"GTF line {index + 1}: invalid coordinates {cols[3]}..{cols[4]}")
-    return _Row(index, line, cols, dict(_ATTR.findall(cols[8])))
+    return _Row(index, line, cols, parse_attributes(cols[8]))
 
 
 def _merge(blocks: Iterable[Block], min_gap: int) -> list[Block]:

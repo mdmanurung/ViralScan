@@ -19,13 +19,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from viralscan.sam import view_lines
+from viralscan.fasta_reader import iter_fasta
 from viralscan.anello_align import (
     ACCESSION_TSV,
     SUMMARY_COLUMNS,
     Alignment,
     accession_metrics,
     align_cmd,
-    iter_fasta,
     parse_sam_line,
     virus_molecules,
     virus_summary,

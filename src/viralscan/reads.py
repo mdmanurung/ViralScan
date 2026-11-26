@@ -26,23 +26,9 @@ from pathlib import Path
 
 from viralscan.evidence import align_reads_to_viral as align_reads
 from viralscan.evidence import blast_identity as blast_reads
+from viralscan.fasta_reader import read_fasta
 
 __all__ = ["VirusReads", "align_reads", "blast_reads", "extract_virus_reads", "read_fasta"]
-
-
-def read_fasta(path: str | Path) -> dict[str, str]:
-    """{record name: sequence} from a FASTA file (read names are `<CB>_<UMI>_<n>`)."""
-    seqs: dict[str, list[str]] = {}
-    name = None
-    with open(path) as fh:
-        for line in fh:
-            line = line.strip()
-            if line.startswith(">"):
-                name = line[1:].split()[0]
-                seqs[name] = []
-            elif name is not None and line:
-                seqs[name].append(line)
-    return {k: "".join(v) for k, v in seqs.items()}
 
 
 @dataclass(frozen=True)

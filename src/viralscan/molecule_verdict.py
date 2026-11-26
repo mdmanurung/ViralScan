@@ -32,8 +32,8 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from viralscan.anello_align import iter_fasta
 from viralscan.evidence import _cb_umi
+from viralscan.fasta_reader import iter_fasta
 from viralscan.sam import cigar_ops, int_tag
 
 #: SAM flags skipped: unmapped (0x4) and supplementary (0x800). Secondary (0x100) is kept on purpose.

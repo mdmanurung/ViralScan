@@ -29,10 +29,11 @@ from pathlib import Path
 from typing import Any
 
 from viralscan.evidence import _run
+from viralscan.fasta_reader import FastaError, read_fasta
+from viralscan.gtf_reader import iter_gtf_fields, parse_attributes
 from viralscan.molecule_verdict import VERDICTS, _read_number
 from viralscan.run_safety import sha256_file
 from viralscan.sam import cigar_ops, view_lines
-from viralscan.utils import open_maybe_gzip
 
 # ---------------------------------------------------------------------------
 # Junction rules. Fixed before any real data were looked at; change them only with a PLAN row.
@@ -180,13 +181,12 @@ def annotated_introns(
     exons: dict[str, dict[str, list[tuple[int, int]]]] = defaultdict(lambda: defaultdict(list))
     for path in gtfs:
         with open(path, encoding="utf-8") as handle:
-            for line in handle:
-                fields = line.rstrip("\n").split("\t")
-                if len(fields) != 9 or line.startswith("#") or fields[2] != "exon":
+            for fields in iter_gtf_fields(handle, exact=True):
+                if fields[2] != "exon":
                     continue
                 if fields[0] not in wanted:
                     continue
-                attrs = dict(re.findall(r'(\w+)\s+"([^"]*)"', fields[8]))
+                attrs = parse_attributes(fields[8])
                 if "transcript_id" not in attrs:
                     continue
                 exons[fields[0]][attrs["transcript_id"]].append((int(fields[3]), int(fields[4])))
@@ -358,18 +358,10 @@ def _read_sequences(
 
 def _write_target_genome(viral_fasta: str, contigs: set[str], out: Path) -> dict[str, str]:
     """Write the named contigs of *viral_fasta* (first header token) to *out*; return their sequences."""
-    genome: dict[str, str] = {}
-    name: str | None = None
-    with open_maybe_gzip(viral_fasta) as handle:
-        for line in handle:
-            if line.startswith(">"):
-                name = line[1:].split()[0]
-                if name in genome:
-                    raise SpliceError(f"Duplicate FASTA ID {name!r} in {viral_fasta}")
-                if name in contigs:
-                    genome[name] = ""
-            elif name in genome:
-                genome[name] += line.strip()
+    try:
+        genome = read_fasta(viral_fasta, unique=True, only=contigs)
+    except FastaError as exc:
+        raise SpliceError(str(exc)) from exc
     absent = contigs - set(genome)
     if absent:
         raise SpliceError(f"{sorted(absent)} are in the competitive BAM but not in {viral_fasta}")
