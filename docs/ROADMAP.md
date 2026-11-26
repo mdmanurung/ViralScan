@@ -76,7 +76,7 @@ Goal: every function has a purpose, the parts fit, nothing is duplicated, and a 
 - `HAPPYPATH-01`: one tested page from install to the report, and a `build-ref` preset for the shipped panel (the bundled-cache wording of the 2026-11-04 decision stays).
 - `OPENFIRST-01`: one answer to "what do I open first".
 - `COLNAMES-01` (maintainer decision): one column vocabulary and a short core view of the 63-column `viral_summary.tsv`; the rename list is approved as its own row before any edit.
-- `API-FACADE-01`: `viralscan.open_run(path)` with `.summary()`, `.cells()` and `.adata()`; the vignettes stop importing `scripts.*`.
+- `API-FACADE-01` (done 2026-11-26, `codex/api-facade-01`): `viralscan.open_run(path)` with `.summary()`, `.cells()` and `.adata()`. The vignettes still import `scripts.detection` and `scripts.cellcalling` for compute helpers (`compute_stats`, `external_cells`, `check_sibling_crossmapping`) that run on synthetic matrices, not on a run directory; moving those behind a stable name is a separate unit.
 - `DEMO-01`: `viralscan demo`, a bundled tiny dataset and a one-command check. It is the tester packet for the laboratories.
 - Small and independent: a Python 3.13 CI job (or an explicit "unsupported" note); the two `[skip-ci]` vignettes on a schedule in `notebooks-heavy.yml`.
 
