@@ -41,7 +41,7 @@ pair, in order, each step consuming the previous step's real output:
    host record is named after its transcript on purpose (the host-cDNA shape).
 3. A run **without** ``--no-visual``: plots and ``report.html`` must exist.
 4. ``--cell-calling external --called-cells-file called_cells.txt``.
-5. ``viralscan evidence --run-dir <real sample dir> ... --blast`` against the
+5. ``viralscan evidence --run-dir <run root> ... --blast`` against the
    real run (not the hand-faked layout of ``test_exact_lineage.py``), asserting
    the 15 artifacts that test lists.
 6. ``viralscan validate-run`` again after evidence.
@@ -443,7 +443,7 @@ def documented_sequence(tmp_path_factory) -> dict:
     evidence = work / "evidence"
     _viralscan(
         "evidence",
-        "--run-dir", str(steps["sample"]),
+        "--run-dir", str(out),  # the run root; its only sample is picked
         "-o", str(evidence),
         "--virus", "VIRUS_TARGET",
         "--viral-fasta", str(FIXTURE / "viral.fasta"),

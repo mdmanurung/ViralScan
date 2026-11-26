@@ -111,7 +111,7 @@ def test_host_loss_on_a_real_starsolo_run_and_its_primary_tree_guard(tmp_path: P
     truth.write_text("read_id\tlabel\nviral_read\tviral\nhost_read\thost\n")
 
     def host_loss(*extra: str) -> subprocess.CompletedProcess:
-        cmd = ["host-loss", "--run-dir", str(sample), "--truth", str(truth), *extra]
+        cmd = ["host-loss", "--run-dir", str(out), "--truth", str(truth), *extra]
         return subprocess.run(
             [sys.executable, "-m", "viralscan.menu", *cmd], capture_output=True, text=True
         )

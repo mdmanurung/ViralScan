@@ -118,10 +118,12 @@ def _file_entry(path: Path, root: Path | None = None) -> dict[str, Any]:
     return entry
 
 
-def _inputs(source_path: Path | None, source_root: Path | None) -> list[dict[str, Any]]:
+def _inputs(
+    source_path: Path | None, source_root: Path | None, sample_dir: Path | None = None
+) -> list[dict[str, Any]]:
     """The provenance files the verb starts from: run manifest and the sample's config."""
     found: list[Path] = []
-    for directory in (source_root, source_path):
+    for directory in (source_root, source_path, sample_dir):
         if directory is None:
             continue
         for name in ("run_manifest.json", "config.yaml", "evidence_manifest.json"):
@@ -265,6 +267,23 @@ class Attempt:
             "outputs": {"files": [], "truncated": False},
         }
 
+    def _sample_dir(self) -> Path | None:
+        """The sample a sample verb reads when ``--run-dir`` is the run root (RUNDIR-01).
+
+        Its ``config.yaml`` is an input, as it was when ``--run-dir`` was the sample itself.
+        """
+        from viralscan.rundir import SAMPLE_VERBS
+
+        if self.record["verb"] not in SAMPLE_VERBS or self.source_path != self.source_root:
+            return None
+        if self.source_root is None:
+            return None
+        sample = self.record["sample"] or None
+        configs = sorted(self.source_root.glob("*/config.yaml"))
+        if sample is None and len(configs) == 1:
+            return configs[0].parent
+        return self.source_root / sample if sample else None
+
     @property
     def path(self) -> Path | None:
         return self.directory / f"{self.record['attempt_id']}.json" if self.directory else None
@@ -282,7 +301,7 @@ class Attempt:
 
         try:
             self.record["software"] = software_identity()
-            self.record["inputs"] = _inputs(self.source_path, self.source_root)
+            self.record["inputs"] = _inputs(self.source_path, self.source_root, self._sample_dir())
         except OSError as exc:
             self.record["error"] = f"provenance unavailable: {type(exc).__name__}"
         self._save()
@@ -290,6 +309,8 @@ class Attempt:
     def finish(self, state: str, exit_code: int | None, error: str | None) -> None:
         output = getattr(self.args, "_posthoc_output", None) or getattr(self.args, "output", None)
         output_path = Path(output).resolve() if output else None
+        if not self.record["sample"]:  # a sample verb resolved the only sample of the run root
+            self.record["sample"] = getattr(self.args, "_posthoc_sample", None)
         self.record.update(
             state=state,
             exit_code=exit_code,
