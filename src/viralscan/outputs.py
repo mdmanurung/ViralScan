@@ -260,6 +260,10 @@ class V3Outputs:
         return self.output / "read_filtered"
 
     @property
+    def viral_summary(self) -> Path:
+        return self.results_dir / "viral_summary.tsv"
+
+    @property
     def count_audit(self) -> Path:
         return self.results_dir / "count_audit.tsv"
 

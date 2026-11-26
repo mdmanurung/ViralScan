@@ -200,8 +200,8 @@ def gtf_text_for(
     kb's current splitter sorts their exon intervals in genomic order; the tag
     records this cDNA-order limitation and does not correct it.
     Accessions the catalogue does not cover fall back to the whole-genome
-    single-exon placeholder that :func:`viralscan.scripts.build_reference.
-    _genome_as_transcript_gtf` produces, so the merged GTF stays complete and
+    single-exon placeholder that :func:`viralscan.gtf_reader.genome_as_transcript_gtf`
+    produces, so the merged GTF stays complete and
     ``kb ref`` never sees an unannotated sequence.
 
     Parameters
@@ -258,7 +258,7 @@ def gtf_text_for(
                     f"{accession}\tNCBI\texon\t{start}\t{end}\t.\t{str(row['strand'])}\t0\t{attrs}"
                 )
 
-    from viralscan.scripts.build_reference import _genome_as_transcript_gtf
+    from viralscan.gtf_reader import genome_as_transcript_gtf
 
     texts = fasta_texts or {}
     unsized = [a for a in accessions if a not in covered and not texts.get(a)]
@@ -270,7 +270,7 @@ def gtf_text_for(
     for accession in accessions:
         if accession in covered:
             continue
-        lines.extend(_genome_as_transcript_gtf(texts[accession], accession).splitlines())
+        lines.extend(genome_as_transcript_gtf(texts[accession], accession).splitlines())
     return "\n".join(lines) + ("\n" if lines else "")
 
 
@@ -349,7 +349,7 @@ def merged_name_map() -> dict[str, str]:
 
     Accession-level keys (from ``anello_name_map``) take priority over the
     existing prefix-based keys so that accession-keyed gene IDs (emitted by
-    ``build_reference._genome_as_transcript_gtf``) are resolved correctly.
+    ``gtf_reader.genome_as_transcript_gtf``) are resolved correctly.
     Legacy TTV-prefix gene IDs remain functional via the inherited ``"TTV"``
     entry in :data:`~viralscan.constants.VIRUS_NAME_MAP`.
 

@@ -75,6 +75,7 @@ from typing import Any, Union, cast
 from viralscan import __version__ as _VIRALSCAN_VERSION
 from viralscan import gtf_reader, virus_catalog
 from viralscan.errors import ViralScanError
+from viralscan.manifest_io import RUN_MANIFEST, record_manifest_block, sha256_file
 from viralscan.outputs import analysis_genes_path
 
 log = logging.getLogger(__name__)
@@ -478,8 +479,6 @@ def write_build_manifest(
     }
     catalogue = virus_catalog.catalogue_path()
     if catalogue.is_file():
-        from viralscan.run_safety import sha256_file
-
         manifest["catalogue_sha256"] = sha256_file(catalogue)
     out = manifest_path_for_index(index)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -559,8 +558,6 @@ def catalogue_drift(manifest: BuildManifest) -> dict[str, Any]:
     block["expected_sha256"] = manifest.catalogue_sha256
     if not catalogue.is_file():
         return {**block, "status": "unavailable"}
-    from viralscan.run_safety import sha256_file
-
     block["actual_sha256"] = sha256_file(catalogue)
     block["status"] = "match" if block["actual_sha256"] == manifest.catalogue_sha256 else "drift"
     return block
@@ -568,8 +565,6 @@ def catalogue_drift(manifest: BuildManifest) -> dict[str, Any]:
 
 def _record_catalogue_drift(config: Any, manifest: BuildManifest) -> None:
     """Persist :func:`catalogue_drift` in the run manifest's per-sample block (AUD-13 A-18)."""
-    from viralscan.run_safety import RUN_MANIFEST, record_manifest_block
-
     run_root = Path(config.output).resolve().parent
     if (run_root / RUN_MANIFEST).is_file():
         record_manifest_block(
@@ -732,14 +727,17 @@ def _resolve_genes(
 ) -> list[GeneIdentity]:
     """Apply the resolution rules of the module docstring to every indexed gene."""
     genes: list[GeneIdentity] = []
-    from viralscan.virus_grouping import virus_name_for_gene
 
     name_map: dict[str, str] | None = None
     if t2g.legacy:
         name_map = virus_catalog.merged_name_map()
         for gene_id in t2g.accession:
             if gene_id in gtf_genes:
-                genes.append(_legacy_prefixed(gene_id, virus_name_for_gene(gene_id, name_map), cat))
+                genes.append(
+                    _legacy_prefixed(
+                        gene_id, virus_catalog.virus_name_for_gene(gene_id, name_map), cat
+                    )
+                )
             else:
                 genes.append(GeneIdentity(gene_id, "", HOST, False))
         if warn_legacy:
@@ -759,7 +757,11 @@ def _resolve_genes(
                 # prefix, as a legacy t2g does, so one genome is one virus.
                 if name_map is None:
                     name_map = virus_catalog.merged_name_map()
-                genes.append(_legacy_prefixed(gene_id, virus_name_for_gene(gene_id, name_map), cat))
+                genes.append(
+                    _legacy_prefixed(
+                        gene_id, virus_catalog.virus_name_for_gene(gene_id, name_map), cat
+                    )
+                )
             elif gene_id in gtf_genes and gene_id not in t2g.structural_host:
                 key = f"accession:{accession or gene_id}"
                 genes.append(
