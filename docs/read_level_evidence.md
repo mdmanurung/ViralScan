@@ -59,12 +59,20 @@ off by default. Each adds outputs and none changes the others.
 
 ## The unit: a molecule
 
-Every check counts molecules, not reads. A molecule is one corrected barcode
+The molecule checks count molecules, not reads. A molecule is one corrected barcode
 plus UMI pair. Its member reads are the reads that carry that pair. A molecule
-supports a feature when any member read does. The checks on this page use the
-molecules that are counted in the run and align better to the virus than to the
-host (`counted_virus_best`). Each table also reports how many molecules fell
-outside that set. The rule is in `docs/evidence_unit.md` in the repository.
+supports a feature when any member read does. Strand QC (`strand_qc.tsv`), the
+splice analysis (`splice/`) and the HTML browser use only the molecules that are
+counted in the run and align better to the virus than to the host
+(`counted_virus_best`), and report how many molecules fell outside that set. The
+rule is in `docs/evidence_unit.md` in the repository.
+
+Coverage (`coverage.raw.tsv`, `coverage.deduplicated.tsv`, the coverage map) and
+alignment QC use a broader population: every read in the competitive BAM, and its
+UMI-deduplicated copy, whatever the molecule's verdict or `counted` flag. A read
+from a tied, host-best or uncounted molecule can add coverage there, so the
+coverage map can look like stronger viral support than the counted molecules
+give. These tables do not report the population counts.
 
 Molecules the kallisto index never captured are outside every evidence run.
 
