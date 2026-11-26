@@ -4,6 +4,8 @@ import subprocess
 
 import pytest
 
+from viralscan.run_context import RunContext
+from viralscan.runconfig import RunConfig
 from viralscan.scripts import anello_align
 
 FINAL_ZERO = "Uniquely mapped reads number |\t0\nNumber of reads mapped to multiple loci |\t0\n"
@@ -68,7 +70,7 @@ def test_main_passes_technology_barcode_length(tmp_path, monkeypatch):
     monkeypatch.setattr(
         anello_align, "_run_star", lambda cmd, work, cb_len: seen.update(cb_len=cb_len) or 1 / 0
     )
-    cfg = anello_align.RunConfig.__new__(anello_align.RunConfig)
+    cfg = RunConfig.__new__(RunConfig)
     for k, v in dict(
         output=str(tmp_path),
         anello_index="idx",
@@ -76,8 +78,9 @@ def test_main_passes_technology_barcode_length(tmp_path, monkeypatch):
         technology="0,0,16:0,16,28:1,0,0",
         kb_r1="r1",
         kb_r2="r2",
+        cores=1,
     ).items():
         object.__setattr__(cfg, k, v)
     with pytest.raises(ZeroDivisionError):
-        anello_align.main(cfg, "id.tsv", 1, "done")
+        anello_align.run(RunContext.from_config(cfg), "id.tsv", "done")
     assert seen["cb_len"] == 16

@@ -320,7 +320,7 @@ def solo_raw_dir(config) -> Path | None:
     cells from ambient on (1-2,659 barcodes, "insufficient unique points").
     The host matrix STAR already wrote is the one that can.
     """
-    if not getattr(config, "host_index", None) or resolve_method(config) != "emptydrops":
+    if not config.host_index or resolve_method(config) != "emptydrops":
         return None
     raw = Path(config.output) / "host_filtered" / "star_tmp" / "Solo.out" / "GeneFull" / "raw"
     missing = [
@@ -384,7 +384,7 @@ def host_called_cells(config, solo_dir, min_comparable_umi: float) -> HostCellSe
     """emptyDrops on the STARsolo host matrix: the cell set of a two-step run."""
     barcodes, totals = read_host_matrix_totals(Path(solo_dir))  # fail on a corrupt matrix first
     _clear_input_receipt(config)
-    rscript = getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"])
+    rscript = config.cell_caller_rscript
     params = _emptydrops_params(config)
     out_tsv = _run_emptydrops(solo_dir, rscript=rscript, **params)
     cells = host_cells_from_tsv(out_tsv, min_comparable_umi)
@@ -461,10 +461,10 @@ def _digests(directory: Path, names) -> dict[str, str]:
 
 def _emptydrops_params(config) -> dict:
     return {
-        "fdr": float(getattr(config, "emptydrops_fdr", DEFAULTS["emptydrops_fdr"])),
-        "lower": float(getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])),
-        "niters": int(getattr(config, "emptydrops_niters", DEFAULTS["emptydrops_niters"])),
-        "seed": int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
+        "fdr": float(config.emptydrops_fdr),
+        "lower": float(config.emptydrops_lower),
+        "niters": int(config.emptydrops_niters),
+        "seed": int(config.emptydrops_seed),
     }
 
 
@@ -504,7 +504,7 @@ def _tool_provenance(rscript) -> dict:
 
 def _clear_input_receipt(config) -> None:
     """Remove a previous run's receipt, so a run that writes none cannot be mistaken for it."""
-    output = getattr(config, "output", None)
+    output = config.output
     if output:
         (Path(output) / "results" / "cell_calling_input.json").unlink(missing_ok=True)
 
@@ -529,7 +529,7 @@ def _host_only_emptydrops(obs, matrix_dir, config) -> np.ndarray:
     called set is written to ``<matrix_dir>/emptydrops_cells.tsv`` as before
     (its ``total`` column is now host UMIs), so every reader keeps working.
     """
-    output = getattr(config, "output", None)
+    output = config.output
     if not output:
         raise CellCallingError("host-only cell calling requires config.output (the run directory)")
     matrix_dir = Path(matrix_dir)
@@ -537,7 +537,7 @@ def _host_only_emptydrops(obs, matrix_dir, config) -> np.ndarray:
     matrix_genes = (matrix_dir / "cells_x_genes.genes.txt").read_text().splitlines()
     viral, partition = viral_partition(output, matrix_genes)
     params = _emptydrops_params(config)
-    rscript = getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"])
+    rscript = config.cell_caller_rscript
     out_tsv = matrix_dir / "emptydrops_cells.tsv"
     # A SIGKILL skips the TemporaryDirectory cleanup; sweep what an earlier run left behind.
     for stale in matrix_dir.glob(f"{_SCRATCH_PREFIX}*"):
@@ -596,7 +596,7 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
     if len(obs) == 0:
         raise CellCallingError("cell calling requires at least one barcode")
 
-    if str(getattr(config, "cell_calling", "auto") or "auto").lower() == "auto":
+    if str(config.cell_calling or "auto").lower() == "auto":
         log.info("cell_calling=auto selected %s", method)
 
     if method != "emptydrops":
@@ -607,7 +607,7 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
         return np.ones(adata.n_obs, dtype=bool)
 
     if method == "external":
-        f = getattr(config, "called_cells_file", None)
+        f = config.called_cells_file
         if not f:
             raise CellCallingError("cell_calling=external requires config.called_cells_file")
         return external_cells(obs, f)
@@ -637,7 +637,7 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
         total = np.asarray(adata.X).sum(axis=1)
     else:
         raise CellCallingError(f"Unknown cell_calling method: {method!r}")
-    return knee_cells(total, min_umi=float(getattr(config, "knee_min_umi", DEFAULTS["knee_min_umi"])))
+    return knee_cells(total, min_umi=float(config.knee_min_umi))
 
 
 def read_emptydrops_mask(obs_names, out_tsv) -> np.ndarray:
@@ -669,9 +669,9 @@ def read_emptydrops_mask(obs_names, out_tsv) -> np.ndarray:
 
 def resolve_method(config) -> str:
     """``config.cell_calling`` with ``auto`` resolved to the method it runs."""
-    method = str(getattr(config, "cell_calling", "auto") or "auto").lower()
+    method = str(config.cell_calling or "auto").lower()
     if method == "auto":
-        method = "external" if getattr(config, "called_cells_file", None) else "emptydrops"
+        method = "external" if config.called_cells_file else "emptydrops"
     return method
 
 

@@ -157,7 +157,7 @@ def _panel_form(config: RunConfig) -> str:
     configured GTF path where that is informative, and defaults to ``bundled``,
     whose IDs are the most specific.
     """
-    gtf = str(getattr(config, "gtf", "") or "")
+    gtf = str(config.gtf or "")
     if "starsolo" in gtf:
         return "starsolo"
     if "serratus" in gtf or "merged" in gtf:
@@ -363,28 +363,28 @@ def main(
     called = load_called_mask(adata, config, output)
     adata = adata[called].copy()
     veto_settings = load_veto_settings()
-    veto_override = str(getattr(config, "programme_mixed_veto", DEFAULTS["programme_mixed_veto"]))
+    veto_override = str(config.programme_mixed_veto)
     cells = run_one(
         adata,
         viruses,
         catalogue,
-        min_breadth=int(getattr(config, "programme_min_breadth", DEFAULTS["programme_min_breadth"])),
+        min_breadth=int(config.programme_min_breadth),
         form=_panel_form(config),
         identity=load_run_identity(output),
-        latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"])),
-        min_umi=float(getattr(config, "programme_min_umi", DEFAULTS["programme_min_umi"])),
-        productive_min_molecules=int(getattr(config, "programme_productive_min_molecules", DEFAULTS["programme_productive_min_molecules"])),
+        latent_min_breadth=int(config.programme_latent_min_breadth),
+        min_umi=float(config.programme_min_umi),
+        productive_min_molecules=int(config.programme_productive_min_molecules),
         veto_settings=veto_settings,
         mixed_veto_override=veto_override,
-        mixed_veto_alpha=float(getattr(config, "programme_mixed_veto_alpha", DEFAULTS["programme_mixed_veto_alpha"])),
+        mixed_veto_alpha=float(config.programme_mixed_veto_alpha),
     )
     summary = summarise_programs(
         cells,
         catalogue,
-        min_breadth=int(getattr(config, "programme_min_breadth", DEFAULTS["programme_min_breadth"])),
-        latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"])),
-        min_umi=float(getattr(config, "programme_min_umi", DEFAULTS["programme_min_umi"])),
-        productive_min_molecules=int(getattr(config, "programme_productive_min_molecules", DEFAULTS["programme_productive_min_molecules"])),
+        min_breadth=int(config.programme_min_breadth),
+        latent_min_breadth=int(config.programme_latent_min_breadth),
+        min_umi=float(config.programme_min_umi),
+        productive_min_molecules=int(config.programme_productive_min_molecules),
         viruses=viruses,
         marker_resolution=cells.attrs.get("marker_resolution"),
     )
@@ -392,7 +392,7 @@ def main(
     summary["n_called_cells"] = adata.n_obs
     # PROG-INDEXKIND-01: which index and host filter produced the unique-layer evidence.
     summary["index_kind"], summary["host_filter"] = index_state(
-        adata.uns, getattr(config, "host_filter_aligner", None)
+        adata.uns, config.host_filter_aligner
     )
     # PROG-MIXED-VETO-01: which veto each virus was called with (blank: no programme model).
     modelled = set(catalogue_virus_facts(catalogue))
@@ -411,7 +411,7 @@ def main(
         vetoes[v].rho if v in vetoes else None for v in summary["virus_name"]
     ]
     summary["mixed_veto_alpha"] = [
-        float(getattr(config, "programme_mixed_veto_alpha", DEFAULTS["programme_mixed_veto_alpha"])) if r == "betabinomial" else None
+        float(config.programme_mixed_veto_alpha) if r == "betabinomial" else None
         for r in summary["mixed_veto_rule"]
     ]
     cells["lytic_programme"] = lytic_programme_flags(cells["state"])

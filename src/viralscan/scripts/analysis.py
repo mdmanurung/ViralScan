@@ -119,7 +119,7 @@ def obtain_gtf(config: RunConfig) -> set[str]:
 
     # Expanded anellovirus panel, derived from the authoritative accession table.
     n_before = len(viral_accessions)
-    if getattr(config, "anellovirus_gene_ids", True):
+    if config.anellovirus_gene_ids:
         try:
             viral_accessions |= candidate_gene_ids()
         except Exception as exc:  # noqa: BLE001 - a missing table must not block a run

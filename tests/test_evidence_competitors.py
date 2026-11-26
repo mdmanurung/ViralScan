@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from viralscan import evidence as ev
+from viralscan.runconfig import RunConfig
 from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
 
 
@@ -296,7 +297,7 @@ def stub_run(tmp_path, monkeypatch, *, zero=True):
     (kb / "counts_unfiltered/cells_x_genes.genes.txt").write_text("g\n")
     for file in ["R1.fq", "R2.fq", "index.idx"]:
         (tmp_path / file).write_text("")
-    cfg = SimpleNamespace(
+    cfg = RunConfig(
         technology="10xv3",
         index=str(tmp_path / "index.idx"),
         transcripts=str(kb / "transcripts.txt"),
@@ -308,7 +309,7 @@ def stub_run(tmp_path, monkeypatch, *, zero=True):
         strand=None,
         multimap_method="equal",
     )
-    monkeypatch.setattr(runner.RunConfig, "from_yaml", lambda p: cfg)
+    monkeypatch.setattr(runner.RunConfig, "load", lambda p: cfg)
     monkeypatch.setattr(runner, "load_transcripts", lambda *a: (["tx"], {"tx": "g"}))
     monkeypatch.setattr(runner, "have_tools", lambda _tools: [])
     monkeypatch.setattr(runner, "load_run_identity", lambda *a: kw["identity"])

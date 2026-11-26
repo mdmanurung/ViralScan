@@ -293,7 +293,7 @@ def verify_exact_control(config: Any, table: Any, count_layer: str) -> dict[str,
     from viralscan.run_safety import sha256_file
     from viralscan.validation import SchemaContractError, require_schema_valid
 
-    configured = getattr(config, "positive_control_receipt", None)
+    configured = config.positive_control_receipt
     if not configured:
         return {
             "verification_status": "unavailable",
@@ -313,11 +313,11 @@ def verify_exact_control(config: Any, table: Any, count_layer: str) -> dict[str,
     try:
         receipt = json.loads(path.read_text())
         require_schema_valid(receipt, "positive_control_receipt.schema.json", path)
-        gene = getattr(config, "positive_control_gene", None)
+        gene = config.positive_control_gene
         row = table.by_gene().get(gene)
         if row is None or not row.viral or not row.genome_accession or not row.virus_key:
             raise ValueError("control gene has no indexed viral accession identity")
-        target = getattr(config, "positive_control_virus_key", None)
+        target = config.positive_control_virus_key
         if target not in {row.virus_key, row.virus_name}:
             raise ValueError(
                 "declared control target does not match its VirusIdentityTable identity"

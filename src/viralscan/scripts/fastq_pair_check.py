@@ -10,6 +10,7 @@ An old run resumed after its FASTQs were deleted records ``"pairs": null``.
 import gzip
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 
 def _count_reads(path: str | Path) -> int:
@@ -28,12 +29,22 @@ def check_pairs(r1: str | Path, r2: str | Path) -> int:
     return n1
 
 
-if "snakemake" in globals():
-    smk = snakemake  # type: ignore[name-defined]  # noqa: F821
-    r1, r2 = smk.config["sample1"], smk.config["sample2"]
+def run(r1: str | Path, r2: str | Path, done_file: str | Path) -> None:
+    """Entry point: count both raw FASTQs and write the pair-count receipt."""
     result: dict[str, object] = {"pairs": None, "skipped": "raw FASTQs missing"}
     if Path(r1).exists() and Path(r2).exists():
         result = {"pairs": check_pairs(r1, r2)}
     else:
         print(f"WARNING fastq_pair_check skipped: {r1} or {r2} no longer exists.")
-    Path(smk.output[0]).write_text(json.dumps(result) + "\n")
+    Path(done_file).write_text(json.dumps(result) + "\n")
+
+
+if TYPE_CHECKING:
+    snakemake: Any  # injected by the Snakemake runner; declared for the type checker only
+
+if "snakemake" in globals():
+    run(
+        snakemake.config["sample1"],  # noqa: F821
+        snakemake.config["sample2"],  # noqa: F821
+        snakemake.output[0],  # noqa: F821
+    )

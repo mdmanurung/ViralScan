@@ -79,11 +79,10 @@ from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
     validate_evaluation,
     validate_null_spec,
 )
-from viralscan.kb_outputs import KbCountOutputs
 from viralscan.outputs import V3Outputs, analysis_genes_path
 from viralscan.run_safety import sha256_file as _sha256_file
 from viralscan.run_safety import software_identity
-from viralscan.runconfig import RunConfig
+from viralscan.run_context import RunContext
 from viralscan.utils import _sparse_row_block, setup_script_logging
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_identity, group_genes_by_virus, identity_path
@@ -3350,10 +3349,10 @@ def _write_manifest(out_dir, provenance: dict, status_rows: list) -> None:
 
 # ── Snakemake entry point ─────────────────────────────────────────────────────
 
-if "snakemake" in globals():
-    cfg = RunConfig.from_yaml(snakemake.params.configfile)  # noqa: F821
-    kb = KbCountOutputs.from_config_output(cfg.output)
-    _virus_h5ad = str(kb.current_adata(multimapping=cfg.multimapping))
+def run(ctx: RunContext, done_file: str) -> None:
+    """Entry point: host-response analysis for one Run, then touch done_file."""
+    cfg = ctx.config
+    _virus_h5ad = str(ctx.outputs.current_adata(multimapping=cfg.multimapping))
     _identity_file = identity_path(cfg.output)
     _viral_acc_file = (
         str(_identity_file) if _identity_file.is_file() else str(analysis_genes_path(cfg.output))
@@ -3392,7 +3391,14 @@ if "snakemake" in globals():
         permutation_block=cfg.hostresponse_permutation_block,
     )
 
-    Path(str(snakemake.output[0])).touch()  # noqa: F821
+    Path(done_file).touch()
+
+
+if "snakemake" in globals():
+    run(
+        RunContext.from_yaml(snakemake.params.configfile),  # noqa: F821
+        str(snakemake.output[0]),  # noqa: F821
+    )
 
 
 # ── Standalone CLI ────────────────────────────────────────────────────────────

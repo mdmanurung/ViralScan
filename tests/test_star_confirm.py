@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import dataclasses
 from pathlib import Path
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ import yaml
 from viralscan import star_hostvirus
 from viralscan.cli.parsers import build_parser
 from viralscan.menu import _write_run_config, errorhandler
+from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.scripts import detection, star_confirm
 
@@ -153,7 +155,11 @@ def _run_main(tmp_path, monkeypatch, **cfg_kw):
         _cfg(tmp_path, star_confirm="true", star_hostvirus_index="/idx", **cfg_kw)
         | {"output": f"{out}/"}
     )
-    star_confirm.main(cfg, str(ident), 4, str(out / "log" / "star_confirm.done"))
+    star_confirm.run(
+        RunContext.from_config(dataclasses.replace(cfg, cores=4)),
+        str(ident),
+        str(out / "log" / "star_confirm.done"),
+    )
     return out, cfg, seen
 
 
