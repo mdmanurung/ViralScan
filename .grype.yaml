@@ -1,6 +1,7 @@
 # Reviewed grype exceptions for the product image (PLAN REL-11). Read by release.yml and
 # image-audit.yml, which run grype from the repository root. One entry per CVE; every entry
-# is reviewed again by 2027-02-01 (drop it when a fixed release exists or the package is gone).
+# is reviewed again by 2027-02-01, except the python entry (2027-01-15). Drop an entry when a fixed
+# release exists or the package is gone.
 ignore:
   # krb5 1.22.2 (conda-forge libkrb5, /opt/conda/envs/viralscan/lib/libkrb5.so.3.3).
   # Reason: grype lists no fixed version for any of these; the lock already has the
@@ -40,3 +41,13 @@ ignore:
     package:
       name: gcc
       version: 4.8.5
+  # python 3.14.10 (CVE-2026-119170): the Miniforge base-env interpreter of the image, not the
+  # python 3.11 of the viralscan env that runs the pipeline. Fixed in 3.14.11; conda-forge has no
+  # 3.14.11 as of 2026-11-26 (the Dockerfile already asks for python >=3.14.10). Scoped to this
+  # CVE, this package name and this version, so 3.14.11 or any other python CVE is not silenced.
+  # Review by 2027-01-15 (proposed date; the owner may change it). Drop the entry once conda-forge
+  # ships 3.14.11 and the Dockerfile pin moves. Owner sign-off pending (PLAN REL-11).
+  - vulnerability: CVE-2026-119170
+    package:
+      name: python
+      version: 3.14.10

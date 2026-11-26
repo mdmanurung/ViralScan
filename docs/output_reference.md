@@ -349,7 +349,7 @@ first look: `virus_name`, `role`, `detected`, `viral_molecules_total_est`, `infe
 | `infected_comparable` | Candidate-support cells over the strategy-independent denominator | model estimate |
 | `n_comparable_cells` | Barcodes clearing an absolute host-UMI floor (200 molecules), intersected with the called set | observation |
 | `pct_infected_comparable` | `infected_comparable / n_comparable_cells × 100`. Use this to compare runs that used different host-filtering strategies. **Blank (unavailable), not 0, when `n_comparable_cells` is 0 or blank**: no cell cleared the floor, or host depth is unavailable, so the rate is undefined | model estimate |
-| `sibling_crossmap_note` | Text note when the virus has near-identical siblings that allocation can move molecules between; empty otherwise | diagnostic flag |
+| `sibling_crossmap_note` | Text note when the virus has near-identical siblings that allocation can move molecules between and its `molecules_unique` is at least 50 times lower than the dominant sibling's (or zero while allocated molecules are above zero); the note names both the unique counts and the allocated totals; empty otherwise | diagnostic flag |
 | `molecules_unique` | All-barcode molecules compatible only with genes of this virus (two genes of one virus still count). Larger than the gene-level `viral_molecules_unique` of `multimap_evidence.tsv`. Blank without multimapping or an identity table | observation |
 | `molecules_compatible` | All-barcode molecules compatible with any gene of this virus, each counted whole (also those shared with another virus or the host). `molecules_unique` ≤ `viral_molecules_total_est` ≤ `molecules_compatible` under every method | observation |
 | `unique_fraction` | `molecules_unique / molecules_compatible`: how much of the signal reads can place on this virus alone | observation |
@@ -957,7 +957,7 @@ it does not replace `viral_summary.tsv` or change its default schema.
 | `viral_molecules_upper_bound` | Unique signal plus the viral-compatible ambiguous mass split equally among each molecule's viral genes, host-shared molecules included. It bounds host-virus allocation, not virus-virus sharing; every molecule compatible with a virus is `molecules_compatible` in `viral_summary.tsv` | model estimate |
 | `n_unique_viral_cells` | Cells with unique viral signal | observation |
 | `n_ambiguous_viral_cells` | Cells with viral-compatible ambiguous signal | observation |
-| `multimap_method` | `equal`, `host-conservative`, `unique-weighted`, `em-global`, or `em-cell` | observation |
+| `multimap_method` | `equal`, `host-conservative`, `unique-weighted`, `em-global`, `em-cell`, or `em-cell-af` | observation |
 | `evidence_tier` | `candidate_unique`, `candidate_virus_ambiguous`, `candidate_host_virus_ambiguous`, or `not_detected` | evidence tier |
 | `locus_id` | Independent locus of this gene (LOCK-01 D1): genes whose annotated intervals share at least one base on either strand form one locus; empty when `results/viral_loci.tsv` is absent | observation |
 | `n_unique_positive_cells_called` | Per virus (repeated on each of its rows): called barcodes with at least one unique-layer molecule at any gene of the virus, the union over genes and not the maximum (LOCK-01 D2) | observation |

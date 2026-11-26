@@ -411,6 +411,115 @@ def em_cell_abundances(
     return theta
 
 
+# alevin-fry constants mirrored by em_cell_af_abundances (COMBINE-lab/alevin-fry src/em.rs, last changed
+# in commit 36a7ec3; repo head 1117219 on 2026-10-25).
+AF_MIN_ITER = 2  # MIN_ITER: at least two E/M rounds.
+AF_ALPHA_CHECK_CUTOFF = (
+    0.01  # ALPHA_CHECK_CUTOFF: genes with a new abundance below this skip the stop test.
+)
+AF_MIN_OUTPUT_ALPHA = 0.01  # MIN_OUTPUT_ALPHA: abundances below this are set to 0 after the loop.
+AF_INIT_OFFSET = 0.5  # EmInitType::Informative: alpha0 = (unique + 0.5) * 1e-3.
+AF_INIT_SCALE = 1e-3
+
+
+def em_cell_af_abundances(
+    ec_counts: dict[tuple[int, ...], float],
+    unique_per_gene: np.ndarray,
+    max_iter: int,
+    tol: float,
+    diagnostics: dict[str, Any] | None = None,
+) -> np.ndarray:
+    """Fit one cell's gene abundances the way alevin-fry's per-cell EM does (``em-cell-af``).
+
+    Mirrors ``SparseCellCounts::em`` and ``em_update`` in alevin-fry ``src/em.rs`` (the path
+    ``alevin-fry quant -r parsimony-em`` takes on a gene-level cell; repo COMBINE-lab/alevin-fry,
+    ``src/em.rs`` last changed in commit 36a7ec3, repo head 1117219 on 2026-10-25):
+
+    * The cell's gene-level equivalence classes are all fitted together. A unique molecule is a
+      size-1 class, so ``unique_per_gene`` is fixed mass re-added in every M-step.
+    * Start ("Informative", the default; ``--init-uniform`` is the alternative):
+      ``alpha0[g] = (unique[g] + 0.5) * 1e-3`` for every gene in the cell's classes.
+    * Update: each multi-gene class sends ``count * alpha[g] / sum(alpha over the class)`` to gene
+      ``g``; ``alpha`` is the unique mass plus those shares.
+    * No sample-level prior, no pseudocount (``--multimap-pseudocount`` is unused), and no equal-split
+      fallback for a class without cell-local unique support: such a class is shared by the fitted
+      abundances like any other.
+    * On convergence (after ``AF_MIN_ITER`` rounds), abundances below ``AF_MIN_OUTPUT_ALPHA`` (0.01)
+      are set to 0 and one more E/M update runs (alevin-fry's last round); they are set to 0 again after.
+
+    How ViralScan's options map to alevin-fry's constants:
+
+    * ``max_iter`` is alevin-fry's ``MAX_ITER`` (100, the same as the ViralScan default).
+    * ``tol`` is alevin-fry's ``REL_DIFF_TOLERANCE``: the fit stops once every gene with a new
+      abundance above ``AF_ALPHA_CHECK_CUTOFF`` changed by at most ``tol`` molecules (an absolute
+      per-gene change, despite the name). alevin-fry uses 1e-2; ViralScan keeps its own default
+      (1e-6), so the fit is tighter than alevin-fry's. This is not the relative L1 rule of ``em-cell``.
+    * ``AF_MIN_ITER`` (2) holds unless ``max_iter`` is smaller.
+
+    Deviations from alevin-fry, on purpose:
+
+    * Molecule conservation. alevin-fry drops a class whose abundances sum to 0 and the mass below
+      the 0.01 cut-off. ViralScan must keep one unit per molecule, so the caller shares each molecule
+      by the returned abundances over its class and splits equally when all of them are 0
+      (alevin-fry drops that class; the fit itself has no equal-split rule). This is reachable only
+      for classes of more than 100 genes.
+    * Float64 here, float32 in alevin-fry.
+    * Molecules are the CB-UMI resolution of ViralScan (intersection of equivalence classes), not
+      alevin-fry's UMI graph (parsimony) resolution, and every cell is fitted: alevin-fry resolves a
+      cell with fewer reads than ``tiny_cell_thresh`` by winner-take-all (cr-like) instead of EM.
+
+    Returns a dense vector over all genes, zero outside the cell's ambiguous classes.
+    """
+    unique = np.asarray(unique_per_gene, dtype=float).reshape(-1)
+    fitted = np.zeros_like(unique)
+    if not ec_counts:
+        if diagnostics is not None:
+            diagnostics.update(
+                iterations=0, converged=True, fallback_reason="no_ambiguous_molecules"
+            )
+        return fitted
+    support = np.fromiter(sorted({g for genes in ec_counts for g in genes}), dtype=np.intp)
+    local = {int(g): i for i, g in enumerate(support)}
+    classes = [
+        (np.fromiter((local[g] for g in genes), dtype=np.intp), float(count))
+        for genes, count in ec_counts.items()
+    ]
+    fixed = unique[support]
+    alpha = (fixed + AF_INIT_OFFSET) * AF_INIT_SCALE
+    converged = False
+    iterations = 0
+    last_round = False
+    while iterations < int(max_iter) and (iterations < AF_MIN_ITER or not converged):
+        new = fixed.copy()
+        for idx, count in classes:
+            weights = alpha[idx]
+            denom = float(weights.sum())
+            if denom > 0.0:
+                new[idx] += count * weights / denom
+        checked = new > AF_ALPHA_CHECK_CUTOFF
+        converged = bool(np.all(np.abs(alpha - new)[checked] <= tol))
+        alpha = new
+        iterations += 1
+        if converged and iterations >= AF_MIN_ITER and not last_round:
+            # em.rs: on convergence, zero abundances below MIN_OUTPUT_ALPHA and run one more
+            # E/M update so their mass moves to the class partners.
+            alpha[alpha < AF_MIN_OUTPUT_ALPHA] = 0.0
+            last_round = True
+            converged = False
+        elif last_round:
+            converged = True
+            break
+    alpha[alpha < AF_MIN_OUTPUT_ALPHA] = 0.0
+    fitted[support] = alpha
+    if diagnostics is not None:
+        diagnostics.update(
+            iterations=iterations,
+            converged=converged,
+            fallback_reason=None if converged else "max_iterations_reached",
+        )
+    return fitted
+
+
 def _write_molecule_assignments(
     path: Path,
     records: Iterable[tuple[str, str, int, int]],
@@ -515,7 +624,8 @@ def build_multimap_layers(
         raise ValueError("Sibling membership must refer only to indexed viral genes.")
 
     # EM-only accumulators (collected during the single pass, resolved afterwards)
-    use_em = method in {"em-global", "em-cell"}
+    use_em = method in {"em-global", "em-cell", "em-cell-af"}
+    cell_model = method in {"em-cell", "em-cell-af"}
     ambiguous_records: list[tuple[int, tuple[int, ...], float]] = []
     em_ec_counts: dict[tuple[int, ...], float] = {}
 
@@ -777,7 +887,7 @@ def build_multimap_layers(
 
     method_diagnostics: dict[str, Any] = {
         "method": method,
-        "model_scope": "cell" if method == "em-cell" else ("sample" if use_em else "deterministic"),
+        "model_scope": "cell" if cell_model else ("sample" if use_em else "deterministic"),
         "pseudocount": pseudocount,
         "max_iter": em_max_iter if use_em else None,
         "tolerance": em_tol if use_em else None,
@@ -790,15 +900,19 @@ def build_multimap_layers(
         # from the same allocation so confidence tiers stay consistent.
         unique_per_gene = np.asarray(unique.sum(axis=0)).reshape(-1)
         global_diagnostics: dict[str, Any] = {}
-        theta = em_gene_abundances(
-            em_ec_counts,
-            unique_per_gene,
-            pseudocount,
-            em_max_iter,
-            em_tol,
-            diagnostics=global_diagnostics,
-        )
-        method_diagnostics["global_model"] = global_diagnostics
+        if method == "em-cell-af":
+            # alevin-fry's model has no sample-level state: no global fit, no `global_model` entry.
+            theta = np.zeros(n_genes)
+        else:
+            theta = em_gene_abundances(
+                em_ec_counts,
+                unique_per_gene,
+                pseudocount,
+                em_max_iter,
+                em_tol,
+                diagnostics=global_diagnostics,
+            )
+            method_diagnostics["global_model"] = global_diagnostics
         corr_rows: list[int] = []
         corr_cols: list[int] = []
         corr_data: list[float] = []
@@ -810,7 +924,7 @@ def build_multimap_layers(
         # a dense n_genes vector per cell was ~130 GB at 793k cells x 20k genes.
         cell_theta: dict[int, tuple[np.ndarray, np.ndarray, set[tuple[int, ...]]]] = {}
         em_theta, em_cell_theta = theta, cell_theta  # the SW-03 weights read the fitted state
-        if method == "em-cell":
+        if cell_model:
             per_cell_ec: dict[int, dict[tuple[int, ...], float]] = {}
             for cell_idx, ec_genes, count in ambiguous_records:
                 counts = per_cell_ec.setdefault(cell_idx, {})
@@ -819,22 +933,28 @@ def build_multimap_layers(
             for cell_idx, counts in per_cell_ec.items():
                 row = unique.getrow(cell_idx).toarray().reshape(-1)
                 diagnostic: dict[str, Any] = {}
-                fitted = em_cell_abundances(
-                    counts,
-                    row,
-                    theta,
-                    pseudocount,
-                    em_max_iter,
-                    em_tol,
-                    diagnostics=diagnostic,
-                )
+                if method == "em-cell-af":
+                    fitted = em_cell_af_abundances(
+                        counts, row, em_max_iter, em_tol, diagnostics=diagnostic
+                    )
+                else:
+                    fitted = em_cell_abundances(
+                        counts,
+                        row,
+                        theta,
+                        pseudocount,
+                        em_max_iter,
+                        em_tol,
+                        diagnostics=diagnostic,
+                    )
                 compatible = np.fromiter(
                     sorted({gene for genes in counts for gene in genes}), dtype=np.intp
                 )
                 cell_theta[cell_idx] = (
                     compatible,
                     fitted[compatible],
-                    unsupported_ecs(counts, row),
+                    # em-cell-af has no equal-split rule: every class is fitted.
+                    set() if method == "em-cell-af" else unsupported_ecs(counts, row),
                 )
                 cell_diagnostics.append(diagnostic)
             method_diagnostics["cell_models"] = {
@@ -854,7 +974,7 @@ def build_multimap_layers(
 
         for cell_idx, ec_genes, count in ambiguous_records:
             gidx = np.asarray(ec_genes, dtype=int)
-            if method == "em-cell":
+            if cell_model:
                 compatible, fitted, unsupported = cell_theta[cell_idx]
                 w = fitted[np.searchsorted(compatible, gidx)]
                 if ec_genes in unsupported:

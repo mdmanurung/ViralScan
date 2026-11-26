@@ -24,6 +24,22 @@ compatible with its ambiguous molecules, `em-cell` retains equal-split ambiguity
 instead of letting the positive sample prior force an assignment. Disjoint
 molecules are unresolved and receive no allocation.
 
+`em-cell-af` is an opt-in expert value (not listed in `--help`, no alias) that reallocates
+ambiguous molecules the way alevin-fry and simpleaf (`parsimony-em`) do. It fits one EM per
+cell over all of the cell's multi-gene classes, with unique molecules as fixed mass. It starts at
+`(unique + 0.5) * 1e-3` per gene and has no sample prior, no pseudocount and no equal-split
+rule: a class with no cell-local unique support is shared by the fitted abundances, so mass moves
+to the sibling that has unique evidence. After the loop, abundances below 0.01 molecules are set to
+zero, so such a sibling gets no share unless every gene of a molecule falls below 0.01, when that
+molecule splits equally. Each cell still conserves one unit per ambiguous molecule. A cell fitted
+this way needs no `global_model` entry in `multimap_diagnostics`. `--multimap-em-max-iter` is
+alevin-fry's iteration limit (100). `--multimap-em-tol` is its per-gene absolute change limit (alevin-fry
+uses 1e-2; ViralScan keeps its own default of 1e-6). Differences from alevin-fry: ViralScan resolves
+molecules by intersecting equivalence classes, not by alevin-fry's UMI graph, and it fits every cell,
+where alevin-fry resolves cells below its tiny-cell read threshold by winner-take-all. The default
+`host-conservative` allocation does not change. Source: alevin-fry `src/em.rs`
+(`SparseCellCounts::em`, `em_update`).
+
 The opt-in `sibling-weighted` variant uses cell-local unique gene support plus
 the configured pseudocount only when every compatible gene is viral and belongs
 to the same non-empty `sibling_group` in the run's Virus Identity table. It

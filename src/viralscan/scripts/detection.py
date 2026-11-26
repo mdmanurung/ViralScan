@@ -1739,23 +1739,42 @@ def write_control_report(
     return path
 
 
-def check_sibling_crossmapping(virus_stats, sibling_groups=None):
-    """Return {virus_name: note_str} for viruses flagged as likely EM bleed.
+def _mol_text(value: float) -> str:
+    """A molecule count without a trailing ``.0`` (unique counts are floats)."""
+    return f"{value:.0f}" if float(value).is_integer() else f"{value:.1f}"
+
+
+def check_sibling_crossmapping(virus_stats, sibling_groups=None, unique_molecules=None):
+    """Return {virus_name: note_str} for viruses flagged as likely allocation bleed.
 
     ``sibling_groups`` maps virus name -> sibling group (the identity table's
     ``sibling_group``: HHV-6A/6B, HSV-1/2, EBV-1/2). ``None`` uses the retired
-    name pairs, for runs with no identity table. Detected viruses of one group
-    are compared with the group's dominant member.
+    name pairs, for runs with no identity table. Viruses of one group are compared
+    with the group's dominant member.
 
-    When two viruses that share >80% sequence identity are both detected and
-    the UMI ratio exceeds SIBLING_CROSSMAP_RATIO_THRESHOLD, the weaker signal
-    is flagged. The global EM allocates a small fraction of the
-    dominant sibling's shared-region multimappers to the other, producing a
-    residual that is EM noise rather than genuine co-infection. A log warning is
-    also emitted for each flagged pair.
+    The ratio is on **unique molecules**: ``unique_molecules`` maps virus name to
+    its ``molecules_unique`` (the ``viral_summary.tsv`` column, molecules
+    compatible with that virus alone). Allocated totals (``viral_molecules_total_est``)
+    cannot be used for the ratio because the multimap method moves shared-region
+    molecules between siblings, which flattens it (EBV-1 vs EBV-2 on EBV
+    SRR12682296: about 5:1 allocated, about 396:1 unique). The dominant member is
+    the one with the most unique molecules. Cases, per weaker sibling:
+
+    - unique ratio at or above SIBLING_CROSSMAP_RATIO_THRESHOLD: flagged;
+    - weaker sibling with zero unique molecules but allocated molecules above zero:
+      flagged (infinite ratio); the note says it has no unique support;
+    - both siblings with zero unique molecules, or a weaker sibling with zero
+      allocated molecules: no note.
+
+    The allocated totals are still named in the note. A group with a member
+    missing from ``unique_molecules`` (no multimap step, no identity table) falls
+    back to the allocated totals, and the note says so. Counts and the detected
+    call are not changed; this is a label only. A log warning is emitted for
+    each flagged pair.
     """
     if sibling_groups is None:
         sibling_groups = legacy_sibling_groups()
+    unique_molecules = unique_molecules or {}
     members: dict[str, list[str]] = {}
     for virus in virus_stats:
         group = sibling_groups.get(virus)
@@ -1765,35 +1784,51 @@ def check_sibling_crossmapping(virus_stats, sibling_groups=None):
     for viruses in members.values():
         if len(viruses) < 2:
             continue
-        umis = {v: float(virus_stats[v]["viral_molecules_total_est"]) for v in viruses}
-        dominant = max(viruses, key=lambda v: umis[v])
-        dom_umi = umis[dominant]
-        if dom_umi <= 0:
+        total = {v: float(virus_stats[v]["viral_molecules_total_est"]) for v in viruses}
+        on_unique = all(v in unique_molecules for v in viruses)
+        counts = {v: float(unique_molecules[v]) for v in viruses} if on_unique else total
+        dominant = max(viruses, key=lambda v: counts[v])
+        dom_n = counts[dominant]
+        if dom_n <= 0:
             continue
+        basis = "unique molecules" if on_unique else "allocated molecules (no unique count)"
         for weaker in viruses:
-            wk_umi = umis[weaker]
-            if weaker == dominant or wk_umi <= 0:
+            wk_n = counts[weaker]
+            if weaker == dominant or total[weaker] <= 0:
                 continue
-            ratio = dom_umi / wk_umi
-            if ratio < SIBLING_CROSSMAP_RATIO_THRESHOLD:
-                continue
+            allocated = f"allocated totals {total[dominant]:g} vs {total[weaker]:g}"
+            if wk_n <= 0:
+                ratio = float("inf")
+                head = (
+                    f"possible_em_bleed: no unique support (0 vs {_mol_text(dom_n)} "
+                    f"{basis} for {dominant})"
+                )
+            else:
+                ratio = dom_n / wk_n
+                if ratio < SIBLING_CROSSMAP_RATIO_THRESHOLD:
+                    continue
+                head = (
+                    f"possible_em_bleed: {ratio:.0f}:1 ratio of {basis} vs {dominant} "
+                    f"({_mol_text(dom_n)} vs {_mol_text(wk_n)})"
+                )
             notes[weaker] = (
-                f"possible_em_bleed: {ratio:.0f}:1 ratio vs {dominant} "
-                f"({dom_umi} vs {wk_umi} UMI); closely related siblings share "
-                f"high k-mer identity, so the multimap method allocates part of the "
-                f"dominant sibling's shared-region molecules to the weaker one; see "
+                f"{head}; {allocated}; closely related siblings share high k-mer "
+                f"identity, so the multimap method allocates part of the dominant "
+                f"sibling's shared-region molecules to the weaker one; see "
                 f"unique_fraction and viral_summary_by_species.tsv"
             )
             log.warning(
-                "Sibling cross-mapping: %s (%s UMI) vs %s (%s UMI), ratio %.0f:1 "
-                "(threshold %.0f). Weaker signal may be EM bleed; see "
-                "sibling_crossmap_note in viral_summary.tsv.",
+                "Sibling cross-mapping: %s (%s %s) vs %s (%s), ratio %s (threshold %.0f); "
+                "%s. Weaker signal may be allocation bleed; see sibling_crossmap_note "
+                "in viral_summary.tsv.",
                 dominant,
-                dom_umi,
+                _mol_text(dom_n),
+                basis,
                 weaker,
-                wk_umi,
-                ratio,
+                _mol_text(wk_n),
+                "inf" if ratio == float("inf") else f"{ratio:.0f}:1",
                 SIBLING_CROSSMAP_RATIO_THRESHOLD,
+                allocated,
             )
     return notes
 
@@ -2377,11 +2412,14 @@ def main(config, kb, viral_accessions_file):
     # TAXO-01: virus / species / genus sums of the multimap step's per-cell group molecules.
     rollup = group_summaries(adata, identity, called_mask) if config.multimapping else {}
 
-    # Flag sibling pairs with high UMI asymmetry (HHV-6A/6B, HSV-1/2)
+    assignment = assignment_columns(rollup, identity)
+
+    # Flag sibling pairs with high unique-molecule asymmetry (HHV-6A/6B, HSV-1/2, EBV-1/2)
     facts = virus_facts(identity) if identity is not None else {}
     crossmap_notes = check_sibling_crossmapping(
         virus_stats,
         {name: f.sibling_group for name, f in facts.items()} if identity is not None else None,
+        {v: c["molecules_unique"] for v, c in assignment.items()},
     )
 
     # Per-virus detection sensitivity (LOD95). Written for every run, not only
@@ -2455,7 +2493,7 @@ def main(config, kb, viral_accessions_file):
         anello=anello_evidence(config, outputpath, identity),
         homology=host_homology_by_virus(identity, config.index) if identity is not None else {},
         homology_loci=host_homology_loci(identity, config.index) if identity is not None else [],
-        assignment=assignment_columns(rollup, identity),
+        assignment=assignment,
         star=star_evidence(config, outputpath),
     )
     write_group_summaries(rollup, outputpath)

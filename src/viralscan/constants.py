@@ -388,8 +388,10 @@ ENSEMBL_SPECIES: dict[str, tuple[str, str]] = {
 # the divergent regions are lower: direct repeats ~85%, U86-U100 ~72%, immediate-
 # early genes ~70%). The HSV-1/2 genome-wide identity figure (~80% was quoted
 # here) is UNVERIFIED: no source was checked. When one sibling dominates by
-# SIBLING_CROSSMAP_RATIO_THRESHOLD or more, the weaker signal is likely
-# EM bleed from shared-region multimappers rather than genuine co-infection.
+# SIBLING_CROSSMAP_RATIO_THRESHOLD or more in unique molecules (PLAN
+# SIBLING-UNIQUE-01; allocated totals are flattened by the allocation itself), the
+# weaker signal is likely bleed from shared-region multimappers rather than genuine
+# co-infection.
 #
 # NOT the same list as `sibling_virus_pairs` in
 # ViralScan-reproducibility/analysis/v3_validation/protocol.yaml, despite the shared name. That one is an

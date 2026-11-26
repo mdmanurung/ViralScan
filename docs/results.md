@@ -239,8 +239,10 @@ Separate the evidence by where the molecules came from:
   a genuine infection spreads across the genes. This is gene-level breadth, not
   genome coverage.
 - `sibling_crossmap_note` warns when near-identical viruses can exchange
-  molecules (for example HHV-6A/6B or EBV types). Allocation cannot prove which
-  sibling is present.
+  molecules (for example HHV-6A/6B or EBV types). The weaker sibling is flagged
+  when its unique molecules (`molecules_unique`) are at least 50 times fewer than the
+  dominant sibling's, or are zero while it has allocated molecules. The note names
+  the allocated totals too. Allocation cannot prove which sibling is present.
 - `host_homology_status` says whether the reference genomes were measured
   against the host genome. `not_measured` is **not** zero homology. The maximum
   identity and coverage fields are observations, with no threshold applied.

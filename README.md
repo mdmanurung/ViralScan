@@ -39,7 +39,8 @@ is built with Sphinx from `docs/` (`pip install ".[docs]"`, then
   host + virus kallisto indexes
 - **Molecule-aware multimapping** uses `host-conservative` by default so
   host–virus ambiguity does not create viral evidence; `equal`,
-  `unique-weighted`, `em-global`, and hierarchical `em-cell` are explicit alternatives
+  `unique-weighted`, `em-global`, hierarchical `em-cell`, and `em-cell-af` (a per-cell EM that
+  mirrors alevin-fry and simpleaf) are explicit alternatives
 - **Per-cell and per-virus summary tables** (`viral_summary.tsv`,
   `per_cell_viral.tsv`) plus a self-contained HTML report
 - **Cell-type enrichment analysis** (`--cell-type-labels`) — Fisher exact test with
@@ -371,7 +372,8 @@ See also [what ViralScan cannot tell you](docs/limitations.md).
   The preregistered truth-panel holdout and harmonized comparator program must pass before those
   claims are made. Pre-v3 public-dataset results are historical and cannot validate v3.
 - **Multimapper allocations are model-based estimates.** `em-global` fits one sample-wide
-  abundance model; `em-cell` fits cell-local models shrunk toward that sample model. Their
+  abundance model; `em-cell` fits cell-local models shrunk toward that sample model; `em-cell-af` fits cell-local models with no
+  sample prior, as alevin-fry does. Their
   fractional allocations are not raw UMI observations or biological infection calls.
 - **Production scope is human paired-end droplet scRNA-seq.** Individual chemistry and workflow
   combinations remain unvalidated until they pass the v3 truth panel. Other hosts, bulk, spatial,
