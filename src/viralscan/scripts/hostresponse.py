@@ -83,6 +83,7 @@ from viralscan.outputs import V3Outputs, analysis_genes_path
 from viralscan.run_safety import sha256_file as _sha256_file
 from viralscan.run_safety import software_identity
 from viralscan.run_context import RunContext
+from viralscan.scripts.cellcalling import CALLED_CELLS_TSV
 from viralscan.utils import _sparse_row_block, setup_script_logging
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_identity, group_genes_by_virus, identity_path
@@ -2872,6 +2873,58 @@ def _run_cohort(
     return all_metrics, status_rows
 
 
+def _restrict_to_called_cells(host_adata, called_cells_file):
+    """Keep the host barcodes the run called as cells; return the subset and a manifest block.
+
+    The set is the run's ``results/called_cells.tsv`` (every barcode when cell calling is
+    ``none``). A missing file fails closed: it never falls back to all barcodes, which
+    would add empty droplets to the models.
+    """
+    from viralscan.scripts.cellcalling import read_called_barcodes
+
+    n_host = int(host_adata.n_obs)
+    if called_cells_file is None:
+        return host_adata, {
+            "source": "not_given",
+            "path": None,
+            "sha256": None,
+            "n_host_barcodes": n_host,
+            "n_called_cells": None,
+            "n_host_called": n_host,
+            "n_excluded_not_called": 0,
+        }
+    path = Path(called_cells_file)
+    if not path.is_file():
+        raise ViralScanError(
+            f"{path} is missing; hostresponse uses only the run's called cells and will not "
+            "fall back to all barcodes. Rerun the run's detection step to write it."
+        )
+    called = read_called_barcodes(path)
+    keep = np.isin(np.asarray(host_adata.obs_names, dtype=str), list(called))
+    n_kept = int(keep.sum())
+    if n_kept == 0:
+        raise ViralScanError(
+            f"none of the {n_host} host barcodes is among the {len(called)} called cells in "
+            f"{path}; check that the host h5ad belongs to this run."
+        )
+    log.info(
+        "Host-response cell set: %d host barcodes, %d called cells, %d excluded as not called.",
+        n_host,
+        len(called),
+        n_host - n_kept,
+    )
+    block = {
+        "source": "called_cells_tsv",
+        "path": str(path),
+        "sha256": _sha256_file(path),
+        "n_host_barcodes": n_host,
+        "n_called_cells": len(called),
+        "n_host_called": n_kept,
+        "n_excluded_not_called": n_host - n_kept,
+    }
+    return (host_adata if n_kept == n_host else host_adata[keep].copy()), block
+
+
 def run_hostresponse(
     virus_h5ad: str,
     host_h5ad: str,
@@ -2902,8 +2955,16 @@ def run_hostresponse(
     min_negative_cells: int = MIN_VIRUS_CELLS,
     min_groups: int = 2,
     _auto_fallback: Optional[str] = None,
+    called_cells_file: Optional[str] = None,
 ) -> dict:
     """Main entry point: run per-virus logistic regression host-response analysis.
+
+    ``called_cells_file`` is the run's ``results/called_cells.tsv``. Only host barcodes listed
+    there are used (HOSTRESP-CALLED-01); empty droplets never enter the models. Both the
+    ``rerun hostresponse`` subcommand and the Snakemake rule pass it, and a missing file
+    raises :class:`ViralScanError`. ``None`` is for library callers whose host matrix is
+    already restricted to called cells; the manifest then records ``called_cells.source``
+    as ``not_given``.
 
     Returns a JSON-serialisable provenance dict (see :func:`_sha256_file` and
     ``HOSTRESPONSE_SCHEMA_VERSION``): input hashes, raw-depth source, cv mode,
@@ -3039,6 +3100,9 @@ def run_hostresponse(
     virus_adata = ad.read_h5ad(virus_h5ad)
     log.info("Loading host h5ad: %s", host_h5ad)
     host_adata_full = ad.read_h5ad(host_h5ad)
+    host_adata_full, provenance["called_cells"] = _restrict_to_called_cells(
+        host_adata_full, called_cells_file
+    )
 
     # Hard input validation happens BEFORE any existing output is cleared, so an
     # invalid request never destroys the previous run's results.
@@ -3366,6 +3430,7 @@ def run(ctx: RunContext, done_file: str) -> None:
         host_h5ad=cfg.host_h5ad,
         viral_accessions_file=_viral_acc_file,
         out_dir=_out_dir,
+        called_cells_file=str(Path(cfg.output) / CALLED_CELLS_TSV),
         use_hvg=cfg.hostresponse_use_hvg,
         seeds=_seeds,
         n_stab_iter=cfg.hostresponse_n_stab_iter,

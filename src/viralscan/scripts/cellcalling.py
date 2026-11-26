@@ -689,6 +689,13 @@ def write_called_cells(obs_names, mask, outputpath) -> str:
     return path
 
 
+def read_called_barcodes(path) -> set:
+    """The barcodes listed in a ``called_cells.tsv`` (one per row, header skipped)."""
+    with open(path, encoding="utf-8") as fh:
+        fh.readline()
+        return {line.strip() for line in fh if line.strip()}
+
+
 def load_called_mask(adata, config, run_dir) -> np.ndarray:
     """The called-cell mask detection used for *run_dir*, over ``adata.obs_names``.
 
@@ -700,9 +707,7 @@ def load_called_mask(adata, config, run_dir) -> np.ndarray:
     """
     path = Path(run_dir) / CALLED_CELLS_TSV
     if path.is_file():
-        with open(path, encoding="utf-8") as fh:
-            fh.readline()
-            called = {line.strip() for line in fh if line.strip()}
+        called = read_called_barcodes(path)
         mask = np.isin(np.asarray(adata.obs_names, dtype=str), list(called))
         if not called or int(mask.sum()) != len(called):
             raise CellCallingError(

@@ -636,6 +636,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     """Run host-response analysis on an existing viralscan output directory."""
     from viralscan.kb_outputs import KbCountOutputs
     from viralscan.runconfig import RunConfig
+    from viralscan.scripts.cellcalling import CALLED_CELLS_TSV
     from viralscan.scripts.hostresponse import resolve_seeds, run_hostresponse
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
@@ -695,6 +696,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
             host_h5ad=args.host_h5ad,
             viral_accessions_file=str(_hostresponse_viral_file(output_dir, analysis_txt)),
             out_dir=out_dir,
+            called_cells_file=str(output_dir / CALLED_CELLS_TSV),
             use_hvg=args.use_hvg,
             seeds=seeds,
             n_stab_iter=n_stab_iter,
