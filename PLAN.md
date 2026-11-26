@@ -2,6 +2,12 @@
 
 ## Next action
 
+- [ ] `SIMPLEAF-BACKEND-01` (2026-11-26, user: "Scope simpleaf"; post-3.0, kb stays the default): scope for a `--quantifier simpleaf`
+  backend in `docs/plans/2026-11-26-simpleaf-backend-scope.md` (4 mappers, synthesis, critic, 3 adversarial reviewers). Recommendation after
+  review: do not build yet. Run PR 0 (repro spike, no package change: alevin-fry molecule dump vs ViralScan molecules on EBV/HHV-6B/KSHV,
+  env co-solve, stage timing, host S vs S+U+A); default outcome design C (side-by-side compare-quantifier check); design A (simpleaf maps,
+  ViralScan allocates) only if the build gate in section 1 passes. Every option in section 6 is the user's; none is decided.
+  Motivation: repro `CMP-SIMPLEAF-01`; the EBV-1/EBV-2 split is addressed separately by `EM-CELL-AF-01`.
 Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the shared contract sections
 (How to use, Critical path, Gate dashboard, External inputs, Stop rules) and `CAT-31`. Every done row and the
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
