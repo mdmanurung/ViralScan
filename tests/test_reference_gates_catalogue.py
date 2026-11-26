@@ -115,7 +115,7 @@ def test_cli_writes_report_and_exit_code(tmp_path: Path) -> None:
 
 def _summary(path: Path, rows: list[tuple[str, str, str]]) -> Path:
     path.write_text(
-        "virus_name\tdetected\tinfected_called\n" + "".join("\t".join(r) + "\n" for r in rows)
+        "virus_name\tdetected\tinfected_called_cells\n" + "".join("\t".join(r) + "\n" for r in rows)
     )
     return path
 
