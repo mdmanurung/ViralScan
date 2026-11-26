@@ -343,17 +343,22 @@ class TestHtmlReportCounts:
 
 
 class TestSiblingCrossmapping:
-    """check_sibling_crossmapping flags the weaker of two closely-related siblings."""
+    """check_sibling_crossmapping flags the weaker of two closely-related siblings.
+
+    The ratio is on unique molecules (PLAN SIBLING-UNIQUE-01); allocated totals are
+    only named in the note.
+    """
 
     def _make_stats(self, **virus_umis):
-        """Build a minimal virus_stats dict with molecule estimates."""
+        """Build a minimal virus_stats dict with allocated molecule estimates."""
         return {v: {"viral_molecules_total_est": value} for v, value in virus_umis.items()}
 
     def test_flags_weaker_sibling_above_threshold(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
         stats = self._make_stats(**{"Human herpesvirus 6b": 6944, "Human herpesvirus 6A": 33})
-        notes = check_sibling_crossmapping(stats)
+        unique = {"Human herpesvirus 6b": 6900.0, "Human herpesvirus 6A": 30.0}
+        notes = check_sibling_crossmapping(stats, None, unique)
         assert "Human herpesvirus 6A" in notes
         assert "possible_em_bleed" in notes["Human herpesvirus 6A"]
         assert "Human herpesvirus 6b" not in notes
@@ -362,30 +367,105 @@ class TestSiblingCrossmapping:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
         stats = self._make_stats(**{"Human herpesvirus 6b": 200, "Human herpesvirus 6A": 10})
+        unique = {"Human herpesvirus 6b": 200.0, "Human herpesvirus 6A": 10.0}
         # 200/10 = 20:1, below SIBLING_CROSSMAP_RATIO_THRESHOLD=50
-        notes = check_sibling_crossmapping(stats)
-        assert notes == {}
+        assert check_sibling_crossmapping(stats, None, unique) == {}
 
     def test_no_flag_when_sibling_absent(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
         stats = self._make_stats(**{"Human herpesvirus 6b": 6944})
-        notes = check_sibling_crossmapping(stats)
-        assert notes == {}
+        assert check_sibling_crossmapping(stats, None, {"Human herpesvirus 6b": 6900.0}) == {}
 
     def test_no_flag_for_non_sibling_viruses(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
         stats = self._make_stats(**{"Epstein-Barr virus": 5000, "Zika virus": 10})
-        notes = check_sibling_crossmapping(stats)
-        assert notes == {}
+        unique = {"Epstein-Barr virus": 5000.0, "Zika virus": 10.0}
+        assert check_sibling_crossmapping(stats, None, unique) == {}
 
     def test_hsv1_hsv2_also_flagged(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
         stats = self._make_stats(**{"Human herpesvirus 1": 3000, "Human herpesvirus 2": 30})
+        unique = {"Human herpesvirus 1": 3000.0, "Human herpesvirus 2": 30.0}
+        assert "Human herpesvirus 2" in check_sibling_crossmapping(stats, None, unique)
+
+    def test_ebv_case_flags_on_unique_not_allocated(self) -> None:
+        """EBV SRR12682296: allocated about 5:1 (no flag before), unique about 396:1."""
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        ebv1, ebv2 = "Epstein-Barr virus", "Human gammaherpesvirus 4 type 2"
+        stats = self._make_stats(**{ebv1: 594328, ebv2: 111538})
+        groups = {ebv1: "HHV-4", ebv2: "HHV-4"}
+        notes = check_sibling_crossmapping(stats, groups, {ebv1: 448380.0, ebv2: 1132.0})
+        assert set(notes) == {ebv2}
+        note = notes[ebv2]
+        assert "396:1 ratio of unique molecules" in note
+        assert "448380 vs 1132" in note
+        assert "allocated totals 594328 vs 111538" in note
+
+    def test_allocated_ratio_alone_does_not_flag(self) -> None:
+        """A large allocated ratio with a small unique ratio gives no note."""
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(**{"Human herpesvirus 1": 6000, "Human herpesvirus 2": 30})
+        unique = {"Human herpesvirus 1": 600.0, "Human herpesvirus 2": 300.0}
+        assert check_sibling_crossmapping(stats, None, unique) == {}
+
+    def test_zero_unique_weaker_with_allocated_is_flagged(self) -> None:
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(**{"Human herpesvirus 1": 3000, "Human herpesvirus 2": 40})
+        unique = {"Human herpesvirus 1": 2900.0, "Human herpesvirus 2": 0.0}
+        notes = check_sibling_crossmapping(stats, None, unique)
+        assert set(notes) == {"Human herpesvirus 2"}
+        assert "no unique support" in notes["Human herpesvirus 2"]
+        assert "allocated totals 3000 vs 40" in notes["Human herpesvirus 2"]
+
+    def test_dominant_is_chosen_by_unique_molecules(self) -> None:
+        """The member with more allocated molecules is the weaker one by unique count."""
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(**{"Human herpesvirus 1": 900, "Human herpesvirus 2": 800})
+        unique = {"Human herpesvirus 1": 5.0, "Human herpesvirus 2": 700.0}
+        notes = check_sibling_crossmapping(stats, None, unique)
+        assert set(notes) == {"Human herpesvirus 1"}
+        assert "vs Human herpesvirus 2" in notes["Human herpesvirus 1"]
+
+    def test_both_zero_unique_gives_no_note(self) -> None:
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(**{"Human herpesvirus 1": 900, "Human herpesvirus 2": 800})
+        unique = {"Human herpesvirus 1": 0.0, "Human herpesvirus 2": 0.0}
+        assert check_sibling_crossmapping(stats, None, unique) == {}
+
+    def test_zero_unique_and_zero_allocated_gives_no_note(self) -> None:
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(**{"Human herpesvirus 1": 900, "Human herpesvirus 2": 0})
+        unique = {"Human herpesvirus 1": 900.0, "Human herpesvirus 2": 0.0}
+        assert check_sibling_crossmapping(stats, None, unique) == {}
+
+    def test_threshold_is_unchanged_and_inclusive(self) -> None:
+        from viralscan.constants import SIBLING_CROSSMAP_RATIO_THRESHOLD
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        assert SIBLING_CROSSMAP_RATIO_THRESHOLD == 50.0
+        stats = self._make_stats(**{"Human herpesvirus 1": 500, "Human herpesvirus 2": 10})
+        at = {"Human herpesvirus 1": 500.0, "Human herpesvirus 2": 10.0}
+        below = {"Human herpesvirus 1": 499.0, "Human herpesvirus 2": 10.0}
+        assert "Human herpesvirus 2" in check_sibling_crossmapping(stats, None, at)
+        assert check_sibling_crossmapping(stats, None, below) == {}
+
+    def test_without_unique_counts_falls_back_to_allocated_and_says_so(self) -> None:
+        """No multimap step (no unique counts): the old allocated ratio, labelled as such."""
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(**{"Human herpesvirus 6b": 6944, "Human herpesvirus 6A": 33})
         notes = check_sibling_crossmapping(stats)
-        assert "Human herpesvirus 2" in notes
+        assert "no unique count" in notes["Human herpesvirus 6A"]
+        assert "unique molecules" not in notes["Human herpesvirus 6A"].split(";")[0]
 
 
 # ---------------------------------------------------------------------------

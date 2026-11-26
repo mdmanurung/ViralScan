@@ -322,9 +322,10 @@ def test_sibling_note_uses_table_groups() -> None:
         "Other": {"viral_molecules_total_est": 1},
     }
     groups = {"Human herpesvirus 6b": "HHV-6", "Human herpesvirus 6A": "HHV-6"}
-    notes = check_sibling_crossmapping(stats, groups)
+    unique = {"Human herpesvirus 6b": 5000.0, "Human herpesvirus 6A": 10.0, "Other": 1.0}
+    notes = check_sibling_crossmapping(stats, groups, unique)
     assert set(notes) == {"Human herpesvirus 6A"}
-    assert "possible_em_bleed: 500:1" in notes["Human herpesvirus 6A"]
+    assert "possible_em_bleed: 500:1 ratio of unique molecules" in notes["Human herpesvirus 6A"]
 
 
 def test_sibling_note_needs_no_name_pair() -> None:
@@ -336,8 +337,9 @@ def test_sibling_note_needs_no_name_pair() -> None:
         "Human gammaherpesvirus 4 type 2": {"viral_molecules_total_est": 100},
     }
     groups = {k: "HHV-4" for k in stats}
-    assert "Human gammaherpesvirus 4 type 2" in check_sibling_crossmapping(stats, groups)
-    assert check_sibling_crossmapping(stats) == {}  # legacy pairs know nothing of it
+    unique = {k: float(v["viral_molecules_total_est"]) for k, v in stats.items()}
+    assert "Human gammaherpesvirus 4 type 2" in check_sibling_crossmapping(stats, groups, unique)
+    assert check_sibling_crossmapping(stats, None, unique) == {}  # legacy pairs know nothing of it
 
 
 def test_write_tsv_outputs_eve_risk_comes_from_facts(tmp_path: Path) -> None:

@@ -181,8 +181,17 @@ its docstring lists the parameters.
 
 ### `check_sibling_crossmapping`
 
-Returns `{virus_name: note}` for viruses that look like EM bleed from a sibling (for
-example HHV-6A/6B), from the output of `compute_stats`. Same function as
+```python
+def check_sibling_crossmapping(virus_stats, sibling_groups=None, unique_molecules=None) -> dict[str, str]: ...
+```
+
+Returns `{virus_name: note}` for viruses that look like allocation bleed from a sibling (for
+example HHV-6A/6B or EBV types). `virus_stats` is the output of `compute_stats`.
+`unique_molecules` maps a virus name to its `molecules_unique` (the `viral_summary.tsv`
+column); the ratio against `SIBLING_CROSSMAP_RATIO_THRESHOLD` (50) is on those counts, and
+the dominant sibling is the one with the most. A weaker sibling with zero unique molecules
+but allocated molecules is flagged. Without `unique_molecules` the function falls back to
+allocated totals and the note says so. Same function as
 `viralscan.scripts.detection.check_sibling_crossmapping`.
 
 ### `external_cells`
