@@ -80,17 +80,17 @@ from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
     validate_null_spec,
 )
 from viralscan.outputs import V3Outputs, analysis_genes_path
+from viralscan.run_context import RunContext
 from viralscan.run_safety import sha256_file as _sha256_file
 from viralscan.run_safety import software_identity
-from viralscan.run_context import RunContext
 from viralscan.scripts.cellcalling import CALLED_CELLS_TSV
-
-#: Full host-called set written by detection for two-step and external-host runs.
-HOST_CALLED_CELLS_TSV = "host_called_cells.tsv"
 from viralscan.utils import _sparse_row_block, setup_script_logging
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_identity, group_genes_by_virus, identity_path
 from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
+
+#: Full host-called set written by detection for two-step and external-host runs.
+HOST_CALLED_CELLS_TSV = "host_called_cells.tsv"
 
 # sklearn 1.8 deprecated the `penalty` kwarg; use l1_ratio=1 + saga instead.
 # On older sklearn, l1_ratio without penalty='elasticnet' is silently ignored,
