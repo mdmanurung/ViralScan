@@ -100,7 +100,7 @@ linkcheck_ignore = [
 
 html_theme = "scanpydoc"  # the scverse theme, as used by pertpy
 html_title = "ViralScan"
-html_static_path = []
+html_static_path = ["_static"]
 html_show_sphinx = False
 
 html_theme_options = {}

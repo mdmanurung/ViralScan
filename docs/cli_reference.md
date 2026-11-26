@@ -51,7 +51,6 @@ canonical names themselves) are still accepted but not listed. `em-global` can l
 |------|-------|-------------|
 | `--index PATH` | `-i` | Pre-built kallisto index from `kb ref`. Required in pre-built mode. |
 | `--transcripts PATH` | `-t` | `t2g.txt` transcript-to-gene map from `kb ref`. Required in pre-built mode. |
-| `--f1 PATH` | | Optional cDNA FASTA passed through for kb workflows that need it. |
 | `--reference` | | Build index from `--fasta` + `--gtf` |
 | `--fasta PATH` | | FASTA file(s), comma-separated |
 | `--gtf PATH` | | GTF file(s), comma-separated |
@@ -80,7 +79,6 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 | `--multimapping` / `--no-multimapping` | | on | Multimapping correction |
 | `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `conservative`, `em`, or `equal` |
 | `--multimap-pseudocount FLOAT` | | `1.0` | Positive pseudocount for `unique-weighted` |
-| `--multimap-primary-call MODE` | | `selected-method` | V3 fixed contract: summaries use the complete selected-method molecule matrix. |
 | `--multimap-em-max-iter N` | | `100` | Maximum iterations for `em-global` or `em-cell` |
 | `--multimap-em-tol FLOAT` | | `1e-6` | Convergence tolerance for `em-global` or `em-cell` |
 | `--cell-calling METHOD` | | `auto` | `auto`, `emptydrops`, `external`, `knee`, or `none`; `auto` uses an external list when supplied and otherwise EmptyDrops on the host transcriptome only (needs R with DropletUtils; `Rscript` on `PATH`). `knee` is sensitivity-only and not for reported numbers: on real libraries it lands at the 10-molecule floor and calls empty droplets as cells |
@@ -98,13 +96,12 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--detection-threshold N` | `1` | Min estimated viral molecules summed over the **called cells** for a virus to pass the detection gate; molecules in non-called barcodes are reported as `background_umis` |
+| `--detection-threshold N` | `1` | Min estimated viral molecules summed over the **called cells** for a virus to pass the detection gate; molecules in non-called barcodes are reported as `background_molecules` |
 | `--detection-min-cells N` | `1` | Distinct called cells that must be infected for a virus to pass the gate. Viruses seen only in the all-barcode screen stay in `viral_summary.tsv` as candidates (`detected` = False). With `--cell-calling none` every barcode counts as called |
 | `--infected-min-molecules X` | `2.0` | A cell is infected for a virus when its summed allocated molecules reach X (one rule for detection, enrichment and the UMAP). Cells with 0 < weight < X are counted in `infected_subthreshold_cells`, not dropped |
-| `--hostresponse-min-umi N` | `10` | Per-cell positive label for host-response (the sample gate stays `--detection-threshold`) |
+| `--hostresponse-min-molecules N` | `10` | Per-cell positive label for host-response (the sample gate stays `--detection-threshold`) |
 | `--gene-programs` / `--no-gene-programs` | off | Second layer: for viruses already detected, infer the viral gene programme (latent vs productive) per cell and write `results/gene_program_summary.tsv` + `results/gene_program_cells.tsv` |
 | `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because herpesvirus latent and lytic ORFs share exonic sequence; a per-gene comparison gives a latent:lytic ratio of 1.15 in a latently-infected cell line. Must be >= 1 |
-| `--se-threshold N` | `10` | Legacy-named display threshold for high candidate molecule support; not a biological classification |
 | `--cell-type-labels PATH` | *(none)* | CSV with `barcode,cell_type` columns for per-virus cell-type enrichment |
 
 ### Host-response analysis (optional)
@@ -154,7 +151,7 @@ The default mode refuses a non-empty output directory. Reuse must be explicit:
 |------|----------|
 | `--resume` | Resume only when the existing `run_manifest.json` fingerprint exactly matches the current invocation and input bytes, and the run was made by the same ViralScan version |
 | `--overwrite` | Replace only the resolved output target after an explicit confirmation |
-| `--yes`, `-y` | Answer the `--overwrite` confirmation, and the `--reference` prompt that asks whether to continue when `-i`/`-t`/`--f1` are also given (they are ignored; the reference is built into the output directory). It does not imply `--overwrite` or `--resume`. Without a terminal and without `--yes`, that prompt is an error, not a hang |
+| `--yes`, `-y` | Answer the `--overwrite` confirmation, and the `--reference` prompt that asks whether to continue when `-i`/`-t` are also given (they are ignored; the reference is built into the output directory). It does not imply `--overwrite` or `--resume`. Without a terminal and without `--yes`, that prompt is an error, not a hang |
 
 `--resume` and `--overwrite` are mutually exclusive. A missing manifest or
 fingerprint mismatch makes resume fail without changing the output directory, and
@@ -162,7 +159,7 @@ the error lists the options and input files that differ (for example
 `Options that differ: --strand.`).
 
 The fingerprint covers the input bytes, not just their paths: the FASTQs, `-t`, `-i`,
-`--f1`, `-w`, `--gtf`, `--fasta`, `--called-cells-file`, `--positive-control-receipt`, and also the
+`-w`, `--gtf`, `--fasta`, `--called-cells-file`, `--positive-control-receipt`, and also the
 STAR host index directory (`--host-index`, hashed as a directory), `--host-h5ad`,
 `--cell-type-labels`, `--host-fasta` and `--viral-fasta`. For `--ncbi-accession` runs the sha256 of the
 fetched NCBI FASTA and GTF is recorded in the manifest after the fetch, and `--resume`

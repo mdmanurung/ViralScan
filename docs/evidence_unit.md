@@ -22,9 +22,11 @@ reads does. Read counts are reported beside molecule counts, never instead of th
 
 ## Which molecules a check uses
 
+Strand QC, the splice analysis and the HTML page use the categories below. Coverage tables, the coverage map and alignment QC do not: they read every read of the competitive BAM and its UMI-deduplicated copy, whatever the molecule's verdict.
+
 | Category | Definition (from `molecule_verdicts.tsv.gz`) | Used by the checks |
 |---|---|---|
-| `counted_virus_best` | `counted` is true and `verdict` is `virus_best` | yes: the denominator of every check |
+| `counted_virus_best` | `counted` is true and `verdict` is `virus_best` | yes: the denominator of strand QC, splice and the HTML page |
 | `counted_host_best` | `counted` is true and `verdict` is `host_best` | no; reported as a count |
 | `counted_tie` | `counted` is true and `verdict` is `tie` | no; reported as a count |
 | `counted_unaligned` | `counted` is true and `verdict` is `unaligned` | no; reported as a count |
