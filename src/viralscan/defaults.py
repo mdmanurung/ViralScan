@@ -12,6 +12,7 @@ MULTIMAP_METHODS = (
     "sibling-weighted",
     "em-global",
     "em-cell",
+    "em-cell-af",
 )
 # CLI-facing names (PLAN Q72-Q74). The parser resolves an alias to its canonical engine name at parse
 # time, so configs, manifests, outputs and the protocol grid only ever record canonical names.
@@ -21,6 +22,8 @@ MULTIMAP_METHODS = (
 # Caveat (AUD3-07/P9-01): em-global's stop rule can leave a ~2.6-molecule residue on a zero-unique-support
 # viral gene at 1e6 unique / 4e6 ambiguous molecules (docs/v3_counting_contract.md); re-evaluate before a
 # G5 pick makes it the default.
+# `em-cell-af` (PLAN EM-CELL-AF-01) is an expert value like em-global: a per-cell EM that mirrors
+# alevin-fry's (simpleaf's) allocation of ambiguous molecules. It has no alias and is not listed in --help.
 MULTIMAP_METHOD_ALIASES = {
     "conservative": "host-conservative",
     "em": "em-cell",
@@ -56,7 +59,7 @@ DEFAULTS: dict[str, Any] = {
     "multimap_method": DEFAULT_MULTIMAP_METHOD,
     "multimap_pseudocount": 1.0,
     "multimap_primary_call": "selected-method",
-    # EM multimapper resolution (em-global and em-cell)
+    # EM multimapper resolution (em-global, em-cell and em-cell-af)
     "multimap_em_max_iter": 100,
     "multimap_em_tol": 1e-6,
     # Write results/molecule_assignments.tsv.gz: one row per molecule with its selected-method weights (SW-03)

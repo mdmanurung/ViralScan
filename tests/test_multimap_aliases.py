@@ -12,7 +12,7 @@ from viralscan.menu import build_parser
 from viralscan.run_safety import build_run_manifest
 
 EM_TARGET = MULTIMAP_METHOD_ALIASES["em"]
-HIDDEN = ("unique-weighted", "sibling-weighted", "em-global")
+HIDDEN = ("unique-weighted", "sibling-weighted", "em-global", "em-cell-af")
 
 
 def _main(*extra: str) -> argparse.Namespace:

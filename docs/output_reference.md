@@ -955,7 +955,7 @@ it does not replace `viral_summary.tsv` or change its default schema.
 | `viral_molecules_upper_bound` | Unique signal plus the viral-compatible ambiguous mass split equally among each molecule's viral genes, host-shared molecules included. It bounds host-virus allocation, not virus-virus sharing; every molecule compatible with a virus is `molecules_compatible` in `viral_summary.tsv` | model estimate |
 | `n_unique_viral_cells` | Cells with unique viral signal | observation |
 | `n_ambiguous_viral_cells` | Cells with viral-compatible ambiguous signal | observation |
-| `multimap_method` | `equal`, `host-conservative`, `unique-weighted`, `em-global`, or `em-cell` | observation |
+| `multimap_method` | `equal`, `host-conservative`, `unique-weighted`, `em-global`, `em-cell`, or `em-cell-af` | observation |
 | `evidence_tier` | `candidate_unique`, `candidate_virus_ambiguous`, `candidate_host_virus_ambiguous`, or `not_detected` | evidence tier |
 | `locus_id` | Independent locus of this gene (LOCK-01 D1): genes whose annotated intervals share at least one base on either strand form one locus; empty when `results/viral_loci.tsv` is absent | observation |
 | `n_unique_positive_cells_called` | Per virus (repeated on each of its rows): called barcodes with at least one unique-layer molecule at any gene of the virus, the union over genes and not the maximum (LOCK-01 D2) | observation |

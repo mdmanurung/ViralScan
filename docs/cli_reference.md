@@ -33,7 +33,7 @@ host-virus cross-homology can create candidate evidence. Use
 `--multimap-method em` for iterated, cell-local allocation. `--multimap-method` shows three options
 (`conservative`, `em`, `equal`). They are CLI aliases: the parser resolves them to the canonical engine
 names `host-conservative`, `equal` and `em-cell`, and run manifests, `config.yaml`, h5ad `uns` and outputs
-record only the canonical name. The expert values `unique-weighted`, `sibling-weighted`, `em-global` (and the
+record only the canonical name. The expert values `unique-weighted`, `sibling-weighted`, `em-global`, `em-cell-af` (a per-cell EM that mirrors the allocation of alevin-fry and simpleaf; see [the counting contract](v3_counting_contract.md)) (and the
 canonical names themselves) are still accepted but not listed. `em-global` can leave a small residue on a gene with zero unique support at extreme count ratios and its tolerance matters; see
 [the counting contract](v3_counting_contract.md) before using it.
 
@@ -79,8 +79,8 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 | `--multimapping` / `--no-multimapping` | | on | Multimapping correction |
 | `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `conservative`, `em`, or `equal` |
 | `--multimap-pseudocount FLOAT` | | `1.0` | Positive pseudocount for `unique-weighted` |
-| `--multimap-em-max-iter N` | | `100` | Maximum iterations for `em-global` or `em-cell` |
-| `--multimap-em-tol FLOAT` | | `1e-6` | Convergence tolerance for `em-global` or `em-cell` |
+| `--multimap-em-max-iter N` | | `100` | Maximum iterations for `em-global`, `em-cell` or `em-cell-af` |
+| `--multimap-em-tol FLOAT` | | `1e-6` | Convergence tolerance for `em-global`, `em-cell` or `em-cell-af` (per-gene change in molecules for `em-cell-af`) |
 | `--cell-calling METHOD` | | `auto` | `auto`, `emptydrops`, `external`, `knee`, or `none`; `auto` uses an external list when supplied and otherwise EmptyDrops on the host transcriptome only (needs R with DropletUtils; `Rscript` on `PATH`). `knee` is sensitivity-only and not for reported numbers: on real libraries it lands at the 10-molecule floor and calls empty droplets as cells |
 | `--called-cells-file PATH` | | *(none)* | External called-cell barcodes used by `auto` or required by `external` |
 | `--umap` | | off | Generate UMAP plot |
@@ -435,7 +435,7 @@ skipping the expensive pseudoalignment (`kb count`). The source tree is copied
 to a new output directory (default `<run-dir>/posthoc/multimap_<method>`); the
 run's own outputs are never modified. For `equal`,
 `host-conservative`, and `unique-weighted`, a schema-valid v3 H5AD can use its
-pre-stored allocation layers without BUS reprocessing. `em-global`, `em-cell`,
+pre-stored allocation layers without BUS reprocessing. `em-global`, `em-cell`, `em-cell-af`,
 and older/incomplete H5AD files reprocess the retained BUS input.
 
 **Development limitation:** the current command refreshes multimapping,
