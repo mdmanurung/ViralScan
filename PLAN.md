@@ -7,6 +7,7 @@ Live tracker = open rows (`[ ]`, `[~]`, `[!]`) with their section headers, the s
 dated "Next action" log up to 42b59f8 are frozen in the reproducibility repo:
 [`provenance/PLAN_archive_2026-10.md`](https://github.com/mdmanurung/ViralScan-reproducibility/blob/main/provenance/PLAN_archive_2026-10.md) (REPO-SPLIT-01 batch 4e, D63/D67/D68).
 
+- [x] `R35-REOPEN-01` (2026-11-26, `codex/r35-reopen`; docs only; **reopened decision**, source: user, 2026-11-26): the `3.0.0` software tag ships after G3, G4 and G5 (with G6a, G7 and the STB rows that build the release). The G6 manuscript and Bioconda (STB-04) do **not** block the tag. **Superseded text, kept for the record:** repro tracker R3.5 (`RPLAN:2545`: the manuscript blocks 3.0.0), the Critical path row 11 (`Depends on G6, G7`) and `docs/ROADMAP.md` section 2 (`3.0.0` gate: `G3, G4, G5 and G6 closed; ... manuscript audited`). Those rows now carry a dated note; nothing was deleted. G8 (archives, DOIs, Bioconda, manuscript submission) stays an open gate that follows the tag. STB-02 still reserves the software DOI before the tag because `CITATION.cff` needs it (STB-03). **Open for the repro repo (a repro commit, needs the user's OK):** reword R3.5 in the repro tracker. Also reconciled: the RC-01 and RC-03 rows now say that `3.0.0b1` is the first tag and `3.0.0rc1` the second (`ROADMAP-01`, `RELEASE-B1-01`).
 - [x] `HOSTRESP-CALLED-01` (2026-11-26, `codex/hostresp-called`; user: "Rerun hostresponse must only use called cells"; **output-changing** for runs whose host h5ad held uncalled barcodes): `run_hostresponse(called_cells_file=)` keeps only host barcodes in `results/called_cells.tsv` before alignment; `rerun hostresponse` and the Snakemake rule both pass it (the in-run rule read the same host h5ad with no restriction, so both paths were affected). Manifest gains a `called_cells` block, one INFO line, `ViralScanError` when the file is missing; `--cell-calling none` keeps every barcode. Library callers passing no file get `source: not_given`. EBV `SRR12682296` rerun with the unfiltered host h5ad (399957 barcodes) OOM-killed at 64 GB before this. Review fixes: two-step and external-host runs write `results/host_called_cells.tsv` (the full host-called set; `called_cells.tsv` lists viral-matrix barcodes only), so the restriction prefers that sibling file (manifest source `host_called_cells_tsv`) and keeps host-called cells with no viral read as true negatives; the `python -m viralscan.scripts.hostresponse` entry point gains a required `--called-cells` (no opt-out, user rule). Tests: `tests/test_hostresponse_called_cells.py`.
 - [x] `PREFLIGHT-GTF-01` (2026-11-26, `codex/preflight-gtf`): `run` calls `ensure_viral_data` before the output directory, kb or snakemake when there is no `--gtf`, `--reference`, `--ncbi-accession` or index build manifest, so a missing `viralscan data fetch` cache fails in seconds, not after kb count (found on EBV SRR12682296, HHV-6B SRR20710641, KSHV GSM5725695). `check env` warns (never fails) via `viral_annotations`. Rerun verbs keep the existing analysis output, so they need no check.
 - [x] `RELEASE-B1-01` (2026-11-26, `codex/version-3.0.0b1`; supersedes PR #197): version strings moved to `3.0.0b1` (`src/viralscan/__init__.py`, `Dockerfile`, `Singularity.def`, `conda-recipe/meta.yaml`, `CITATION.cff` both fields, `docs/release_policy.md`, regenerated `docs/cli_reference.md`); CHANGELOG `Unreleased` becomes the b1 section; `scripts/check_versions.py --tag v3.0.0b1` passes. PEP 440 sorts `3.0.0b1` below `3.0.0rc1`; the old `v3.0.0rc1` tag never published. **User steps before the tag (RC-02, RC-03, REL-15):** create the `pypi` environment and the trusted publishers, give the REL-15 author list, delete the stale `v3.0.0rc1` tag, then push `v3.0.0b1` on a green `main` merge commit (b1 publishes to TestPyPI only). Repro re-pin of the hash-pinned docs is needed (`README.md`, `docs/cli_reference.md`, `docs/output_reference.md`).
@@ -442,7 +443,7 @@ compute.
 | 8 | Regenerate docs and claims | `[~]` | `G1`; numbers require `G5` | `G6a` |
 | 9 | Regenerate and review manuscript | `[ ]` | `G5`, `G6a` | `G6` |
 | 10 | Publish and test `3.0.0rc1` | `[ ]` | `G2`, `G5`, `G6a` | `G7` |
-| 11 | Publish stable `3.0.0` and submit | `[ ]` | `G6`, `G7` | `G8` |
+| 11 | Publish stable `3.0.0` and submit | `[ ]` | `G5`, `G6a`, `G7` (was `G6`, `G7`; superseded 2026-11-26, user, `R35-REOPEN-01`) | `G8` |
 | 12 | Observe and maintain | `[ ]` | `G8` | ongoing |
 
 Work packages 1-4 may proceed in parallel. Do not start truth-panel outcome
@@ -2343,10 +2344,11 @@ No open rows; done rows are in the PLAN archive (see Next action).
     or set an exception. (2) The stale remote tag `v3.0.0rc1` must be deleted and re-created on the chosen green main
     SHA (`RC-03`); this PR does not touch tags. (3) CITATION.cff `date-released`, authors and contact (`REL-15`).
     (4) Reference archive manifest (`REF-11`).
+  - 2026-11-26 (`codex/r35-reopen`, reconcile only): the two dated bullets above describe the rc1 freeze as it stood on 2026-11-02 and 2026-11-04. Since then `ROADMAP-01` put `3.0.0b1` ahead of rc1 and `RELEASE-B1-01` moved all version strings to `3.0.0b1`, so the strings no longer read `3.0.0rc1`. This row is still the rc1 freeze: it reruns the version bump to `3.0.0rc1` after the b1 tag, once G2, G5 and G6a pass. The remote tag `v3.0.0rc1` (4da4674) is stale and is deleted before `v3.0.0b1` (`RC-03`, owner).
   - 2026-11-04 (`codex/lane-p1-release`, triage of run 40038144113): the job log is readable through `gh api repos/<repo>/actions/jobs/120703135933/logs` (`gh run view --log-failed` prints nothing). It confirms the earlier reading: grype 0.118.0, 545 packages from EOL distro `ubuntu 20.04`, failed at `--fail-on high`, and the log names no CVE (the JSON was never uploaded). So the findings cannot be listed. PR #177 (merged 2026-11-03) moved the base off Ubuntu 20.04; `image-audit.yml` then failed on the 24.04 image until the 2026-11-03 pin bumps and `.grype.yaml`, and passes on 41610716443 and 41771584074 (2026-11-04). So the 20.04 failure is superseded, but the original findings are not individually accounted for; the gate passing on the new image is the evidence.
 - [!] `RC-02` — maintainers configure/approve TestPyPI or PyPI trusted publishing,
   GHCR/GitHub release permissions, and public artifact hosting.
-- [ ] `RC-03` — tag `v3.0.0rc1` only after exact-SHA gates; publish prerelease
+- [ ] `RC-03` — tag `v3.0.0rc1` only after exact-SHA gates (2026-11-26 reconcile: `v3.0.0b1` is the first tag and goes out before the science gates, user U1; this row is the second tag, `rc1`, after G2, G5 and G6a; the b1 tag run is the TestPyPI dry run); publish prerelease
   wheel/sdist, versioned OCI, SIF, locks, checksums, attestations, reference
   archive, and GitHub prerelease. Do not update `latest`.
 - [!] `RC-04` — recruit at least three external laboratories covering supported
@@ -2356,17 +2358,17 @@ No open rows; done rows are in the PLAN archive (see Next action).
   and reproducibility failure to closure; rerun all gates after fixes.
 ## WP11 — Publish stable `3.0.0` and submit
 
-- [ ] `STB-01` — freeze final truth-panel/comparator/manuscript bundles and prove
+- [ ] `STB-01` — freeze final truth-panel/comparator/manuscript bundles (2026-11-26: the manuscript bundle is no longer a precondition of the tag, `R35-REOPEN-01`; freeze the truth-panel and comparator bundles before the tag) and prove
   the release candidate's fixes did not change scientific outputs unexpectedly.
 - [!] `STB-02` — reserve the Zenodo software DOI and benchmark/archive DOI, keep
   them distinct from the reference-data DOI, and provide them for metadata.
 - [ ] `STB-03` — update CFF/metadata, pass exact-SHA gates, tag `v3.0.0`, and
   publish wheel, sdist, versioned plus `latest` OCI, SIF, locks, reference archive,
   release notes, migration guide, checksums, SBOM, licences, and attestations.
-- [ ] `STB-04` — after the real PyPI sdist exists, insert its SHA-256 into the
+- [ ] `STB-04` — (post-tag; does not block the `3.0.0` tag, user 2026-11-26, `R35-REOPEN-01`) after the real PyPI sdist exists, insert its SHA-256 into the
   Bioconda recipe, lint/build/test it, submit the PR, and verify the installed
   package on the tiny workflow.
-- [ ] `STB-05` — archive software and benchmark artifacts, verify every public
+- [ ] `STB-05` — (post-tag; follows `G6`, does not block the `3.0.0` tag, user 2026-11-26, `R35-REOPEN-01`) archive software and benchmark artifacts, verify every public
   DOI/link/download, update `CITATION.cff`, then submit the manuscript.
 ## WP12 — Observe and maintain
 
@@ -2412,9 +2414,9 @@ No open rows; done rows are in the PLAN archive (see Next action).
 | `G4` references | `[~]` | byte-rebuild, GRCh38 D-list, calibrated holdout safeguard |
 | `G5` science | `[ ]` | truth holdout, public positives, all comparators, uncertainty, frozen bundle |
 | `G6a` docs | `[~]` | parser parity, executable docs, complete validated claim graph |
-| `G6` manuscript | `[ ]` | artifact-generated manuscript plus independent audits |
+| `G6` manuscript | `[ ]` | artifact-generated manuscript plus independent audits. Does not block the `3.0.0` tag (user, 2026-11-26, `R35-REOPEN-01`; earlier text said it did) |
 | `G7` release candidate | `[ ]` | public RC artifacts and three-laboratory closure |
-| `G8` stable/publication | `[ ]` | stable artifacts, archives/DOIs, Bioconda, manuscript submission |
+| `G8` stable/publication | `[ ]` | stable artifacts, archives/DOIs, Bioconda, manuscript submission. Bioconda, archives and submission follow the tag and do not block it (user, 2026-11-26, `R35-REOPEN-01`) |
 
 ## External inputs and authority
 
