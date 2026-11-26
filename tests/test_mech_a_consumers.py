@@ -173,6 +173,7 @@ def test_one_eve_gene_flags_the_whole_virus() -> None:
 def test_reference_role_survives_identity_tsv_summary_and_html(tmp_path, role) -> None:
     import pandas as pd
 
+    from viralscan.runconfig import RunConfig
     from viralscan.scripts.detection import generate_html_report, write_tsv_outputs
 
     table = _table(
@@ -198,11 +199,13 @@ def test_reference_role_survives_identity_tsv_summary_and_html(tmp_path, role) -
     assert row["role"] == role
     assert float(row["viral_molecules_total_est"]) == 5
     assert row["infected_barcodes"] == "1"
-    generate_html_report(stats, pd.DataFrame(), None, None, {}, [], str(tmp_path), facts=facts)
+    generate_html_report(
+        stats, pd.DataFrame(), None, None, {}, [], str(tmp_path), RunConfig(), facts=facts
+    )
     html = (tmp_path / "report.html").read_text()
     assert "<th>Reference role</th>" in html
     assert f"<td>{role or 'uncurated/unknown'}</td>" in html
-    generate_html_report(stats, pd.DataFrame(), None, None, {}, [], str(tmp_path))
+    generate_html_report(stats, pd.DataFrame(), None, None, {}, [], str(tmp_path), RunConfig())
     assert "<td>uncurated/unknown</td>" in (tmp_path / "report.html").read_text()
 
 

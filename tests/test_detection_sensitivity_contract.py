@@ -73,7 +73,7 @@ CALLED_STATS = {
 
 def _scoped(tmp_path, monkeypatch, virus=TARGET) -> dict:
     """Verified exact_sequence control on ``virus`` (receipt, index, identity row)."""
-    return exact_control_kwargs(tmp_path, monkeypatch, SPIKE, virus)
+    return exact_control_kwargs(tmp_path, SPIKE, virus)
 
 
 def _cfg(**kw) -> RunConfig:
@@ -85,7 +85,6 @@ def _cfg(**kw) -> RunConfig:
 
 def _render(adata, cfg, tmp_path, monkeypatch, stats=CALLED_STATS):
     """Render all four outputs from one fixture and return their parsed forms."""
-    monkeypatch.setattr(D, "config", cfg)
     depth = float(D._sum_axis(adata.X, 1).sum())
     _, detail = D.measure_positive_control(adata, cfg, depth=depth)
     sens = D.build_sensitivity_outputs(
@@ -107,6 +106,7 @@ def _render(adata, cfg, tmp_path, monkeypatch, stats=CALLED_STATS):
         {},
         [],
         str(tmp_path),
+        cfg,
         sensitivity_df=sens.table,
         sensitivity_statement=sens.interpretation,
         control_line=sens.control_line,

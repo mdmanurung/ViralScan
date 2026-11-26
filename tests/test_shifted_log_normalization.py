@@ -78,9 +78,8 @@ def test_both_umap_paths_and_host_graph_receive_shifted_log(tmp_path, monkeypatc
         matrix.var["highly_variable"] = False
 
     monkeypatch.setattr(um.sc.pp, "highly_variable_genes", inspect_hvg)
-    monkeypatch.setattr(um, "config", RunConfig(output=str(tmp_path), min_counts=1, min_genes=1))
-    monkeypatch.setattr(um, "identity", None)
-    um.umap(data, {"V": 1} if viral else {})
+    config = RunConfig(output=str(tmp_path), min_counts=1, min_genes=1)
+    um.umap(data, {"V": 1} if viral else {}, config)
     assert seen == ([["H1", "H2"], ["H1", "H2", "V"]] if viral else [["H1", "H2", "V"]])
     np.testing.assert_array_equal(dense(data.X), raw)
     np.testing.assert_array_equal(dense(data.layers["counts"]), raw)

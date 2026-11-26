@@ -171,7 +171,7 @@ def _identity():
     )
 
 
-def test_gene_role_catalogue_and_count_audit_roundtrip(tmp_path, monkeypatch):
+def test_gene_role_catalogue_and_count_audit_roundtrip(tmp_path):
     frame, ecs = _fixture()
     layers = _build(frame, ecs, method="sibling-weighted", sibling_groups={1: "S", 2: "S"})
     ids = [row.gene_id for row in _identity().genes]
@@ -187,14 +187,11 @@ def test_gene_role_catalogue_and_count_audit_roundtrip(tmp_path, monkeypatch):
         {1, 2, 3, 4},
         5,
     )
-    multimap.stamp_gene_identity(matrix, ids, _identity())
-    monkeypatch.setattr(
-        multimap, "config", RunConfig(output=str(tmp_path), multimap_method="sibling-weighted")
-    )
+    multimap.stamp_gene_identity(matrix, ids, _identity(), str(tmp_path))
+    config = RunConfig(output=str(tmp_path), multimap_method="sibling-weighted")
     outputs = KbCountOutputs.from_config_output(str(tmp_path))
     outputs.adata_multimap.parent.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(multimap, "kb", outputs)
-    multimap.final_results(viral_counts, original, {1, 2, 3, 4}, matrix, 2, layers)
+    multimap.final_results(viral_counts, original, {1, 2, 3, 4}, matrix, 2, layers, config, outputs)
     loaded = ad.read_h5ad(outputs.adata_multimap)
     assert list(loaded.var["gene_role"]) == ["host", "target", "decoy", "whole_genome", "unknown"]
     assert loaded.uns["index_kind"] == "combined"
@@ -221,27 +218,26 @@ def test_gene_identity_requires_every_indexed_gene_and_consistent_partition():
         var=pd.DataFrame({"is_viral": [False, True]}, index=["H", "MISSING"]),
     )
     with pytest.raises(ValueError, match="missing"):
-        multimap.stamp_gene_identity(matrix, list(matrix.var_names), _identity())
+        multimap.stamp_gene_identity(matrix, list(matrix.var_names), _identity(), "")
     matrix.var_names = ["H", "V1"]
     matrix.var["is_viral"] = [False, False]
     with pytest.raises(ValueError, match="disagrees"):
-        multimap.stamp_gene_identity(matrix, list(matrix.var_names), _identity())
+        multimap.stamp_gene_identity(matrix, list(matrix.var_names), _identity(), "")
 
 
 @pytest.mark.parametrize(
     "viral,kind", [([True, True], "virus_only"), ([False, False], "host_only")]
 )
-def test_index_composition_and_legacy_source_are_explicit(tmp_path, monkeypatch, viral, kind):
-    monkeypatch.setattr(multimap, "output", str(tmp_path))
+def test_index_composition_and_legacy_source_are_explicit(tmp_path, viral, kind):
     matrix = ad.AnnData(
         X=sparse.csr_matrix((1, 2)), var=pd.DataFrame({"is_viral": viral}, index=["G1", "G2"])
     )
-    multimap.stamp_gene_identity(matrix, list(matrix.var_names), None)
+    multimap.stamp_gene_identity(matrix, list(matrix.var_names), None, str(tmp_path))
     assert matrix.uns["index_kind"] == kind
     assert matrix.uns["gene_identity_source"] == "unavailable"
     Path(tmp_path, "log").mkdir()
     Path(tmp_path, "log", "analysis.txt").write_text("G1\nG2\n")
-    multimap.stamp_gene_identity(matrix, list(matrix.var_names), None)
+    multimap.stamp_gene_identity(matrix, list(matrix.var_names), None, str(tmp_path))
     assert matrix.uns["gene_identity_source"] == "legacy_analysis"
 
 

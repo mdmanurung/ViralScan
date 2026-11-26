@@ -251,12 +251,12 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
             "counts_unique_viral layer, which only exists when multimapping ran."
         )
 
-    gp_script.config = config
-    gp_script.output = str(run_dir)
     gp_script_out = Path(args.output).resolve() if args.output else posthoc_dir(run_dir, "programs")
     args._posthoc_output = gp_script_out
     _require_fresh(gp_script_out, args)
     gp_script.main(
+        config,
+        str(run_dir),
         str(adata_path),
         str(V3Outputs(run_dir).viral_summary),
         "",  # the run's own log/gene_programs.done and run_complete.json stay untouched

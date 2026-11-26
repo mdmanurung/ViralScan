@@ -61,8 +61,6 @@ log = setup_script_logging()
 #: Older summaries used ``total_umi``; v3 uses ``viral_molecules_total_est``.
 _MOLECULE_COLUMNS = ("viral_molecules_total_est", "total_umi")
 
-config: RunConfig = RunConfig()
-output: str = ""
 # Injected by Snakemake into the script namespace; declared (not assigned) so the
 # `"snakemake" in globals()` guard below still holds when run outside Snakemake.
 snakemake: Any
@@ -349,8 +347,14 @@ def run_one(
 
 
 def main(
-    adata_path: str, summary_path: str, done_path: str, results_root: str | None = None
+    config: RunConfig,
+    output: str,
+    adata_path: str,
+    summary_path: str,
+    done_path: str,
+    results_root: str | None = None,
 ) -> None:
+    """Score the gene programmes of one Run; ``output`` is the run directory it reads."""
     catalogue = load_catalogue()
     problems = validate_catalogue(catalogue)
     if problems:
@@ -463,13 +467,13 @@ def _attach_layer1_totals(summary: pd.DataFrame, layer1_path: str, molecule_colu
 
 def run(ctx: RunContext, done_file: str) -> None:
     """Snakemake entry point for one Run."""
-    global config, output
     from viralscan.kb_outputs import KbCountOutputs
 
     config = ctx.config
-    output = config.output
     outputs = KbCountOutputs.from_config_output(config.output)
     main(
+        config,
+        config.output,
         str(outputs.adata_multimap),
         str(V3Outputs.from_config_output(config.output).viral_summary),
         done_file,

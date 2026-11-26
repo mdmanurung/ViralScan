@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from scipy import sparse
 
+from viralscan.runconfig import RunConfig
 from viralscan.scripts import detection as d
 
 
@@ -16,7 +17,9 @@ def draw(tmp_path, x, host, called):
     a.var_names = ["host", "virus"]
     a.obs_names = [f"C{i}" for i in range(len(x))]
     before = a.X.copy()
-    d.super_expressor(a, "V", ["virus"], tmp_path, host_gene_mask=host, called_mask=called)
+    d.super_expressor(
+        a, "V", ["virus"], tmp_path, RunConfig(), host_gene_mask=host, called_mask=called
+    )
     assert (before != a.X).nnz == 0
     assert not len(a.obs.columns)
     stem = tmp_path / "results" / "superexpressor" / "SuperExpressor_V"
@@ -87,7 +90,13 @@ def test_plot_preserves_exact_counts_layers_and_serialized_detection(tmp_path):
     stats, per_cell = d.compute_stats(a, {"virus": 30.3}, {"V": ["virus"]}, {"V"}, **kwargs)
     d.write_tsv_outputs(stats, per_cell, tmp_path / "before")
     d.super_expressor(
-        a, "V", ["virus"], tmp_path, host_gene_mask=np.array([True, False]), called_mask=called
+        a,
+        "V",
+        ["virus"],
+        tmp_path,
+        RunConfig(),
+        host_gene_mask=np.array([True, False]),
+        called_mask=called,
     )
     stats_after, per_after = d.compute_stats(a, {"virus": 30.3}, {"V": ["virus"]}, {"V"}, **kwargs)
     d.write_tsv_outputs(stats_after, per_after, tmp_path / "after")

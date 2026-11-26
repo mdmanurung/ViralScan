@@ -59,7 +59,7 @@ def _scoped_config(virus: str = "Betatorquevirus", **kwargs) -> RunConfig:
 
 def _verified_config(tmp_path, monkeypatch, virus: str = "Betatorquevirus") -> RunConfig:
     """exact_sequence control with a checksum-bound receipt: the only kind that certifies."""
-    return _scoped_config(virus, **exact_control_kwargs(tmp_path, monkeypatch, SPIKEIN, virus))
+    return _scoped_config(virus, **exact_control_kwargs(tmp_path, SPIKEIN, virus))
 
 
 def _table(adata, stats, cfg, index_viruses=()):
@@ -423,7 +423,7 @@ class TestLegacyScopeWarning:
     def test_legacy_control_warns_once_and_maps_to_panel_mechanics(
         self, caplog, monkeypatch
     ) -> None:
-        monkeypatch.setattr(D, "_LEGACY_SCOPE_WARNED", False)
+        D._warn_legacy_scope.cache_clear()
         with caplog.at_level("WARNING"):
             first = D.control_claim(_config())
             second = D.control_claim(_config())
@@ -432,13 +432,13 @@ class TestLegacyScopeWarning:
         assert len(warned) == 1
 
     def test_no_control_needs_no_warning(self, caplog, monkeypatch) -> None:
-        monkeypatch.setattr(D, "_LEGACY_SCOPE_WARNED", False)
+        D._warn_legacy_scope.cache_clear()
         with caplog.at_level("WARNING"):
             D.control_claim(RunConfig())
         assert not caplog.records
 
     def test_explicit_scope_does_not_warn(self, caplog, monkeypatch) -> None:
-        monkeypatch.setattr(D, "_LEGACY_SCOPE_WARNED", False)
+        D._warn_legacy_scope.cache_clear()
         with caplog.at_level("WARNING"):
             claim = D.control_claim(_scoped_config("HHV4"))
         assert claim == (D.CaptureScope.EXACT_SEQUENCE, "HHV4")

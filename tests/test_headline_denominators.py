@@ -109,7 +109,9 @@ def _row(pct_called, pct_all=0.5, **extra):
 
 
 def _badge_html(tmp_path, stats):
-    detection.generate_html_report(stats, pd.DataFrame(), None, None, {}, [], str(tmp_path))
+    detection.generate_html_report(
+        stats, pd.DataFrame(), None, None, {}, [], str(tmp_path), RunConfig()
+    )
     return (tmp_path / "report.html").read_text()
 
 
