@@ -129,7 +129,8 @@ def test_sibling_missing_identity_fails_but_empty_curated_membership_is_equal():
 
 
 @pytest.mark.parametrize(
-    "method", ["equal", "host-conservative", "unique-weighted", "em-global", "em-cell"]
+    "method",
+    ["equal", "host-conservative", "unique-weighted", "em-global", "em-cell", "em-cell-af"],
 )
 def test_sibling_metadata_does_not_change_existing_allocations(method):
     frame, ecs = _fixture()

@@ -431,7 +431,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             output=str(output_dir / rel) + os.sep, **_rerun_overrides(args)
         )
 
-        use_em = new_method in {"em-global", "em-cell"}
+        use_em = new_method in {"em-global", "em-cell", "em-cell-af"}
         swapped = False
         if not use_em and (sample_dir / "results" / "molecule_assignments.tsv.gz").exists():
             # Its per-molecule weights belong to the old method and a layer swap never re-reads
