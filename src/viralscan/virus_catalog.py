@@ -34,6 +34,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from viralscan.constants import VIRUS_GENE_ID_ALIASES, VIRUS_NAME_MAP
+
 _TSV_FILENAME = "virus_catalog.tsv"
 _PACKAGE_DATA = "viralscan.data"
 
@@ -147,3 +149,43 @@ def merged_name_map() -> dict[str, str]:
     name_map: dict[str, str] = dict(catalog_name_map())
     name_map.update(_anello_merged())
     return name_map
+
+
+def virus_name_for_gene(
+    gene_id: str,
+    name_map: dict[str, str] | None = None,
+    aliases: dict[str, str] | None = None,
+) -> str:
+    """Return the virus name for ``gene_id``, or the gene ID itself if unmatched.
+
+    Two tiers, tried in order:
+
+    1. **Strict boundary-aware prefix match** over ``name_map`` (default
+       :data:`VIRUS_NAME_MAP`): a key matches when the ID equals the key, or
+       starts with the key and the next character is ``_`` or a digit. Keys are
+       tried longest-first so the most specific prefix wins (``HUM_HERP6B`` over
+       ``HUM_HERP6``). See :data:`VIRUS_NAME_MAP`.
+    2. **Alias prefix match** over ``aliases`` (default
+       :data:`VIRUS_GENE_ID_ALIASES`): plain ``startswith``, longest key first.
+       This tier exists only for panel schemes that write the virus token and
+       the gene token with no separator (``Ydvgp129``, ``TTVgp1``), which tier 1
+       rejects on purpose. Because it runs only after tier 1 has matched
+       nothing, it can never change the name of a gene ID that already resolves.
+
+    Returns the raw ``gene_id`` when neither tier matches.
+    """
+    if name_map is None:
+        name_map = VIRUS_NAME_MAP
+    for key in sorted(name_map, key=len, reverse=True):
+        if gene_id == key:
+            return name_map[key]
+        if gene_id.startswith(key):
+            nxt = gene_id[len(key)]
+            if nxt == "_" or nxt.isdigit():
+                return name_map[key]
+    if aliases is None:
+        aliases = VIRUS_GENE_ID_ALIASES
+    for key in sorted(aliases, key=len, reverse=True):
+        if gene_id.startswith(key):
+            return aliases[key]
+    return gene_id

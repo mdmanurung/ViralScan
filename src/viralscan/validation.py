@@ -87,6 +87,23 @@ def tool_path(name: str) -> str | None:
     return shutil.which(name)
 
 
+MIN_KALLISTO = (0, 51, 1)
+
+
+def _version_tuple(text: str) -> tuple[int, ...]:
+    found = re.search(r"(\d+)\.(\d+)\.(\d+)", text)
+    return tuple(int(x) for x in found.groups()) if found else ()
+
+
+def kallisto_translated_ok() -> tuple[bool, str]:
+    """``(ok, version)``: the kallisto that ``kb`` runs translates the D-list (>= 0.51.1)."""
+    tools = kb_tools()
+    if "kallisto" not in tools:
+        return False, ""
+    version = tools["kallisto"][0]
+    return _version_tuple(version) >= MIN_KALLISTO, version
+
+
 def tool_provenance(names: tuple[str, ...] = ("kallisto", "bustools")) -> dict[str, Any]:
     """Resolved path, reported version and SHA-256 per tool, for run manifests.
 
@@ -282,8 +299,6 @@ def doctor_report(profile: str = "full") -> dict[str, Any]:
         "schema_errors": schema_errors,
     }
     if profile == "full":
-        from viralscan.translated import kallisto_translated_ok
-
         # Informational (never changes ``ok``): the translated-search index needs kallisto >= 0.51.1.
         report["kallisto_translated_ok"] = kallisto_translated_ok()[0]
     return report

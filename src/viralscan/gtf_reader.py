@@ -54,3 +54,57 @@ def gtf_gene_ids(path: str | Path) -> set[str]:
     """Every ``gene_id`` of a GTF file (plain or ``.gz``)."""
     with open_maybe_gzip(path, encoding="utf-8", errors="replace") as handle:
         return gene_ids(handle)
+
+
+def genome_as_transcript_gtf(fasta_text: str, accession: str) -> str:
+    """Convert a whole-genome FASTA to a minimal GTF.
+
+    Each sequence in *fasta_text* is represented as one gene, one transcript,
+    and one exon spanning the entire sequence.  The feature biotype is
+    ``whole_genome``, matching the convention in ``extras/Viral_GTF_maker.py``.
+
+    Parameters
+    ----------
+    fasta_text:
+        Plain-text (not gzip) FASTA content for a single viral genome.
+    accession:
+        NCBI accession used to construct stable gene/transcript IDs.
+
+    Returns
+    -------
+    GTF lines as a single string (no trailing newline).
+    """
+    lines: list[str] = []
+    current_header: str = ""
+    current_length: int = 0
+    seq_idx: int = 0
+
+    def _flush() -> None:
+        nonlocal seq_idx
+        if not current_header:
+            return
+        seq_idx += 1
+        gene_id = f"{accession}_gene{seq_idx}"
+        tx_id = f"{accession}_tx{seq_idx}"
+        attrs = (
+            f'gene_id "{gene_id}"; transcript_id "{tx_id}"; '
+            f'gene_name "{accession}"; gene_biotype "whole_genome";'
+        )
+        seqname = current_header.split()[0]
+        end = current_length if current_length > 0 else 1
+        for feature in ("gene", "transcript", "exon"):
+            lines.append(f"{seqname}\tViralScan\t{feature}\t1\t{end}\t.\t+\t.\t{attrs}")
+
+    for raw in fasta_text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith(">"):
+            _flush()
+            current_header = line[1:]
+            current_length = 0
+        else:
+            current_length += len(line)
+
+    _flush()
+    return "\n".join(lines)

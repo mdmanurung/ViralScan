@@ -35,7 +35,7 @@ from viralscan.multimapping import (
     write_multimap_evidence,
 )
 from viralscan.contract import COUNT_SCHEMA_VERSION, SCHEMA_VERSION
-from viralscan.outputs import result_files
+from viralscan.outputs import V3Outputs, result_files
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.cellcalling import COMPARABLE_CELL_MIN_UMI
@@ -2079,7 +2079,7 @@ def write_tsv_outputs(
                 row[c] = ev[c] if ev else (0 if zero else "")
         columns += list(STAR_COLUMNS)
     virus_df = pd.DataFrame(summary_rows, columns=columns)
-    virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)
+    virus_df.to_csv(V3Outputs.from_config_output(outputpath).viral_summary, sep="\t", index=False)
     locus_rows = []
     for locus in homology_loci or []:
         virus = locus["virus_name"]

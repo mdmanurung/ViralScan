@@ -25,7 +25,7 @@ from sklearn.neighbors import NearestNeighbors
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.multimapping import select_detection_matrix
 from viralscan.contract import COUNT_SCHEMA_VERSION
-from viralscan.outputs import found_genes_path
+from viralscan.outputs import V3Outputs, found_genes_path
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.scautoqc import add_scautoqc
@@ -58,7 +58,7 @@ def _gene_to_virus(gene_ids, table=None):
 
 def detected_genes(found_genes, output, table=None):
     """Restrict candidate genes to the summary's detected viruses (AUD-21)."""
-    summary = Path(output) / "results" / "viral_summary.tsv"
+    summary = V3Outputs(Path(output)).viral_summary
     if not summary.is_file():
         if table is not None:
             raise FileNotFoundError(f"Viral summary not found: {summary}. Rerun detection first.")

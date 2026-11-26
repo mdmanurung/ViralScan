@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 __all__ = ["Run", "open_run"]
 
-SUMMARY_TSV = Path("results") / "viral_summary.tsv"
 PER_CELL_TSV = Path("results") / "per_cell_viral.tsv"
 
 
@@ -47,7 +46,9 @@ class Run:
 
     def summary(self) -> pandas.DataFrame:
         """``results/viral_summary.tsv``: one row per candidate virus, as a DataFrame."""
-        return self._read_tsv(SUMMARY_TSV)
+        from viralscan.outputs import V3Outputs  # lazy: keeps `import viralscan` light
+
+        return self._read_tsv(V3Outputs(self.sample_dir).viral_summary)
 
     def cells(self, called_only: bool = False) -> pandas.DataFrame:
         """``results/per_cell_viral.tsv``: one row per infected cell and virus.
@@ -55,7 +56,7 @@ class Run:
         ``called_only=True`` keeps rows whose ``is_called_cell`` is true, the
         denominator the headline numbers use.
         """
-        table = self._read_tsv(PER_CELL_TSV)
+        table = self._read_tsv(self.sample_dir / PER_CELL_TSV)
         if called_only:
             flag = table["is_called_cell"].astype(str).str.lower() == "true"
             table = table[flag].reset_index(drop=True)
@@ -76,10 +77,9 @@ class Run:
             raise FileNotFoundError(f"No count matrix under {kb.counts_dir}")
         return anndata.read_h5ad(path)
 
-    def _read_tsv(self, relative: Path) -> pandas.DataFrame:
+    def _read_tsv(self, path: Path) -> pandas.DataFrame:
         import pandas as pd
 
-        path = self.sample_dir / relative
         if not path.is_file():
             raise FileNotFoundError(f"{path} is missing; the run did not write it.")
         return pd.read_csv(path, sep="\t")
