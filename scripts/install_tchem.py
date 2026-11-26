@@ -50,7 +50,9 @@ def main() -> None:
     if target not in SHA256:
         raise SystemExit(f"no tchem release asset for {target}")
     asset = f"tchem-v{VERSION}-{target}.tar.gz"
-    dest = args.prefix / "opt" / "tchem"
+    # Absolute, so the bin/tchem symlink target is right for a relative --prefix.
+    prefix = args.prefix.resolve()
+    dest = prefix / "opt" / "tchem"
     with tempfile.TemporaryDirectory() as tmp:
         archive = Path(tmp) / asset
         urllib.request.urlretrieve(f"{RELEASE}/{asset}", archive)
@@ -62,8 +64,11 @@ def main() -> None:
             for member in tar.getmembers():
                 member.name = member.name.split("/", 1)[1] if "/" in member.name else ""
                 if member.name:
-                    tar.extract(member, dest, filter="data")
-    link = args.prefix / "bin" / "tchem"
+                    if hasattr(tarfile, "data_filter"):  # Python >= 3.10.12 / 3.11.4
+                        tar.extract(member, dest, filter="data")
+                    else:
+                        tar.extract(member, dest)
+    link = prefix / "bin" / "tchem"
     link.parent.mkdir(parents=True, exist_ok=True)
     link.unlink(missing_ok=True)
     link.symlink_to(dest / "bin" / "tchem")
