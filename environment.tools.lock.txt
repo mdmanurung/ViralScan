@@ -16,6 +16,9 @@ blast 2.17.0 hb02a186_1 5315f017257c48d794a7f1ec48433f135bd97cd50531bea6d0b25af6
 cd-hit 4.8.1 h5ca1c30_13 5ed5f5fd12ee49b4269a21308b33b8d392425385675d0c36abe05242f3d72e3e
 r-base 4.5.3 h502d0c9_3 -
 bioconductor-dropletutils 1.30.0 r45ha27e39d_0 -
+# tchem is a release asset, not a conda package (PLAN TCHEM-SOURCE-01; sha256 of bin/tchem in the
+# x86_64-unknown-linux-musl v0.1.0 archive, 2026-11-26):
+tchem 0.1.0 Tussl-Co/TusslChemistry/releases/v0.1.0 3c053191c41ab99af3bc4240ee982e9bfb951008f19cc776c60d41f6548a1084
 #
 # Commands to produce the real lockfiles (needs network; run on linux-64):
 #   conda-lock lock -f environment.yml -p linux-64 --lockfile conda-lock.yml

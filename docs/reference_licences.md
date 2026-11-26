@@ -24,6 +24,15 @@ The machine-readable draft text in each manifest row comes from
 | igv.js 2.15.11 (`src/viralscan/vendor/igv/`) | Offline evidence browser | MIT. Licence file is vendored and shipped. | `src/viralscan/vendor/igv/LICENSE` | Yes, with its licence text. | None. |
 | User-supplied FASTA/GTF (`local_input`, `viralscan --reference`) | Custom indexes | Unknown to ViralScan. The user owns the check. | n/a | No. | None. |
 
+## Third-party tools installed from a release asset
+
+These are not data sources and carry no manifest row. They are downloaded at image build or by the user,
+never vendored into the wheel.
+
+| Tool | Version, source | Licence | Redistributed by ViralScan? | Working position |
+|---|---|---|---|---|
+| tchem (TusslChemistry, <https://github.com/Tussl-Co/TusslChemistry>) | v0.1.0 release asset, sha256-checked (`docs/installation.md`, `scripts/install_tchem.py`, `Dockerfile`, `Singularity.pixi.def`); binary sha256 in `environment.tools.lock.txt` | Apache-2.0, Copyright 2026 Tussl Ltd. The archive's `NOTICE` also names NCBI RefSeq (NC_012920.1, NC_005089.1) and GENCODE release 44 reference sequences, which it calls freely available public data. | Only inside the Docker and pixi Singularity images, which keep the archive's `LICENSE` and `NOTICE` in `/opt/tchem`. Its barcode lists are not bundled; they belong to their vendors and each user fetches them with tchem's `scripts/fetch_whitelists.sh`. | Apache-2.0 notice kept with the binary (this row plus `/opt/tchem/NOTICE`). The licence report and image SBOM at release must list tchem v0.1.0 (`REL-11`). |
+
 ## What the manifest records today
 
 - NCBI rows: `source: "NCBI nuccore"`, terms text above, `status: unreviewed`.
