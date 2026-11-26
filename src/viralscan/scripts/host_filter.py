@@ -36,7 +36,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from viralscan.runconfig import RunConfig
+from viralscan.run_context import RunContext
 from viralscan.star_hostvirus import resolve_whitelist
 from viralscan.star_run import plain_whitelist, starsolo_barcode_args  # noqa: F401  (re-exported)
 from viralscan.utils import open_maybe_gzip, setup_script_logging
@@ -424,7 +424,9 @@ def _starsolo_filter(
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
-def main(config: RunConfig, n_threads: int, done_path: str) -> None:
+def run(ctx: RunContext, done_path: str) -> None:
+    """Entry point: host pre-subtraction for one Run."""
+    config = ctx.config
     output = config.output
     aligner = config.host_filter_aligner or "starsolo"
     host_index = config.host_index
@@ -458,7 +460,7 @@ def main(config: RunConfig, n_threads: int, done_path: str) -> None:
             out_dir,
             filtered_r1,
             filtered_r2,
-            n_threads,
+            config.cores,
             param_set,
         )
     else:
@@ -469,8 +471,7 @@ def main(config: RunConfig, n_threads: int, done_path: str) -> None:
 
 # ── Snakemake wiring (only runs under snakemake) ─────────────────────────────
 if "snakemake" in globals():
-    main(
-        config=RunConfig.from_yaml(snakemake.params.configfile),  # noqa: F821
-        n_threads=snakemake.threads,  # noqa: F821
-        done_path=str(snakemake.output.done),  # noqa: F821
+    run(
+        RunContext.from_yaml(snakemake.params.configfile).with_cores(snakemake.threads),  # noqa: F821
+        str(snakemake.output.done),  # noqa: F821
     )

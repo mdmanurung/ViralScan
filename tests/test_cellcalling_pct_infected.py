@@ -6,7 +6,6 @@ reaches that path from ``run``.
 """
 
 import argparse
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import anndata as ad
@@ -16,6 +15,7 @@ import pytest
 import scipy.sparse as sp
 
 from viralscan import menu
+from viralscan.runconfig import RunConfig
 from viralscan.scripts.cellcalling import call_cells
 from viralscan.scripts.detection import compute_stats
 
@@ -28,7 +28,7 @@ KW = dict(
 
 
 def _stats(adata, method, host_cells=None):
-    config = SimpleNamespace(cell_calling=method, knee_min_umi=10.0)
+    config = RunConfig(cell_calling=method, knee_min_umi=10.0)
     called = call_cells(adata, config)
     stats, _ = compute_stats(
         adata,

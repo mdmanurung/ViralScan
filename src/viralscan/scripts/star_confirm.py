@@ -15,7 +15,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from viralscan.runconfig import RunConfig
+from viralscan.run_context import RunContext
 from viralscan.star_hostvirus import STAR_SUMMARY_COLUMNS, align_host_unmapped
 
 log = logging.getLogger(__name__)
@@ -43,7 +43,9 @@ def read_summary(summary_tsv: Path) -> dict[str, dict[str, int]]:
         }
 
 
-def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -> None:
+def run(ctx: RunContext, identity_tsv: str, done_path: str) -> None:
+    """Entry point: STAR host+virus confirmation for one Run."""
+    config = ctx.config
     out = Path(config.output)
     work = out / "star_hostvirus"
     index = config.star_hostvirus_index
@@ -56,7 +58,7 @@ def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -
         work,
         config.technology,
         whitelist=config.whitelist,
-        threads=n_threads,
+        threads=config.cores,
         strand=config.strand or "unstranded",  # kb's effective default is unstranded
         prune=True,
         virus_of=virus_of,
@@ -78,9 +80,8 @@ if TYPE_CHECKING:
     snakemake: Any  # injected by the Snakemake runner; declared for the type checker only
 
 if "snakemake" in globals():
-    main(
-        config=RunConfig.from_yaml(snakemake.params.configfile),  # noqa: F821
-        identity_tsv=str(snakemake.input.virus_identity),  # noqa: F821
-        n_threads=snakemake.threads,  # noqa: F821
-        done_path=str(snakemake.output.done),  # noqa: F821
+    run(
+        RunContext.from_yaml(snakemake.params.configfile).with_cores(snakemake.threads),  # noqa: F821
+        str(snakemake.input.virus_identity),  # noqa: F821
+        str(snakemake.output.done),  # noqa: F821
     )

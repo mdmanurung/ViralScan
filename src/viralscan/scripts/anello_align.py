@@ -32,7 +32,7 @@ from viralscan.anello_align import (
     write_accession_tsv,
 )
 from viralscan.chemistry import cb_umi_geometry, onlist_path_or_none
-from viralscan.runconfig import RunConfig
+from viralscan.run_context import RunContext
 from viralscan.star_run import plain_whitelist, run_star, starsolo_barcode_args
 
 log = logging.getLogger(__name__)
@@ -69,7 +69,9 @@ def _run_star(cmd: list[str], work: Path, cb_len: int) -> None:
     run_star(cmd, work, cb_len=cb_len)
 
 
-def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -> None:
+def run(ctx: RunContext, identity_tsv: str, done_path: str) -> None:
+    """Entry point: align the unmapped reads to the anello index for one Run."""
+    config = ctx.config
     out = Path(config.output)
     work = out / "anello_align"
     work.mkdir(parents=True, exist_ok=True)
@@ -86,7 +88,7 @@ def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -
         config.kb_r1,  # barcode + UMI
         starsolo_barcode_args(config.technology, whitelist),
         f"{work}/",
-        n_threads,
+        config.cores,
     )
     log.info("anello_align: %s", " ".join(cmd))
     _run_star(cmd, work, cb_umi_geometry(config.technology)[0])
@@ -127,9 +129,8 @@ if TYPE_CHECKING:
     snakemake: Any  # injected by the Snakemake runner; declared for the type checker only
 
 if "snakemake" in globals():
-    main(
-        config=RunConfig.from_yaml(snakemake.params.configfile),  # noqa: F821
-        identity_tsv=str(snakemake.input.virus_identity),  # noqa: F821
-        n_threads=snakemake.threads,  # noqa: F821
-        done_path=str(snakemake.output.done),  # noqa: F821
+    run(
+        RunContext.from_yaml(snakemake.params.configfile).with_cores(snakemake.threads),  # noqa: F821
+        str(snakemake.input.virus_identity),  # noqa: F821
+        str(snakemake.output.done),  # noqa: F821
     )

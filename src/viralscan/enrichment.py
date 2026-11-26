@@ -16,7 +16,6 @@ import numpy.typing as npt
 import pandas as pd
 from scipy.stats import false_discovery_control, fisher_exact
 
-from viralscan.defaults import DEFAULTS
 from viralscan.runconfig import RunConfig
 from viralscan.utils import (
     infected_masks,
@@ -130,7 +129,7 @@ def cell_type_enrichment(
         # The same infected rule as detection and the UMAP (AUD-06).
         infected_mask, _ = infected_masks(
             virus_molecules_per_cell(adata, count_matrix, valid_genes),
-            getattr(cfg, "infected_min_molecules", DEFAULTS["infected_min_molecules"]),
+            cfg.infected_min_molecules,
         )
         infected_in_labeled = infected_mask[idx]
 
