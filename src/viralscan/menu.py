@@ -63,7 +63,7 @@ from viralscan.run_safety import (
     run_in_group,
     write_run_complete,
 )
-from viralscan.runconfig import RunConfig
+from viralscan.runconfig import CheckedOptions, RunConfig
 from viralscan.utils import configure_logging, deprecation_message, split_comma_paths
 
 log = logging.getLogger("viralscan")
@@ -1109,28 +1109,32 @@ def _warn_ignored_flags(args: argparse.Namespace) -> None:
         warn(changed("knee_min_umi"), f"cell calling is {resolved}, not knee")
 
 
-def validate_run_request(args: argparse.Namespace) -> None:
+def validate_run_request(args: argparse.Namespace) -> CheckedOptions:
     """The one validation of a ``run`` request, before the output directory is touched.
 
     ``errorhandler`` checks what a typed config cannot (paths, flag pairs, tools on PATH);
-    ``_precheck_run_config`` then builds the typed :class:`RunConfig`, which owns every numeric
-    range and host-response rule. The per-sample build in ``main`` only constructs the config.
+    ``_precheck_run_config`` then runs :meth:`RunConfig.check_options`, which owns every numeric
+    range and host-response rule. It returns the checked values; the per-sample builds in ``main``
+    pass them to :func:`_build_run_config`, so the flag rules run once per ``run``.
     """
     errorhandler(args)
-    _precheck_run_config(args)
+    checked = _precheck_run_config(args)
     log.info("All input data has been checked and is correct.")
+    return checked
 
 
-def _precheck_run_config(args: argparse.Namespace) -> None:
-    """Run RunConfig's validation on the parsed flags now, before any network or FASTQ read.
+def _precheck_run_config(args: argparse.Namespace) -> CheckedOptions:
+    """Check RunConfig's option rules on the parsed flags now, before any network or FASTQ read.
 
-    The probe skips the two checks that need the built index (anello_align, auto_evidence;
-    ``errorhandler`` covers auto_evidence), which do not exist yet with --reference.
+    Only the rules that depend on the options run here. The two checks that need the built index
+    (anello_align, auto_evidence; ``errorhandler`` covers auto_evidence) stay in the per-sample
+    build, because the index does not exist yet with --reference.
     """
-    probe = argparse.Namespace(**{**vars(args), "anello_align": False, "auto_evidence": None})
     s1, s2 = split_comma_paths(args.sample1)[0], split_comma_paths(args.sample2)[0]
     try:
-        _build_run_config(probe, "", args.index or "", args.transcripts or "", s1, s2)
+        return RunConfig.check_options(
+            _run_config_options(args, "", args.index or "", args.transcripts or "", s1, s2)
+        )
     except ValueError as exc:
         _die(str(exc), 2)
 
@@ -1478,6 +1482,7 @@ def _build_run_config(
     transcripts: str,
     s1: str,
     s2: str,
+    checked: CheckedOptions | None = None,
 ) -> RunConfig:
     """Build the validated :class:`RunConfig` for one sample.
 
@@ -1486,128 +1491,138 @@ def _build_run_config(
     validation checkpoint); :func:`_write_run_config` writes it as ``config.yaml``, which
     Snakemake reads. There is no hand-maintained key list, so CLI flags like
     ``--multimap-em-max-iter`` cannot be omitted from the Snakemake invocation.
+    *checked* is the result of :func:`validate_run_request`; with it the option rules are not
+    run again and only the checks that need the index run here.
     """
     return RunConfig.from_snakemake_config(
-        {
-            "output": outs,
-            "index": index,
-            "transcripts": transcripts,
-            "sample1": s1,
-            "sample2": s2,
-            "cores": args.cores,
-            "gtf": args.gtf,
-            "fasta": args.fasta,
-            "visual": args.visual,
-            "umap": args.umap,
-            "scautoqc": getattr(args, "scautoqc", False),
-            "technology": args.technology,
-            "require_chemistry_sanity": getattr(args, "require_chemistry_sanity", False),
-            "whitelist": args.whitelist,
-            "strand": getattr(args, "strand", None),
-            "multimapping": args.multimapping,
-            "se_threshold": args.se_threshold,
-            "detection_threshold": args.detection_threshold,
-            # None = not given; RunConfig resolves it to the default (AUD-06/AUD-07/B-16).
-            # `infected_min_molecules` always has a value from the CLI (default 2.0).
-            "infected_min_molecules": getattr(args, "infected_min_molecules", None),
-            "detection_min_cells": getattr(args, "detection_min_cells", None),
-            "hostresponse_min_umi": getattr(args, "hostresponse_min_umi", None),
-            "positive_control_gene": getattr(args, "positive_control_gene", None),
-            "positive_control_receipt": getattr(args, "positive_control_receipt", None),
-            "positive_control_expected_molecules": getattr(
-                args, "positive_control_molecules", None
-            ),
-            "positive_control_scope": getattr(args, "positive_control_scope", None),
-            "positive_control_virus_key": getattr(args, "positive_control_virus_key", None),
-            "require_positive_control": getattr(
-                args, "require_positive_control", DEFAULTS["require_positive_control"]
-            ),
-            "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
-            "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
-            "star_confirm": getattr(args, "star_confirm", DEFAULTS["star_confirm"]),
-            "star_hostvirus_index": getattr(args, "star_hostvirus_index", None),
-            "auto_evidence": getattr(args, "auto_evidence", None),
-            "host_fasta": getattr(args, "host_fasta", None),
-            "viral_fasta": getattr(args, "viral_fasta", None),
-            "programme_min_breadth": getattr(
-                args, "programme_min_breadth", DEFAULTS["programme_min_breadth"]
-            ),
-            "programme_latent_min_breadth": getattr(
-                args, "programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"]
-            ),
-            "programme_min_umi": getattr(args, "programme_min_umi", DEFAULTS["programme_min_umi"]),
-            "programme_productive_min_molecules": getattr(
-                args,
-                "programme_productive_min_molecules",
-                DEFAULTS["programme_productive_min_molecules"],
-            ),
-            # PROG-MIXED-VETO-01: the CLI leaves these None when unset (fingerprint), the
-            # config records the value used.
-            "programme_mixed_veto": getattr(args, "programme_mixed_veto", None)
-            or DEFAULTS["programme_mixed_veto"],
-            "programme_mixed_veto_alpha": DEFAULTS["programme_mixed_veto_alpha"]
-            if getattr(args, "programme_mixed_veto_alpha", None) is None
-            else args.programme_mixed_veto_alpha,
-            # getattr matches the existing convention for args that older
-            # callers may not set (see the host_filter handling below).
-            "anellovirus_gene_ids": getattr(
-                args, "anellovirus_gene_ids", DEFAULTS["anellovirus_gene_ids"]
-            ),
-            "min_counts": args.min_counts,
-            "min_genes": args.min_genes,
-            "hvg_min_mean": args.hvg_min_mean,
-            "hvg_max_mean": args.hvg_max_mean,
-            "hvg_min_disp": args.hvg_min_disp,
-            "umap_n_neighbors": args.umap_n_neighbors,
-            "multimap_method": args.multimap_method,
-            "multimap_pseudocount": args.multimap_pseudocount,
-            "multimap_primary_call": args.multimap_primary_call,
-            "multimap_em_max_iter": args.multimap_em_max_iter,
-            "multimap_em_tol": args.multimap_em_tol,
-            "multimap_molecule_assignments": getattr(
-                args, "multimap_molecule_assignments", DEFAULTS["multimap_molecule_assignments"]
-            ),
-            "cell_types": args.cell_types,
-            "data_cache_dir": args.data_cache_dir,
-            "host_filter_aligner": getattr(args, "host_filter", None),
-            "host_filter_star_params": getattr(args, "host_filter_star_params", None),
-            "read_filter": getattr(args, "read_filter", None),
-            "host_index": getattr(args, "host_index", None),
-            "host_h5ad": getattr(args, "host_h5ad", None),
-            "hostresponse_cv": getattr(args, "hostresponse_cv", None),
-            "hostresponse_groups": getattr(args, "hostresponse_groups", None),
-            "hostresponse_cv_folds": getattr(args, "hostresponse_cv_folds", None),
-            "hostresponse_cell_type_column": getattr(args, "hostresponse_cell_type_column", None),
-            "hostresponse_cell_types": getattr(args, "hostresponse_cell_types", None),
-            "hostresponse_panel_in_fold": getattr(args, "hostresponse_panel_in_fold", None),
-            "hostresponse_permutations": getattr(args, "hostresponse_permutations", None),
-            "hostresponse_permutation_unit": getattr(args, "hostresponse_permutation_unit", None),
-            "hostresponse_permutation_block": getattr(args, "hostresponse_permutation_block", None),
-            "hostresponse_min_negative_cells": getattr(
-                args, "hostresponse_min_negative_cells", None
-            ),
-            "hostresponse_min_groups": getattr(args, "hostresponse_min_groups", None),
-            "hostresponse_n_seeds": getattr(args, "hostresponse_n_seeds", None),
-            "hostresponse_n_stab_iter": getattr(args, "hostresponse_n_stab_iter", None),
-            "hostresponse_use_hvg": getattr(args, "hostresponse_use_hvg", True),
-            "hostresponse_stab_min_prob": getattr(args, "hostresponse_stab_min_prob", None),
-            "hostresponse_top_n_genes": getattr(args, "hostresponse_top_n_genes", None),
-            "hostresponse_enrichment": getattr(args, "enrichment", False),
-            "hostresponse_enrichment_db": getattr(args, "enrichment_db", None),
-            "hostresponse_label": getattr(args, "hostresponse_label", None),
-            "hostresponse_depth_match": getattr(args, "hostresponse_depth_match", False),
-            "hostresponse_control_mito": getattr(args, "hostresponse_control_mito", True),
-            "hostresponse_differential": getattr(args, "hostresponse_differential", False),
-            "cell_calling": getattr(args, "cell_calling", None),
-            "called_cells_file": getattr(args, "called_cells_file", None),
-            "emptydrops_seed": getattr(args, "emptydrops_seed", None),
-            "emptydrops_niters": getattr(args, "emptydrops_niters", None),
-            "emptydrops_fdr": getattr(args, "emptydrops_fdr", None),
-            "emptydrops_lower": getattr(args, "emptydrops_lower", None),
-            "knee_min_umi": getattr(args, "knee_min_umi", None),
-            "cell_caller_rscript": getattr(args, "cell_caller_rscript", None),
-        }
+        _run_config_options(args, outs, index, transcripts, s1, s2), checked=checked
     )
+
+
+def _run_config_options(
+    args: argparse.Namespace,
+    outs: str,
+    index: str,
+    transcripts: str,
+    s1: str,
+    s2: str,
+) -> dict[str, Any]:
+    """The ``config`` mapping :class:`RunConfig` reads, from the parsed ``run`` flags."""
+    return {
+        "output": outs,
+        "index": index,
+        "transcripts": transcripts,
+        "sample1": s1,
+        "sample2": s2,
+        "cores": args.cores,
+        "gtf": args.gtf,
+        "fasta": args.fasta,
+        "visual": args.visual,
+        "umap": args.umap,
+        "scautoqc": getattr(args, "scautoqc", False),
+        "technology": args.technology,
+        "require_chemistry_sanity": getattr(args, "require_chemistry_sanity", False),
+        "whitelist": args.whitelist,
+        "strand": getattr(args, "strand", None),
+        "multimapping": args.multimapping,
+        "se_threshold": args.se_threshold,
+        "detection_threshold": args.detection_threshold,
+        # None = not given; RunConfig resolves it to the default (AUD-06/AUD-07/B-16).
+        # `infected_min_molecules` always has a value from the CLI (default 2.0).
+        "infected_min_molecules": getattr(args, "infected_min_molecules", None),
+        "detection_min_cells": getattr(args, "detection_min_cells", None),
+        "hostresponse_min_umi": getattr(args, "hostresponse_min_umi", None),
+        "positive_control_gene": getattr(args, "positive_control_gene", None),
+        "positive_control_receipt": getattr(args, "positive_control_receipt", None),
+        "positive_control_expected_molecules": getattr(args, "positive_control_molecules", None),
+        "positive_control_scope": getattr(args, "positive_control_scope", None),
+        "positive_control_virus_key": getattr(args, "positive_control_virus_key", None),
+        "require_positive_control": getattr(
+            args, "require_positive_control", DEFAULTS["require_positive_control"]
+        ),
+        "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
+        "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
+        "star_confirm": getattr(args, "star_confirm", DEFAULTS["star_confirm"]),
+        "star_hostvirus_index": getattr(args, "star_hostvirus_index", None),
+        "auto_evidence": getattr(args, "auto_evidence", None),
+        "host_fasta": getattr(args, "host_fasta", None),
+        "viral_fasta": getattr(args, "viral_fasta", None),
+        "programme_min_breadth": getattr(
+            args, "programme_min_breadth", DEFAULTS["programme_min_breadth"]
+        ),
+        "programme_latent_min_breadth": getattr(
+            args, "programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"]
+        ),
+        "programme_min_umi": getattr(args, "programme_min_umi", DEFAULTS["programme_min_umi"]),
+        "programme_productive_min_molecules": getattr(
+            args,
+            "programme_productive_min_molecules",
+            DEFAULTS["programme_productive_min_molecules"],
+        ),
+        # PROG-MIXED-VETO-01: the CLI leaves these None when unset (fingerprint), the
+        # config records the value used.
+        "programme_mixed_veto": getattr(args, "programme_mixed_veto", None)
+        or DEFAULTS["programme_mixed_veto"],
+        "programme_mixed_veto_alpha": DEFAULTS["programme_mixed_veto_alpha"]
+        if getattr(args, "programme_mixed_veto_alpha", None) is None
+        else args.programme_mixed_veto_alpha,
+        # getattr matches the existing convention for args that older
+        # callers may not set (see the host_filter handling below).
+        "anellovirus_gene_ids": getattr(
+            args, "anellovirus_gene_ids", DEFAULTS["anellovirus_gene_ids"]
+        ),
+        "min_counts": args.min_counts,
+        "min_genes": args.min_genes,
+        "hvg_min_mean": args.hvg_min_mean,
+        "hvg_max_mean": args.hvg_max_mean,
+        "hvg_min_disp": args.hvg_min_disp,
+        "umap_n_neighbors": args.umap_n_neighbors,
+        "multimap_method": args.multimap_method,
+        "multimap_pseudocount": args.multimap_pseudocount,
+        "multimap_primary_call": args.multimap_primary_call,
+        "multimap_em_max_iter": args.multimap_em_max_iter,
+        "multimap_em_tol": args.multimap_em_tol,
+        "multimap_molecule_assignments": getattr(
+            args, "multimap_molecule_assignments", DEFAULTS["multimap_molecule_assignments"]
+        ),
+        "cell_types": args.cell_types,
+        "data_cache_dir": args.data_cache_dir,
+        "host_filter_aligner": getattr(args, "host_filter", None),
+        "host_filter_star_params": getattr(args, "host_filter_star_params", None),
+        "read_filter": getattr(args, "read_filter", None),
+        "host_index": getattr(args, "host_index", None),
+        "host_h5ad": getattr(args, "host_h5ad", None),
+        "hostresponse_cv": getattr(args, "hostresponse_cv", None),
+        "hostresponse_groups": getattr(args, "hostresponse_groups", None),
+        "hostresponse_cv_folds": getattr(args, "hostresponse_cv_folds", None),
+        "hostresponse_cell_type_column": getattr(args, "hostresponse_cell_type_column", None),
+        "hostresponse_cell_types": getattr(args, "hostresponse_cell_types", None),
+        "hostresponse_panel_in_fold": getattr(args, "hostresponse_panel_in_fold", None),
+        "hostresponse_permutations": getattr(args, "hostresponse_permutations", None),
+        "hostresponse_permutation_unit": getattr(args, "hostresponse_permutation_unit", None),
+        "hostresponse_permutation_block": getattr(args, "hostresponse_permutation_block", None),
+        "hostresponse_min_negative_cells": getattr(args, "hostresponse_min_negative_cells", None),
+        "hostresponse_min_groups": getattr(args, "hostresponse_min_groups", None),
+        "hostresponse_n_seeds": getattr(args, "hostresponse_n_seeds", None),
+        "hostresponse_n_stab_iter": getattr(args, "hostresponse_n_stab_iter", None),
+        "hostresponse_use_hvg": getattr(args, "hostresponse_use_hvg", True),
+        "hostresponse_stab_min_prob": getattr(args, "hostresponse_stab_min_prob", None),
+        "hostresponse_top_n_genes": getattr(args, "hostresponse_top_n_genes", None),
+        "hostresponse_enrichment": getattr(args, "enrichment", False),
+        "hostresponse_enrichment_db": getattr(args, "enrichment_db", None),
+        "hostresponse_label": getattr(args, "hostresponse_label", None),
+        "hostresponse_depth_match": getattr(args, "hostresponse_depth_match", False),
+        "hostresponse_control_mito": getattr(args, "hostresponse_control_mito", True),
+        "hostresponse_differential": getattr(args, "hostresponse_differential", False),
+        "cell_calling": getattr(args, "cell_calling", None),
+        "called_cells_file": getattr(args, "called_cells_file", None),
+        "emptydrops_seed": getattr(args, "emptydrops_seed", None),
+        "emptydrops_niters": getattr(args, "emptydrops_niters", None),
+        "emptydrops_fdr": getattr(args, "emptydrops_fdr", None),
+        "emptydrops_lower": getattr(args, "emptydrops_lower", None),
+        "knee_min_umi": getattr(args, "knee_min_umi", None),
+        "cell_caller_rscript": getattr(args, "cell_caller_rscript", None),
+    }
 
 
 def _write_sample_summary(
@@ -2004,7 +2019,7 @@ def _run_subcommand(args: argparse.Namespace) -> None:
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
     _check_required_tools()
-    validate_run_request(args)
+    checked_options = validate_run_request(args)
     _warn_ignored_flags(args)
 
     if args.host_filter:
@@ -2133,7 +2148,9 @@ def _run_subcommand(args: argparse.Namespace) -> None:
                 _kb_params_require(rec, ("strand",), out)
                 chosen = str(rec.strand.value)
             sample_args = argparse.Namespace(**{**vars(args), "strand": chosen})
-        run_config = _build_run_config(sample_args, outs, index, transcripts, s1, s2)
+        run_config = _build_run_config(
+            sample_args, outs, index, transcripts, s1, s2, checked=checked_options
+        )
         config_file = _write_run_config(run_config)
         if args.resume:
             _migrate_gene_list(Path(outs))

@@ -69,6 +69,10 @@ def _opt(value: Any) -> Union[str, None]:
     return s
 
 
+#: The typed values ``RunConfig.check_options`` checked, keyed by ``RunConfig`` field name.
+CheckedOptions = dict[str, Any]
+
+
 def _num(cfg_in: dict[str, Any], key: str, cast: Callable[[Any], Any]) -> Any:
     """``cast(cfg_in[key])``, or the default when absent. ``or`` would swallow an explicit 0."""
     value = cfg_in.get(key)
@@ -248,12 +252,14 @@ class RunConfig:
 
     # ── construction ──────────────────────────────────────────────────────
     @classmethod
-    def from_snakemake_config(cls, cfg_in: dict[str, Any]) -> RunConfig:
-        """Build and validate a RunConfig from Snakemake's ``--config`` mapping.
+    def check_options(cls, cfg_in: dict[str, Any]) -> CheckedOptions:
+        """Check every rule that depends only on the options; return the typed values checked.
 
-        This is the single coercion + validation checkpoint. Required keys are
-        accessed with ``[]`` (a missing one is a programming error worth raising);
-        defaulted reporting parameters use ``.get`` against :data:`DEFAULTS`.
+        The pure half of :meth:`from_snakemake_config` (VALIDATE-ONCE-01): it needs no index,
+        output directory or sample, so ``menu.validate_run_request`` runs it once before the
+        output directory is touched, and the per-sample builds reuse its result through
+        ``from_snakemake_config(..., checked=...)`` instead of checking the same values again.
+        Raises ``ValueError`` with the message of the first rule that fails.
         """
 
         def hr_int(name: str, default: int) -> int:
@@ -472,6 +478,124 @@ class RunConfig:
                 "evidence of absence."
             )
 
+        star_confirm = _coerce_bool(
+            cfg_in.get("star_confirm")
+            if cfg_in.get("star_confirm") is not None
+            else DEFAULTS["star_confirm"]
+        )
+        star_hostvirus_index = _opt(cfg_in.get("star_hostvirus_index"))
+        if star_confirm and not star_hostvirus_index:
+            raise ValueError("star_confirm is set but star_hostvirus_index is missing.")
+
+        # C-10: these reached snakemake/scanpy unchecked (--cores 0, umap_n_neighbors 0, ...).
+        cores = int(cfg_in.get("cores", DEFAULTS["cores"]))
+        se_threshold = int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"]))
+        min_counts = int(cfg_in.get("min_counts", DEFAULTS["min_counts"]))
+        min_genes = int(cfg_in.get("min_genes", DEFAULTS["min_genes"]))
+        hvg_min_mean = float(cfg_in.get("hvg_min_mean", DEFAULTS["hvg_min_mean"]))
+        hvg_max_mean = float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"]))
+        umap_n_neighbors = int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"]))
+        # None (option not given on the CLI) resolves to the default here, once.
+        infected_min_molecules = float(
+            DEFAULTS["infected_min_molecules"]
+            if cfg_in.get("infected_min_molecules") is None
+            else cfg_in["infected_min_molecules"]
+        )
+        detection_min_cells = int(
+            DEFAULTS["detection_min_cells"]
+            if cfg_in.get("detection_min_cells") is None
+            else cfg_in["detection_min_cells"]
+        )
+        hostresponse_min_umi = int(
+            DEFAULTS["hostresponse_min_umi"]
+            if cfg_in.get("hostresponse_min_umi") is None
+            else cfg_in["hostresponse_min_umi"]
+        )
+        hostresponse_n_stab_iter = _num(cfg_in, "hostresponse_n_stab_iter", int)
+        hostresponse_top_n_genes = _num(cfg_in, "hostresponse_top_n_genes", int)
+        emptydrops_fdr = _num(cfg_in, "emptydrops_fdr", float)
+        emptydrops_niters = _num(cfg_in, "emptydrops_niters", int)
+        knee_min_umi = _num(cfg_in, "knee_min_umi", float)
+        check_numeric_ranges(
+            cores=cores,
+            se_threshold=se_threshold,
+            umap_n_neighbors=umap_n_neighbors,
+            min_counts=min_counts,
+            min_genes=min_genes,
+            hvg_min_mean=hvg_min_mean,
+            hvg_max_mean=hvg_max_mean,
+            infected_min_molecules=infected_min_molecules,
+            detection_min_cells=detection_min_cells,
+            hostresponse_min_umi=hostresponse_min_umi,
+            emptydrops_fdr=emptydrops_fdr,
+            emptydrops_niters=emptydrops_niters,
+            hostresponse_n_stab_iter=hostresponse_n_stab_iter,
+            hostresponse_top_n_genes=hostresponse_top_n_genes,
+            knee_min_umi=knee_min_umi,
+        )
+
+        return {
+            "cores": cores,
+            "se_threshold": se_threshold,
+            "detection_threshold": detection_threshold,
+            "infected_min_molecules": infected_min_molecules,
+            "detection_min_cells": detection_min_cells,
+            "hostresponse_min_umi": hostresponse_min_umi,
+            "min_counts": min_counts,
+            "min_genes": min_genes,
+            "hvg_min_mean": hvg_min_mean,
+            "hvg_max_mean": hvg_max_mean,
+            "umap_n_neighbors": umap_n_neighbors,
+            "multimap_pseudocount": multimap_pseudocount,
+            "multimap_primary_call": multimap_primary_call,
+            "multimap_em_max_iter": multimap_em_max_iter,
+            "multimap_em_tol": multimap_em_tol,
+            "hostresponse_cv": hr_cv,
+            "hostresponse_groups": hr_groups,
+            "hostresponse_cv_folds": hr_folds,
+            "hostresponse_cell_types": hr_types,
+            "hostresponse_permutations": hr_permutations,
+            "hostresponse_permutation_unit": hr_unit,
+            "hostresponse_min_negative_cells": hr_min_negative,
+            "hostresponse_min_groups": hr_min_groups,
+            "hostresponse_n_seeds": hr_n_seeds,
+            "hostresponse_n_stab_iter": hostresponse_n_stab_iter,
+            "hostresponse_top_n_genes": hostresponse_top_n_genes,
+            "emptydrops_fdr": emptydrops_fdr,
+            "emptydrops_niters": emptydrops_niters,
+            "knee_min_umi": knee_min_umi,
+            "positive_control_gene": positive_control_gene,
+            "positive_control_expected_molecules": positive_control_expected,
+            "positive_control_scope": positive_control_scope,
+            "positive_control_virus_key": positive_control_virus_key,
+            "require_positive_control": require_positive_control,
+            "gene_programs": gene_programs,
+            "programme_min_breadth": programme_min_breadth,
+            "programme_latent_min_breadth": programme_latent_min_breadth,
+            "programme_min_umi": programme_min_umi,
+            "programme_productive_min_molecules": programme_productive_min_molecules,
+            "programme_mixed_veto": programme_mixed_veto,
+            "programme_mixed_veto_alpha": programme_mixed_veto_alpha,
+            "star_confirm": star_confirm,
+            "star_hostvirus_index": star_hostvirus_index,
+        }
+
+    @classmethod
+    def from_snakemake_config(
+        cls, cfg_in: dict[str, Any], *, checked: CheckedOptions | None = None
+    ) -> RunConfig:
+        """Build and validate a RunConfig from Snakemake's ``--config`` mapping.
+
+        This is the single coercion + validation checkpoint. Required keys are
+        accessed with ``[]`` (a missing one is a programming error worth raising);
+        defaulted reporting parameters use ``.get`` against :data:`DEFAULTS`.
+        It runs :meth:`check_options`, then the two checks that need the built index
+        (``anello_align`` index, ``auto_evidence`` viral FASTA). A caller that already ran
+        :meth:`check_options` on the same option values passes the result as *checked* and
+        the rules are not run again.
+        """
+        ck = cls.check_options(cfg_in) if checked is None else checked
+
         anello_align = _coerce_bool(
             cfg_in.get("anello_align")
             if cfg_in.get("anello_align") is not None
@@ -482,15 +606,6 @@ class RunConfig:
             from viralscan.anello_align import resolve_index
 
             anello_index = _opt(cfg_in.get("anello_index")) or resolve_index(cfg_in["index"])
-
-        star_confirm = _coerce_bool(
-            cfg_in.get("star_confirm")
-            if cfg_in.get("star_confirm") is not None
-            else DEFAULTS["star_confirm"]
-        )
-        star_hostvirus_index = _opt(cfg_in.get("star_hostvirus_index"))
-        if star_confirm and not star_hostvirus_index:
-            raise ValueError("star_confirm is set but star_hostvirus_index is missing.")
 
         auto_evidence = _coerce_bool(
             cfg_in.get("auto_evidence")
@@ -519,48 +634,6 @@ class RunConfig:
                     "drop --no-multimapping."
                 )
 
-        # C-10: these reached snakemake/scanpy unchecked (--cores 0, umap_n_neighbors 0, ...).
-        cores = int(cfg_in.get("cores", DEFAULTS["cores"]))
-        se_threshold = int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"]))
-        min_counts = int(cfg_in.get("min_counts", DEFAULTS["min_counts"]))
-        min_genes = int(cfg_in.get("min_genes", DEFAULTS["min_genes"]))
-        hvg_min_mean = float(cfg_in.get("hvg_min_mean", DEFAULTS["hvg_min_mean"]))
-        hvg_max_mean = float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"]))
-        umap_n_neighbors = int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"]))
-        # None (option not given on the CLI) resolves to the default here, once.
-        infected_min_molecules = float(
-            DEFAULTS["infected_min_molecules"]
-            if cfg_in.get("infected_min_molecules") is None
-            else cfg_in["infected_min_molecules"]
-        )
-        detection_min_cells = int(
-            DEFAULTS["detection_min_cells"]
-            if cfg_in.get("detection_min_cells") is None
-            else cfg_in["detection_min_cells"]
-        )
-        hostresponse_min_umi = int(
-            DEFAULTS["hostresponse_min_umi"]
-            if cfg_in.get("hostresponse_min_umi") is None
-            else cfg_in["hostresponse_min_umi"]
-        )
-        check_numeric_ranges(
-            cores=cores,
-            se_threshold=se_threshold,
-            umap_n_neighbors=umap_n_neighbors,
-            min_counts=min_counts,
-            min_genes=min_genes,
-            hvg_min_mean=hvg_min_mean,
-            hvg_max_mean=hvg_max_mean,
-            infected_min_molecules=infected_min_molecules,
-            detection_min_cells=detection_min_cells,
-            hostresponse_min_umi=hostresponse_min_umi,
-            emptydrops_fdr=_num(cfg_in, "emptydrops_fdr", float),
-            emptydrops_niters=_num(cfg_in, "emptydrops_niters", int),
-            hostresponse_n_stab_iter=_num(cfg_in, "hostresponse_n_stab_iter", int),
-            hostresponse_top_n_genes=_num(cfg_in, "hostresponse_top_n_genes", int),
-            knee_min_umi=_num(cfg_in, "knee_min_umi", float),
-        )
-
         host_index = _opt(cfg_in.get("host_index"))
         read_filter = _opt(cfg_in.get("read_filter")) or "off"
         # Precompute the FASTQ paths kb_count consumes so the Snakefile shell
@@ -579,12 +652,12 @@ class RunConfig:
             kb_r2 = cfg_in.get("kb_r2") or cfg_in["sample2"]
 
         return cls(
+            **ck,
             output=cfg_in["output"],
             index=cfg_in["index"],
             transcripts=cfg_in["transcripts"],
             sample1=cfg_in["sample1"],
             sample2=cfg_in["sample2"],
-            cores=cores,
             gtf=_opt(cfg_in["gtf"]),
             fasta=_opt(cfg_in["fasta"]),
             visual=_coerce_bool(cfg_in["visual"]),
@@ -595,22 +668,8 @@ class RunConfig:
             whitelist=_opt(cfg_in["whitelist"]),
             strand=_opt(cfg_in.get("strand")),
             multimapping=_coerce_bool(cfg_in["multimapping"]),
-            se_threshold=se_threshold,
-            detection_threshold=detection_threshold,
-            infected_min_molecules=infected_min_molecules,
-            detection_min_cells=detection_min_cells,
-            hostresponse_min_umi=hostresponse_min_umi,
-            min_counts=min_counts,
-            min_genes=min_genes,
-            hvg_min_mean=hvg_min_mean,
-            hvg_max_mean=hvg_max_mean,
             hvg_min_disp=float(cfg_in.get("hvg_min_disp", DEFAULTS["hvg_min_disp"])),
-            umap_n_neighbors=umap_n_neighbors,
             multimap_method=cfg_in.get("multimap_method", DEFAULTS["multimap_method"]),
-            multimap_pseudocount=multimap_pseudocount,
-            multimap_primary_call=multimap_primary_call,
-            multimap_em_max_iter=multimap_em_max_iter,
-            multimap_em_tol=multimap_em_tol,
             multimap_molecule_assignments=_coerce_bool(
                 cfg_in.get("multimap_molecule_assignments")
                 if cfg_in.get("multimap_molecule_assignments") is not None
@@ -625,28 +684,17 @@ class RunConfig:
             kb_r1=kb_r1,
             kb_r2=kb_r2,
             host_h5ad=_opt(cfg_in.get("host_h5ad")),
-            hostresponse_cv=hr_cv,
-            hostresponse_groups=hr_groups,
-            hostresponse_cv_folds=hr_folds,
             hostresponse_cell_type_column=_opt(cfg_in.get("hostresponse_cell_type_column")),
-            hostresponse_cell_types=hr_types,
             hostresponse_panel_in_fold=_coerce_bool(
                 cfg_in.get("hostresponse_panel_in_fold") or False
             ),
-            hostresponse_permutations=hr_permutations,
-            hostresponse_permutation_unit=hr_unit,
             hostresponse_permutation_block=_opt(cfg_in.get("hostresponse_permutation_block")),
-            hostresponse_min_negative_cells=hr_min_negative,
-            hostresponse_min_groups=hr_min_groups,
-            hostresponse_n_seeds=hr_n_seeds,
-            hostresponse_n_stab_iter=_num(cfg_in, "hostresponse_n_stab_iter", int),
             hostresponse_use_hvg=_coerce_bool(
                 cfg_in.get("hostresponse_use_hvg", True)
                 if cfg_in.get("hostresponse_use_hvg") is not None
                 else True
             ),
             hostresponse_stab_min_prob=_num(cfg_in, "hostresponse_stab_min_prob", float),
-            hostresponse_top_n_genes=_num(cfg_in, "hostresponse_top_n_genes", int),
             hostresponse_enrichment=_coerce_bool(cfg_in.get("hostresponse_enrichment", False)),
             hostresponse_enrichment_db=cfg_in.get("hostresponse_enrichment_db")
             or "GO_Biological_Process_2023",
@@ -662,35 +710,18 @@ class RunConfig:
             ),
             cell_calling=cfg_in.get("cell_calling") or DEFAULTS["cell_calling"],
             called_cells_file=_opt(cfg_in.get("called_cells_file")),
-            emptydrops_fdr=_num(cfg_in, "emptydrops_fdr", float),
             emptydrops_lower=_num(cfg_in, "emptydrops_lower", int),
-            emptydrops_niters=_num(cfg_in, "emptydrops_niters", int),
             # `or` would swallow a legitimate seed of 0, so test for absence.
             emptydrops_seed=int(
                 DEFAULTS["emptydrops_seed"]
                 if cfg_in.get("emptydrops_seed") is None
                 else cfg_in["emptydrops_seed"]
             ),
-            knee_min_umi=_num(cfg_in, "knee_min_umi", float),
             cell_caller_rscript=cfg_in.get("cell_caller_rscript")
             or DEFAULTS["cell_caller_rscript"],
-            positive_control_gene=positive_control_gene,
             positive_control_receipt=_opt(cfg_in.get("positive_control_receipt")),
-            positive_control_expected_molecules=positive_control_expected,
-            positive_control_scope=positive_control_scope,
-            positive_control_virus_key=positive_control_virus_key,
-            require_positive_control=require_positive_control,
-            gene_programs=gene_programs,
-            programme_min_breadth=programme_min_breadth,
-            programme_latent_min_breadth=programme_latent_min_breadth,
-            programme_min_umi=programme_min_umi,
-            programme_productive_min_molecules=programme_productive_min_molecules,
-            programme_mixed_veto=programme_mixed_veto,
-            programme_mixed_veto_alpha=programme_mixed_veto_alpha,
             anello_align=anello_align,
             anello_index=anello_index,
-            star_confirm=star_confirm,
-            star_hostvirus_index=star_hostvirus_index,
             auto_evidence=auto_evidence,
             review_candidates=_coerce_bool(cfg_in.get("review_candidates", False)),
             host_fasta=host_fasta,
