@@ -547,7 +547,7 @@ def _sample_config(run_dir: Path, sample: str | None) -> tuple[Path, Any]:
     from viralscan.runconfig import RunConfig
 
     sample_dir = resolve_sample_dir(run_dir, sample)
-    return sample_dir, RunConfig.from_yaml(str(sample_dir / "config.yaml"))
+    return sample_dir, RunConfig.load(sample_dir / "config.yaml")
 
 
 def run_translated(args: argparse.Namespace) -> Path:

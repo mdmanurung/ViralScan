@@ -37,4 +37,4 @@ class RunContext:
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> RunContext:
         """Build from a ``config.yaml`` on disk (the production seam)."""
-        return cls.from_config(RunConfig.from_yaml(path))
+        return cls.from_config(RunConfig.load(path))

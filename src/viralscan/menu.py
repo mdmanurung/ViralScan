@@ -181,8 +181,6 @@ def _run_host_loss(args: argparse.Namespace) -> None:
 
 def _run_rerun_programs(args: argparse.Namespace) -> None:
     """Run layer 2 in place on a completed run directory."""
-    import yaml as _yaml
-
     from viralscan.kb_outputs import KbCountOutputs
     from viralscan.runconfig import RunConfig
     from viralscan.scripts import gene_programs as gp_script
@@ -217,23 +215,22 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
     if alpha is not None and not 0 < alpha < 1:
         _die("--programme-mixed-veto-alpha must be in (0, 1).", 2)
 
-    with config_path.open() as handle:
-        loaded = _yaml.safe_load(handle)
-    payload = dict(loaded or {})
+    config = RunConfig.load(config_path)
     # Layer 2 reads the H5AD and layer 1's summary. It never re-derives counts
     # from the BUS, so the pre-v3 primary-call guard — which exists to stop
     # multimap re-derivation producing a matrix the v3 count contract cannot
     # describe — does not apply here. Override it explicitly, with a log line,
     # rather than letting a legacy run directory block a read-only analysis or
     # silently bypassing the guard for the paths where it does matter.
-    if payload.get("multimap_primary_call") not in (None, "selected-method"):
+    overrides: dict[str, Any] = {}
+    if config.multimap_primary_call not in (None, "selected-method"):
         log.info(
             "Run directory declares multimap_primary_call=%r. Overriding to "
             "'selected-method' for gene-programme inference only: layer 2 reads "
             "the existing count matrix and does not re-derive counts from the BUS.",
-            payload["multimap_primary_call"],
+            config.multimap_primary_call,
         )
-        payload["multimap_primary_call"] = "selected-method"
+        overrides["multimap_primary_call"] = "selected-method"
     # An explicit flag overrides the run's own config.yaml; absent, the run's value stands.
     for key in (
         "programme_min_breadth",
@@ -244,8 +241,8 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
         "programme_mixed_veto_alpha",
     ):
         if getattr(args, key) is not None:
-            payload[key] = getattr(args, key)
-    config = RunConfig.from_snakemake_config(payload)
+            overrides[key] = getattr(args, key)
+    config = config.with_overrides(**overrides)
     outputs = KbCountOutputs.from_config_output(config.output)
     adata_path = Path(str(outputs.adata_multimap))
     if not adata_path.is_file():
@@ -337,8 +334,6 @@ def _run_snakemake(command: list[str], *, what: str, hint: str) -> None:
 
 def _run_rerun_multimap(args: argparse.Namespace) -> None:
     """Re-run multimap → detection → umap with a different method, skipping kb_count."""
-    import yaml as _yaml
-
     from viralscan.kb_outputs import KbCountOutputs
     from viralscan.runconfig import RunConfig
 
@@ -376,10 +371,8 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     # Validate every merged config before anything is copied: a bad override must not
     # leave a half-built result tree that refuses a retry.
     for rel in source_config_rels:
-        cfg = _yaml.safe_load((source_dir / rel).read_text(encoding="utf-8"))
-        _apply_rerun_overrides(cfg, args)
         try:
-            RunConfig.from_snakemake_config(cfg)
+            RunConfig.load(source_dir / rel).with_overrides(**_rerun_overrides(args))
         except ValueError as exc:
             _die(f"Invalid rerun-multimap options for {rel.parent.name}: {exc}", 2)
 
@@ -419,24 +412,24 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         rel = config_yaml_path.parent.relative_to(output_dir)
         log.info("[%s] Re-running multimap …", rel)
 
-        with open(config_yaml_path) as f:
-            cfg = _yaml.safe_load(f)
+        cfg = RunConfig.load(config_yaml_path)
 
         # Rerun re-runs detection, which calls the same fail-closed cell caller,
         # so it needs the same preflight the quant path gets. The method comes
         # from the source run's config rather than from argv.
         _check_cell_caller_tools(
             _resolve_cell_calling(
-                str(cfg.get("cell_calling") or DEFAULTS["cell_calling"]).lower(),
-                cfg.get("called_cells_file"),
+                str(cfg.cell_calling or DEFAULTS["cell_calling"]).lower(),
+                cfg.called_cells_file,
             ),
-            cfg.get("cell_caller_rscript") or DEFAULTS["cell_caller_rscript"],
+            cfg.cell_caller_rscript or DEFAULTS["cell_caller_rscript"],
         )
 
         # Update multimap parameters in the working copy. The trailing separator
         # matters: the Snakefile builds paths as f"{config['output']}log/...".
-        cfg["output"] = str(output_dir / rel) + os.sep
-        _apply_rerun_overrides(cfg, args)
+        run_config = cfg.with_overrides(
+            output=str(output_dir / rel) + os.sep, **_rerun_overrides(args)
+        )
 
         use_em = new_method in {"em-global", "em-cell"}
         swapped = False
@@ -474,7 +467,6 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         # mtime (SW-22): config.yaml is an input of kb_count, host_filter and
         # analysis, so a fresh mtime made snakemake re-run kallisto and STAR on
         # the FASTQs. The sentinels below choose what reruns.
-        run_config = RunConfig.from_snakemake_config(cfg)
         _write_run_config(run_config, keep_mtime=True)
         _migrate_gene_list(sample_dir)
         _drop_legacy_outputs(sample_dir)
@@ -519,14 +511,14 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     log.info("rerun-multimap complete in new result directory %s.", output_dir)
 
 
-def _apply_rerun_overrides(cfg: dict[str, Any], args: argparse.Namespace) -> None:
-    """Set the rerun's method, cores and EM options on a sample's config dict."""
-    cfg["multimap_method"] = args.multimap_method
-    cfg["cores"] = args.cores
+def _rerun_overrides(args: argparse.Namespace) -> dict[str, Any]:
+    """The rerun's method, cores and EM options, as ``RunConfig.with_overrides`` keywords."""
+    overrides: dict[str, Any] = {"multimap_method": args.multimap_method, "cores": args.cores}
     if args.multimap_em_max_iter is not None:
-        cfg["multimap_em_max_iter"] = args.multimap_em_max_iter
+        overrides["multimap_em_max_iter"] = args.multimap_em_max_iter
     if args.multimap_em_tol is not None:
-        cfg["multimap_em_tol"] = args.multimap_em_tol
+        overrides["multimap_em_tol"] = args.multimap_em_tol
+    return overrides
 
 
 def _drop_legacy_outputs(sample_dir: Path) -> None:
@@ -660,7 +652,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
             "The viralscan run must be complete (at least through the analysis step)."
         )
 
-    cfg = RunConfig.from_yaml(str(config_yaml))
+    cfg = RunConfig.load(config_yaml)
     kb = KbCountOutputs.from_config_output(cfg.output)
     virus_h5ad = str(kb.current_adata(multimapping=cfg.multimapping))
     if not Path(virus_h5ad).exists():
