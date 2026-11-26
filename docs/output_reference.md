@@ -4,6 +4,10 @@ For the guided path through the main files and how to weigh a candidate, see
 [Results](results.md). This page is the exact file, column and AnnData-layer
 dictionary.
 
+To see what to open first after a run, read
+[What to open first](happy_path.md#6-what-to-open-first): `report.html`, then
+`results/viral_summary_core.tsv`, then `results/sensitivity.tsv`.
+
 ## Where do I find ...
 
 | Question | File |

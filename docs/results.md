@@ -2,6 +2,9 @@
 
 After `viralscan check run --run-dir output/` reports `"ok": true`, open
 `output/<sample>/report.html` for the overview and then read the tables below.
+The short answer to "what do I open first" is `report.html`, then
+`results/viral_summary_core.tsv`, then `results/sensitivity.tsv`
+([the order and why](happy_path.md#6-what-to-open-first)).
 The first half of this page says what the main results mean; the second half
 gives five checks that move a `detected` row from "the run is technically sound"
 to "what this candidate supports". Exact column definitions are in the
