@@ -316,6 +316,13 @@ viralscan check whitelist --r1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
 
 ## Output
 
+**What to open first.** Open `output/sample/report.html`, then
+`results/viral_summary_core.tsv`, then `results/sensitivity.tsv` (read it before
+trusting a negative). `viralscan status --run-dir output/` lists the post-hoc steps
+run so far, and `viralscan.open_run("output").summary(core=True)` loads the core
+table in Python. The whole path from install to the report is on one page:
+[docs/happy_path.md](docs/happy_path.md).
+
 For an input named `sample_R1.fastq.gz`, key results are written under
 `output/sample/`:
 
