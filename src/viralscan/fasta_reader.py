@@ -12,10 +12,11 @@ What a caller does with a repeated identifier is its own rule, so ``iter_fasta``
 from collections.abc import Collection, Iterator
 from pathlib import Path
 
+from viralscan.errors import ViralScanError
 from viralscan.utils import open_maybe_gzip
 
 
-class FastaError(ValueError):
+class FastaError(ViralScanError, ValueError):
     """A FASTA file the reader cannot make records of."""
 
 

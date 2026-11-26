@@ -11,6 +11,7 @@ DOC = (Path(__file__).resolve().parents[1] / "docs" / "api.md").read_text(encodi
 STABLE = {
     "viralscan.enrichment": {"cell_type_enrichment", "write_cell_type_enrichment"},
     "viralscan.data_fetch": {"cache_valid", "ensure_viral_data", "fetch_viral_data"},
+    "viralscan.errors": {"ViralScanError"},
     "viralscan.run": {"Run", "open_run"},
     "viralscan.compute": {
         "CellCallingError",

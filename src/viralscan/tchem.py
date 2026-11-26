@@ -36,6 +36,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, Optional
 
 from viralscan import chemistry
+from viralscan.errors import ViralScanError
 
 ENV_BIN = "VIRALSCAN_TCHEM"
 ENV_LISTS = "VIRALSCAN_TCHEM_WHITELISTS"
@@ -47,7 +48,7 @@ MODES = ("auto", "require", "off")
 TIMEOUT_S = 900
 
 
-class TchemError(RuntimeError):
+class TchemError(ViralScanError, RuntimeError):
     """``tchem`` is missing, failed, or wrote something this code cannot read."""
 
 

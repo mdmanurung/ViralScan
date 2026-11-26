@@ -40,6 +40,7 @@ from viralscan.contract import COUNT_SCHEMA_VERSION, LAYOUT_VERSION
 from viralscan.defaults import (
     DEFAULTS,
 )
+from viralscan.errors import ViralScanError
 from viralscan.outputs import (
     ANALYSIS_GENES,
     POSTHOC_DIRNAME,
@@ -1832,20 +1833,29 @@ def _main() -> None:
 
 
 def _dispatch(args: argparse.Namespace) -> None:
+    """Run the subcommand. A ``ViralScanError`` ends as one ``ERROR`` line and exit 1 (ERRORS-01).
+
+    Handlers that need another exit code (usage errors, 2) or a message prefix catch the error
+    where it is raised, so it never reaches this one.
+    """
+    try:
+        _run_subcommand(args)
+    except ViralScanError as exc:
+        _die(str(exc))
+
+
+def _run_subcommand(args: argparse.Namespace) -> None:
     # Dispatch to build-ref subcommand if requested.
     if getattr(args, "_subcommand", None) == "data-fetch":
         configure_logging(verbose=args.verbose, quiet=args.quiet)
-        from viralscan.data_fetch import ViralScanDataError, fetch_viral_data
+        from viralscan.data_fetch import fetch_viral_data
 
-        try:
-            data_dir = fetch_viral_data(
-                cache_dir=args.cache_dir,
-                archive_url=args.url,
-                expected_sha256=args.sha256,
-                force=args.force,
-            )
-        except ViralScanDataError as exc:
-            _die(str(exc))
+        data_dir = fetch_viral_data(
+            cache_dir=args.cache_dir,
+            archive_url=args.url,
+            expected_sha256=args.sha256,
+            force=args.force,
+        )
         log.info("Viral annotation data is available at %s", data_dir)
         return
 
@@ -1871,7 +1881,7 @@ def _dispatch(args: argparse.Namespace) -> None:
                 translated.run_translated_index(args)
             else:
                 translated.run_translated(args)
-        except (translated.TranslatedError, subprocess.CalledProcessError) as exc:
+        except subprocess.CalledProcessError as exc:
             _die(str(exc))
         return
 
@@ -1904,39 +1914,30 @@ def _dispatch(args: argparse.Namespace) -> None:
         return
 
     if getattr(args, "_subcommand", None) == "discover":
-        from viralscan.discovery import DiscoveryError, run_discover
+        from viralscan.discovery import run_discover
 
         configure_logging(verbose=args.verbose, quiet=args.quiet)
-        try:
-            run_discover(args)
-        except DiscoveryError as exc:
-            _die(str(exc))
+        run_discover(args)
         return
 
     if getattr(args, "_subcommand", None) == "discover-states":
-        from viralscan.discovery import DiscoveryError, run_discover_states
+        from viralscan.discovery import run_discover_states
 
         configure_logging(verbose=args.verbose, quiet=args.quiet)
         if args.minimap2 and not (args.host_fasta and args.candidate_fasta):
             _die("--minimap2 requires --host-fasta and at least one --candidate-fasta TAXID=FASTA.")
-        try:
-            run_discover_states(args)
-        except DiscoveryError as exc:
-            _die(str(exc))
+        run_discover_states(args)
         return
 
     if getattr(args, "_subcommand", None) == "discover-collapse":
-        from viralscan.discovery import DiscoveryError, collapse_rank
+        from viralscan.discovery import collapse_rank
 
         configure_logging(verbose=args.verbose, quiet=args.quiet)
-        try:
-            collapsed = collapse_rank(
-                Path(args.discovery_dir),
-                args.rank,
-                Path(args.output_file) if args.output_file else None,
-            )
-        except DiscoveryError as exc:
-            _die(str(exc))
+        collapsed = collapse_rank(
+            Path(args.discovery_dir),
+            args.rank,
+            Path(args.output_file) if args.output_file else None,
+        )
         args._posthoc_output = collapsed
         print(collapsed)
         return
@@ -2013,7 +2014,6 @@ def _dispatch(args: argparse.Namespace) -> None:
     )
 
     from viralscan.run_safety import (
-        RunSafetyError,
         build_run_manifest,
         prepare_output_directory,
         record_fetched_reference,
@@ -2027,17 +2027,14 @@ def _dispatch(args: argparse.Namespace) -> None:
     samples1 = split_comma_paths(args.sample1)
     _require_explicit_strand(args, output_dir, chemistry_blocks)
     _check_sample_ids(samples1)
-    try:
-        acquire_run_lock(output_dir)  # before prepare: --overwrite must not wipe a live run
-        status = prepare_output_directory(
-            output_dir,
-            build_run_manifest(args),
-            resume=args.resume,
-            overwrite=args.overwrite,
-            yes=args.yes,
-        )
-    except RunSafetyError as exc:
-        _die(str(exc))
+    acquire_run_lock(output_dir)  # before prepare: --overwrite must not wipe a live run
+    status = prepare_output_directory(
+        output_dir,
+        build_run_manifest(args),
+        resume=args.resume,
+        overwrite=args.overwrite,
+        yes=args.yes,
+    )
     # The marker is gone (resume) or never existed: say NOT FINISHED now, not after the
     # NCBI fetch / index build / strand pilot below, which can fail.
     write_start_docs(output_dir, [_sample_id(s1) for s1 in samples1])
@@ -2068,10 +2065,7 @@ def _dispatch(args: argparse.Namespace) -> None:
             )
         except NCBIFetchError as exc:
             _die(f"NCBI download failed: {exc}")
-        try:
-            record_fetched_reference(output_dir, accessions, fasta_path, gtf_path)
-        except RunSafetyError as exc:
-            _die(str(exc))
+        record_fetched_reference(output_dir, accessions, fasta_path, gtf_path)
         args.fasta = str(fasta_path)
         args.gtf = str(gtf_path)
         args.reference = True

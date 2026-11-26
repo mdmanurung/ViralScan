@@ -37,6 +37,7 @@ from typing import Any, NamedTuple
 
 import numpy as np
 
+from viralscan.errors import ViralScanError
 from viralscan.molecule_verdict import verdict_of
 from viralscan.run_safety import sha256_file
 from viralscan.utils import INFECTED_RELATIVE_TOLERANCE, matrix_for_genes, virus_molecules_per_cell
@@ -51,7 +52,7 @@ REASON_NO_VERDICTS = "molecule_verdicts_missing"
 REASON_COMPETITOR_MODE = "verdicts_not_produced_in_competitor_mode"
 
 
-class EvidenceMismatch(ValueError):
+class EvidenceMismatch(ViralScanError, ValueError):
     """The evidence directory does not belong to this virus or this matrix; S must not be guessed."""
 
 

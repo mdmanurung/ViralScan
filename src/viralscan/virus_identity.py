@@ -74,6 +74,7 @@ from typing import Any, Union, cast
 
 from viralscan import __version__ as _VIRALSCAN_VERSION
 from viralscan import gtf_reader, virus_catalog
+from viralscan.errors import ViralScanError
 from viralscan.outputs import analysis_genes_path
 
 log = logging.getLogger(__name__)
@@ -416,7 +417,7 @@ MANIFEST_SCHEMA_VERSION = "1.0"
 _VERSION_SUFFIX = re.compile(r"\.\d+$")
 
 
-class BuildManifestContradiction(ValueError):
+class BuildManifestContradiction(ViralScanError, ValueError):
     """The Run's ``--gtf`` or index contradicts the index's build manifest."""
 
 

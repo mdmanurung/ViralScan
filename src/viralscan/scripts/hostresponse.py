@@ -71,6 +71,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
+from viralscan.errors import ViralScanError
 from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
     CV_MODES,
     NULL_UNITS,
@@ -1199,7 +1200,7 @@ _FOLD_COLUMNS = (
 )
 
 
-class FoldDesignError(ValueError):
+class FoldDesignError(ViralScanError, ValueError):
     """A valid group-disjoint fold design cannot be built.
 
     ``reason`` is a stable machine-readable code (``insufficient_groups``,

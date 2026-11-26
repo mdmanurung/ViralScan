@@ -18,6 +18,7 @@ import numpy as np
 from scipy import sparse
 
 from viralscan.contract import COUNT_SCHEMA_VERSION, SCHEMA_VERSION, SUPPORTED_LAYOUT_VERSIONS
+from viralscan.errors import ViralScanError
 from viralscan.outputs import is_posthoc
 from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file, sha256_path
 
@@ -215,7 +216,7 @@ def h5ad_contract() -> dict[str, Any]:
     return _read_packaged_schema("h5ad_contract.json")
 
 
-class SchemaContractError(RuntimeError):
+class SchemaContractError(ViralScanError, RuntimeError):
     """Raised when ViralScan is about to write an artifact that violates its schema."""
 
 

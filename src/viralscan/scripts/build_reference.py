@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import Any, NamedTuple, Optional, cast
 
 from viralscan.constants import ENSEMBL_SPECIES
+from viralscan.errors import ViralScanError
 from viralscan.fasta_reader import iter_fasta
 from viralscan.kmer_sharing import near_duplicate_pairs
 from viralscan.reference_gates import record_index_inspect
@@ -289,7 +290,7 @@ def low_complexity_report(
     }
 
 
-class NearDuplicateError(ValueError):
+class NearDuplicateError(ViralScanError, ValueError):
     """A non-sibling near-duplicate record pair under ``--strict-reference`` (PLAN AUD3-05)."""
 
 

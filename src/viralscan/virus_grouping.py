@@ -41,6 +41,7 @@ from viralscan.constants import (
     VIRUS_GENE_ID_ALIASES,
     VIRUS_NAME_MAP,
 )
+from viralscan.errors import ViralScanError
 from viralscan.virus_identity import (
     ANELLOVIRIDAE,
     TABLE_FILENAME,
@@ -168,7 +169,7 @@ def load_run_identity(output: PathLike) -> VirusIdentityTable | None:
     return VirusIdentityTable.read_tsv(path)
 
 
-class IdentityMatrixMismatch(ValueError):
+class IdentityMatrixMismatch(ViralScanError, ValueError):
     """The Virus Identity table and the kb matrix come from different runs or references."""
 
 

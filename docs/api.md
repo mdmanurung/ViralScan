@@ -33,6 +33,7 @@ from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichmen
 from viralscan.scripts.ncbi_fetch import fetch_reference
 from viralscan.scripts.build_reference import build_combined_reference, fetch_host_cdna
 from viralscan.data_fetch import fetch_viral_data, ensure_viral_data
+from viralscan.errors import ViralScanError
 ```
 
 ---
@@ -370,6 +371,23 @@ Initializes logging for Snakemake worker subprocesses and returns the
 
 ---
 
+## Errors
+
+### `ViralScanError`
+
+```python
+class ViralScanError(Exception): ...
+```
+
+The base class of every exception ViralScan raises on purpose, for example `NCBIFetchError`,
+`ViralScanDataError`, `ChemistryError` and `RunSafetyError`. Each of them also keeps its older
+base (`ValueError` or `RuntimeError`), so `except ValueError` and `except RuntimeError` still
+catch it. The CLI prints one `ERROR` line for a `ViralScanError` and exits 1; see "Exit codes"
+in the [CLI reference](cli_reference.md). In a script, `except ViralScanError` catches any of
+them.
+
+---
+
 ## Constants
 
 ### `VIRUS_NAME_MAP`
@@ -415,6 +433,12 @@ above carry the worked examples.
 .. autofunction:: viralscan.data_fetch.fetch_viral_data
 .. autofunction:: viralscan.data_fetch.ensure_viral_data
 .. autofunction:: viralscan.data_fetch.cache_valid
+```
+
+### Errors
+
+```{eval-rst}
+.. autoclass:: viralscan.errors.ViralScanError
 ```
 
 ### Reference building
