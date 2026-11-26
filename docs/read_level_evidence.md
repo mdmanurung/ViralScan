@@ -236,6 +236,24 @@ decided by it.
   host-versus-virus verdicts, so `--splice` and `strand_qc.tsv` are
   `not_assessed` and `--html` is refused.
 
+### A real example: HPV16
+
+![Coverage map of HPV16 (NC_001526.4): a deduplicated coverage track above a plus-strand lane with E1, E1^E4, E2, E5, L2, L1, E6 and E7; the minus lane is empty](_static/evidence/coverage_map_hpv16_SRR19537341.png)
+
+*Figure 2. Coverage map of HPV16 (`NC_001526.4`) in a public 10x 3' v3 library of
+HPV16-infected keratinocyte rafts (SRA `SRR19537341`, GEO `GSM5705760`). Gene
+coordinates follow the RefSeq record, so E6 and E7 sit at the right end.*
+
+All eight annotated genes lie on the plus strand, so the minus lane is empty.
+Depth is highest in two narrow regions, one inside E5 and one at the end of E7;
+E5 is the most covered gene and E7 the second. The late genes L2 and L1 carry
+almost no reads. A 3' library collects reads near the 3' ends of transcripts,
+so peaks tend to sit near where transcripts end; peak height is not a measure of
+how much each gene is expressed. The
+figure describes coverage only: it does not call a gene expressed or a cell
+infected, and coverage here counts every read of the competitive BAM (see "The
+unit: a molecule").
+
 ## How Figure 1 was made
 
 The inputs are synthetic and seeded. The script
@@ -263,3 +281,24 @@ three molecules. The PNG is `evidence/coverage_map.VIRUS|VIRAL_GENOME.png`,
 copied unchanged to `docs/_static/evidence/coverage_map_synthetic.png`.
 The checkout was commit `70742f44` with minimap2 2.31 and samtools from the
 `viralscan_test_full` environment.
+
+## How Figure 2 was made
+
+The evidence folder is the HPV16 run of the reproducibility repository
+(`data/runs/round_2026-11-04_target_verdicts/hpv16/SRR19537341/evidence_splice`,
+made with `viralscan evidence --splice`). It was copied to a scratch directory,
+so the run was not changed. The panel GTF names the contig `NC_001526.4` and the
+BAM names it `VIRUS|NC_001526.4`, so the GTF got the same prefix first:
+
+```bash
+sed 's/^NC_001526\.4\t/VIRUS|NC_001526.4\t/' \
+  src/viralscan/data/Human_papillomavirus_16_18_NC_001526.gtf > hpv16.gtf
+
+viralscan evidence-plot --coverage-map --evidence-dir evidence_splice \
+  --target 'VIRUS|NC_001526.4' --annotation hpv16.gtf -o hpv16_fig
+```
+
+The PNG is `hpv16_fig/evidence_splice/coverage_map.VIRUS|NC_001526.4.png`, copied
+unchanged to `docs/_static/evidence/coverage_map_hpv16_SRR19537341.png`. The
+package was version 3.0.0b1 at commit `632e9ae7`; the JSON receipt reports status
+`ok`, 8 genes drawn and none left out.
