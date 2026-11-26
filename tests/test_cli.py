@@ -132,9 +132,6 @@ class TestDefaults:
     def test_min_genes_default(self) -> None:
         assert _parse([]).min_genes == DEFAULTS["min_genes"]
 
-    def test_se_threshold_default(self) -> None:
-        assert _parse([]).se_threshold == DEFAULTS["se_threshold"]
-
     def test_hvg_min_mean_default(self) -> None:
         assert _parse([]).hvg_min_mean == DEFAULTS["hvg_min_mean"]
 
@@ -152,9 +149,6 @@ class TestDefaults:
 
     def test_multimap_pseudocount_default(self) -> None:
         assert _parse([]).multimap_pseudocount == DEFAULTS["multimap_pseudocount"]
-
-    def test_multimap_primary_call_default(self) -> None:
-        assert _parse([]).multimap_primary_call == DEFAULTS["multimap_primary_call"]
 
     def test_run_requires_output_and_reads(self) -> None:
         with pytest.raises(SystemExit) as exc:
@@ -182,7 +176,7 @@ class TestDefaults:
         assert args.positive_control_scope is None
         assert args.positive_control_virus_key is None
 
-    @pytest.mark.parametrize("value", ["exact_sequence", "virus_key", "panel_mechanics"])
+    @pytest.mark.parametrize("value", ["exact_sequence", "panel_mechanics"])
     def test_positive_control_scope_valid_choices_accepted(self, value) -> None:
         assert _parse(["--positive-control-scope", value]).positive_control_scope == value
 
@@ -243,12 +237,6 @@ class TestFlagParsing:
 
     def test_multimap_method_parsed(self) -> None:
         assert _parse(["--multimap-method", "unique-weighted"]).multimap_method == "unique-weighted"
-
-    def test_multimap_primary_call_parsed(self) -> None:
-        assert (
-            _parse(["--multimap-primary-call", "selected-method"]).multimap_primary_call
-            == "selected-method"
-        )
 
     def test_multimap_pseudocount_parsed(self) -> None:
         assert _parse(["--multimap-pseudocount", "0.25"]).multimap_pseudocount == 0.25

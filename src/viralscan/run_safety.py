@@ -196,7 +196,6 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "transcripts",
         "gtf",
         "fasta",
-        "f1",
         "whitelist",
         "called_cells_file",
         "host_index",
@@ -253,7 +252,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     reference_hashes = {
         key: value
         for key, value in input_fingerprints.items()
-        if key.split(":", 1)[0] in {"index", "transcripts", "gtf", "fasta", "f1", "host_index"}
+        if key.split(":", 1)[0] in {"index", "transcripts", "gtf", "fasta", "host_index"}
     }
     reference_fingerprint = hashlib.sha256(
         json.dumps(reference_hashes, sort_keys=True, separators=(",", ":")).encode()

@@ -25,8 +25,8 @@ does not say the organism is present, replicating, or in that cell.
 
 - A completed ViralScan run with host filtering (`host_filtered/` present) and
   `results/called_cells.tsv`. A run without `host_filtered/` needs
-  `--host-subtract starsolo --host-index <STAR genomeDir>`; those reads go under `-o`.
-- `--called-cells FILE` replaces the run's own `called_cells.tsv`. A two-step run calls cells on barcodes
+  `--host-filter starsolo --host-index <STAR genomeDir>`; those reads go under `-o`.
+- `--called-cells-file FILE` replaces the run's own `called_cells.tsv`. A two-step run calls cells on barcodes
   that carry viral reads, so an uninfected library can have only a handful; pass the EmptyDrops
   `called_cells.tsv` of a full-matrix run of the same library instead. Its barcode space comes from the
   `cell_calling_input.json` beside that file (`unknown` without one); its path and sha256 are recorded in
@@ -92,7 +92,7 @@ What the fingerprint does and does not cover:
   a no-op.
 - The ViralScan version is in it, so after an upgrade a rerun needs `--force` or a new
   `-o`.
-- With `--host-subtract`, the STAR index is identified by its path, not its contents. If
+- With `--host-filter`, the STAR index is identified by its path, not its contents. If
   you rebuild an index in place, use a new `-o`.
 - `--force` deletes the previous outputs before the new run starts. If that run fails, the
   old results are gone.

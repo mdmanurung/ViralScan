@@ -361,18 +361,18 @@ def resolve_input(
     if primary is not None:
         if args.host_subtract:
             raise DiscoveryError(
-                "The primary run already has host_filtered/ output; drop --host-subtract "
+                "The primary run already has host_filtered/ output; drop --host-filter "
                 "(discovery reuses it)."
             )
         return primary
     if not args.host_subtract:
         raise DiscoveryError(
             "The primary run has no host_filtered/ output. Kraken2 discovery needs host-"
-            "subtracted reads: pass --host-subtract starsolo --host-index <STAR genomeDir> for "
+            "subtracted reads: pass --host-filter starsolo --host-index <STAR genomeDir> for "
             "a discovery-only STAR pass (the primary run is not changed)."
         )
     if not args.host_index:
-        raise DiscoveryError("--host-subtract starsolo requires --host-index.")
+        raise DiscoveryError("--host-filter starsolo requires --host-index.")
     return discovery_star_pass(
         run_root,
         sample_dir,
@@ -934,7 +934,7 @@ def load_called_cells(
 ) -> tuple[list[str], dict[str, Any]]:
     """The primary's called barcodes (suffix-stripped, sorted) and its cell-calling receipt.
 
-    *path* replaces the sample's own ``called_cells.tsv`` (``discover --called-cells``), e.g. the
+    *path* replaces the sample's own ``called_cells.tsv`` (``discover run --called-cells-file``), e.g. the
     EmptyDrops cells of a full-matrix run of the same library when a two-step run only calls
     barcodes that carry viral reads. Its barcode space comes from the ``cell_calling_input.json``
     beside it, never from the sample.

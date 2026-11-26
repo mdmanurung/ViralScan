@@ -16,7 +16,6 @@ from viralscan.defaults import (
     DEFAULTS,
     MULTIMAP_METHOD_ALIASES,
     MULTIMAP_METHODS,
-    MULTIMAP_PRIMARY_CALLS,
 )
 from viralscan.hostresponse_contract import CellTypesAction
 from viralscan.runconfig import CAPTURE_SCOPES
@@ -42,7 +41,6 @@ REMOVED_OPTIONS = {
         "-ref": "--reference",
         "-gtf": "--gtf",
         "-fasta": "--fasta",
-        "-f1": "--f1",
         "-v": "--visual / --no-visual",
         "-mm": "--multimapping / --no-multimapping",
         "-umap": "--umap",
@@ -53,13 +51,58 @@ REMOVED_OPTIONS = {
         "--no-hostresponse-control-mito": "--no-hostresponse-mito-control",
     },
     "hostresponse": {
-        "--hostresponse-min-umi": "--min-umi",
-        "--detection-threshold": "--min-umi",
+        "--hostresponse-min-umi": "--min-molecules",
+        "--detection-threshold": "--min-molecules",
         "-o": "--run-dir (the input run directory; --output now names where hostresponse writes)",
     },
     "validate-run": {"--json-output": "--json"},
     "check-whitelist": _READS,
     "check-chemistry": _READS,
+}
+# Options removed in 3.0.0b1 because they changed nothing (PLAN FLAGS-01): subcommand -> {option: why}.
+# There is no alias; the message says what to do instead of argparse's "unrecognized arguments".
+_F1_WHY = (
+    "it had no effect: `--reference` writes its own cdna.fa into <output>/index and a prebuilt "
+    "index needs no cDNA FASTA. Drop the flag."
+)
+REMOVED_NO_EFFECT = {
+    "run": {
+        "--f1": _F1_WHY,
+        "-f1": _F1_WHY,
+        "--se-threshold": (
+            "it never changed a call or a count. It only drew the cut-off line of the "
+            "exploratory high-burden plot, which is now fixed at 10 molecules. Drop the flag."
+        ),
+        "--multimap-primary-call": (
+            "its only accepted value was 'selected-method', which is the v3 count contract. "
+            "Drop the flag."
+        ),
+    },
+}
+# Option values removed the same way: subcommand -> {(option, value): why}.
+REMOVED_VALUES = {
+    "run": {
+        ("--positive-control-scope", "virus_key"): (
+            "'virus_key' needs an approved transfer calibration (VAL-RA-CAL) that this "
+            "release does not provide. Use exact_sequence (with --positive-control-virus-key) "
+            "for one declared target, or panel_mechanics."
+        ),
+    },
+}
+# Renamed options (PLAN FLAGS-01): subcommand -> {old: new}. The old spelling still parses, prints
+# a deprecation line to stderr (utils.deprecation_message, removal 3.1.0) and is hidden from --help.
+DEPRECATED_OPTIONS = {
+    "run": {
+        "--programme-min-umi": "--programme-min-molecules",
+        "--hostresponse-min-umi": "--hostresponse-min-molecules",
+    },
+    "rerun-programs": {"--programme-min-umi": "--programme-min-molecules"},
+    "hostresponse": {"--min-umi": "--min-molecules"},
+    "discover": {
+        "--host-subtract": "--host-filter",
+        "--called-cells": "--called-cells-file",
+    },
+    "translated": {"--cells": "--called-cells-file"},
 }
 # The original CLI's value form (`--visual False`); BooleanOptionalAction takes no value.
 _BOOL_WORDS = frozenset({"true", "false", "1", "0", "yes", "no"})
@@ -72,6 +115,13 @@ class _NoAbbrevParser(argparse.ArgumentParser):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs.setdefault("allow_abbrev", False)
         super().__init__(*args, **kwargs)
+
+
+class _CommaListAction(argparse.Action):
+    """Store a list given as space- or comma-separated tokens (``A B`` and ``A,B`` are the same)."""
+
+    def __call__(self, parser: Any, namespace: Any, values: Any, option_string: Any = None) -> None:
+        setattr(namespace, self.dest, [v for token in values for v in token.split(",") if v])
 
 
 def _multimap_method(value: str) -> str:
@@ -294,13 +344,16 @@ def _build_translated_parser(subparsers: Any) -> None:
         help="Existing kb count --aa output to summarise.",
     )
     p.add_argument(
-        "--cells",
+        "--called-cells-file",
+        dest="cells",
         default=None,
         metavar="FILE",
         help="Called-cell list; default results/called_cells.tsv.",
     )
     p.add_argument(
-        "--expected-taxa", default=None, help="Taxon ids to report first, e.g. 10376;37296."
+        "--expected-taxa",
+        default=None,
+        help="Taxon ids to report first, comma-separated, e.g. 10376,37296 (';' also works).",
     )
     p.add_argument(
         "--output", "-o", default=None, help="Default <run-dir>/<sample>/posthoc/translated."
@@ -344,9 +397,11 @@ def _build_ref_parser(subparsers: Any) -> None:
     p.add_argument(
         "--virus-accessions",
         nargs="+",
+        action=_CommaListAction,
         metavar="ACCESSION",
         default=None,
-        help="One or more NCBI nucleotide accessions, e.g. NC_045512.2.",
+        help="One or more NCBI nucleotide accessions, space- or comma-separated, "
+        "e.g. NC_045512.2,NC_001806.2.",
     )
     p.add_argument(
         "--profile",
@@ -822,17 +877,20 @@ def _build_discover_parser(subparsers: Any) -> None:
         help="Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified.",
     )
     p.add_argument(
-        "--host-subtract",
+        "--host-filter",
+        dest="host_subtract",
         choices=["starsolo"],
+        metavar="ALIGNER",
         default=None,
         help=(
             "Run a discovery-only STAR host subtraction when the source run has no "
             "host_filtered/ output. Its reads go under --output; the source run is not changed."
         ),
     )
-    p.add_argument("--host-index", default=None, help="STAR genomeDir for --host-subtract.")
+    p.add_argument("--host-index", default=None, help="STAR genomeDir for --host-filter.")
     p.add_argument(
-        "--called-cells",
+        "--called-cells-file",
+        dest="called_cells",
         default=None,
         metavar="FILE",
         help=(
@@ -845,7 +903,7 @@ def _build_discover_parser(subparsers: Any) -> None:
         "--host-filter-star-params",
         choices=["pinned", "star-default"],
         default="pinned",
-        help="STAR filter parameter set for --host-subtract (as in the main run). Default: pinned.",
+        help="STAR filter parameter set for --host-filter (as in the main run). Default: pinned.",
     )
     p.add_argument(
         "--confidence",
@@ -1078,7 +1136,8 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
         ),
     )
     p.add_argument(
-        "--programme-min-umi",
+        "--programme-min-molecules",
+        dest="programme_min_umi",
         type=float,
         default=None,
         metavar="X",
@@ -1302,7 +1361,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="Top N above-threshold genes to pass to pathway enrichment (default: 50).",
     )
     p.add_argument(
-        "--min-umi",
+        "--min-molecules",
         dest="hostresponse_min_umi",
         type=int,
         default=None,
@@ -1555,8 +1614,13 @@ def _usage() -> str:
     return f"\n\033[96m{banner}\033[0m"
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """Build the full argument parser (all subcommands) without parsing."""
+def build_parser(*, essential_help: bool = False) -> argparse.ArgumentParser:
+    """Build the full argument parser (all subcommands) without parsing.
+
+    With ``essential_help`` the ``run`` parser lists only ``RUN_ESSENTIAL_DESTS`` in ``--help``
+    (``--help-all`` lists the rest). Every option parses either way; the default lists all of
+    them, which is what the CLI reference generator and the tests read.
+    """
     parser = argparse.ArgumentParser(
         usage=_usage(),
         prog="viralscan",
@@ -1609,7 +1673,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="<subcommand>",
         parser_class=_NoAbbrevParser,
     )
-    _build_run_parser(subparsers)
+    _build_run_parser(subparsers, essential_help=essential_help)
     _build_data_parser(subparsers)
     _build_translated_parser(subparsers)
     _build_evidence_parser(subparsers)
@@ -1619,12 +1683,57 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _build_run_parser(subparsers: Any) -> None:
+# The `run` options that `viralscan run --help` lists (PLAN FLAGS-01): the three inputs, the
+# reference choices, chemistry and strand, cell calling, parallelism and `--resume`. These are the
+# flags the README, the quickstart and the CLI reference use. Everything else is in `--help-all`.
+RUN_ESSENTIAL_DESTS = frozenset(
+    {
+        "output",
+        "sample1",
+        "sample2",
+        "transcripts",
+        "index",
+        "cores",
+        "technology",
+        "strand",
+        "kb_params",
+        "whitelist",
+        "reference",
+        "gtf",
+        "fasta",
+        "ncbi_accession",
+        "cell_calling",
+        "resume",
+    }
+)
+
+
+class _HelpAllAction(argparse._HelpAction):
+    """``--help-all``: print the help of the run parser with every option listed."""
+
+    def __init__(
+        self, option_strings: Sequence[str], dest: str = "help_all", **kwargs: Any
+    ) -> None:
+        super().__init__(option_strings, dest=dest, **kwargs)
+
+    def __call__(self, parser: Any, namespace: Any, values: Any, option_string: Any = None) -> None:
+        root = build_parser()
+        subparsers = next(a for a in root._actions if isinstance(a, argparse._SubParsersAction))
+        subparsers.choices["run"].print_help()
+        parser.exit()
+
+
+def _build_run_parser(subparsers: Any, *, essential_help: bool = False) -> None:
     """Register the 'run' (quantification) subcommand."""
     parser = subparsers.add_parser(
         "run",
         help="Quantify viral load from FASTQ samples.",
         description="Quantify viral load from paired-end FASTQ samples with kb count.",
+    )
+    parser.add_argument(
+        "--help-all",
+        action=_HelpAllAction,
+        help="Show every option, not only the essential ones, and exit.",
     )
     parser.add_argument(
         "--output",
@@ -1686,11 +1795,6 @@ def _build_run_parser(subparsers: Any) -> None:
         "--fasta",
         default=None,
         help="Path to FASTA files (comma-delimited, without space in-between).",
-    )
-    parser.add_argument(
-        "--f1",
-        default=None,
-        help="Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated",
     )
     parser.add_argument(
         "--visual",
@@ -1803,16 +1907,6 @@ def _build_run_parser(subparsers: Any) -> None:
 
     # Reporting / threshold parameters
     parser.add_argument(
-        "--se-threshold",
-        type=int,
-        default=DEFAULTS["se_threshold"],
-        help=(
-            "Selected-method viral molecule estimate above which a cell is flagged as a "
-            "'super-expressor'. "
-            f"Default: {DEFAULTS['se_threshold']}."
-        ),
-    )
-    parser.add_argument(
         "--detection-threshold",
         type=int,
         default=DEFAULTS["detection_threshold"],
@@ -1876,14 +1970,13 @@ def _build_run_parser(subparsers: Any) -> None:
     )
     parser.add_argument(
         "--positive-control-scope",
-        choices=CAPTURE_SCOPES,
+        choices=[scope for scope in CAPTURE_SCOPES if scope != "virus_key"],
         default=None,
         help=(
             "What the positive control may certify. exact_sequence: only the virus row "
             "named by --positive-control-virus-key, and only that exact sequence. "
             "panel_mechanics: the pipeline recovers a planted molecule; certifies no "
-            "virus. virus_key: needs an approved transfer calibration and is currently "
-            "rejected. Unset on a configured control behaves as panel_mechanics and "
+            "virus. Unset on a configured control behaves as panel_mechanics and "
             "warns once."
         ),
     )
@@ -2047,7 +2140,8 @@ def _build_run_parser(subparsers: Any) -> None:
         ),
     )
     parser.add_argument(
-        "--programme-min-umi",
+        "--programme-min-molecules",
+        dest="programme_min_umi",
         type=float,
         default=DEFAULTS["programme_min_umi"],
         metavar="X",
@@ -2249,17 +2343,6 @@ def _build_run_parser(subparsers: Any) -> None:
         ),
     )
     parser.add_argument(
-        "--multimap-primary-call",
-        choices=MULTIMAP_PRIMARY_CALLS,
-        default=DEFAULTS["multimap_primary_call"],
-        help=(
-            "V3 detection-count contract. The only supported value is 'selected-method': "
-            "summaries use the complete molecule matrix for --multimap-method, while unique "
-            "and ambiguous evidence remain separately reported. "
-            f"Default: {DEFAULTS['multimap_primary_call']}."
-        ),
-    )
-    parser.add_argument(
         "--multimap-em-max-iter",
         type=int,
         default=DEFAULTS["multimap_em_max_iter"],
@@ -2376,7 +2459,8 @@ def _build_run_parser(subparsers: Any) -> None:
         help="Iterations for randomized Lasso selection frequency (uncalibrated; default: 100).",
     )
     parser.add_argument(
-        "--hostresponse-min-umi",
+        "--hostresponse-min-molecules",
+        dest="hostresponse_min_umi",
         type=int,
         default=None,
         metavar="N",
@@ -2479,7 +2563,30 @@ def _build_run_parser(subparsers: Any) -> None:
     )
 
     _add_verbosity_args(parser)
-    parser.set_defaults(_subcommand="run")
+    # Fixed since FLAGS-01 removed --se-threshold and --multimap-primary-call. They stay on the
+    # namespace so the run manifest still hashes them: a run that uses only kept flags keeps its
+    # run_fingerprint (tests/test_flags_removed.py).
+    parser.set_defaults(
+        _subcommand="run",
+        se_threshold=DEFAULTS["se_threshold"],
+        multimap_primary_call=DEFAULTS["multimap_primary_call"],
+    )
+    if essential_help:
+        hidden = [
+            a
+            for a in parser._actions
+            if a.option_strings
+            and a.dest not in RUN_ESSENTIAL_DESTS
+            and not isinstance(a, argparse._HelpAction)
+        ]
+        for action in hidden:
+            action.help = argparse.SUPPRESS
+        parser.description = (
+            "Quantify viral load from paired-end FASTQ samples with kb count.\n\n"
+            f"This lists the {len(RUN_ESSENTIAL_DESTS)} essential options. "
+            f"`viralscan run --help-all` lists all {len(hidden) + len(RUN_ESSENTIAL_DESTS)}."
+        )
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -2488,7 +2595,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     A bare ``viralscan --r1 ...`` (options, no subcommand) still runs ``run``, with a warning.
     """
     argv = list(sys.argv[1:] if argv is None else argv)
-    parser = build_parser()
+    parser = build_parser(essential_help=True)
     if argv and argv[0].startswith("-") and argv[0] not in ("-h", "--help", "--version"):
         print(
             "viralscan: warning: "
@@ -2501,12 +2608,31 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     if sub in COMMAND_GROUPS and len(argv) > 1 and argv[1] in COMMAND_GROUPS[sub]:
         typed, sub, first = f"{sub} {argv[1]}", COMMAND_GROUPS[sub][argv[1]], 2
     removed = REMOVED_OPTIONS.get(sub or "", {})
+    no_effect = REMOVED_NO_EFFECT.get(sub or "", {})
+    removed_values = REMOVED_VALUES.get(sub or "", {})
+    renamed = DEPRECATED_OPTIONS.get(sub or "", {})
     for i, token in enumerate(argv[first:], start=first):
-        option = token.split("=", 1)[0]
+        option, eq, tail = token.partition("=")
         if option in removed:
             parser.exit(
                 2, f"viralscan {typed}: error: {option} was removed; use {removed[option]}\n"
             )
+        if option in no_effect:
+            parser.exit(2, f"viralscan {typed}: error: {option} was removed: {no_effect[option]}\n")
+        given = tail if eq else (argv[i + 1] if i + 1 < len(argv) else "")
+        if (option, given) in removed_values:
+            parser.exit(
+                2,
+                f"viralscan {typed}: error: {option} {given} was removed: "
+                f"{removed_values[(option, given)]}\n",
+            )
+        if option in renamed:  # the old spelling is rewritten, so it is never listed in --help
+            print(
+                f"viralscan {typed}: warning: " + deprecation_message(option, renamed[option]),
+                file=sys.stderr,
+            )
+            argv[i] = renamed[option] + eq + tail
+            option = renamed[option]
         nxt = argv[i + 1] if i + 1 < len(argv) else ""
         if (
             sub == "run"

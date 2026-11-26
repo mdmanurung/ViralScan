@@ -1160,7 +1160,7 @@ class TestDagAndCli:
         import sys
 
         result = subprocess.run(
-            [sys.executable, "-m", "viralscan", "run", "--help"],
+            [sys.executable, "-m", "viralscan", "run", "--help-all"],
             capture_output=True,
             text=True,
             check=False,
@@ -1170,7 +1170,7 @@ class TestDagAndCli:
         assert "--gene-programs" in text, text[-800:]
         assert "--programme-min-breadth" in text, text[-800:]
         assert "--programme-latent-min-breadth" in text, text[-800:]
-        assert "--programme-min-umi" in text, text[-800:]
+        assert "--programme-min-molecules" in text, text[-800:]
 
     def test_gene_programs_flag_defaults_off(self) -> None:
         """A second layer must be opt-in, so a plain run is unchanged."""

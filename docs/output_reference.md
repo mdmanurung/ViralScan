@@ -704,7 +704,7 @@ column was removed.
 | `min_breadth` | The `--programme-min-breadth` used | observation |
 | `latent_min_breadth` | The `--programme-latent-min-breadth` used (default 1) | observation |
 | `productive_min_molecules` | The `--programme-productive-min-molecules` used: a productive marker counts toward productive breadth only at ≥ this many molecules; latent markers are unaffected (default 1 = any nonzero value) | observation |
-| `marker_min_umi` | The `--programme-min-umi` used: a marker counts only at ≥ this many molecules (default 0 = any nonzero value, so the allocated layer's fractional values still count) | observation |
+| `marker_min_umi` | The `--programme-min-molecules` used: a marker counts only at ≥ this many molecules (default 0 = any nonzero value, so the allocated layer's fractional values still count) | observation |
 | `n_cells_lytic_programme` | `n_cells_productive` + `n_cells_mixed`: cells with the lytic programme present. Use this rather than either part, because the split between them depends on load (see `mixed` under States) | model estimate |
 | `mixed_veto_rule` | The veto the virus was called with: `any` (one latent-veto molecule turns `productive` into `mixed`) or `betabinomial` (load-aware test); blank for a virus with no programme model | observation |
 | `mixed_veto_mean` / `mixed_veto_rho` | The beta-binomial fit used for the veto, from `gene_program_vetoes.tsv` (mean latent-veto share of a lytic cell and its overdispersion); empty when the virus has no fit | observation |
@@ -1468,7 +1468,7 @@ string are refused rather than overwritten.
 
 | Column | Description | Kind |
 |--------|-------------|------|
-| `virus`, `n_positive` | Virus display name (pooled over its genes); number of candidate-positive cells under the chosen label. With the default `raw` label a cell is positive when its pooled viral molecule estimate is at least `--hostresponse-min-umi` (default 10; separate from `--detection-threshold`, the sample gate) | observation |
+| `virus`, `n_positive` | Virus display name (pooled over its genes); number of candidate-positive cells under the chosen label. With the default `raw` label a cell is positive when its pooled viral molecule estimate is at least `--hostresponse-min-molecules` (default 10; separate from `--detection-threshold`, the sample gate) | observation |
 | `cv_mode` | The concrete evaluation scheme the row was computed with, `group` or `cell` (`--cv auto`, the default, is resolved before the fit; see the manifest's `cv_mode_requested`). Cell-mode and group-mode numbers are different estimands | observation |
 | `label`, `depth_matched`, `mito_controlled` | Which de-confounding design was used (`raw`/`cpm`/`fraction`; depth-matched cohort; %mito covariate) | observation |
 | `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) | model estimate |
@@ -1615,7 +1615,7 @@ a mask are explicitly labelled `all_barcodes`.
 
 Only the PNG applies a 0.5 display floor and a 50,000-rank cap, both labelled.
 Neither changes the TSV. The standalone `scripts/super_expressors.py` summary
-resolves `--cells`, then `<run>/results/called_cells.tsv`, or stops with an error.
+resolves `--called-cells-file`, then `<run>/results/called_cells.tsv`, or stops with an error.
 `--denominator viral_positive_called` reproduces the historical subset statistic
 with a warning. Its final `denominator_kind` column distinguishes that statistic
 from a complete called-cell percentage. Empty input still produces the full header.

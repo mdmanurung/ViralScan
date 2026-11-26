@@ -98,7 +98,7 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--detection-threshold N` | `1` | Min estimated viral molecules summed over the **called cells** for a virus to pass the detection gate; molecules in non-called barcodes are reported as `background_molecules` |
+| `--detection-threshold N` | `1` | Min estimated viral molecules summed over the **called cells** for a virus to pass the detection gate; molecules in non-called barcodes are reported as `background_umis` |
 | `--detection-min-cells N` | `1` | Distinct called cells that must be infected for a virus to pass the gate. Viruses seen only in the all-barcode screen stay in `viral_summary.tsv` as candidates (`detected` = False). With `--cell-calling none` every barcode counts as called |
 | `--infected-min-molecules X` | `2.0` | A cell is infected for a virus when its summed allocated molecules reach X (one rule for detection, enrichment and the UMAP). Cells with 0 < weight < X are counted in `infected_subthreshold_cells`, not dropped |
 | `--hostresponse-min-umi N` | `10` | Per-cell positive label for host-response (the sample gate stays `--detection-threshold`) |
@@ -345,8 +345,8 @@ the translated matrix), a receipt and a completion marker. `--counts-dir` summar
 | `--sample SAMPLE` | *(none)* | Sample subdirectory when the run has several. |
 | `--index-dir DIR` | *required* | <out-dir>/index of translated-index |
 | `--counts-dir DIR` | *(none)* | Existing kb count --aa output to summarise. |
-| `--cells FILE` | *(none)* | Called-cell list; default results/called_cells.tsv. |
-| `--expected-taxa EXPECTED_TAXA` | *(none)* | Taxon ids to report first, e.g. 10376;37296. |
+| `--called-cells-file FILE` | *(none)* | Called-cell list; default results/called_cells.tsv. |
+| `--expected-taxa EXPECTED_TAXA` | *(none)* | Taxon ids to report first, comma-separated, e.g. 10376,37296 (';' also works). |
 | `--output, -o OUTPUT` | *(none)* | Default <run-dir>/<sample>/posthoc/translated. |
 | `--cores, -c, --threads N` | `4` | kb count threads. Default: 4. (--threads is an alias.) |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
@@ -788,6 +788,12 @@ the sections above add context. Do not edit between the markers.
 
 ### viralscan run
 
+`viralscan run --help` lists 16 essential options: `--output`, `--r1`, `--r2`, `--transcripts`,
+`--index`, `--cores`, `--technology`, `--strand`, `--kb-params`, `--whitelist`, `--reference`, `--gtf`,
+`--fasta`, `--ncbi-accession`, `--cell-calling` and `--resume`. `viralscan run --help-all` lists every
+option. The table below has them all. `--f1`, `--se-threshold` and `--multimap-primary-call` were
+removed in 3.0.0b1 and exit 2 with a message (PLAN `FLAGS-01`, see [migration](migration.md)).
+
 <!-- BEGIN GENERATED: run -->
 
 | Flag | Default | Help |
@@ -802,7 +808,6 @@ the sections above add context. Do not edit between the markers.
 | `--reference-host-species NAME` | *(none)* | With --reference: host species label recorded in reference_manifest.json (for example 'Homo sapiens'). A label only; it does not change the index. Default: 'unspecified'. |
 | `--gtf GTF` | *(none)* | Path to GTF files (comma-delimited, without space in-between). |
 | `--fasta FASTA` | *(none)* | Path to FASTA files (comma-delimited, without space in-between). |
-| `--f1 F1` | *(none)* | Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated |
 | `--visual, --no-visual` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
 | `--technology, -x TECHNOLOGY` | *(none)* | Single-cell technology (`kb --list` to view). Default: detected from the first 100k R1 reads of each sample (on-list match, TSO/poly-T position). An explicit -x that the reads contradict, or reads that fit no single chemistry, stop the run. GEM-X 5' needs its on-list via -w. |
 | `--force-technology` | `False` | Run with the explicit -x even when the chemistry check disagrees or cannot decide. The detection is still logged. |
@@ -820,13 +825,12 @@ the sections above add context. Do not edit between the markers.
 | `--ncbi-email NCBI_EMAIL` | *(none)* | Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL. |
 | `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher E-utilities request rates with --ncbi-accession. Falls back to $NCBI_API_KEY. |
 | `--cache-dir PATH` | *(none)* | Root cache directory for ViralScan's fetched viral annotation panel. Default: $VIRALSCAN_CACHE or ~/.cache/viralscan/. |
-| `--se-threshold SE_THRESHOLD` | `10` | Selected-method viral molecule estimate above which a cell is flagged as a 'super-expressor'. Default: 10. |
 | `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum selected-method viral molecule estimate, summed over the called cells, required for a virus to pass the called-cell detection gate (see --detection-min-cells). Molecules in non-called barcodes (empty droplets) do not count and are reported as background_molecules. Default: 1. |
 | `--detection-min-cells N` | *(none)* | Minimum number of distinct called cells that must be infected (see --infected-min-molecules) for a virus to pass the detection gate. A virus seen only in the all-barcode screen is listed as a candidate, never dropped. With --cell-calling none every barcode counts as a called cell. Default: 1. |
 | `--infected-min-molecules X` | `2.0` | A cell is infected for a virus when its summed allocated molecules across that virus's genes reach X. One rule for detection, cell-type enrichment and the UMAP. Cells with 0 < weight < X are counted as sub-threshold (infected_subthreshold_cells), not dropped. Fractional EM or multimapper weights make a bare 'greater than 0' rule too permissive. Default: 2.0. |
 | `--positive-control-gene GENE_ID` | *(none)* | Gene ID of a spike-in planted at a known molecule count. It is the only way to measure the k-mer capture term, and therefore the only way to turn 'no virus detected' into a certifiable negative rather than a sampling statement. Must be given together with --positive-control-molecules. |
 | `--positive-control-molecules N` | *(none)* | Molecules of --positive-control-gene planted in the library. Capture is measured as observed/N and reported in results/positive_control.json; capture=1.0 means no loss was measurable and implies nothing about sequence divergence. |
-| `--positive-control-scope POSITIVE_CONTROL_SCOPE` | *(none)* | What the positive control may certify. exact_sequence: only the virus row named by --positive-control-virus-key, and only that exact sequence. panel_mechanics: the pipeline recovers a planted molecule; certifies no virus. virus_key: needs an approved transfer calibration and is currently rejected. Unset on a configured control behaves as panel_mechanics and warns once. |
+| `--positive-control-scope POSITIVE_CONTROL_SCOPE` | *(none)* | What the positive control may certify. exact_sequence: only the virus row named by --positive-control-virus-key, and only that exact sequence. panel_mechanics: the pipeline recovers a planted molecule; certifies no virus. Unset on a configured control behaves as panel_mechanics and warns once. |
 | `--positive-control-virus-key VIRUS_KEY` | *(none)* | Virus row (the name in results/sensitivity.tsv) an exact_sequence control was measured on. Required with --positive-control-scope exact_sequence. |
 | `--positive-control-receipt JSON` | *(none)* | Pinned control identity/measurement receipt required for exact-sequence certification. |
 | `--require-positive-control, --no-require-positive-control` | `False` | Fail the run when nothing is detected and no positive control could measure a capture term. A mechanics/recovery gate: passing it does not certify any virus outside the control's declared scope. Default: False. |
@@ -842,7 +846,7 @@ the sections above add context. Do not edit between the markers.
 | `--viral-fasta FASTA` | *(none)* | Viral-only FASTA for --auto-evidence. Default: viral.fa next to the kb index. |
 | `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because EBV's latent and lytic ORFs share exonic sequence: on the EBV LCL run a naive per-gene comparison gives a latent:lytic ratio of 1.15 in a cell line defined by latency. Must be >= 1. Default: 2. |
 | `--programme-latent-min-breadth N` | `1` | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: 1. |
-| `--programme-min-umi X` | `0.0` | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: 0.0. |
+| `--programme-min-molecules X` | `0.0` | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: 0.0. |
 | `--programme-productive-min-molecules N` | `1` | A productive marker counts toward productive breadth only at >= N molecules in the cell; latent markers are unaffected. 1 means any nonzero value. Must be >= 1. Default: 1. |
 | `--programme-mixed-veto PROGRAMME_MIXED_VETO` | *(none)* | How a latent molecule turns a productive cell into mixed: catalogue (each virus's shipped rule, today any for every virus), any (one latent-veto molecule), or betabinomial (only when the latent load is improbably high for a lytic cell at its depth; needs a fitted veto in gene_program_vetoes.tsv). Default: catalogue. |
 | `--programme-mixed-veto-alpha A` | *(none)* | Per-cell significance level of the beta-binomial mixed veto, in (0, 1). Default: 0.01. |
@@ -862,7 +866,6 @@ the sections above add context. Do not edit between the markers.
 | `--cell-caller-rscript CELL_CALLER_RSCRIPT` | `Rscript` | Rscript executable that runs emptyDrops (needs R and DropletUtils). Only used with emptyDrops cell calling. Default: Rscript. |
 | `--multimap-method {conservative,em,equal}` | `host-conservative` | How to allocate multi-gene EC counts. 'conservative' excludes host-virus ambiguous EC mass from viral genes (recommended for combined host+virus references); 'em' iterates the allocation using cell-local evidence; 'equal' splits reads equally (fast, unbiased first pass). Use 'viralscan rerun multimap' to switch methods after the run without redoing the pseudoalignment. Default: conservative. |
 | `--multimap-pseudocount MULTIMAP_PSEUDOCOUNT` | `1.0` | Positive pseudocount used by --multimap-method unique-weighted. Default: 1.0. |
-| `--multimap-primary-call MULTIMAP_PRIMARY_CALL` | `selected-method` | V3 detection-count contract. The only supported value is 'selected-method': summaries use the complete molecule matrix for --multimap-method, while unique and ambiguous evidence remain separately reported. Default: selected-method. |
 | `--multimap-em-max-iter MULTIMAP_EM_MAX_ITER` | `100` | Maximum EM iterations for --multimap-method em. Default: 100. |
 | `--multimap-em-tol MULTIMAP_EM_TOL` | `1e-06` | EM convergence tolerance for --multimap-method em. Default: 1e-06. |
 | `--multimap-molecule-assignments, --no-multimap-molecule-assignments` | `False` | Write results/molecule_assignments.tsv.gz: one row per corrected CB-UMI molecule with its EC ids, status (unique/ambiguous/unresolved), compatible genes and the selected --multimap-method's per-gene weights. Optional, off by default, and it changes no count. Needs one extra pass over the BUS text; the file is large on deep samples. Default: False. |
@@ -885,7 +888,7 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-min-groups HOSTRESPONSE_MIN_GROUPS` | *(none)* | Minimum groups per stratum (default: 2). |
 | `--hostresponse-n-seeds N` | *(none)* | Number of random seeds for the multi-seed L2 logistic regression, 1-6 (default: 6). |
 | `--hostresponse-n-stab-iter N` | *(none)* | Iterations for randomized Lasso selection frequency (uncalibrated; default: 100). |
-| `--hostresponse-min-umi N` | *(none)* | Per-cell positive label for host-response: a cell is virus-positive when its viral molecule estimate is >= N. Separate from --detection-threshold, which is the sample-level gate (default: 10). |
+| `--hostresponse-min-molecules N` | *(none)* | Per-cell positive label for host-response: a cell is virus-positive when its viral molecule estimate is >= N. Separate from --detection-threshold, which is the sample-level gate (default: 10). |
 | `--hostresponse-use-hvg, --no-hostresponse-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-hostresponse-use-hvg uses all genes. |
 | `--hostresponse-stab-min-prob PROB` | *(none)* | Minimum uncalibrated selection frequency to flag a gene; a ranking threshold, not an error rate (default: 0.6). |
 | `--hostresponse-top-n-genes N` | *(none)* | Top N above-threshold genes to pass to pathway enrichment (default: 50). |
@@ -925,7 +928,7 @@ the sections above add context. Do not edit between the markers.
 | Flag | Default | Help |
 |------|---------|------|
 | `--host HOST` | *(none)* | Host species, e.g. 'human', 'mouse'. Run --list-species for all options. |
-| `--virus-accessions ACCESSION` | *(none)* | One or more NCBI nucleotide accessions, e.g. NC_045512.2. |
+| `--virus-accessions ACCESSION` | *(none)* | One or more NCBI nucleotide accessions, space- or comma-separated, e.g. NC_045512.2,NC_001806.2. |
 | `--profile PROFILE` | `curated` | Frozen combined-reference profile. Default: curated. |
 | `--output, -o OUTPUT` | `viralscan_ref` | Output directory for reference files. Default: viralscan_ref/ |
 | `--ncbi-email NCBI_EMAIL` | *(none)* | Contact e-mail for NCBI E-utilities (avoids throttling). |
@@ -1030,10 +1033,10 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 | `--sample SAMPLE` | *(none)* | Sample subdirectory to classify; required when the run has more than one. |
 | `--output, -o OUTPUT` | *(none)* | Discovery output directory; default <run-dir>/<sample>/posthoc/discovery. Outside --run-dir or under its posthoc/ folder; must be empty, absent or a previous publication. |
 | `--kraken2-db KRAKEN2_DB` | *required* | Kraken2 database directory (hash.k2d, opts.k2d, taxo.k2d). Never downloaded or modified. |
-| `--host-subtract HOST_SUBTRACT` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
-| `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-subtract. |
-| `--called-cells FILE` | *(none)* | Use this called_cells.tsv instead of the sample's own (e.g. the EmptyDrops cells of a full-matrix run of the same library). Its barcode space is read from the cell_calling_input.json beside it; its sha256 enters the provenance and fingerprint. |
-| `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | `pinned` | STAR filter parameter set for --host-subtract (as in the main run). Default: pinned. |
+| `--host-filter ALIGNER` | *(none)* | Run a discovery-only STAR host subtraction when the source run has no host_filtered/ output. Its reads go under --output; the source run is not changed. |
+| `--host-index HOST_INDEX` | *(none)* | STAR genomeDir for --host-filter. |
+| `--called-cells-file FILE` | *(none)* | Use this called_cells.tsv instead of the sample's own (e.g. the EmptyDrops cells of a full-matrix run of the same library). Its barcode space is read from the cell_calling_input.json beside it; its sha256 enters the provenance and fingerprint. |
+| `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | `pinned` | STAR filter parameter set for --host-filter (as in the main run). Default: pinned. |
 | `--confidence CONFIDENCE` | `0.05` | Kraken2 --confidence (a k-mer fraction threshold, not a probability). Default: 0.05, the Cellsnake documented default; not calibrated here (Kraken2's own default is 0.0). |
 | `--minimum-hit-groups MINIMUM_HIT_GROUPS` | `4` | Kraken2 --minimum-hit-groups. Default: 4, the Cellsnake documented default; not calibrated here (Kraken2's own default is 2). |
 | `--memory-mapping` | `False` | Pass --memory-mapping to Kraken2 (no full database load into RAM; needs fast storage). |
@@ -1126,7 +1129,7 @@ the row not estimable.
 | `--output, -o DIR` | *(none)* | Directory to write results/gene_program_*.tsv under (default: <run-dir>/<sample>/posthoc/programs). |
 | `--programme-min-breadth N` | *(none)* | Distinct non-overlapping overlap groups required before a programme is called. Must be >= 1. Default: the run's own config (2 if it set none). |
 | `--programme-latent-min-breadth N` | *(none)* | Distinct latent overlap groups required before 'latent' is called. Must be >= 1. Default: the run's own config (1 if it set none). |
-| `--programme-min-umi X` | *(none)* | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: the run's own config (0.0 if it set none). |
+| `--programme-min-molecules X` | *(none)* | A marker counts as evidence only at >= X molecules; 0 means any nonzero value. Must be >= 0. Default: the run's own config (0.0 if it set none). |
 | `--programme-productive-min-molecules N` | *(none)* | A productive marker counts toward productive breadth only at >= N molecules in the cell; latent markers are unaffected. 1 means any nonzero value. Must be >= 1. Default: the run's own config (1 if it set none). |
 | `--programme-mixed-veto PROGRAMME_MIXED_VETO` | *(none)* | How a latent molecule turns a productive cell into mixed: catalogue (each virus's shipped rule, today any for every virus), any (one latent-veto molecule), or betabinomial (only when the latent load is improbably high for a lytic cell at its depth; needs a fitted veto in gene_program_vetoes.tsv). Default: the run's own config (catalogue if it set none). |
 | `--programme-mixed-veto-alpha A` | *(none)* | Per-cell significance level of the beta-binomial mixed veto, in (0, 1). Default: the run's own config (0.01 if it set none). |
@@ -1151,7 +1154,7 @@ the row not estimable.
 | `--use-hvg, --no-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-use-hvg uses all genes. |
 | `--stab-min-prob P` | *(none)* | Min uncalibrated selection frequency to flag a gene; a ranking threshold, not an error rate (default: 0.6). |
 | `--top-n-genes N` | *(none)* | Top N above-threshold genes to pass to pathway enrichment (default: 50). |
-| `--min-umi N` | *(none)* | Minimum selected-method viral molecule estimate for the per-cell positive label (default: from config or 10). |
+| `--min-molecules N` | *(none)* | Minimum selected-method viral molecule estimate for the per-cell positive label (default: from config or 10). |
 | `--label LABEL` | `raw` | Candidate-support label: 'raw' (default, depth-confounded estimate>=threshold) or depth-normalized 'cpm'/'fraction' (prevalence-matched burden per host molecule). |
 | `--depth-match` | `False` | Restrict analysis to a coarsened-exact depth-matched cohort; this reduces measured total-depth imbalance but does not establish independence from depth confounding. |
 | `--mito-control, --no-mito-control` | `True` | Add %mito as a covariate to the per-gene E-values (default: on; --no-mito-control to disable). |
