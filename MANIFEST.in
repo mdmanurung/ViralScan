@@ -22,6 +22,7 @@ include docs/output_reference.md
 include docs/quickstart.md
 include docs/results.md
 include docs/reference_panel.md
+include docs/tester_packet.md
 include docs/requirements.txt
 include docs/v3_counting_contract.md
 include scripts/check_data_governance.py

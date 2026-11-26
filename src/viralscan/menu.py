@@ -1950,6 +1950,13 @@ def _run_subcommand(args: argparse.Namespace) -> None:
         print(collapsed)
         return
 
+    if getattr(args, "_subcommand", None) == "demo":
+        from viralscan.demo import run_demo
+
+        if args.cores < 1:
+            _die("--cores must be at least 1.", 2)
+        sys.exit(run_demo(Path(args.output), cores=args.cores, keep=args.keep, force=args.force))
+
     if getattr(args, "_subcommand", None) == "status":
         from viralscan.posthoc_record import status_table
 

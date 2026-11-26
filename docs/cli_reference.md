@@ -6,7 +6,7 @@ the installed version. This page documents the public CLI as of ViralScan
 
 <!-- BEGIN GENERATED: subcommands -->
 
-`run`, `data`, `data fetch`, `translated`, `evidence`, `evidence-plot`, `status`, `check`, `check chemistry`, `check run`, `check env`, `check whitelist`, `discover`, `discover run`, `discover collapse`, `discover states`, `rerun`, `rerun multimap`, `rerun programs`, `rerun hostresponse`, `build`, `build ref`, `build star-index`, `build translated-index`, `dev`, `dev host-loss`
+`run`, `data`, `data fetch`, `translated`, `evidence`, `evidence-plot`, `status`, `demo`, `check`, `check chemistry`, `check run`, `check env`, `check whitelist`, `discover`, `discover run`, `discover collapse`, `discover states`, `rerun`, `rerun multimap`, `rerun programs`, `rerun hostresponse`, `build`, `build ref`, `build star-index`, `build translated-index`, `dev`, `dev host-loss`
 
 <!-- END GENERATED -->
 
@@ -1258,6 +1258,24 @@ the row not estimable.
 | `--run-dir RUN_DIR` | *required* | Completed run root (holds run_manifest.json). A sample directory still works but is deprecated: use the run root. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan demo
+
+Runs the bundled two-read-pair dataset through `viralscan run`, then `viralscan check run`, and
+compares 16 deterministic outputs with pinned sha256 digests. It needs the full tier. Exit 0: all pass.
+Exit 1: a mismatch or a failed step. Exit 2: a tool is missing (run `viralscan check env --profile full`)
+or the output directory already holds files. See the [tester packet](tester_packet.md).
+
+<!-- BEGIN GENERATED: demo -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--output OUTPUT` | `viralscan_demo` | New directory for the demo; an existing non-empty one is refused without --force. |
+| `--cores CORES` | `2` | CPU budget passed to `viralscan run`. |
+| `--keep` | `False` | Keep the inputs and the run after a PASS. Without it only demo_report.json stays. |
+| `--force` | `False` | Write into an existing output; its inputs/ and run/ are replaced. |
 
 <!-- END GENERATED -->
 
