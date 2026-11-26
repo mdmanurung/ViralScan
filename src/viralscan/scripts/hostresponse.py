@@ -80,13 +80,17 @@ from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
     validate_null_spec,
 )
 from viralscan.outputs import V3Outputs, analysis_genes_path
+from viralscan.run_context import RunContext
 from viralscan.run_safety import sha256_file as _sha256_file
 from viralscan.run_safety import software_identity
-from viralscan.run_context import RunContext
+from viralscan.scripts.cellcalling import CALLED_CELLS_TSV
 from viralscan.utils import _sparse_row_block, setup_script_logging
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_identity, group_genes_by_virus, identity_path
 from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
+
+#: Full host-called set written by detection for two-step and external-host runs.
+HOST_CALLED_CELLS_TSV = "host_called_cells.tsv"
 
 # sklearn 1.8 deprecated the `penalty` kwarg; use l1_ratio=1 + saga instead.
 # On older sklearn, l1_ratio without penalty='elasticnet' is silently ignored,
@@ -2872,6 +2876,65 @@ def _run_cohort(
     return all_metrics, status_rows
 
 
+def _restrict_to_called_cells(host_adata, called_cells_file):
+    """Keep the host barcodes the run called as cells; return the subset and a manifest block.
+
+    The set is the run's ``results/called_cells.tsv`` (every barcode when cell calling is
+    ``none``). In two-step and external-host runs that file lists only barcodes present in
+    the viral matrix, so the full host-called set in the sibling
+    ``results/host_called_cells.tsv`` is used when it exists: host-called cells with no
+    viral read stay in as true negatives. A missing file fails closed: it never falls back
+    to all barcodes, which would add empty droplets to the models.
+    """
+    from viralscan.scripts.cellcalling import read_called_barcodes
+
+    n_host = int(host_adata.n_obs)
+    if called_cells_file is None:
+        return host_adata, {
+            "source": "not_given",
+            "path": None,
+            "sha256": None,
+            "n_host_barcodes": n_host,
+            "n_called_cells": None,
+            "n_host_called": n_host,
+            "n_excluded_not_called": 0,
+        }
+    path = Path(called_cells_file)
+    host_set = path.with_name(HOST_CALLED_CELLS_TSV)
+    source = "called_cells_tsv"
+    if host_set.is_file():
+        path, source = host_set, "host_called_cells_tsv"
+    if not path.is_file():
+        raise ViralScanError(
+            f"{path} is missing; hostresponse uses only the run's called cells and will not "
+            "fall back to all barcodes. Rerun the run's detection step to write it."
+        )
+    called = read_called_barcodes(path)
+    keep = np.isin(np.asarray(host_adata.obs_names, dtype=str), list(called))
+    n_kept = int(keep.sum())
+    if n_kept == 0:
+        raise ViralScanError(
+            f"none of the {n_host} host barcodes is among the {len(called)} called cells in "
+            f"{path}; check that the host h5ad belongs to this run."
+        )
+    log.info(
+        "Host-response cell set: %d host barcodes, %d called cells, %d excluded as not called.",
+        n_host,
+        len(called),
+        n_host - n_kept,
+    )
+    block = {
+        "source": source,
+        "path": str(path),
+        "sha256": _sha256_file(path),
+        "n_host_barcodes": n_host,
+        "n_called_cells": len(called),
+        "n_host_called": n_kept,
+        "n_excluded_not_called": n_host - n_kept,
+    }
+    return (host_adata if n_kept == n_host else host_adata[keep].copy()), block
+
+
 def run_hostresponse(
     virus_h5ad: str,
     host_h5ad: str,
@@ -2902,8 +2965,16 @@ def run_hostresponse(
     min_negative_cells: int = MIN_VIRUS_CELLS,
     min_groups: int = 2,
     _auto_fallback: Optional[str] = None,
+    called_cells_file: Optional[str] = None,
 ) -> dict:
     """Main entry point: run per-virus logistic regression host-response analysis.
+
+    ``called_cells_file`` is the run's ``results/called_cells.tsv``. Only host barcodes listed
+    there are used (HOSTRESP-CALLED-01); empty droplets never enter the models. Both the
+    ``rerun hostresponse`` subcommand and the Snakemake rule pass it, and a missing file
+    raises :class:`ViralScanError`. ``None`` is for library callers whose host matrix is
+    already restricted to called cells; the manifest then records ``called_cells.source``
+    as ``not_given``.
 
     Returns a JSON-serialisable provenance dict (see :func:`_sha256_file` and
     ``HOSTRESPONSE_SCHEMA_VERSION``): input hashes, raw-depth source, cv mode,
@@ -3039,6 +3110,9 @@ def run_hostresponse(
     virus_adata = ad.read_h5ad(virus_h5ad)
     log.info("Loading host h5ad: %s", host_h5ad)
     host_adata_full = ad.read_h5ad(host_h5ad)
+    host_adata_full, provenance["called_cells"] = _restrict_to_called_cells(
+        host_adata_full, called_cells_file
+    )
 
     # Hard input validation happens BEFORE any existing output is cleared, so an
     # invalid request never destroys the previous run's results.
@@ -3349,6 +3423,7 @@ def _write_manifest(out_dir, provenance: dict, status_rows: list) -> None:
 
 # ── Snakemake entry point ─────────────────────────────────────────────────────
 
+
 def run(ctx: RunContext, done_file: str) -> None:
     """Entry point: host-response analysis for one Run, then touch done_file."""
     cfg = ctx.config
@@ -3366,6 +3441,7 @@ def run(ctx: RunContext, done_file: str) -> None:
         host_h5ad=cfg.host_h5ad,
         viral_accessions_file=_viral_acc_file,
         out_dir=_out_dir,
+        called_cells_file=str(Path(cfg.output) / CALLED_CELLS_TSV),
         use_hvg=cfg.hostresponse_use_hvg,
         seeds=_seeds,
         n_stab_iter=cfg.hostresponse_n_stab_iter,
@@ -3541,6 +3617,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cv-folds", type=int, default=DEFAULT_CV_FOLDS)
     p.add_argument("--cell-type-column", default=None)
     p.add_argument("--cell-types", nargs="+", action=CellTypesAction, default=None)
+    p.add_argument(
+        "--called-cells",
+        default=None,
+        help="the run's results/called_cells.tsv; only these host barcodes are modelled "
+        "(results/host_called_cells.tsv beside it is preferred when present). Required.",
+    )
     p.add_argument("--min-negative-cells", type=int, default=MIN_VIRUS_CELLS)
     p.add_argument("--min-groups", type=int, default=2)
     p.add_argument("--panel-in-fold", action="store_true")
@@ -3554,7 +3636,10 @@ def _build_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     import sys  # noqa: PLC0415
 
-    args = _build_parser().parse_args()
+    _parser = _build_parser()
+    args = _parser.parse_args()
+    if args.called_cells is None:
+        _parser.error("--called-cells is required: hostresponse models only called cells")
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
@@ -3589,4 +3674,5 @@ if __name__ == "__main__":
         permutations=args.permutations,
         permutation_unit=args.permutation_unit,
         permutation_block=args.permutation_block,
+        called_cells_file=args.called_cells,
     )
