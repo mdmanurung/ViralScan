@@ -12,6 +12,12 @@ STABLE = {
     "viralscan.enrichment": {"cell_type_enrichment", "write_cell_type_enrichment"},
     "viralscan.data_fetch": {"cache_valid", "ensure_viral_data", "fetch_viral_data"},
     "viralscan.run": {"Run", "open_run"},
+    "viralscan.compute": {
+        "CellCallingError",
+        "check_sibling_crossmapping",
+        "compute_stats",
+        "external_cells",
+    },
     "viralscan.utils": {"configure_logging", "setup_script_logging"},
     "viralscan.constants": {"ENSEMBL_SPECIES", "VIRUS_NAME_MAP"},
     "viralscan.scripts.ncbi_fetch": {"fetch_reference"},
@@ -38,3 +44,14 @@ def test_no_private_or_missing_names_are_documented() -> None:
     assert not {h for h in headings if h.startswith("_")}
     assert "load_config" not in headings
     assert "## Stability" in DOC
+
+
+def test_compute_names_are_the_worker_objects() -> None:
+    """The facade re-exports; it must not copy."""
+    from viralscan import compute
+    from viralscan.scripts import cellcalling, detection
+
+    assert compute.compute_stats is detection.compute_stats
+    assert compute.check_sibling_crossmapping is detection.check_sibling_crossmapping
+    assert compute.external_cells is cellcalling.external_cells
+    assert compute.CellCallingError is cellcalling.CellCallingError
