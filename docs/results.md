@@ -263,12 +263,12 @@ and `--blast` also needs BLAST+ (`blastn`, `makeblastdb`):
 
 ```bash
 viralscan evidence \
-  --run-dir output/sample/ \
+  --run-dir output/ \
   --viral-fasta EBV.fa \
   --host-fasta GRCh38.fa \
   --virus EBV \
-  --blast --read-start-profile --cell-tags \
-  -o output/sample/evidence/
+  --blast --read-start-profile --cell-tags
+# writes output/sample/posthoc/evidence/EBV/; add --sample NAME when the run has several samples
 ```
 
 `--viral-fasta` requires `--host-fasta`; alignment and BLAST are competitive, so
