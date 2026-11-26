@@ -18,6 +18,7 @@ def definition(oci: str) -> str:
         '    exec /opt/conda/envs/viralscan/bin/viralscan "$@"\n\n'
         "%test\n"
         "    /opt/conda/envs/viralscan/bin/viralscan check env --profile full\n"
+        "    tchem --version | grep -qx 'tchem 0.1.0'\n"
     )
 
 

@@ -1968,6 +1968,8 @@ def _run_subcommand(args: argparse.Namespace) -> None:
         configure_logging(verbose=args.verbose, quiet=args.quiet)
         if args._subcommand == "doctor":
             report = doctor_report(args.profile)
+            if report["tchem"]["warning"]:
+                print(f"warning: {report['tchem']['warning']}", file=sys.stderr)
         else:
             report = validate_run(Path(args.run_dir), verify_inputs=not args.no_verify_inputs)
         rendered = _json.dumps(report, indent=2, sort_keys=True) + "\n"

@@ -1,4 +1,6 @@
 # Template only: a release must supply the tested OCI digest, never solve again.
+# tchem v0.1.0 comes from the OCI image (Dockerfile downloads it and checks its sha256), so this definition
+# installs nothing itself; %test fails if the image carries another version (PLAN TCHEM-SOURCE-01).
 # Generate the buildable definition:
 # python scripts/release_sif_definition.py ghcr.io/mdmanurung/viralscan@sha256:<digest> > Singularity.release.def
 # apptainer build viralscan.sif Singularity.release.def
@@ -18,3 +20,4 @@ From: OCI_DIGEST_REQUIRED
 
 %test
     /opt/conda/envs/viralscan/bin/viralscan check env --profile full
+    tchem --version | grep -qx 'tchem 0.1.0'

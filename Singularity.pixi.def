@@ -16,6 +16,16 @@ From: ghcr.io/prefix-dev/pixi:latest
 %post
     cd /opt/viralscan
     pixi install -e default
+    # tchem v0.1.0 (Apache-2.0; no conda package, PLAN TCHEM-SOURCE-01). The digest is the release's published
+    # .sha256 for this asset, copied here on 2026-11-26. Barcode lists are not bundled: bind-mount them and set
+    # VIRALSCAN_TCHEM_WHITELISTS (docs/installation.md).
+    pixi run -e default python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/Tussl-Co/TusslChemistry/releases/download/v0.1.0/tchem-v0.1.0-x86_64-unknown-linux-musl.tar.gz', '/tmp/tchem.tar.gz')"
+    echo "9112e5018c26868317fa6547490094b59915927ef1482bb361f0b60ce5fe488e  /tmp/tchem.tar.gz" | sha256sum -c -
+    mkdir -p /opt/tchem
+    tar -xzf /tmp/tchem.tar.gz -C /opt/tchem --strip-components=1
+    ln -s /opt/tchem/bin/tchem /usr/local/bin/tchem
+    rm /tmp/tchem.tar.gz
+    tchem --version
     pixi run -e default viralscan check env --profile full
 
 %environment
@@ -28,4 +38,4 @@ From: ghcr.io/prefix-dev/pixi:latest
     /opt/viralscan/.pixi/envs/default/bin/viralscan check env --profile full
 
 %labels
-    Description ViralScan and its tool suite (kb-python, kallisto, bustools, STAR, samtools, minimap2, BLAST, CD-HIT, R/DropletUtils)
+    Description ViralScan and its tool suite (kb-python, tchem, kallisto, bustools, STAR, samtools, minimap2, BLAST, CD-HIT, R/DropletUtils)

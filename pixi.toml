@@ -4,6 +4,7 @@ channels = ["conda-forge", "bioconda"]
 platforms = ["linux-64"]  # canonical, tested toolchain (see environment.yml)
 
 # Mirrors environment.yml (same pins). `kb` runs its own bundled kallisto/bustools.
+# tchem has no conda package: run `pixi run install-tchem` once (sha256-checked v0.1.0 release asset).
 [dependencies]
 python = "3.11.*"
 kb-python = "==0.30.2"
@@ -62,5 +63,6 @@ discovery = ["discovery"]
 
 [tasks]
 doctor = "viralscan check env --profile full"
+install-tchem = "python scripts/install_tchem.py --prefix $CONDA_PREFIX"
 test = { cmd = "python -m pytest tests -q", env = { PYTHONPATH = "src" } }
 docs = "python -m sphinx -b html docs docs/_build/html"

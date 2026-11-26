@@ -45,6 +45,8 @@ SCHEMA_MAJOR = 1
 #: ``tchem`` exits 0 whenever it read the reads, whatever the verdict.
 EXIT_OK = 0
 MODES = ("auto", "require", "off")
+#: The release CHEM-02 was validated against and the one the container recipes pin (TCHEM-SOURCE-01).
+PINNED_VERSION = "0.1.0"
 TIMEOUT_S = 900
 
 
@@ -163,6 +165,41 @@ def parse_report(report: dict[str, Any], emit_stdout: Optional[str] = None) -> T
         version=report.get("version"),
         geometry=layout.get("geometry"),
     )
+
+
+def binary_version(exe: str) -> Optional[str]:
+    """The version ``<exe> --version`` prints (``tchem 0.1.0`` gives ``0.1.0``), else ``None``."""
+    try:
+        proc = _run([exe, "--version"])
+    except TchemError:
+        return None
+    words = proc.stdout.split()
+    return words[-1] if proc.returncode == EXIT_OK and words else None
+
+
+def environment_status(binary: Optional[str] = None) -> dict[str, Any]:
+    """What ``check env`` reports about tchem; informational, it never fails the check."""
+    exe = find_binary(binary)
+    status: dict[str, Any] = {
+        "path": exe,
+        "version": None,
+        "expected": PINNED_VERSION,
+        "whitelists": find_whitelists(),
+        "warning": None,
+    }
+    if exe is None:
+        status["warning"] = (
+            "tchem is not installed: `run` without --strand will stop (STRAND-EXPLICIT-01). "
+            f"Install v{PINNED_VERSION} as docs/installation.md describes."
+        )
+        return status
+    status["version"] = binary_version(exe)
+    if status["version"] != PINNED_VERSION:
+        status["warning"] = (
+            f"tchem {status['version'] or 'of unknown version'} at {exe}; ViralScan was "
+            f"validated with {PINNED_VERSION}"
+        )
+    return status
 
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
