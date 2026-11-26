@@ -126,7 +126,7 @@ def test_valid_run_argv_passes_errorhandler(run_argv):
 )
 def test_run_flag_errors_exit_2(run_argv, flags):
     args = build_parser().parse_args(run_argv + flags)
-    assert _exit_code(menu.errorhandler, args) == 2
+    assert _exit_code(menu.validate_run_request, args) == 2
 
 
 def test_r1_r2_count_mismatch_exits_2(run_argv, tmp_path):

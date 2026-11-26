@@ -6,7 +6,8 @@ from unittest.mock import patch
 import pytest
 
 from tests.test_errorhandler import _always_exists, _args
-from viralscan.menu import errorhandler
+from viralscan.cli.parsers import build_parser
+from viralscan.menu import errorhandler, validate_run_request
 from viralscan.runconfig import RunConfig
 
 BASE = {
@@ -40,10 +41,19 @@ def test_config_rejects_zero_where_out_of_range(key):
 
 
 @pytest.mark.parametrize("attr", ["emptydrops_fdr", "emptydrops_niters", "knee_min_umi"])
-def test_cli_rejects_zero_with_exit_2(attr):
-    with patch("os.path.exists", side_effect=_always_exists), pytest.raises(SystemExit) as e:
-        errorhandler(_args(**{attr: 0}))
+def test_cli_rejects_zero_with_exit_2(attr, caplog):
+    # RunConfig owns the numeric ranges (VALIDATE-ONCE-01): errorhandler passes, validate_run_request stops.
+    args = build_parser().parse_args(
+        ["run", "-i", "/fake/i", "-t", "/fake/t", "--r1", "/fake/a.fastq", "--r2", "/fake/b.fastq"]
+        + ["-o", "/fake/out"]
+    )
+    setattr(args, attr, 0)
+    with patch("os.path.exists", side_effect=_always_exists):
+        errorhandler(args)
+        with pytest.raises(SystemExit) as e:
+            validate_run_request(args)
     assert e.value.code == 2
+    assert attr in caplog.text
 
 
 def test_huge_cores_clamped_with_warning(caplog):

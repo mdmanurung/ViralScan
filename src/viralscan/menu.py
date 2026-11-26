@@ -62,7 +62,7 @@ from viralscan.run_safety import (
     run_in_group,
     write_run_complete,
 )
-from viralscan.runconfig import RunConfig, check_numeric_ranges
+from viralscan.runconfig import RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
 log = logging.getLogger("viralscan")
@@ -631,25 +631,6 @@ def _hostresponse_evaluation_kwargs(args: argparse.Namespace, cfg: RunConfig) ->
     return result
 
 
-def _check_hostresponse_evaluation(args: argparse.Namespace) -> None:
-    """Die on an invalid host-response evaluation request (same rules as run_hostresponse)."""
-    from viralscan.hostresponse_contract import validate_evaluation
-
-    try:
-        validate_evaluation(
-            cv_mode=getattr(args, "hostresponse_cv", None) or "auto",
-            groups_column=getattr(args, "hostresponse_groups", None),
-            permutations=getattr(args, "hostresponse_permutations", None) or 0,
-            permutation_unit=getattr(args, "hostresponse_permutation_unit", None),
-            permutation_block=getattr(args, "hostresponse_permutation_block", None),
-            cell_type_column=getattr(args, "hostresponse_cell_type_column", None),
-            cell_types=getattr(args, "hostresponse_cell_types", None),
-            panel_in_fold=bool(getattr(args, "hostresponse_panel_in_fold", None)),
-        )
-    except ValueError as exc:
-        _die(f"Invalid host-response evaluation settings: {exc}", 2)
-
-
 def _hostresponse_viral_file(output_dir: Path, analysis_txt: Path) -> Path:
     """The Virus Identity table when the run has one (as the Snakemake rule does), else analysis.txt."""
     from viralscan.virus_grouping import identity_path
@@ -925,29 +906,8 @@ def errorhandler(args: argparse.Namespace) -> None:
         if not _has_valid_fastq_suffix(s2):
             _die(f"The backward sample is not in FASTQ format: {s2}.")
 
-    # C-10: same checks RunConfig applies, but before the output directory exists.
-    try:
-        check_numeric_ranges(
-            **{
-                key: default if getattr(args, key, None) is None else getattr(args, key)
-                for key, default in (
-                    ("cores", DEFAULTS["cores"]),
-                    ("emptydrops_fdr", DEFAULTS["emptydrops_fdr"]),
-                    ("emptydrops_niters", DEFAULTS["emptydrops_niters"]),
-                    ("hostresponse_n_stab_iter", DEFAULTS["hostresponse_n_stab_iter"]),
-                    ("hostresponse_top_n_genes", DEFAULTS["hostresponse_top_n_genes"]),
-                    ("knee_min_umi", DEFAULTS["knee_min_umi"]),
-                    ("se_threshold", DEFAULTS["se_threshold"]),
-                    ("umap_n_neighbors", DEFAULTS["umap_n_neighbors"]),
-                    ("min_counts", DEFAULTS["min_counts"]),
-                    ("min_genes", DEFAULTS["min_genes"]),
-                    ("hvg_min_mean", DEFAULTS["hvg_min_mean"]),
-                    ("hvg_max_mean", DEFAULTS["hvg_max_mean"]),
-                )
-            }
-        )
-    except ValueError as exc:
-        _die(str(exc), 2)
+    # Numeric ranges and host-response settings are checked once, by RunConfig, in
+    # ``_precheck_run_config`` (VALIDATE-ONCE-01); ``validate_run_request`` runs it after this function.
     # CPUs this process may use (a Slurm allocation), not the whole node.
     max_cores = (
         len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
@@ -957,7 +917,6 @@ def errorhandler(args: argparse.Namespace) -> None:
             "--cores %d exceeds the %d CPUs available; using %d.", args.cores, max_cores, max_cores
         )
         args.cores = max_cores
-    _check_hostresponse_evaluation(args)
 
     # C-09: fail before kb count, not after it.
     for flag, attr in (
@@ -1089,8 +1048,6 @@ def errorhandler(args: argparse.Namespace) -> None:
         if missing:
             _die(f"--auto-evidence needs {', '.join(missing)} on PATH.")
 
-    log.info("All input data has been checked and is correct.")
-
 
 def _warn_ignored_flags(args: argparse.Namespace) -> None:
     """One WARNING per option that has no effect in this mode (ponytail: non-default values only)."""
@@ -1150,6 +1107,18 @@ def _warn_ignored_flags(args: argparse.Namespace) -> None:
             changed("emptydrops_seed", "emptydrops_niters"),
             f"cell calling is {resolved}, not emptydrops",
         )
+
+
+def validate_run_request(args: argparse.Namespace) -> None:
+    """The one validation of a ``run`` request, before the output directory is touched.
+
+    ``errorhandler`` checks what a typed config cannot (paths, flag pairs, tools on PATH);
+    ``_precheck_run_config`` then builds the typed :class:`RunConfig`, which owns every numeric
+    range and host-response rule. The per-sample build in ``main`` only constructs the config.
+    """
+    errorhandler(args)
+    _precheck_run_config(args)
+    log.info("All input data has been checked and is correct.")
 
 
 def _precheck_run_config(args: argparse.Namespace) -> None:
@@ -1636,6 +1605,10 @@ def _build_run_config(
             "called_cells_file": getattr(args, "called_cells_file", None),
             "emptydrops_seed": getattr(args, "emptydrops_seed", None),
             "emptydrops_niters": getattr(args, "emptydrops_niters", None),
+            # The `run` parser has no flag for these two; kept so a caller that sets them is
+            # still range-checked (errorhandler did, before VALIDATE-ONCE-01).
+            "emptydrops_fdr": getattr(args, "emptydrops_fdr", None),
+            "knee_min_umi": getattr(args, "knee_min_umi", None),
         }
     )
 
@@ -2005,8 +1978,7 @@ def _dispatch(args: argparse.Namespace) -> None:
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
     _check_required_tools()
-    errorhandler(args)
-    _precheck_run_config(args)
+    validate_run_request(args)
     _warn_ignored_flags(args)
 
     if args.host_filter:

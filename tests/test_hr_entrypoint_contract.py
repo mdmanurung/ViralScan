@@ -122,28 +122,21 @@ def test_config_rejects_an_invalid_null_specification(settings, reason):
 
 
 @pytest.mark.parametrize(("settings", "reason"), _BAD_NULLS)
-def test_errorhandler_rejects_an_invalid_null_specification(settings, reason, caplog):
+def test_run_validation_rejects_an_invalid_null_specification(settings, reason, caplog):
     from unittest.mock import patch
 
-    from viralscan.menu import errorhandler
+    from viralscan.cli.parsers import build_parser
+    from viralscan.menu import validate_run_request
 
-    args = argparse.Namespace(
-        ncbi_accession=None,
-        reference=False,
-        gtf=None,
-        fasta=None,
-        index="/fake/index.idx",
-        transcripts="/fake/t2g.txt",
-        f1=None,
-        host_filter=None,
-        host_index=None,
-        sample1="/fake/R1.fastq.gz",
-        sample2="/fake/R2.fastq.gz",
-        **settings,
+    args = build_parser().parse_args(
+        ["run", "-i", "/fake/index.idx", "-t", "/fake/t2g.txt", "--r1", "/fake/R1.fastq.gz"]
+        + ["--r2", "/fake/R2.fastq.gz", "-o", "/fake/out"]
     )
+    for key, value in settings.items():
+        setattr(args, key, value)
     with patch("os.path.exists", return_value=True), pytest.raises(SystemExit) as exc:
-        errorhandler(args)
-    assert exc.value.code != 0
+        validate_run_request(args)
+    assert exc.value.code == 2
     assert reason in caplog.text
 
 
