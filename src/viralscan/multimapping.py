@@ -444,7 +444,8 @@ def em_cell_af_abundances(
     * No sample-level prior, no pseudocount (``--multimap-pseudocount`` is unused), and no equal-split
       fallback for a class without cell-local unique support: such a class is shared by the fitted
       abundances like any other.
-    * After the loop, abundances below ``AF_MIN_OUTPUT_ALPHA`` (0.01) are set to 0.
+    * On convergence (after ``AF_MIN_ITER`` rounds), abundances below ``AF_MIN_OUTPUT_ALPHA`` (0.01)
+      are set to 0 and one more E/M update runs (alevin-fry's last round); they are set to 0 again after.
 
     How ViralScan's options map to alevin-fry's constants:
 
@@ -459,7 +460,9 @@ def em_cell_af_abundances(
 
     * Molecule conservation. alevin-fry drops a class whose abundances sum to 0 and the mass below
       the 0.01 cut-off. ViralScan must keep one unit per molecule, so the caller shares each molecule
-      by the returned abundances over its class and splits equally when all of them are 0.
+      by the returned abundances over its class and splits equally when all of them are 0
+      (alevin-fry drops that class; the fit itself has no equal-split rule). This is reachable only
+      for classes of more than 100 genes.
     * Float64 here, float32 in alevin-fry.
     * Molecules are the CB-UMI resolution of ViralScan (intersection of equivalence classes), not
       alevin-fry's UMI graph (parsimony) resolution, and every cell is fitted: alevin-fry resolves a
@@ -485,6 +488,7 @@ def em_cell_af_abundances(
     alpha = (fixed + AF_INIT_OFFSET) * AF_INIT_SCALE
     converged = False
     iterations = 0
+    last_round = False
     while iterations < int(max_iter) and (iterations < AF_MIN_ITER or not converged):
         new = fixed.copy()
         for idx, count in classes:
@@ -496,6 +500,15 @@ def em_cell_af_abundances(
         converged = bool(np.all(np.abs(alpha - new)[checked] <= tol))
         alpha = new
         iterations += 1
+        if converged and iterations >= AF_MIN_ITER and not last_round:
+            # em.rs: on convergence, zero abundances below MIN_OUTPUT_ALPHA and run one more
+            # E/M update so their mass moves to the class partners.
+            alpha[alpha < AF_MIN_OUTPUT_ALPHA] = 0.0
+            last_round = True
+            converged = False
+        elif last_round:
+            converged = True
+            break
     alpha[alpha < AF_MIN_OUTPUT_ALPHA] = 0.0
     fitted[support] = alpha
     if diagnostics is not None:

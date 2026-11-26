@@ -145,3 +145,12 @@ def test_molecule_assignments_sum_to_the_corrected_layer(tmp_path) -> None:
     table = pd.read_csv(out, sep="\t")
     assert result.method_diagnostics["molecule_assignments"]
     assert len(table) == result.audit.unique_molecules + result.audit.ambiguous_molecules
+
+
+def test_last_round_reallocates_thresholded_mass():
+    # C (gene 2) converges below 0.01; alevin-fry zeroes it and runs one more update, so the
+    # class mass splits over A and B only.
+    unique = np.array([5.0, 5.0, 0.0])
+    fitted = em_cell_af_abundances({(0, 1, 2): 3.0}, unique, 100, 1e-6)
+    assert fitted[2] == 0.0
+    assert np.isclose(fitted.sum(), 13.0)
