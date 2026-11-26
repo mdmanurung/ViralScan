@@ -58,6 +58,7 @@ installation
 happy_path
 quickstart
 results
+read_level_evidence
 limitations
 vignettes/README
 ```

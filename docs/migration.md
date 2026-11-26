@@ -111,6 +111,16 @@ See the [output reference](output_reference.md) for the v3 schema and the
   New: `results/viral_summary_core.tsv` holds 12 core columns of the same table;
   `Run.summary(core=True)` reads it. The word rules are in the
   [column vocabulary](output_reference.md#column-vocabulary).
+- **Two `gene_program_summary.tsv` columns have new names (PLAN `PROG-ZEROEV-01`), no alias.**
+  `n_cells_total` is `n_cells_with_evidence` and `n_cells_indeterminate` is
+  `n_cells_indeterminate_with_evidence`. Values are unchanged: a cell with no marker evidence has no
+  row, so both counts cover cells with evidence only. `n_called_cells` is the full denominator.
+  Refresh an old run with `viralscan rerun programs --run-dir RUN`.
+- **Some outputs change with an old run's code path (rerun to refresh).** KSHV `ORF50` is
+  immediate-early (`PROG-KSHV-ORF50-IE-01`); depth-based sensitivity columns are `NA` for a
+  virus-only index (`LOD95-DEPTH-01`); `viralscan evidence` corrects barcodes in the replay from the
+  packaged on-list (`EVID-ONLIST-01`); `interpretation_flags.tsv` and `splice/` gain the columns
+  listed under `EVID-DECISIONS-01` in the [changelog](changelog.md).
 - **Output files.** `adata_multimap.h5ad` always carries `uns["multimap_diagnostics"]`; the layout
   (version 3) and the schema (3.0.0) are unchanged.
 

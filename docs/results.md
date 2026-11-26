@@ -259,6 +259,8 @@ works through an ambiguous host–virus case on synthetic data.
 
 ### 4. Read inspection
 
+The [read-level evidence guide](read_level_evidence.md) explains each output below and how to read the coverage map, the igv.js browser page and `strand_qc.tsv`.
+
 **Artifacts.** A `viralscan evidence` output directory. The command needs a
 completed run, an exact target, and, for competitive alignment, both the viral
 and host FASTA. Competitive alignment needs `minimap2` and `samtools` on `PATH`,

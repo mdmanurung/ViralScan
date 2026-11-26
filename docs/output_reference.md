@@ -89,7 +89,7 @@ output/
 ├── run_manifest.json
 ├── run_complete.json
 ├── combined_summary.tsv
-├── posthoc/                                      # only rerun-multimap: <run>/posthoc/multimap_<method>/
+├── posthoc/                                      # only rerun multimap: <run>/posthoc/multimap_<method>/
 └── sample/
     ├── report.html                               # first stop
     ├── summary.txt                               # first stop
@@ -260,7 +260,7 @@ kinds, so an observed count is never read as a model output or a conclusion:
 
 ## `run_complete.json`
 
-Written at the run root (beside `run_manifest.json`) only after every sample has finished, and again in the new result directory of `rerun-multimap`. It is the completion marker: a run without it was interrupted or is still in progress. Fields: `schema_version`, `run_fingerprint` (must equal the manifest's), `viralscan_version`, `samples`, `completed_at`, and `artifacts`, a map of `<sample>/<path>` to sha256 for the narrow set `results/viral_summary.tsv`, `results/virus_identity.tsv`, `results/multimap_evidence.tsv` and `kb-python/counts_unfiltered/adata_multimap.h5ad` (each only if present).
+Written at the run root (beside `run_manifest.json`) only after every sample has finished, and again in the new result directory of `rerun multimap`. It is the completion marker: a run without it was interrupted or is still in progress. Fields: `schema_version`, `run_fingerprint` (must equal the manifest's), `viralscan_version`, `samples`, `completed_at`, and `artifacts`, a map of `<sample>/<path>` to sha256 for the narrow set `results/viral_summary.tsv`, `results/virus_identity.tsv`, `results/multimap_evidence.tsv` and `kb-python/counts_unfiltered/adata_multimap.h5ad` (each only if present).
 
 The marker is deleted whenever a run starts, resumes or overwrites, and never touched by post-hoc commands. New runs set `completion_marker: true` in `run_manifest.json`; `viralscan check run` then treats a missing marker, a fingerprint mismatch or an artifact hash mismatch as an error. Runs whose manifest lacks the field only get a warning for a missing marker. Schema: `schemas/v3/run_complete.schema.json`.
 
@@ -923,7 +923,7 @@ can tell the species or genus. One row per species or genus with at least one co
 from the NCBI lineage columns of `virus_identity.tsv` (a virus with no lineage is its own group; anelloviruses
 keep their `ANDET-05` genus). Molecules are counted in the multimap pass and stored per cell in
 `adata_multimap.h5ad` (`obsm["viral_groups_unique" | "viral_groups_compatible" | "viral_groups_host_shared"]`,
-columns named by `uns["viral_groups"]`); they do not depend on the multimap method, so `rerun-multimap` keeps
+columns named by `uns["viral_groups"]`); they do not depend on the multimap method, so `rerun multimap` keeps
 them valid. Written header-only when multimapping is off or the run has no identity table.
 
 | Column | Description | Kind |
@@ -1007,7 +1007,7 @@ the same BUS text that the count layers come from. It changes no count. The weig
 those of the *selected* `--multimap-method`: summed per cell and gene they equal
 `counts_ambiguous_allocated`, and the `unique` rows equal `counts_unique`. Records of
 barcodes absent from the barcode list are not molecules of the run and are not written.
-`rerun-multimap` to another method runs a full multimap pass instead of a layer swap
+`rerun multimap` to another method runs a full multimap pass instead of a layer swap
 when this file exists, so it never describes a different method than its tree.
 
 | Column | Description | Kind |
@@ -1140,7 +1140,7 @@ These are **labels, not a gate**: no call, tier, threshold or `detection_source`
 ### Safe to delete after a finished run
 
 Only after `run_complete.json` exists. Nothing here changes a result, but you lose `--resume`
-reuse and the post-hoc verbs that re-read BUS files or FASTQs (`rerun-multimap --multimap-method em`,
+reuse and the post-hoc verbs that re-read BUS files or FASTQs (`rerun multimap --multimap-method em`,
 `evidence`, `translated`). The list is generated from `SAMPLE_LAYOUT` and is printed in each
 sample's `README.txt`.
 
@@ -1171,10 +1171,10 @@ table from the same registry (`outputs.RESULT_FILES`).
 
 There is one post-hoc level: `<sample>/posthoc/<verb>/`. Each verb writes there by default and
 never modifies the run's own outputs (matrix, `results/`, `config.yaml`, `run_manifest.json`,
-`run_complete.json`). `--output` overrides the location. `validate-run` ignores `posthoc/`.
-A verb refuses an `--output` that already holds files; `host-loss`, `rerun-programs` and `hostresponse` take `--force` to write into it (same-named files are replaced, nothing is deleted). `rerun-multimap` and `translated` need an empty or absent directory, and `discover` and `evidence` check their own earlier publication.
-`--run-dir` is the **run root** for every post-hoc verb. `host-loss`, `rerun-programs`, `hostresponse`, `evidence`, `discover`, `discover-states` and `translated` act on one sample and take `--sample NAME`, which is optional when the run has one sample; `rerun-multimap`, `validate-run` and `status` act on the whole run. A run that is not finished (no `run_complete.json`) is refused. Before 3.0.0b1 `host-loss`, `rerun-programs`, `hostresponse` and `evidence` took the sample directory as `--run-dir`; that form still works, with a deprecation warning, until 3.1.0.
-The one exception is `rerun-multimap`, which copies the whole run and so writes
+`run_complete.json`). `--output` overrides the location. `check run` ignores `posthoc/`.
+A verb refuses an `--output` that already holds files; `dev host-loss`, `rerun programs` and `rerun hostresponse` take `--force` to write into it (same-named files are replaced, nothing is deleted). `rerun multimap` and `translated` need an empty or absent directory, and `discover` and `evidence` check their own earlier publication.
+`--run-dir` is the **run root** for every post-hoc verb. `dev host-loss`, `rerun programs`, `rerun hostresponse`, `evidence`, `discover run`, `discover states` and `translated` act on one sample and take `--sample NAME`, which is optional when the run has one sample; `rerun multimap`, `check run` and `status` act on the whole run. A run that is not finished (no `run_complete.json`) is refused. Before 3.0.0b1 `dev host-loss`, `rerun programs`, `rerun hostresponse` and `evidence` took the sample directory as `--run-dir`; that form still works, with a deprecation warning, until 3.1.0.
+The one exception is `rerun multimap`, which copies the whole run and so writes
 `<run>/posthoc/multimap_<method>/`. Layout v2 put `discover` and `translated` under
 `<run>/posthoc/<verb>/<sample>/`; those directories are still readable.
 
@@ -1182,10 +1182,10 @@ The one exception is `rerun-multimap`, which copies the whole run and so writes
 |---|---|
 | `evidence` | `<sample>/posthoc/evidence/<virus>/` (`.../evidence/review_candidates/` with `--review-candidates`) |
 | `evidence-plot` | inside each `--evidence-dir` (unchanged) |
-| `rerun-multimap` | `<run>/posthoc/multimap_<method>/` (a complete copy of the run; `posthoc/` itself is not copied) |
-| `rerun-programs` | `<sample>/posthoc/programs/results/gene_program_{summary,cells}.tsv` |
-| `hostresponse` | `<sample>/posthoc/hostresponse/` |
-| `discover` | `<sample>/posthoc/discovery/` (`candidates.tsv`, `cell_taxon.h5ad`, `qc.json`, `provenance.json`; `discover-states` adds `candidate_states.tsv`) |
+| `rerun multimap` | `<run>/posthoc/multimap_<method>/` (a complete copy of the run; `posthoc/` itself is not copied) |
+| `rerun programs` | `<sample>/posthoc/programs/results/gene_program_{summary,cells}.tsv` |
+| `rerun hostresponse` | `<sample>/posthoc/hostresponse/` |
+| `discover run` | `<sample>/posthoc/discovery/` (`candidates.tsv`, `cell_taxon.h5ad`, `qc.json`, `provenance.json`; `discover states` adds `candidate_states.tsv`) |
 | `translated` | `<sample>/posthoc/translated/` (`counts/`, `summary.all.json`, `summary.cells.json`, `barcode_check.json`, `translated_receipt.json`, `translated_complete.json`; exploratory, never changes `detected`) |
 
 `run --hostresponse` and `--auto-evidence` are part of the run itself and still write
@@ -1193,9 +1193,8 @@ The one exception is `rerun-multimap`, which copies the whole run and so writes
 
 ### Post-hoc records (`posthoc/records/`, PLAN `EVID-01`)
 
-Every post-hoc verb in the table above, plus `discover-collapse`, writes one JSON record per invocation,
-whatever its outcome. The record's `verb` is the canonical name that the table uses (the top-level name from before the
-command groups: `rerun-multimap`, `hostresponse`, `discover`, ...), whichever spelling was typed. `viralscan status --run-dir RUN` lists them.
+Every post-hoc verb in the table above, plus `discover collapse`, writes one JSON record per invocation,
+whatever its outcome. The record's `verb` is the canonical name from before the command groups (`rerun-multimap`, `hostresponse`, `discover`, ...), whichever spelling was typed. `viralscan status --run-dir RUN` lists them.
 
 - **Where.** `<run root>/posthoc/records/<attempt_id>.json` when the output is inside the run (the default).
   With `--output` outside the run, the record goes to `<output>.records/` beside that output and the run is
@@ -1427,7 +1426,7 @@ available. No diagnostic flag is an automatic biological conclusion.
 | `evidence_kb.tsv`, `evidence_star.tsv`, `evidence_read_support.tsv`, `evidence.tsv` | `source` | `kb` or `star` for `corroboration`; the aligner label (`minimap2`) for `read_support` |
 | `evidence_kb.tsv`, `evidence_star.tsv`, `evidence_read_support.tsv`, `evidence.tsv` | `n_adjudicated`, `n_taxon_best`, `n_shared_cells`, `n_shared_umis` | Units tested, units best for the taxon alone, and the cells and distinct (CB, UMI) molecules also resolved in `umi_groups.tsv.gz` |
 
-`evidence.tsv` is the concatenation of the route tables that `discover-states` produced, with the same columns.
+`evidence.tsv` is the concatenation of the route tables that `discover states` produced, with the same columns.
 
 ## Expression normalization
 
@@ -1548,7 +1547,7 @@ barcodes, columns are genes; values are bustools-resolved molecules (`count_sche
 | `counts_unique_viral` | Unambiguous viral molecules, kept for auditing and layer 2 | observation |
 | `counts_host_viral_ambiguous` | Host-virus ambiguous molecules, split equally among their viral genes only | observation |
 | `counts_host_viral_selected` | Part of the selected allocation placed on viral genes from host-virus ambiguous molecules | model estimate |
-| `counts_host_viral_selected_{equal,host_conservative,unique_weighted}` | The same diagnostic per method, so a `rerun-multimap` swap keeps the evidence tiers consistent | model estimate |
+| `counts_host_viral_selected_{equal,host_conservative,unique_weighted}` | The same diagnostic per method, so a `rerun multimap` swap keeps the evidence tiers consistent | model estimate |
 | `counts_viral_ambiguous_upper` | Upper bound: each ambiguous molecule with any viral-compatible gene, its whole mass split equally among its viral genes only | model estimate |
 
 `adata.X` = `counts_unique + counts_ambiguous_allocated` (complete selected-method matrix). Per-cell

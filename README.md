@@ -52,8 +52,31 @@ is built with Sphinx from `docs/` (`pip install ".[docs]"`, then
   associates per-virus presence with host gene expression via L2 logistic
   regression + randomized-Lasso selection frequency (uncalibrated), with optional gget pathway enrichment
   (default `--cv auto`: group-disjoint CV when a donor/sample column is found or named, otherwise cell-level CV with a donor-leakage warning)
+- **Read-level evidence** (`viralscan evidence`) — post-hoc views of the reads behind
+  a call: a coverage map with gene lanes, a self-contained igv.js read browser
+  (`--html`), splice junctions (`--splice`) and gene-relative strand (`strand_qc.tsv`).
+  Nothing in a finished run changes. See [Read-level evidence](docs/read_level_evidence.md).
 - **Docker and Singularity containers** provided for fully reproducible runs
 - **Snakemake backend** — each step is a named rule with logged output
+
+---
+
+## What's new in 3.0
+
+- Commands sit in groups (`check`, `build`, `rerun`, `discover`) and every post-hoc
+  command takes `--run-dir RUN` with an optional `--sample`. `viralscan run --help`
+  lists 16 options; `--help-all` lists all of them.
+- `run --kb-params auto` fills `-x` and `--strand` from the detector, tchem and the
+  strand pilot. Without it, `run` needs `--strand` unless tchem confirms a 3' chemistry.
+- Six `viral_summary.tsv` columns have new names, and `results/viral_summary_core.tsv`
+  holds the 12 core columns.
+- `viralscan.open_run` and `viralscan.compute` are the stable Python entry points.
+- Read-level evidence views: coverage map, igv.js browser page, splice junctions and
+  `strand_qc.tsv`. See [Read-level evidence](docs/read_level_evidence.md).
+
+Upgrading from an earlier build? The old names, the removed flags and the renamed
+columns are in [docs/migration.md](docs/migration.md), and every change is in the
+[changelog](CHANGELOG.md).
 
 ---
 
