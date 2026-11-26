@@ -271,6 +271,16 @@ def _plain(value: Any) -> Any:
     return value
 
 
+def _viral_annotations_status() -> dict[str, Any]:
+    """Informational (never changes ``ok``): runs that always pass ``--gtf`` do not need the panel."""
+    from viralscan.data_fetch import ViralScanDataError, ensure_viral_data, viral_data_dir
+
+    try:
+        return {"path": str(ensure_viral_data()), "present": True, "warning": None}
+    except ViralScanDataError as exc:
+        return {"path": str(viral_data_dir()), "present": False, "warning": str(exc)}
+
+
 def doctor_report(profile: str = "full") -> dict[str, Any]:
     if profile not in {"pip", "full", "discovery", "coverage"}:
         raise ValueError("doctor profile must be 'pip', 'full', 'discovery' or 'coverage'.")
@@ -301,6 +311,7 @@ def doctor_report(profile: str = "full") -> dict[str, Any]:
         # Informational (never changes ``ok``): tchem is optional but pinned (TCHEM-SOURCE-01).
         "tchem": tchem.environment_status(),
     }
+    report["viral_annotations"] = _viral_annotations_status()
     if profile == "full":
         # Informational (never changes ``ok``): the translated-search index needs kallisto >= 0.51.1.
         report["kallisto_translated_ok"] = kallisto_translated_ok()[0]

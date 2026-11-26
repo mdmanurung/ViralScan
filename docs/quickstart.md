@@ -70,7 +70,7 @@ accessions, duplicate identifiers or sequences, and unavailable tools.
 `t2g.txt` to Step 2. An index from `viralscan build ref` carries
 `<index>.build_manifest.json` (beside `index.idx`) and needs nothing else. For an
 index without that manifest, run `viralscan data fetch` once so the viral gene
-list comes from the bundled panel; custom `--gtf` runs and `--ncbi-accession` runs do not
+list comes from the bundled panel (`run` stops before kb count if it is missing); custom `--gtf` runs and `--ncbi-accession` runs do not
 need it.
 
 ## Step 2 — Quantify

@@ -38,6 +38,7 @@ def test_a_multi_sample_run_checks_the_options_once(tmp_path, monkeypatch):
     from unittest.mock import patch
 
     names = ("a_R1.fastq", "a_R2.fastq", "b_R1.fastq", "b_R2.fastq", "index.idx", "t2g.txt")
+    (tmp_path / "index.idx.build_manifest.json").write_text("{}")  # no bundled panel needed
     for name in names:
         (tmp_path / name).write_text("@r\nACGT\n+\nIIII\n" if "fastq" in name else "t\tg\n")
     p = lambda n: str(tmp_path / n)  # noqa: E731
