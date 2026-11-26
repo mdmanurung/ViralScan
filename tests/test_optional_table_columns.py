@@ -27,6 +27,7 @@ from tests.test_strand_qc import TestWrite as _StrandWrite
 from tests.test_table_columns import _documented
 from viralscan import discovery, read_support
 from viralscan.gene_programs import load_catalogue
+from viralscan.runconfig import RunConfig
 from viralscan.scripts import auto_evidence
 from viralscan.scripts import gene_programs as gp_script
 from viralscan.strand_qc import FIELDS as STRAND_FIELDS
@@ -73,8 +74,7 @@ def _gene_programs(tmp_path: Path) -> dict[str, Path]:
     summary = tmp_path / "results" / "viral_summary.tsv"
     summary.write_text(f"virus_name\tviral_molecules_total_est\n{EBV}\t5\n")
     adata.write_h5ad(tmp_path / "adata.h5ad")
-    gp_script.output = str(tmp_path)
-    gp_script.main(str(tmp_path / "adata.h5ad"), str(summary), "")
+    gp_script.main(RunConfig(), str(tmp_path), str(tmp_path / "adata.h5ad"), str(summary), "")
     return {
         "gene_program_summary.tsv": tmp_path / "results" / "gene_program_summary.tsv",
         "gene_program_cells.tsv": tmp_path / "results" / "gene_program_cells.tsv",

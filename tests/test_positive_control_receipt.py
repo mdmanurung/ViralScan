@@ -11,6 +11,7 @@ import pytest
 from viralscan.run_safety import sha256_file
 from viralscan.runconfig import RunConfig
 from viralscan.scripts import detection as D
+from viralscan.virus_grouping import identity_path, load_run_identity
 from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
 
 
@@ -75,8 +76,9 @@ def exact_fixture(tmp_path, monkeypatch):
             ),
         )
     )
-    monkeypatch.setattr(D, "identity", identity)
+    identity.write_tsv(identity_path(tmp_path))
     cfg = RunConfig(
+        output=str(tmp_path),
         index=str(index),
         positive_control_gene=gene,
         positive_control_expected_molecules=100,
@@ -143,7 +145,7 @@ def test_mismatched_receipts_retain_measurement_without_certification(exact_fixt
 
 def test_one_exact_sequence_does_not_certify_a_multigenome_group(exact_fixture, monkeypatch):
     a, cfg, _, _ = exact_fixture
-    first = D.identity.genes[0]
+    first = load_run_identity(cfg.output).genes[0]
     second = GeneIdentity(
         "OTHER_gene",
         "NC_654321.1",
@@ -152,7 +154,7 @@ def test_one_exact_sequence_does_not_certify_a_multigenome_group(exact_fixture, 
         virus_key=first.virus_key,
         virus_name=first.virus_name,
     )
-    monkeypatch.setattr(D, "identity", VirusIdentityTable((first, second)))
+    VirusIdentityTable((first, second)).write_tsv(identity_path(cfg.output))
     _, detail = D.measure_positive_control(a, cfg)
     assert detail["verification_status"] == "verified"
     assert detail["certification_status"] == "group_contains_other_accessions"

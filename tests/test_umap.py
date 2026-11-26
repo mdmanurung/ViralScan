@@ -227,11 +227,9 @@ class TestUmapEntry:
         from viralscan.runconfig import RunConfig
         from viralscan.scripts import umap as umap_mod
 
-        monkeypatch.setattr(
-            umap_mod, "config", RunConfig(output=str(tmp_path), min_counts=10, min_genes=5)
-        )
+        config = RunConfig(output=str(tmp_path), min_counts=10, min_genes=5)
         assert not (tmp_path / "plots").exists()
-        umap_mod.umap(_counts_adata(), {})
+        umap_mod.umap(_counts_adata(), {}, config)
         assert (tmp_path / "plots" / "qc_hist_total_counts.png").is_file()
 
     def test_all_cells_filtered_fails_loudly(self, tmp_path, monkeypatch) -> None:
@@ -239,22 +237,18 @@ class TestUmapEntry:
         from viralscan.runconfig import RunConfig
         from viralscan.scripts import umap as umap_mod
 
-        monkeypatch.setattr(
-            umap_mod, "config", RunConfig(output=str(tmp_path), min_counts=10**9, min_genes=1)
-        )
+        config = RunConfig(output=str(tmp_path), min_counts=10**9, min_genes=1)
         with pytest.raises(ValueError, match="No cells left after QC filtering"):
-            umap_mod.umap(_counts_adata(), {})
+            umap_mod.umap(_counts_adata(), {}, config)
 
 
 class TestDetectedGenes:
     def test_main_passes_only_detected_genes_to_plot(self, tmp_path, monkeypatch):
+        from viralscan.kb_outputs import KbCountOutputs
         from viralscan.runconfig import RunConfig
         from viralscan.scripts import umap as umap_mod
 
-        monkeypatch.setattr(
-            umap_mod, "config", RunConfig(output=str(tmp_path), umap=True, multimapping=False)
-        )
-        monkeypatch.setattr(umap_mod, "identity", None)
+        config = RunConfig(output=str(tmp_path), umap=True, multimapping=False)
         monkeypatch.setattr(umap_mod, "px", object())
         adata = _counts_adata()
         monkeypatch.setattr(umap_mod.sc, "read_h5ad", lambda _: adata)
@@ -266,8 +260,8 @@ class TestDetectedGenes:
         )
         (tmp_path / "log" / "found_genes.txt").write_text("TTV_gp1;3\n")
         seen = []
-        monkeypatch.setattr(umap_mod, "umap", lambda a, genes: seen.append(genes))
-        umap_mod.main()
+        monkeypatch.setattr(umap_mod, "umap", lambda a, genes, cfg, ident: seen.append(genes))
+        umap_mod.main(config, KbCountOutputs.from_config_output(str(tmp_path)), None)
         assert seen == [{}]
 
     def test_candidate_only_genes_do_not_label_cells(self, tmp_path):
@@ -370,10 +364,7 @@ class _FakePx:
 def _run_umap(umap_mod, monkeypatch, tmp_path, adata, found, *, fake_px=True):
     from viralscan.runconfig import RunConfig
 
-    monkeypatch.setattr(
-        umap_mod, "config", RunConfig(output=str(tmp_path), min_counts=10, min_genes=5)
-    )
-    monkeypatch.setattr(umap_mod, "identity", None)
+    config = RunConfig(output=str(tmp_path), min_counts=10, min_genes=5)
     seen: list = []
     real = umap_mod.viral_neighbor_enrichment
 
@@ -384,7 +375,7 @@ def _run_umap(umap_mod, monkeypatch, tmp_path, adata, found, *, fake_px=True):
     monkeypatch.setattr(umap_mod, "viral_neighbor_enrichment", spy)
     if fake_px:
         monkeypatch.setattr(umap_mod, "px", _FakePx())
-    umap_mod.umap(adata, found)
+    umap_mod.umap(adata, found, config)
     return seen
 
 

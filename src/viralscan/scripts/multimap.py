@@ -47,9 +47,6 @@ log = logging.getLogger("viralscan")
 # Run-level state, populated by run() from the Run Context. Declared here so the
 # helper functions can reference them as module globals; the module imports
 # cleanly without Snakemake because nothing reads these at import time.
-config: RunConfig = RunConfig()
-output: str = ""
-kb: KbCountOutputs = KbCountOutputs.from_config_output(config.output)
 
 
 def _bustools() -> str:
@@ -80,7 +77,9 @@ def viral_gene_partition(run_output: str) -> set[str]:
     return set()
 
 
-def define_paths() -> tuple[str, str, str, str, str, str, str, str, str]:
+def define_paths(
+    config: RunConfig, kb: KbCountOutputs
+) -> tuple[str, str, str, str, str, str, str, str, str]:
     """
     Define the paths to read for the rest of the code
     ---------------------------------------------------------------------
@@ -466,7 +465,9 @@ def create_new_h5ad(
     return adata, viral_counts
 
 
-def stamp_gene_identity(adata, gene_ids, table: Optional[VirusIdentityTable]) -> None:
+def stamp_gene_identity(
+    adata, gene_ids, table: Optional[VirusIdentityTable], output: str
+) -> None:
     """Publish index composition and roles from the single run identity source.
 
     Viral roles are curated reference roles, never inferred biological claims.
@@ -536,7 +537,15 @@ def stamp_viral_groups(adata, gene_ids, table: Optional[VirusIdentityTable], lay
 
 
 def final_results(
-    viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers, drop_audit=None
+    viral_counts,
+    adata_orig,
+    viral_gene_indices,
+    adata,
+    n_cells,
+    layers,
+    config: RunConfig,
+    kb: KbCountOutputs,
+    drop_audit=None,
 ):
     """
     Adding the final data to the adata file and write conclusions to the summary file.
@@ -625,7 +634,6 @@ def final_results(
 
 def run(ctx, done_file):
     """Entry point: build multimapper layers for one Run, then touch done_file."""
-    global config, output, kb
     config = ctx.config
     output = config.output
     kb = ctx.outputs
@@ -641,7 +649,7 @@ def run(ctx, done_file):
             genes_file,
             gene_names_file,
             t2g_file,
-        ) = define_paths()
+        ) = define_paths(config, kb)
 
         # Materialize the exact corrected/sorted BUS boundary. Raw output.bus
         # is neither corrected nor sorted and is never a valid v3 count input.
@@ -735,10 +743,18 @@ def run(ctx, done_file):
             viral_gene_indices,
             n_genes,
         )
-        stamp_gene_identity(adata, gene_ids, identity)
+        stamp_gene_identity(adata, gene_ids, identity, output)
         stamp_viral_groups(adata, gene_ids, identity, layers)
         final_results(
-            viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers, drop_audit
+            viral_counts,
+            adata_orig,
+            viral_gene_indices,
+            adata,
+            n_cells,
+            layers,
+            config,
+            kb,
+            drop_audit,
         )
 
     with open(done_file, "w") as f:

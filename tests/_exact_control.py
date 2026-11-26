@@ -12,7 +12,7 @@ import hashlib
 import json
 
 from viralscan.run_safety import sha256_file
-from viralscan.scripts import detection as D
+from viralscan.virus_grouping import identity_path
 from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
 
 ACCESSION = "NC_123456.1"
@@ -72,10 +72,10 @@ def write_exact_control(
     return index, receipt, data
 
 
-def exact_control_kwargs(tmp_path, monkeypatch, gene, virus_name, expected=100.0):
+def exact_control_kwargs(tmp_path, gene, virus_name, expected=100.0):
     """RunConfig kwargs for a verified exact control of ``gene`` -> ``virus_name``.
 
-    Also installs the one-gene VirusIdentityTable the verification resolves through.
+    Also writes the one-gene VirusIdentityTable the verification resolves through.
     """
     index, receipt, _ = write_exact_control(tmp_path / "exact_control", gene, expected)
     table = VirusIdentityTable(
@@ -90,8 +90,9 @@ def exact_control_kwargs(tmp_path, monkeypatch, gene, virus_name, expected=100.0
             ),
         )
     )
-    monkeypatch.setattr(D, "identity", table)
+    table.write_tsv(identity_path(tmp_path))
     return {
+        "output": str(tmp_path),
         "index": str(index),
         "positive_control_receipt": str(receipt),
         "positive_control_scope": "exact_sequence",

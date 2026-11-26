@@ -9,6 +9,7 @@ super expressors.
 import base64
 import csv
 import datetime
+import functools
 import hashlib
 import json
 import logging
@@ -82,18 +83,6 @@ from viralscan.virus_grouping import (
 from viralscan.virus_rollup import assignment_columns, group_summaries, write_group_summaries
 
 log = setup_script_logging()
-
-
-# Run-level state, populated by run() from the Run Context. Declared here so the
-# helper functions can reference them as module globals; the module imports
-# cleanly without Snakemake because nothing reads these at import time.
-config: RunConfig = RunConfig()
-output: str = ""
-kb = None
-file: str = ""  # path to the viral-accessions list (the analysis rule's output)
-# The Run's Virus Identity table (results/virus_identity.tsv); None for a run
-# directory that has none, which selects the legacy prefix rules.
-identity = None
 
 
 def group_genes(gene_ids, table=None):
@@ -215,7 +204,7 @@ def detect_genes(var_names, matrix, viral_accessions, threshold=1, groups=None):
     return found
 
 
-def preprocessing():
+def preprocessing(config, kb, file):
     """
     This function checks which viral gene IDs have been found in the
     sample according to the accession list from analysis.py.
@@ -230,7 +219,7 @@ def preprocessing():
         detection_matrix: count matrix used for primary viral calls
         index_groups (dict): {virus: [gene_id]} over every indexed viral gene
     """
-    global identity
+    output = config.output
     identity = load_run_identity(output)
     if identity is not None:
         # The table is the viral/host partition (and what multimap.py used).
@@ -276,10 +265,10 @@ def preprocessing():
         config.detection_threshold,
         groups=index_groups,
     )
-    return adata, found_genes, output, viral_accessions, detection_matrix, index_groups
+    return adata, found_genes, output, viral_accessions, detection_matrix, index_groups, identity
 
 
-def histogram(adata, found_genes, identity_table, outputpath, viral_count_matrix=None):
+def histogram(adata, found_genes, identity_table, outputpath, config, viral_count_matrix=None):
     """
     This function creates a histogram showing the gene IDs found sorted
     on the UMI counts.
@@ -350,8 +339,10 @@ def super_expressor(
     virus,
     viral_gene_ids,
     outputpath,
+    config,
     viral_count_matrix=None,
     *,
+    identity=None,
     host_gene_mask=None,
     called_mask=None,
 ):
@@ -1254,7 +1245,7 @@ def measure_positive_control(adata, config, count_matrix=None, depth=None):
         "implied_divergence_note": IMPLIED_DIVERGENCE_NOTE,
     }
     if config.positive_control_scope == "exact_sequence":
-        table = load_run_identity(config.output) if config.output else identity
+        table = load_run_identity(config.output) if config.output else None
         layer = "X" if matrix is adata.X else "unverified_alternate_matrix"
         detail.update(verify_exact_control(config, table, layer))
         if "is_viral" in adata.var and not bool(adata.var.loc[gene, "is_viral"]):
@@ -1346,8 +1337,14 @@ def substitution_model_implied_divergence(capture: float, read_length: int = 90)
 
 
 # ----------------------------------------------------------- capture scope
-#: One-time guard for the legacy-control warning (module state, per process).
-_LEGACY_SCOPE_WARNED = False
+@functools.cache
+def _warn_legacy_scope() -> None:
+    """Log the legacy-control warning once per process (``functools.cache`` is the guard)."""
+    log.warning(
+        "positive_control_gene is set without positive_control_scope: treating it "
+        "as panel_mechanics, which certifies NO virus. Pass --positive-control-scope "
+        "exact_sequence with --positive-control-virus-key to let it certify one row."
+    )
 
 
 def control_claim(config):
@@ -1359,17 +1356,11 @@ def control_claim(config):
     row. That is logged once per process. No control means no claim and no
     warning.
     """
-    global _LEGACY_SCOPE_WARNED
     scope = config.positive_control_scope
     if scope:
         return CaptureScope(scope), config.positive_control_virus_key
-    if config.positive_control_gene and not _LEGACY_SCOPE_WARNED:
-        _LEGACY_SCOPE_WARNED = True
-        log.warning(
-            "positive_control_gene is set without positive_control_scope: treating it "
-            "as panel_mechanics, which certifies NO virus. Pass --positive-control-scope "
-            "exact_sequence with --positive-control-virus-key to let it certify one row."
-        )
+    if config.positive_control_gene:
+        _warn_legacy_scope()
     return CaptureScope.PANEL_MECHANICS, None
 
 
@@ -2143,6 +2134,7 @@ def generate_html_report(
     group_by_virus,
     detected_viral_genes,
     outputpath,
+    config,
     run_date=None,
     sensitivity_df=None,
     sensitivity_statement=None,
@@ -2236,10 +2228,16 @@ def generate_html_report(
     log.info("HTML report written to %s", report_path)
 
 
-def main():
-    adata, found_genes, outputpath, viral_accessions, detection_matrix, index_groups = (
-        preprocessing()
-    )
+def main(config, kb, viral_accessions_file):
+    (
+        adata,
+        found_genes,
+        outputpath,
+        viral_accessions,
+        detection_matrix,
+        index_groups,
+        identity,
+    ) = preprocessing(config, kb, viral_accessions_file)
 
     # Clear last run's per-virus plots first: which viruses clear the detection
     # threshold is method-dependent, so a rerun can demote one, and a surviving
@@ -2248,7 +2246,7 @@ def main():
 
     # check if user wants visuals in output directory
     group_by_virus, detected_viral_genes = histogram(
-        adata, found_genes, identity, outputpath, viral_count_matrix=detection_matrix
+        adata, found_genes, identity, outputpath, config, viral_count_matrix=detection_matrix
     )
     # Cell-calling: label real (non-empty-droplet) barcodes so viral rates are
     # reported over called cells, not over all barcodes (which are mostly empty).
@@ -2316,7 +2314,9 @@ def main():
                 virus,
                 genes,
                 outputpath,
+                config,
                 viral_count_matrix=detection_matrix,
+                identity=identity,
                 host_gene_mask=host_mask,
                 called_mask=called_mask,
             )
@@ -2560,6 +2560,7 @@ def main():
         group_by_virus,
         detected_viral_genes,
         outputpath,
+        config,
         sensitivity_df=sensitivity_df,
         facts=facts,
         sensitivity_statement=sens.interpretation,
@@ -2570,13 +2571,7 @@ def main():
 
 def run(ctx, viral_accessions_file, done_file):
     """Entry point: detect viruses, write outputs/report for one Run."""
-    global config, output, kb, file
-    config = ctx.config
-    output = config.output
-    kb = ctx.outputs
-    file = viral_accessions_file
-
-    main()
+    main(ctx.config, ctx.outputs, viral_accessions_file)
 
     with open(done_file, "w") as f:
         f.write("done\n")

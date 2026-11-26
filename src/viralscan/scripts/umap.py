@@ -37,16 +37,6 @@ log = setup_script_logging()
 
 warnings.filterwarnings("ignore")
 
-# Run-level state, populated by run() from the Run Context. Declared here so the
-# helper functions can reference them as module globals; the module imports
-# cleanly without Snakemake because nothing reads these at import time.
-config: RunConfig = RunConfig()
-kb: KbCountOutputs = KbCountOutputs.from_config_output(config.output)
-# The Run's Virus Identity table; None (a run directory without one) selects the
-# legacy prefix naming.
-identity = None
-
-
 def _gene_to_virus(gene_ids, table=None):
     """gene_id -> virus display name, from the identity table (legacy prefix if none)."""
     if table is not None:
@@ -100,7 +90,7 @@ def label_infected_cells(adata, matrix, viral_ids, table, min_molecules):
     return labels, virus_molecules_per_cell(adata, matrix, list(viral_ids))
 
 
-def _write_scautoqc_umaps(adata):
+def _write_scautoqc_umaps(adata, config):
     """Write UMAPs colored by the in-place scAutoQC cell and cluster flags."""
     if px is None:
         raise RuntimeError("plotly is required to render scAutoQC UMAP HTML plots.")
@@ -245,7 +235,7 @@ def _n_hvg(adata):
     return n
 
 
-def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
+def umap(adata, found_genes, config, identity=None, min_reads_per_cell=2, min_genes_per_cell=1):
     """
     Creates a UMAP of all single cells.
     If viral load is discovered, it highlights and tests for clustering.
@@ -262,7 +252,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     if config.scautoqc:
         if "scautoqc_cell_passed_qc" not in adata.obs:
             add_scautoqc(adata, identity)
-        _write_scautoqc_umaps(adata)
+        _write_scautoqc_umaps(adata, config)
 
     # create violin plot
     fig, ax = plt.subplots()
@@ -496,7 +486,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     fig_continuous.write_html(f"{outdir}/umap_continuous.html")
 
 
-def main():
+def main(config, kb, identity):
     if config.umap and px is None:
         raise RuntimeError(
             "plotly is required for UMAP HTML plots but is not installed. "
@@ -522,17 +512,17 @@ def main():
         print(
             f"You have decided to create a umap. This can take a while before finishing the code. Please wait..."
         )
-        umap(adata, detected_genes(found_genes, config.output, identity))
+        umap(adata, detected_genes(found_genes, config.output, identity), config, identity)
 
 
 def run(ctx, done_file):
     """Entry point: optional UMAP for one Run, then touch done_file."""
-    global config, kb, identity
     config = ctx.config
-    kb = ctx.outputs
+    # The Run's Virus Identity table; None (a run directory without one) selects the
+    # legacy prefix naming.
     identity = load_run_identity(config.output)
 
-    main()
+    main(config, ctx.outputs, identity)
 
     with open(done_file, "w") as f:
         f.write("done\n")

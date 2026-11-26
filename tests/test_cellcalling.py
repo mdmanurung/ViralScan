@@ -1002,9 +1002,10 @@ def _detection_fixture(tmp_path, monkeypatch, config):
     a = ad.AnnData(X=sp.csr_matrix([[5]]))
     a.obs_names = ["AAA"]
     a.var_names = ["v1"]
-    monkeypatch.setattr(detection, "config", config)
     monkeypatch.setattr(
-        detection, "preprocessing", lambda: (a, ["v1"], str(tmp_path), ["v1"], None, {})
+        detection,
+        "preprocessing",
+        lambda *args: (a, ["v1"], str(tmp_path), ["v1"], None, {}, None),
     )
     monkeypatch.setattr(detection, "clear_stale_virus_plots", lambda _: None)
     monkeypatch.setattr(
@@ -1022,7 +1023,7 @@ def test_detection_missing_host_matrix_never_calls_viral_emptydrops(tmp_path, mo
 
     monkeypatch.setattr(cellcalling, "call_cells", forbidden)
     with pytest.raises(CellCallingError, match="GeneFull/raw"):
-        detection.main()
+        detection.main(config, None, "")
 
 
 def test_legacy_twostep_scoring_rejects_viral_emptydrops_fallback(tmp_path):
@@ -1074,7 +1075,7 @@ def test_detection_external_override_preserves_full_universe(tmp_path, monkeypat
 
     monkeypatch.setattr(detection, "compute_stats", check_stats)
     with pytest.raises(StopAfterCalling):
-        detection.main()
+        detection.main(config, None, "")
     assert (
         tmp_path / "results" / "host_called_cells.tsv"
     ).read_text() == "barcode\nAAA\nCCC\nTTT\n"
