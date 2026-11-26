@@ -128,6 +128,9 @@ def test_host_only_negative_reports_no_call(tmp_path: Path) -> None:
     assert gates.host_only_calls(dirty) == ["HHV-6B"]
     assert gates.main(["host-only", str(dirty)]) == 1
     assert gates.host_only_calls(_summary(tmp_path / "c.tsv", [("X", "False", "2")])) == ["X"]
+    old = tmp_path / "pre_colnames.tsv"
+    old.write_text("virus_name\tdetected\tinfected_called\nY\tFalse\t2\n")
+    assert gates.host_only_calls(old) == ["Y"]  # pre-COLNAMES-01 header still read
 
 
 # --- CAT-15 ---

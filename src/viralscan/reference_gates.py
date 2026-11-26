@@ -212,7 +212,8 @@ def host_only_calls(viral_summary: Path) -> list[str]:
         raise ValueError(f"{viral_summary} has no 'detected' column; not a v3 viral_summary")
     calls = []
     for row in rows:
-        called = row.get("infected_called_cells") or "0"
+        # COLNAMES-01 renamed infected_called; a pre-rename summary keeps the old header.
+        called = row.get("infected_called_cells") or row.get("infected_called") or "0"
         if row["detected"].strip().lower() in {"true", "1"} or float(called) > 0:
             calls.append(row.get("virus_name", "?"))
     return calls
