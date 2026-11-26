@@ -31,6 +31,7 @@ A beta of the 3.0.0 series for outside laboratories (user decisions 2026-11-04 a
 
 ### Fixed since 3.0.0rc1
 
+- **`run` checks for the bundled annotations before kb count (PLAN `PREFLIGHT-GTF-01`).** Without `--gtf`, an index without `<index>.build_manifest.json` and no `viralscan data fetch` cache made the `analysis` rule fail after 20 to 29 minutes of kb count. `run` now raises the same `ViralScanDataError` text before the output directory, kb or snakemake is touched (exit 1). A `--gtf`, `--reference`, `--ncbi-accession` or an index with a build manifest passes. `check env` prints a `warning:` line when the annotations are absent and keeps `ok` unchanged; the JSON report has a `viral_annotations` block.
 - **One gem-group rule for barcode on-lists (PLAN `WHITELIST-RULE-01`).** The `check-whitelist` preflight and the chemistry check both drop one trailing all-digit `-N` (`utils.strip_gem_group`). Before, the chemistry check split at the first `-` and the preflight kept `-0`. Lines such as `GGGG-1-2` or `TTTT-0` can now change the preflight match rate and its pass or fail. Counts are unchanged.
 - **One SAM layer (PLAN `SAM-01`).** CIGAR parsing, `AS`/`NH` tag reads and the `samtools view` stream live in `viralscan/sam.py` instead of five copies each. No output change. `strand_qc` and `competitive_plot` raise `CalledProcessError` when samtools fails.
 - **The barcode-whitelist preflight moved into `chemistry` (PLAN `WHITELIST-FOLD-01`).** `viralscan check-whitelist` output is unchanged; `viralscan.whitelist_preflight` re-exports the same functions.

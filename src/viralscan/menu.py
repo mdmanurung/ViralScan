@@ -1333,6 +1333,25 @@ def _check_required_tools() -> None:
         )
 
 
+def _preflight_bundled_annotations(args: argparse.Namespace) -> None:
+    """Fail before kb count when the ``analysis`` rule will need annotations that are absent.
+
+    The rule reads the bundled panel GTFs unless the index has a build manifest or a
+    ``--gtf`` is given (``scripts/analysis.py``). A fresh ``--reference`` or
+    ``--ncbi-accession`` build writes its own manifest. The check reuses
+    ``ensure_viral_data``, so the error text is the one the rule would raise
+    (PLAN PREFLIGHT-GTF-01).
+    """
+    from viralscan.data_fetch import ensure_viral_data
+    from viralscan.virus_identity import manifest_path_for_index
+
+    if args.gtf or args.reference or args.ncbi_accession:
+        return
+    if args.index and manifest_path_for_index(args.index).is_file():
+        return
+    ensure_viral_data(args.data_cache_dir)
+
+
 def _check_scautoqc_deps() -> None:
     """Fail before a long run, not after multimap, when --scautoqc lacks SCTK."""
     import importlib.util
@@ -1991,6 +2010,8 @@ def _run_subcommand(args: argparse.Namespace) -> None:
             report = doctor_report(args.profile)
             if report["tchem"]["warning"]:
                 print(f"warning: {report['tchem']['warning']}", file=sys.stderr)
+            if report["viral_annotations"]["warning"]:
+                print(f"warning: {report['viral_annotations']['warning']}", file=sys.stderr)
         else:
             report = validate_run(Path(args.run_dir), verify_inputs=not args.no_verify_inputs)
         rendered = _json.dumps(report, indent=2, sort_keys=True) + "\n"
@@ -2021,6 +2042,7 @@ def _run_subcommand(args: argparse.Namespace) -> None:
     _check_required_tools()
     checked_options = validate_run_request(args)
     _warn_ignored_flags(args)
+    _preflight_bundled_annotations(args)
 
     if args.host_filter:
         _check_host_filter_tools(args.host_filter)

@@ -154,6 +154,7 @@ def run_main(tmp_path: Path, monkeypatch):
 
     for name in ("a_R1.fastq", "a_R2.fastq", "index.idx", "t2g.txt"):
         (tmp_path / name).write_text("@r\nACGT\n+\nIIII\n" if "fastq" in name else "t\tg\n")
+    (tmp_path / "index.idx.build_manifest.json").write_text("{}")  # no bundled panel needed
     out = tmp_path / "out"
     calls: list[list[str]] = []
 

@@ -670,6 +670,8 @@ does not imply that native full-workflow tools are installed.
 | `--profile {pip,full,discovery,coverage}` | `full` | Check the Python/reporting/validation tier, the complete external-tool workflow tier, the Kraken2 discovery add-on, or the optional coverage-map tools (`environment.coverage.yml`: `bamCoverage`, `pyGenomeTracks`, `gtf2bed`; the evidence step skips the maps with a warning when absent) |
 | `--json PATH` | *(none)* | Also write the report as JSON (it is always printed) |
 
+The report also has a `viral_annotations` block (`present`, `path`, `warning`). When the annotations from `viralscan data fetch` are absent, `check env` prints a `warning:` line and still exits 0, because runs with `--gtf` or an index with a build manifest do not need them. `viralscan run` stops with the same message before kb count when it would need them.
+
 Example:
 
 ```bash
