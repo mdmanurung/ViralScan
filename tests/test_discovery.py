@@ -521,12 +521,12 @@ def test_refuses_partial_or_truncated_host_filter_output(tmp_path):
 def test_input_resolution_refusals(tmp_path):
     root = _run(tmp_path)
     sample = root / "S1"
-    with pytest.raises(DiscoveryError, match="--host-subtract starsolo --host-index"):
+    with pytest.raises(DiscoveryError, match="--host-filter starsolo --host-index"):
         discovery.resolve_input(root, sample, tmp_path / "p", _args())
     with pytest.raises(DiscoveryError, match="requires --host-index"):
         discovery.resolve_input(root, sample, tmp_path / "p", _args(host_subtract="starsolo"))
     _host_filtered(sample / "host_filtered", 2)
-    with pytest.raises(DiscoveryError, match="drop --host-subtract"):
+    with pytest.raises(DiscoveryError, match="drop --host-filter"):
         discovery.resolve_input(root, sample, tmp_path / "p", _args(host_subtract="starsolo"))
 
 

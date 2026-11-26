@@ -2882,7 +2882,7 @@ def run_hostresponse(
     n_stab_iter: int = 100,
     stab_min_prob: float = 0.6,
     top_n_genes: int = 50,
-    detection_threshold: int = 10,  # per-cell positive label (--hostresponse-min-umi), not the sample gate
+    detection_threshold: int = 10,  # per-cell positive label (--hostresponse-min-molecules), not the sample gate
     do_enrichment: bool = False,
     enrichment_db: str = "GO_Biological_Process_2023",
     label: str = "raw",

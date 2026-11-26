@@ -207,7 +207,7 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
     if args.programme_latent_min_breadth is not None and args.programme_latent_min_breadth < 1:
         _die("--programme-latent-min-breadth must be >= 1.", 2)
     if args.programme_min_umi is not None and args.programme_min_umi < 0:
-        _die("--programme-min-umi must be >= 0.", 2)
+        _die("--programme-min-molecules must be >= 0.", 2)
     pmm = args.programme_productive_min_molecules
     if pmm is not None and pmm < 1:
         _die("--programme-productive-min-molecules must be >= 1.", 2)
@@ -836,7 +836,7 @@ def errorhandler(args: argparse.Namespace) -> None:
             _die("--ncbi-accession is mutually exclusive with --reference / --gtf / --fasta.", 2)
         given = [
             flag
-            for flag, value in (("-i", args.index), ("-t", args.transcripts), ("-f1", args.f1))
+            for flag, value in (("-i", args.index), ("-t", args.transcripts))
             if value is not None
         ]
         if given:
@@ -856,10 +856,10 @@ def errorhandler(args: argparse.Namespace) -> None:
         for gtf in split_comma_paths(args.gtf):
             if not os.path.exists(gtf):
                 _die(f"GTF path does not exist: {gtf}.")
-        if args.transcripts is not None or args.index is not None or args.f1 is not None:
+        if args.transcripts is not None or args.index is not None:
             if getattr(args, "yes", False):
                 log.warning(
-                    "-i/-t/-f1 are ignored: the reference is built into the output directory (--yes)."
+                    "-i/-t are ignored: the reference is built into the output directory (--yes)."
                 )
             else:
                 try:
@@ -874,11 +874,11 @@ def errorhandler(args: argparse.Namespace) -> None:
                     )
                 except EOFError:
                     _die(
-                        "--reference builds a new reference, so -i/-t/-f1 are ignored, and there "
-                        "is no terminal to confirm. Pass --yes to continue, or drop -i/-t/-f1."
+                        "--reference builds a new reference, so -i/-t are ignored, and there "
+                        "is no terminal to confirm. Pass --yes to continue, or drop -i/-t."
                     )
                 if answer in ("no", "n"):
-                    _die("Not continuing: -i/-t/-f1 given with --reference.")
+                    _die("Not continuing: -i/-t given with --reference.")
                 if answer not in ("yes", "y"):
                     _die(f"This is not a valid answer: {answer}.")
     else:
@@ -1079,7 +1079,6 @@ def _warn_ignored_flags(args: argparse.Namespace) -> None:
     multimap_flags = (
         "multimap_method",
         "multimap_pseudocount",
-        "multimap_primary_call",
         "multimap_em_max_iter",
         "multimap_em_tol",
         "multimap_molecule_assignments",

@@ -40,6 +40,36 @@ See the [output reference](output_reference.md) for the v3 schema and the
   `viralscan: warning:` line that names the replacement, and is removed in 3.1.0. A root without
   `run_complete.json` is refused. Outputs and their default locations (`<sample>/posthoc/<verb>/`)
   are unchanged.
+- **Four `run` options that changed nothing are gone (PLAN `FLAGS-01`).** They have no alias. Each one
+  stops with exit 2 and a message that says why.
+
+  | Removed | Why | What to do |
+  |---|---|---|
+  | `--f1`, `-f1` | Nothing read it. `--reference` writes its own `cdna.fa` under `<output>/index`. | Drop the flag. |
+  | `--multimap-primary-call` | It accepted one value, `selected-method`, the v3 count contract. | Drop the flag. |
+  | `--se-threshold` | It never changed a call or a count. It only set the cut-off line of the exploratory high-burden plot. | Drop the flag. The cut-off is fixed at 10 molecules, the old default. |
+  | `--positive-control-scope virus_key` | The value needs an approved transfer calibration (`VAL-RA-CAL`) that this release lacks. `RunConfig` already refused it. | Use `exact_sequence` with `--positive-control-virus-key`, or `panel_mechanics`. |
+
+  `run_fingerprint` is unchanged for a run that used only kept flags at the same values: the two
+  fixed options still enter the hash at their old values. A run that used `--f1` hashed that FASTA, so
+  its manifest is no longer the same run; `--resume` already refuses manifests from another version.
+- **Renamed options keep the old spelling as a deprecated alias (PLAN `FLAGS-01`).** The old name
+  prints a `viralscan: warning:` line to stderr and is removed in 3.1.0. Defaults, values and outputs
+  are unchanged. Output columns and config keys that carry `umi` (`marker_min_umi`, `programme_min_umi`,
+  `hostresponse_min_umi`) keep their names.
+
+  | Verb | Old | New | Why |
+  |---|---|---|---|
+  | `run`, `rerun programs` | `--programme-min-umi` | `--programme-min-molecules` | It sets a molecule count, as `--programme-productive-min-molecules` does. |
+  | `run` | `--hostresponse-min-umi` | `--hostresponse-min-molecules` | It is a threshold on the viral molecule estimate. |
+  | `rerun hostresponse` | `--min-umi` | `--min-molecules` | Same threshold, same name as the `run` option. |
+  | `discover run` | `--host-subtract` | `--host-filter` | `run` calls the same STAR step `--host-filter`; `--host-filter-star-params` already did. |
+  | `discover run` | `--called-cells` | `--called-cells-file` | `run` names its called-cell list `--called-cells-file`. |
+  | `translated` | `--cells` | `--called-cells-file` | Same list, one name. |
+
+- **`build ref --virus-accessions` takes commas as well as spaces** (`A,B` equals `A B`), like the other list options.
+- **`run --help` lists 16 options.** `viralscan run --help-all` lists all of them. Every option parses
+  either way.
 - **Commands are grouped (PLAN `CMDGROUP-01`).** The post-hoc, check and build verbs moved under
   five groups. The old names still run the same handler and print a `viralscan: warning:` line that
   names the new one. They are removed in 3.1.0. Options, outputs and exit codes are unchanged.
@@ -77,13 +107,14 @@ the replacement named. Configuration keys, `config.yaml` and `run_fingerprint` a
 |---|---|---|
 | (quantification) | `viralscan -s1 R1 -s2 R2 ...` | `viralscan run --r1 R1 --r2 R2 ...` |
 | `run`, `check-whitelist`, `check-chemistry` | `-s1` / `--sample1`, `-s2` / `--sample2` | `--r1`, `--r2` |
-| `run` | `-ref`, `-reference`, `-gtf`, `-fasta`, `-f1`, `-umap`, `-acc`, `-mm` | `--reference`, `--gtf`, `--fasta`, `--f1`, `--umap`, `--ncbi-accession`, `--multimapping` |
+| `run` | `-ref`, `-reference`, `-gtf`, `-fasta`, `-umap`, `-acc`, `-mm` | `--reference`, `--gtf`, `--fasta`, `--umap`, `--ncbi-accession`, `--multimapping` |
+| `run` | `-f1`, `--f1` | removed in 3.0.0b1 (it had no effect); see "Migrating from 3.0.0rc1" |
 | `run` | `-v` | `--visual` / `--no-visual` |
 | `run` | `--reference True`, `--visual False`, `--multimapping False` (value form) | `--reference`, `--no-visual`, `--no-multimapping` |
 | `run` | `--data-cache-dir` | `--cache-dir` |
 | `run` | `--cell-types CSV` | `--cell-type-labels CSV` |
 | `run` | `--hostresponse-control-mito` | `--hostresponse-mito-control` |
-| `hostresponse` | `--hostresponse-min-umi`, `--detection-threshold` | `--min-umi` |
+| `hostresponse` | `--hostresponse-min-umi`, `--detection-threshold` | `--min-molecules` |
 | `hostresponse` | `-o RUN_DIR` (an input run directory) | `--run-dir RUN_DIR`; `--output DIR` now optionally names where hostresponse writes (default `<run-dir>/posthoc/hostresponse`) |
 | `evidence`, `rerun-programs`, `hostresponse`, `host-loss` | `--run-dir SAMPLE_DIR` | `--run-dir RUN_ROOT [--sample NAME]`; the sample-directory form is deprecated (warning, removed in 3.1.0) |
 | `status` | `--run-dir` a sample directory | `--run-dir RUN_ROOT`; the sample-directory form is deprecated (warning, removed in 3.1.0) |

@@ -124,7 +124,6 @@ def test_valid_run_argv_passes_errorhandler(run_argv):
     "flags",
     [
         ["--cores", "0"],
-        ["--se-threshold", "-5"],
         ["--cell-calling", "external"],
         ["--star-confirm"],
         ["--auto-evidence"],
