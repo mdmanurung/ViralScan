@@ -91,7 +91,7 @@ Owner-only steps:
 |---|---|---|
 | Authors, order, ORCIDs, contacts, licence holder | `REL-15` | citation order cannot change after the first public tag |
 | Protected `testpypi` and `pypi` environments, Trusted Publishers, GHCR permissions | `RC-02` | the publish job cannot run |
-| Sign off 8 OSV and 8 grype exceptions | `REL-11` | image audit gate |
+| Sign off 8 OSV and 9 grype exceptions | `REL-11` | image audit gate |
 | Delete the stale `v3.0.0rc1` tag; push the beta tag on a green `main` SHA | `RC-03` | tag rules |
 | Recruit three outside laboratories covering the supported chemistries | `RC-04` | `rc1` gate |
 
