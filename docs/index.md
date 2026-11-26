@@ -14,7 +14,7 @@ row is not a diagnosis, and passing a threshold does not establish infection.
 
 ## Three steps
 
-1. [Install](installation.md) the full toolchain with conda or pixi.
+1. [Install](installation.md) the full toolchain with conda or pixi. The [install-to-report page](happy_path.md) lists every command in order.
 2. [Run](quickstart.md) one sample: build a combined host + virus reference,
    quantify, validate.
 3. [Read the results](results.md): which file answers which question, what the
@@ -55,6 +55,7 @@ the [release policy](release_policy.md) and [reference maintenance](reference_ma
 :caption: Guide
 
 installation
+happy_path
 quickstart
 results
 limitations

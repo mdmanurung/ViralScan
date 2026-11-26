@@ -83,3 +83,39 @@ def test_literal_notebook_cli_commands_parse_without_running_workflows():
                     assert args.host or args.reference_panel == "anellovirus", path
                 checked += 1
     assert checked >= 3
+
+
+def test_happy_path_commands_parse_and_cover_the_path():
+    text = (ROOT / "docs/happy_path.md").read_text()
+    seen = []
+    for block in re.findall(r"```bash\n(.*?)```", text, re.S):
+        for command in block.replace("\\\n", " ").splitlines():
+            argv = shlex.split(command, comments=True)
+            if not argv or argv[0] != "viralscan":
+                continue
+            build_parser().parse_args(argv[1:])
+            seen.append(" ".join(argv[1:3]))
+    for step in (
+        "check env",
+        "build ref",
+        "check chemistry",
+        "run -t",
+        "check run",
+        "status --run-dir",
+    ):
+        assert any(row.startswith(step) for row in seen), step
+    for block in re.findall(r"```python\n(.*?)```", text, re.S):
+        compile(block, "docs/happy_path.md", "exec")
+
+
+def test_happy_path_open_first_files_exist_in_the_run_layout():
+    from viralscan.outputs import RESULT_FILES, SAMPLE_LAYOUT
+
+    text = (ROOT / "docs/happy_path.md").read_text()
+    section = text.split("## 6. What to open first")[1]
+    named = re.findall(r"^\d\. \*\*`([^`]+?)\.?`", section, re.M)
+    assert named[:3] == ["report.html", "results/viral_summary_core.tsv", "results/sensitivity.tsv"]
+    known = {path for path, *_ in SAMPLE_LAYOUT} | {path for path, *_ in RESULT_FILES}
+    assert set(named[:3]) <= known
+    for page in ("README.md", "docs/results.md", "docs/output_reference.md"):
+        assert "happy_path.md" in (ROOT / page).read_text(), page
