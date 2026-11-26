@@ -131,7 +131,10 @@ def test_rerun_programs_writes_under_posthoc_and_leaves_run_untouched(tmp_path: 
     )
     with patch.object(gp, "main") as main:
         menu._run_rerun_programs(args)
-    assert main.call_args.args[2] == ""
+    config, output, _adata, _summary, done = main.call_args.args
+    assert Path(output).resolve() == sample.resolve()
+    assert config.output  # the typed run config, passed as an argument
+    assert done == ""
     assert (
         Path(main.call_args.kwargs["results_root"]) == (sample / "posthoc" / "programs").resolve()
     )
