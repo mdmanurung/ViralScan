@@ -358,6 +358,15 @@ class TestNumericOptionRanges:
         [("cores", 0), ("se_threshold", -3), ("umap_n_neighbors", 0), ("min_counts", -1)],
     )
     def test_bad_number_dies_naming_the_option(self, attr: str, bad: int, caplog) -> None:
+        # RunConfig owns the ranges (VALIDATE-ONCE-01): errorhandler passes, the typed pass stops.
+        from viralscan.cli.parsers import build_parser
+        from viralscan.menu import validate_run_request
+
+        args = build_parser().parse_args(
+            ["run", "-i", "/f/i", "-t", "/f/t", "--r1", "/f/a.fastq", "--r2", "/f/b.fastq"]
+            + ["-o", "/f/out"]
+        )
+        setattr(args, attr, bad)
         with patch("os.path.exists", side_effect=_always_exists), pytest.raises(SystemExit):
-            errorhandler(_args(**{attr: bad}))
+            validate_run_request(args)
         assert attr in caplog.text
