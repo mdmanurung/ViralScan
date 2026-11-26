@@ -20,17 +20,65 @@ def args(tmp_path):
     )
 
 
-def test_one_runconfig_is_built_and_the_output_directory_is_untouched(args, monkeypatch):
-    built = []
-    real = RunConfig.from_snakemake_config.__func__
+def test_validation_returns_the_checked_options_and_leaves_the_output_alone(args, monkeypatch):
+    checks = []
+    real = RunConfig.check_options.__func__
+    monkeypatch.setattr(
+        RunConfig,
+        "check_options",
+        classmethod(lambda cls, cfg: checks.append(cfg) or real(cls, cfg)),
+    )
+    checked = menu.validate_run_request(args)
+    assert len(checks) == 1
+    assert checked["cores"] == args.cores
+    assert not Path(args.output).exists()
+
+
+def test_a_multi_sample_run_checks_the_options_once(tmp_path, monkeypatch):
+    from unittest.mock import patch
+
+    names = ("a_R1.fastq", "a_R2.fastq", "b_R1.fastq", "b_R2.fastq", "index.idx", "t2g.txt")
+    for name in names:
+        (tmp_path / name).write_text("@r\nACGT\n+\nIIII\n" if "fastq" in name else "t\tg\n")
+    p = lambda n: str(tmp_path / n)  # noqa: E731
+    argv = ["viralscan", "-i", p("index.idx"), "-t", p("t2g.txt"), "-o", p("out")]
+    argv += ["--r1", f"{p('a_R1.fastq')},{p('b_R1.fastq')}", "-x", "10xv3", "--yes"]
+    argv += ["--r2", f"{p('a_R2.fastq')},{p('b_R2.fastq')}", "--strand", "unstranded"]
+    monkeypatch.setattr("sys.argv", argv)
+    checks, builds = [], []
+    real_check = RunConfig.check_options.__func__
+    real_build = RunConfig.from_snakemake_config.__func__
+    monkeypatch.setattr(
+        RunConfig,
+        "check_options",
+        classmethod(lambda cls, cfg: checks.append(cfg) or real_check(cls, cfg)),
+    )
     monkeypatch.setattr(
         RunConfig,
         "from_snakemake_config",
-        classmethod(lambda cls, cfg: built.append(cfg) or real(cls, cfg)),
+        classmethod(
+            lambda cls, cfg, checked=None: (
+                builds.append(checked) or real_build(cls, cfg, checked=checked)
+            )
+        ),
     )
-    menu.validate_run_request(args)
-    assert len(built) == 1
-    assert not Path(args.output).exists()
+    with (
+        patch.object(menu, "_check_required_tools"),
+        patch.object(menu, "_check_cell_caller_tools"),
+        patch.object(menu, "_resolve_chemistry", return_value={}),
+        patch.object(menu, "_run_snakemake"),
+    ):
+        menu._main()
+    assert len(checks) == 1  # the probe; neither sample re-runs the flag rules
+    assert len(builds) == 2
+    assert all(b is not None for b in builds)
+
+
+def test_a_build_without_checked_options_still_runs_the_rules(args):
+    cfg = menu._run_config_options(args, "o/", "i", "t", "r1", "r2")
+    cfg["cores"] = 0
+    with pytest.raises(ValueError, match="cores must be >= 1"):
+        RunConfig.from_snakemake_config(cfg)
 
 
 @pytest.mark.parametrize(
