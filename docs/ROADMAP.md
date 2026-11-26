@@ -43,7 +43,7 @@ Goal: every function has a purpose, the parts fit, nothing is duplicated, and a 
 |---|---|---|
 | `GOLDEN-01` | merged | deterministic outputs of the tiny run pinned |
 | `TABLE-SCHEMA-01` | in review | 12 default tables pinned and documented |
-| `TABLE-SCHEMA-02` | todo | the same for tables written by optional arms and post-hoc verbs (`molecule_support`, `gene_program_*`, `strand_qc`, evidence tables), each from its own small run |
+| `TABLE-SCHEMA-02` | in review | the same for tables written by optional arms and post-hoc verbs (`molecule_support`, `gene_program_*`, `strand_qc`, evidence tables), each from its own small run; 11 tables pinned under `optional_tables` |
 
 ### Phase B: remove what has no purpose (about 2 days)
 - `DEAD-01`: delete, or move to tests, the 33 production functions reached only from tests (for example `evidence.extract_viral_reads`, `detection.build_sensitivity_table`, `multimapping.resolve_cb_umi_molecules`, the test shims in `scripts/host_filter.py` and `scripts/anello_align.py`). First check `tests/_frozen_oracles` and the reproducibility repo for importers.

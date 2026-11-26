@@ -1370,6 +1370,40 @@ available. No diagnostic flag is an automatic biological conclusion.
 
 ---
 
+## Columns of optional-arm and post-hoc tables (PLAN `TABLE-SCHEMA-02`)
+
+`src/viralscan/schemas/v3/table_columns.json` pins the column order of these tables under `optional_tables`, beside the 12 default tables. `tests/test_optional_table_columns.py` writes each one from a small fixture and compares the header. The columns not described elsewhere on this page are listed here.
+
+| Table | Column | Meaning |
+|---|---|---|
+| `gene_program_summary.tsv` | `layer1_molecule_column` | Name of the layer-1 `viral_summary.tsv` column that `layer1_molecules` was read from |
+| `gene_program_summary.tsv` | `host_filter` | Host-filter aligner of the run, or `none` when no host filter ran |
+| `strand_qc.tsv` | `reference` | Viral reference, or `ALL_VIRAL` for the row over all of them |
+| `strand_qc.tsv` | `host_blocks_sense`, `host_blocks_antisense`, `host_blocks_ambiguous`, `host_blocks_outside` | Host calibration blocks by class: `sense`, `antisense`, overlapping several genes, outside every exon |
+| `strand_qc.tsv` | `blocks_sense`, `blocks_antisense`, `blocks_ambiguous_overlap`, `blocks_outside_annotation` | Viral aligned blocks by class |
+| `strand_qc.tsv` | `reads_sense`, `reads_antisense`, `reads_ambiguous_overlap`, `reads_outside_annotation` | Reads by the same classes |
+| `strand_qc.tsv` | `molecules_sense`, `molecules_antisense`, `molecules_ambiguous_overlap`, `molecules_outside_annotation` | Molecules by the same classes |
+| `strand_qc.tsv` | `n_molecules_counted_virus_best`, `n_molecules_counted_host_best`, `n_molecules_counted_tie`, `n_molecules_counted_unaligned`, `n_molecules_not_counted` | Molecules per category of `docs/evidence_unit.md` |
+| `strand_qc.tsv` | `n_reads_counted_virus_best`, `n_reads_counted_host_best`, `n_reads_counted_tie`, `n_reads_counted_unaligned`, `n_reads_not_counted` | Member reads per the same categories |
+| `strand_qc.tsv` | `n_reads_virus_best_without_viral_alignment` | Member reads of counted virus-best molecules that carry no viral alignment |
+| `strand_qc.tsv` | `verdict_ties_resolvable` | Written as `True` by the current writer |
+| `molecule_support.tsv` | `read` | Representative read of the molecule (the one with the best viral alignment) |
+| `molecule_support.tsv` | `trimmed_query_bases` | Query bases after trimming; `query_coverage` is the aligned share of them |
+| `molecule_support.tsv` | `aligned_max_AT_fraction` | max(A, T) fraction of the aligned bases; `aligned_AT_warning` is set at 0.70 |
+| `molecule_support.tsv` | `viral_reference`, `host_locus` | Viral reference of the representative alignment, and the best host alignment as `contig:start` (empty without one) |
+| `molecule_support.tsv` | `gate_aligned_length`, `gate_dust`, `gate_competitive` | Pass or fail of the length, DUST and competitive gates (`gate_competitive` is true when the molecule's `verdict` is `virus_best`) |
+| `molecule_support.tsv` | `flags` | `;`-joined gate failures and flags that fired (for example `dust_unmasked_lt20`, `human_equal_or_better`, `hotspot_only`) |
+| `molecule_support.tsv` | `passes_all_gates` | All three gates pass and the molecule is not `hotspot_only` |
+| `read_support_summary.tsv`, `read_support_calls.tsv` | `evidence_dir` | Evidence directory the row summarises; `read_support_calls.tsv` stacks one summary row per evidence directory |
+| `read_support_summary.tsv`, `read_support_calls.tsv` | `fraction_pass_all_gates` | `n_pass_all_gates / n_molecules`; empty with no counted molecule |
+| `read_support_summary.tsv`, `read_support_calls.tsv` | `n_fail_aligned_length`, `n_fail_dust`, `n_hotspot_only`, `n_aligned_AT_warning`, `n_host_decoy` | Counted molecules failing that gate or carrying that flag |
+| `read_support_summary.tsv`, `read_support_calls.tsv` | `dust_method` | The DUST setting, for example `symmetric_dust_w64_l20` |
+| `evidence_kb.tsv`, `evidence_star.tsv`, `evidence_read_support.tsv`, `evidence.tsv` | `route` | `corroboration` or `read_support` (`docs/discovery.md`) |
+| `evidence_kb.tsv`, `evidence_star.tsv`, `evidence_read_support.tsv`, `evidence.tsv` | `source` | `kb` or `star` for `corroboration`; the aligner label (`minimap2`) for `read_support` |
+| `evidence_kb.tsv`, `evidence_star.tsv`, `evidence_read_support.tsv`, `evidence.tsv` | `n_adjudicated`, `n_taxon_best`, `n_shared_cells`, `n_shared_umis` | Units tested, units best for the taxon alone, and the cells and distinct (CB, UMI) molecules also resolved in `umi_groups.tsv.gz` |
+
+`evidence.tsv` is the concatenation of the route tables that `discover-states` produced, with the same columns.
+
 ## Expression normalization
 
 UMAP preprocessing and detected raw host-response inputs use shifted-log
