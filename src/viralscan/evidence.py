@@ -46,6 +46,7 @@ from viralscan.anello_align import (
 )
 from viralscan.anellovirus import anello_name_map
 from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
+from viralscan.errors import ViralScanError
 from viralscan.fasta_reader import iter_fasta
 from viralscan.sam import int_tag, view_lines
 from viralscan.utils import open_maybe_gzip as _open_maybe_gzip  # noqa: F401  (re-exported)
@@ -1737,7 +1738,7 @@ def plot_coverage_maps(
     return written
 
 
-class CoverageMapError(ValueError):
+class CoverageMapError(ViralScanError, ValueError):
     """Invalid coverage-map input, with a machine-readable status."""
 
     def __init__(self, message: str, status: str) -> None:

@@ -35,6 +35,7 @@ from typing import Any
 import numpy as np
 
 from viralscan.chemistry import cb_umi_geometry, kb_whitelist_arg, onlist_path_or_none
+from viralscan.errors import ViralScanError
 from viralscan.evidence import _canonical_fastq_id, _run
 from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file, sha256_path
 from viralscan.star_run import plain_whitelist
@@ -129,7 +130,7 @@ READS_COLUMNS = (
 )
 
 
-class DiscoveryError(RuntimeError):
+class DiscoveryError(ViralScanError, RuntimeError):
     """Discovery refused to run, or stopped, for a stated reason."""
 
 

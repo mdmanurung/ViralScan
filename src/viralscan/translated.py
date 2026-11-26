@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from viralscan.errors import ViralScanError
 from viralscan.run_safety import RunSafetyError, require_fresh_output, sha256_file
 from viralscan.utils import open_maybe_gzip, strip_gem_group
 
@@ -48,7 +49,7 @@ _SUFFIX = re.compile(r"-\d+$")
 _COMP = str.maketrans("ACGTN", "TGCAN")
 
 
-class TranslatedError(RuntimeError):
+class TranslatedError(ViralScanError, RuntimeError):
     """A user-facing failure of the translated-search verbs."""
 
 

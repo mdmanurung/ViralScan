@@ -58,6 +58,7 @@ from pathlib import Path
 
 import requests
 
+from viralscan.errors import ViralScanError
 from viralscan.run_safety import sha256_file
 from viralscan.source_licences import draft_source_licence
 
@@ -77,7 +78,7 @@ NONCODING_GENE_NAME_QUALIFIERS = ("locus_tag", "gene", "product")
 NONCODING_FEATURE_KEY = "misc_RNA"
 
 
-class NCBIFetchError(RuntimeError):
+class NCBIFetchError(ViralScanError, RuntimeError):
     """Raised when an NCBI download or parse fails."""
 
 

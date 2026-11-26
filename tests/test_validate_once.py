@@ -63,7 +63,7 @@ def test_cli_only_message_comes_before_the_runconfig_message(args, caplog):
 def test_main_calls_the_single_entry(monkeypatch):
     import inspect
 
-    src = inspect.getsource(menu._dispatch)
+    src = inspect.getsource(menu._run_subcommand)
     assert "validate_run_request(args)" in src
     assert "errorhandler(args)" not in src
     assert "_precheck_run_config(args)" not in src

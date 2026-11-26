@@ -22,6 +22,7 @@ from typing import Any, Optional
 from viralscan import __version__
 from viralscan.contract import LAYOUT_VERSION, SCHEMA_VERSION
 from viralscan.defaults import DEFAULTS
+from viralscan.errors import ViralScanError
 
 log = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ MARKER_ARTIFACTS = (
 KB_COUNTS = "kb-python/counts_unfiltered/adata.h5ad"
 
 
-class RunSafetyError(RuntimeError):
+class RunSafetyError(ViralScanError, RuntimeError):
     """Raised when output reuse would be unsafe or irreproducible."""
 
 

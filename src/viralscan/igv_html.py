@@ -28,6 +28,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from viralscan.errors import ViralScanError
 from viralscan.evidence import _run
 from viralscan.fasta_reader import FastaError, read_fasta
 from viralscan.gtf_reader import iter_gtf_fields, parse_attributes
@@ -89,7 +90,7 @@ NO_METRIC_NOTE = (
 )
 
 
-class IgvError(ValueError):
+class IgvError(ViralScanError, ValueError):
     """The page cannot be built as specified (missing contig, page too big, unreadable input)."""
 
 

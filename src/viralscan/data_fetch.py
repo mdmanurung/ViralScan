@@ -15,6 +15,8 @@ from urllib.parse import quote
 
 import requests
 
+from viralscan.errors import ViralScanError
+
 VIRAL_DATA_DOI = "10.5281/zenodo.20112332"
 VIRAL_DATA_RECORD_ID = "20112332"
 VIRAL_DATA_RECORD_URL = f"https://zenodo.org/api/records/{VIRAL_DATA_RECORD_ID}"
@@ -27,7 +29,7 @@ _FASTA_SUFFIXES = (".fa", ".fasta")
 _AUX_TSV_NAME = "anellovirus_accessions.tsv"
 
 
-class ViralScanDataError(RuntimeError):
+class ViralScanDataError(ViralScanError, RuntimeError):
     """Raised when ViralScan's external annotation data cannot be used."""
 
 

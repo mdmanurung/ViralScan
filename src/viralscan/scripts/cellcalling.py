@@ -42,6 +42,7 @@ from typing import TypedDict
 import numpy as np
 
 from viralscan.defaults import DEFAULTS
+from viralscan.errors import ViralScanError
 from viralscan.outputs import analysis_genes_path
 from viralscan.utils import open_maybe_gzip, strip_gem_group
 
@@ -84,7 +85,7 @@ def _nonzero_totals(barcodes, totals) -> dict[str, float]:
     return {b: float(t) for b, t in zip(barcodes, totals) if t > 0}
 
 
-class CellCallingError(RuntimeError):
+class CellCallingError(ViralScanError, RuntimeError):
     """Raised when cell calling cannot produce a trustworthy mask.
 
     Cell calling sets the denominator for every reported viral rate. A failure

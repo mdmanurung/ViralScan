@@ -30,6 +30,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass, field
 from typing import IO, Any, Optional
 
+from viralscan.errors import ViralScanError
 from viralscan.utils import open_maybe_gzip, strip_gem_group
 
 
@@ -74,7 +75,7 @@ UMI_BY_TRIMMED_LENGTH = {26: 10, 28: 12}
 DROPSEQ_R1_LENGTH = 20
 
 
-class ChemistryError(ValueError):
+class ChemistryError(ViralScanError, ValueError):
     """The library's chemistry is ambiguous or contradicts ``-x``."""
 
 

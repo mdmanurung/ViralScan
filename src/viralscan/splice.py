@@ -28,6 +28,7 @@ from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
+from viralscan.errors import ViralScanError
 from viralscan.evidence import _run
 from viralscan.fasta_reader import FastaError, read_fasta
 from viralscan.gtf_reader import iter_gtf_fields, parse_attributes
@@ -124,7 +125,7 @@ SUMMARY_FIELDS = (
 )
 
 
-class SpliceError(ValueError):
+class SpliceError(ViralScanError, ValueError):
     """The splice check cannot run as specified (old minimap2, inconsistent inputs)."""
 
 
