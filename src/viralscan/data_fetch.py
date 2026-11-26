@@ -359,7 +359,7 @@ def bundled_anellovirus_fasta(cache_dir: str | Path | None = None) -> Path:
     if not fasta_name:
         raise ViralScanDataError(
             "The cached Zenodo archive does not include an anellovirus FASTA. "
-            "Use `viralscan build-ref --anellovirus` to build it from NCBI accessions, "
+            "Use `viralscan build ref --anellovirus` to build it from NCBI accessions, "
             "or re-run `viralscan data fetch` once a release with the bundled FASTA is available."
         )
     fasta_path = data_dir / str(fasta_name)

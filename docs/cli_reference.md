@@ -2,11 +2,11 @@
 
 Run `viralscan --help` or `viralscan <subcommand> --help` to see options for
 the installed version. This page documents the public CLI as of ViralScan
-**3.0.0rc1**. Available subcommands:
+**3.0.0rc1**. Verbs sit in groups (`check`, `discover`, `rerun`, `build`, and a hidden `dev`); `viralscan check --help` lists a group's commands. The old top-level names (`build-ref`, `doctor`, `validate-run`, `hostresponse`, ...) still work and print a deprecation warning; they are removed in 3.1.0 (PLAN `CMDGROUP-01`, table in [migration](migration.md)). Available subcommands:
 
 <!-- BEGIN GENERATED: subcommands -->
 
-`run`, `data`, `data fetch`, `build-ref`, `star-index`, `translated-index`, `translated`, `evidence`, `evidence-plot`, `rerun-multimap`, `rerun-programs`, `host-loss`, `discover`, `discover-collapse`, `discover-states`, `doctor`, `validate-run`, `status`, `hostresponse`, `check-whitelist`, `check-chemistry`
+`run`, `data`, `data fetch`, `translated`, `evidence`, `evidence-plot`, `status`, `check`, `check chemistry`, `check run`, `check env`, `check whitelist`, `discover`, `discover run`, `discover collapse`, `discover states`, `rerun`, `rerun multimap`, `rerun programs`, `rerun hostresponse`, `build`, `build ref`, `build star-index`, `build translated-index`, `dev`, `dev host-loss`
 
 <!-- END GENERATED -->
 
@@ -24,7 +24,7 @@ Use this command with paired FASTQ files. ViralScan validates inputs, prepares
 or reuses the reference, then dispatches the Snakemake workflow.
 
 For host-aware viral detection, the recommended workflow is to build a combined
-host+virus reference with `viralscan build-ref`, then pass its `index.idx` and
+host+virus reference with `viralscan build ref`, then pass its `index.idx` and
 `t2g.txt` to this command. The default multimapping method is
 `conservative` (canonical name `host-conservative`), which keeps host-virus ambiguous EC mass out of primary
 viral estimates — the conservative choice for combined host+virus references where
@@ -91,7 +91,7 @@ removed in 3.0 and now fail with the replacement named; see [migration.md](migra
 | `--host-index PATH` | | *(none)* | Required with `--host-filter`; a full-host-genome STAR index directory. |
 | `--host-filter-star-params SET` | | `pinned` | STAR filter parameters for `--host-filter starsolo`: `pinned` or `star-default` (STAR's own defaults). |
 | `--star-confirm` / `--no-star-confirm` | | off | STARsolo confirmation arm: align the host-filtered reads to a host+virus STAR index and add `star_*` support columns to `viral_summary.tsv` plus `results/star_support_by_virus.tsv`. Labels only; no call changes. Requires `--host-filter starsolo`, `--star-hostvirus-index`, and STAR and samtools on `PATH` |
-| `--star-hostvirus-index DIR` | | *(none)* | Index directory from `viralscan star-index` (must hold `star_hostvirus_index.json`); required by `--star-confirm` |
+| `--star-hostvirus-index DIR` | | *(none)* | Index directory from `viralscan build star-index` (must hold `star_hostvirus_index.json`); required by `--star-confirm` |
 | `--read-filter MODE` | | `off` | Read-artefact filter before `kb count` (DEF-01): `off` or `artefact`. Drops TSO/reagent chimeras and reads with no complex body; also drops low-complexity viral reads. |
 
 ### Detection thresholds
@@ -173,10 +173,10 @@ fingerprint. `--ncbi-email` and `--ncbi-api-key` are not recorded in the manifes
 
 ---
 
-## `viralscan build-ref` — reference builder
+## `viralscan build ref` — reference builder
 
 ```
-viralscan build-ref [OPTIONS]   # --cores N bounds kb ref / minimap2 / cd-hit-est (unset: legacy 8 / 3 / all CPUs)
+viralscan build ref [OPTIONS]   # --cores N bounds kb ref / minimap2 / cd-hit-est (unset: legacy 8 / 3 / all CPUs)
 ```
 
 Build a combined host + virus kallisto reference without running a full
@@ -250,7 +250,7 @@ the genome path and SHA-256 are frozen in the manifest.
 Example:
 
 ```bash
-viralscan build-ref \
+viralscan build ref \
   --host human \
   --virus-accessions NC_045512.2 NC_002021.3 \
   --output ref_human_virus/ \
@@ -270,7 +270,7 @@ Expected outputs when `kb ref` succeeds:
 
 ### Supported host species
 
-Run `viralscan build-ref --list-species` for the current list.
+Run `viralscan build ref --list-species` for the current list.
 Examples: `human`, `mouse`, `rat`, `zebrafish`, `chicken`, `macaque`, `pig`.
 
 ---
@@ -285,7 +285,7 @@ Download the bundled viral GTF panel from Zenodo, verify checksums, and unpack
 the GTF files into the local ViralScan cache. The Zenodo record
 (`10.5281/zenodo.20112332`) is not registered yet (PLAN `REF-11`), so until the DOI is live
 the panel is the bundled cache described in `docs/reference_panel.md`. A run needs the panel only for an index
-without a `<index>.build_manifest.json` (such as one not built by `viralscan build-ref`);
+without a `<index>.build_manifest.json` (such as one not built by `viralscan build ref`);
 with a manifest the viral gene list comes from the manifest.
 
 | Flag | Default | Description |
@@ -305,18 +305,18 @@ viralscan data fetch
 
 ---
 
-## `viralscan translated-index` and `viralscan translated` — kallisto translated search
+## `viralscan build translated-index` and `viralscan translated` — kallisto translated search
 
 Exploratory protein-level arm (Luebbert et al. 2025, doi:10.1038/s41587-025-02614-y). It never
 changes `detected`, tiers or any primary output; it writes only under
 `<run-dir>/<sample>/posthoc/translated/`.
 
-`translated-index` runs `kb ref --aa` over the annotated viral proteins written by
+`build translated-index` runs `kb ref --aa` over the annotated viral proteins written by
 `scripts/prepare_viral_proteins.py`, optionally combined with the PalmDB RdRP set (three
 pinned files downloaded from the kallisto tutorial), with a plain nucleotide host D-list. It
 refuses a kallisto below 0.51.1, which does not translate the D-list.
 
-<!-- BEGIN GENERATED: translated-index -->
+<!-- BEGIN GENERATED: build translated-index -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -427,10 +427,10 @@ viralscan evidence-plot --evidence-dir ev/callA ev/callB -o plots/ --cross-call 
 
 ---
 
-## `viralscan rerun-multimap` — swap multimapping method
+## `viralscan rerun multimap` — swap multimapping method
 
 ```
-viralscan rerun-multimap [OPTIONS]
+viralscan rerun multimap [OPTIONS]
 ```
 
 Re-run the multimapping step with a different algorithm for an existing run,
@@ -462,8 +462,8 @@ used without an explicit rerun and audit. This remains tracked as `SW-04` and
 Examples:
 
 ```bash
-viralscan rerun-multimap --run-dir out/ --multimap-method conservative   # -> out/posthoc/multimap_conservative/
-viralscan rerun-multimap --run-dir out/ -o out_em/ --multimap-method em --cores 8
+viralscan rerun multimap --run-dir out/ --multimap-method conservative   # -> out/posthoc/multimap_conservative/
+viralscan rerun multimap --run-dir out/ -o out_em/ --multimap-method em --cores 8
 ```
 
 **Tip:** the default (`conservative`) is the safe choice; use
@@ -472,10 +472,10 @@ allocation. Always validate the new result tree before analysis.
 
 ---
 
-## `viralscan hostresponse` — host-response analysis
+## `viralscan rerun hostresponse` — host-response analysis
 
 ```
-viralscan hostresponse [OPTIONS]
+viralscan rerun hostresponse [OPTIONS]
 ```
 
 Associate candidate viral molecule support with host gene expression via logistic regression
@@ -554,22 +554,22 @@ Examples:
 
 ```bash
 # Minimal — run with defaults from config (raw label; still reports the depth baseline)
-viralscan hostresponse --run-dir output/ --host-h5ad host_genes.h5ad
+viralscan rerun hostresponse --run-dir output/ --host-h5ad host_genes.h5ad
 
 # Depth-normalized label + %mito control + gene symbols
-viralscan hostresponse \
+viralscan rerun hostresponse \
   --run-dir output/ \
   --host-h5ad host_genes.h5ad \
   --label cpm --gene-symbols
 
 # Depth-matched cohort + genome-wide differential table
-viralscan hostresponse \
+viralscan rerun hostresponse \
   --run-dir output/ \
   --host-h5ad host_genes.h5ad \
   --depth-match --differential
 
 # With stability tuning and pathway enrichment
-viralscan hostresponse \
+viralscan rerun hostresponse \
   --run-dir output/ \
   --host-h5ad host_genes.h5ad \
   --n-stab-iter 200 \
@@ -581,10 +581,10 @@ viralscan hostresponse \
 
 ---
 
-## `viralscan check-whitelist` — chemistry/whitelist preflight
+## `viralscan check whitelist` — chemistry/whitelist preflight
 
 ```
-viralscan check-whitelist --r1 R1.fastq.gz -w WHITELIST -x TECHNOLOGY
+viralscan check whitelist --r1 R1.fastq.gz -w WHITELIST -x TECHNOLOGY
 ```
 
 Sample the first reads of R1, extract the cell barcode using the technology's
@@ -610,7 +610,7 @@ Exits `0` when the match rate is acceptable and `1` on a likely mismatch, so it
 can gate a pipeline. Example:
 
 ```bash
-viralscan check-whitelist \
+viralscan check whitelist \
   --r1 sample_R1.fastq.gz \
   -w 3M-february-2018.txt \
   -x 10xv3
@@ -618,10 +618,10 @@ viralscan check-whitelist \
 
 ---
 
-## `viralscan check-chemistry` — library chemistry and strand diagnosis
+## `viralscan check chemistry` — library chemistry and strand diagnosis
 
 ```
-viralscan check-chemistry --r1 R1.fastq.gz [--r2 R2.fastq.gz -i index.idx -t t2g.txt] [-x TECH] [-w LIST] [--json PATH]
+viralscan check chemistry --r1 R1.fastq.gz [--r2 R2.fastq.gz -i index.idx -t t2g.txt] [-x TECH] [-w LIST] [--json PATH]
 ```
 
 Read-only check before a run. From the first R1 reads it reports bulk vs single-cell, the
@@ -632,7 +632,7 @@ table below.
 
 ---
 
-## `viralscan star-index` — host + viral STAR index
+## `viralscan build star-index` — host + viral STAR index
 
 Builds the single STAR index used by `viralscan run --star-confirm`. It prefixes the host and viral FASTA/GTF
 with `HOST|` / `VIRUS|`, runs `STAR --runMode genomeGenerate`, and writes `star_hostvirus_index.json` (input
@@ -641,7 +641,7 @@ Output: `<out-dir>/reference/` and `<out-dir>/index/`. A human genome plus the f
 and ~50 min; this is a one-off build, so do not run it on a login node.
 
 ```bash
-viralscan star-index --host-fasta GRCh38.fa --host-gtf GRCh38.gtf \
+viralscan build star-index --host-fasta GRCh38.fa --host-gtf GRCh38.gtf \
   --viral-fasta viral.fa --viral-gtf viral.gtf --out-dir star_hostvirus_ref --threads 16
 ```
 
@@ -658,10 +658,10 @@ See the Output reference for what `--star-confirm` adds and does not do. In part
 
 ---
 
-## `viralscan doctor` — dependency/profile check
+## `viralscan check env` — dependency/profile check
 
 ```
-viralscan doctor [--profile {pip,full,discovery,coverage}] [--json PATH] [--verbose | --quiet]
+viralscan check env [--profile {pip,full,discovery,coverage}] [--json PATH] [--verbose | --quiet]
 ```
 
 Check whether the current installation provides the dependencies required by a
@@ -676,7 +676,7 @@ does not imply that native full-workflow tools are installed.
 Example:
 
 ```bash
-viralscan doctor --profile full --json doctor_report.json
+viralscan check env --profile full --json doctor_report.json
 ```
 
 ---
@@ -687,10 +687,10 @@ viralscan doctor --profile full --json doctor_report.json
 viralscan status --run-dir RUN_DIR
 ```
 
-Every post-hoc command (`evidence`, `evidence-plot`, `rerun-multimap`, `rerun-programs`, `host-loss`,
-`discover`, `discover-collapse`, `discover-states`, `hostresponse`, `translated`) writes one record per
+Every post-hoc command (`evidence`, `evidence-plot`, `rerun multimap`, `rerun programs`, `dev host-loss`,
+`discover run`, `discover collapse`, `discover states`, `rerun hostresponse`, `translated`) writes one record per
 invocation (PLAN `EVID-01`). `status` rebuilds `posthoc/records/index.json` from those records and prints
-one line per attempt: verb, state, sample, target and output. Records made with `--output` outside the run
+one line per attempt: verb, state, sample, target and output. The `verb` is the canonical name from before the command groups (`rerun-multimap`, `hostresponse`, `host-loss`, `discover-states`, ...), whichever spelling was typed. Records made with `--output` outside the run
 sit beside that output in `<output>.records/` and are not listed. See `docs/output_reference.md`,
 "Post-hoc records".
 
@@ -700,10 +700,10 @@ viralscan status --run-dir output/
 
 ---
 
-## `viralscan validate-run` — schema and count-invariant check
+## `viralscan check run` — schema and count-invariant check
 
 ```
-viralscan validate-run --run-dir RUN_DIR [--no-verify-inputs] [--json PATH]
+viralscan check run --run-dir RUN_DIR [--no-verify-inputs] [--json PATH]
 ```
 
 Validate a v3 output tree against its run manifest, schemas, fingerprints, and
@@ -719,18 +719,18 @@ reinterpret a pre-v3 H5AD file.
 Example:
 
 ```bash
-viralscan validate-run --run-dir output/ --json output/validation_report.json
+viralscan check run --run-dir output/ --json output/validation_report.json
 ```
 
 Missing required schemas, incompatible schema versions, fingerprint failures,
 or broken count invariants make validation fail rather than silently downgrade.
 
-## `viralscan rerun-programs` — re-score gene programmes
+## `viralscan rerun programs` — re-score gene programmes
 
 Run layer 2 over a completed run; results go to `<run-dir>/<sample>/posthoc/programs/` by default:
 
 ```bash
-viralscan rerun-programs --run-dir output/ --programme-min-breadth 2
+viralscan rerun programs --run-dir output/ --programme-min-breadth 2
 ```
 
 `--programme-productive-min-molecules N` makes a productive marker count toward productive
@@ -745,7 +745,7 @@ per-cell level `--programme-mixed-veto-alpha`, default 0.01). A virus without a 
 `any` and the run logs it. The default, `catalogue`, uses each virus's shipped rule, which is
 `any` for every virus today (PLAN `PROG-MIXED-VETO-01`).
 
-Unlike `rerun-multimap` this does not copy the run. Layer 2 only reads the count
+Unlike `rerun multimap` this does not copy the run. Layer 2 only reads the count
 matrices and layer 1's `viral_summary.tsv` and writes two `gene_program_*.tsv`
 files under `results/` of the output directory (`-o DIR` overrides the default);
 the run's own outputs are not modified. It requires `log/detection.done` in the run
@@ -757,12 +757,12 @@ directory; without it the command refuses rather than emitting empty tables.
 
 Every post-hoc command takes `--run-dir RUN`, the run root (the `-o` directory of `run`, which holds
 `run_manifest.json` and `run_complete.json`). A command that reads one sample (`evidence`,
-`rerun-programs`, `hostresponse`, `host-loss`, `discover`, `discover-states`, `translated`) also takes
+`rerun programs`, `rerun hostresponse`, `dev host-loss`, `discover run`, `discover states`, `translated`) also takes
 `--sample NAME`; it is optional when the run has one sample and required when it has several. The run
-must be finished. `rerun-multimap`, `validate-run` and `status` act on the whole run and take no
-`--sample`. `evidence-plot` and `discover-collapse` read published post-hoc directories, not a run.
+must be finished. `rerun multimap`, `check run` and `status` act on the whole run and take no
+`--sample`. `evidence-plot` and `discover collapse` read published post-hoc directories, not a run.
 
-Before 3.0.0b1, `evidence`, `rerun-programs`, `hostresponse`, `host-loss` and `status` accepted a sample
+Before 3.0.0b1, `evidence`, `rerun programs`, `rerun hostresponse`, `dev host-loss` and `status` accepted a sample
 directory as `--run-dir`. That form still works, prints `viralscan: warning: ... is deprecated; use
 --run-dir RUN --sample NAME ...` on stderr, and is removed in 3.1.0. A post-hoc `--output` inside the
 run's own tree, outside `posthoc/`, is refused with exit 1, `--force` included.
@@ -830,12 +830,12 @@ the sections above add context. Do not edit between the markers.
 | `--positive-control-virus-key VIRUS_KEY` | *(none)* | Virus row (the name in results/sensitivity.tsv) an exact_sequence control was measured on. Required with --positive-control-scope exact_sequence. |
 | `--positive-control-receipt JSON` | *(none)* | Pinned control identity/measurement receipt required for exact-sequence certification. |
 | `--require-positive-control, --no-require-positive-control` | `False` | Fail the run when nothing is detected and no positive control could measure a capture term. A mechanics/recovery gate: passing it does not certify any virus outside the control's declared scope. Default: False. |
-| `--anellovirus-gene-ids, --no-anellovirus-gene-ids` | `True` | Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. Required for any reference built with `viralscan build-ref --reference-panel anellovirus` (or the bundled-panel builder), because those GTFs are materialized into the index rather than the panel directory. Off means 2,021 of 2,041 anellovirus genomes are counted but never reported. Default: True. |
+| `--anellovirus-gene-ids, --no-anellovirus-gene-ids` | `True` | Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. Required for any reference built with `viralscan build ref --reference-panel anellovirus` (or the bundled-panel builder), because those GTFs are materialized into the index rather than the panel directory. Off means 2,021 of 2,041 anellovirus genomes are counted but never reported. Default: True. |
 | `--gene-programs, --no-gene-programs` | `False` | Second layer: for viruses the detection rule already called, infer the viral gene programme (latent vs productive) per cell from uniquely-placing molecules, and write results/gene_program_summary.tsv and results/gene_program_cells.tsv. Only nine viruses have a programme model; for the rest a 'not_applicable' row is emitted so silence is not read as 'programme not detected'. Off by default. Default: False. |
 | `--anello-align, --no-anello-align` | `False` | Anellovirus alignment branch (PLAN ANDET-09): align every host-unmapped read to the panel's anellovirus genomes with STARsolo, independent of kallisto, and add alignment_* evidence columns plus detection_source to viral_summary.tsv. Runs only with --host-filter starsolo and an anello_star/ index next to the kb index (built by scripts/build_bundled_panel_ref.py); otherwise alignment_status records why it was skipped. The columns are labels, never filters. Default: False. |
 | `--star-confirm, --no-star-confirm` | `False` | STARsolo confirmation arm (PLAN STAR-04): align the host-filtered reads to the host+virus index given by --star-hostvirus-index (built by `viralscan star-index`) and add star_* per-virus support columns to viral_summary.tsv, plus results/star_support_by_virus.tsv. Labels only: no call, tier or threshold changes. Requires --host-filter starsolo and STAR/samtools on PATH. Default: False. |
-| `--star-hostvirus-index PATH` | *(none)* | Directory of a finished `viralscan star-index` index (must hold star_hostvirus_index.json). Required by --star-confirm. |
-| `--discover` | `False` | After the run completes, run `viralscan discover` on every sample (Kraken2 on the host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), writing <output>/<sample>/posthoc/discovery/ (PLAN DISC-14). Requires --host-filter and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results. |
+| `--star-hostvirus-index PATH` | *(none)* | Directory of a finished `viralscan build star-index` index (must hold star_hostvirus_index.json). Required by --star-confirm. |
+| `--discover` | `False` | After the run completes, run `viralscan discover run` on every sample (Kraken2 on the host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), writing <output>/<sample>/posthoc/discovery/ (PLAN DISC-14). Requires --host-filter and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results. |
 | `--kraken2-db DIR` | *(none)* | Kraken2 database directory for --discover (hash.k2d, opts.k2d, taxo.k2d). |
 | `--auto-evidence, --no-auto-evidence` | *(none)* | After detection, run `viralscan evidence` with host confirmation (minimap2 against host + viral) for every detected Anelloviridae genus, writing results/evidence/<genus>/. Needs --host-fasta, a viral-only FASTA (--viral-fasta, or viral.fa next to the index, as written by scripts/build_bundled_panel_ref.py), minimap2 and samtools, and multimapping. Re-reads the FASTQs once per genus. Opt-in, and stays so until ANELLO-PRIOR.3 closes. Default: off. |
 | `--host-fasta FASTA` | *(none)* | Full host-genome FASTA for --auto-evidence's competitive alignment. |
@@ -860,7 +860,7 @@ the sections above add context. Do not edit between the markers.
 | `--emptydrops-lower EMPTYDROPS_LOWER` | `100` | Total-UMI ceiling below which a barcode is taken as ambient RNA by DropletUtils::emptyDrops (its `lower` argument). Only used with emptyDrops cell calling. Default: 100. |
 | `--knee-min-umi KNEE_MIN_UMI` | `10.0` | Lowest total UMI count a barcode needs to enter the barcode-rank knee estimate. Must be > 0. Only used with --cell-calling knee, which is sensitivity-only. Default: 10.0. |
 | `--cell-caller-rscript CELL_CALLER_RSCRIPT` | `Rscript` | Rscript executable that runs emptyDrops (needs R and DropletUtils). Only used with emptyDrops cell calling. Default: Rscript. |
-| `--multimap-method {conservative,em,equal}` | `host-conservative` | How to allocate multi-gene EC counts. 'conservative' excludes host-virus ambiguous EC mass from viral genes (recommended for combined host+virus references); 'em' iterates the allocation using cell-local evidence; 'equal' splits reads equally (fast, unbiased first pass). Use 'viralscan rerun-multimap' to switch methods after the run without redoing the pseudoalignment. Default: conservative. |
+| `--multimap-method {conservative,em,equal}` | `host-conservative` | How to allocate multi-gene EC counts. 'conservative' excludes host-virus ambiguous EC mass from viral genes (recommended for combined host+virus references); 'em' iterates the allocation using cell-local evidence; 'equal' splits reads equally (fast, unbiased first pass). Use 'viralscan rerun multimap' to switch methods after the run without redoing the pseudoalignment. Default: conservative. |
 | `--multimap-pseudocount MULTIMAP_PSEUDOCOUNT` | `1.0` | Positive pseudocount used by --multimap-method unique-weighted. Default: 1.0. |
 | `--multimap-primary-call MULTIMAP_PRIMARY_CALL` | `selected-method` | V3 detection-count contract. The only supported value is 'selected-method': summaries use the complete molecule matrix for --multimap-method, while unique and ambiguous evidence remain separately reported. Default: selected-method. |
 | `--multimap-em-max-iter MULTIMAP_EM_MAX_ITER` | `100` | Maximum EM iterations for --multimap-method em. Default: 100. |
@@ -918,9 +918,9 @@ the sections above add context. Do not edit between the markers.
 
 <!-- END GENERATED -->
 
-### viralscan build-ref
+### viralscan build ref
 
-<!-- BEGIN GENERATED: build-ref -->
+<!-- BEGIN GENERATED: build ref -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -999,9 +999,9 @@ the sections above add context. Do not edit between the markers.
 
 <!-- END GENERATED -->
 
-### viralscan rerun-multimap
+### viralscan rerun multimap
 
-<!-- BEGIN GENERATED: rerun-multimap -->
+<!-- BEGIN GENERATED: rerun multimap -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1016,13 +1016,13 @@ the sections above add context. Do not edit between the markers.
 
 <!-- END GENERATED -->
 
-### viralscan discover
+### viralscan discover run
 
 Kraken2 taxonomic discovery on a completed run's STAR
 host-unmapped reads. It never modifies the source run; its results are candidate taxonomic observations, not
 infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 
-<!-- BEGIN GENERATED: discover -->
+<!-- BEGIN GENERATED: discover run -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1045,13 +1045,13 @@ infection calls. Design: `docs/plans/2026-10-21-kraken2-discovery-plan.md`.
 
 <!-- END GENERATED -->
 
-### viralscan discover-collapse
+### viralscan discover collapse
 
 Sums a published discovery's `cell_taxon.h5ad` columns into their
 species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay as themselves
 (`above_rank = True`); no group is reclassified and each cell's total is conserved.
 
-<!-- BEGIN GENERATED: discover-collapse -->
+<!-- BEGIN GENERATED: discover collapse -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1063,7 +1063,7 @@ species, genus or family ancestor via `taxonomy.tsv`. Taxa above the rank stay a
 
 <!-- END GENERATED -->
 
-### viralscan discover-states
+### viralscan discover states
 
 Assigns a state to every taxon of a published discovery and writes `candidate_states.tsv`
 plus `candidate_states.provenance.json` beside `candidates.tsv`. Route (i) corroboration
@@ -1073,7 +1073,7 @@ runs only with `--minimap2`. A taxon with Kraken2 support alone stays `observati
 Nothing changes in the primary run, `detected` or tiers; cut-offs are
 documented constants, not calibrated.
 
-<!-- BEGIN GENERATED: discover-states -->
+<!-- BEGIN GENERATED: discover states -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1089,7 +1089,7 @@ documented constants, not calibrated.
 
 <!-- END GENERATED -->
 
-### viralscan host-loss
+### viralscan dev host-loss
 
 Joins a truth list (`read_id`, `label`, optional `molecule_id`) to the run's
 `host_filtered/fragment_lineage.tsv.gz` and writes `posthoc/host_loss/host_loss.json` with the
@@ -1099,7 +1099,7 @@ sensitivity cost of `--host-filter starsolo` (`HOST-05` stays open until the rea
 harness runs): the lineage sees the filter's input only, and a truth read it never saw makes
 the row not estimable.
 
-<!-- BEGIN GENERATED: host-loss -->
+<!-- BEGIN GENERATED: dev host-loss -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1115,9 +1115,9 @@ the row not estimable.
 
 <!-- END GENERATED -->
 
-### viralscan rerun-programs
+### viralscan rerun programs
 
-<!-- BEGIN GENERATED: rerun-programs -->
+<!-- BEGIN GENERATED: rerun programs -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1136,9 +1136,9 @@ the row not estimable.
 
 <!-- END GENERATED -->
 
-### viralscan hostresponse
+### viralscan rerun hostresponse
 
-<!-- BEGIN GENERATED: hostresponse -->
+<!-- BEGIN GENERATED: rerun hostresponse -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1176,9 +1176,9 @@ the row not estimable.
 
 <!-- END GENERATED -->
 
-### viralscan check-whitelist
+### viralscan check whitelist
 
-<!-- BEGIN GENERATED: check-whitelist -->
+<!-- BEGIN GENERATED: check whitelist -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1192,9 +1192,9 @@ the row not estimable.
 
 <!-- END GENERATED -->
 
-### viralscan check-chemistry
+### viralscan check chemistry
 
-<!-- BEGIN GENERATED: check-chemistry -->
+<!-- BEGIN GENERATED: check chemistry -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1214,9 +1214,9 @@ the row not estimable.
 
 <!-- END GENERATED -->
 
-### viralscan star-index
+### viralscan build star-index
 
-<!-- BEGIN GENERATED: star-index -->
+<!-- BEGIN GENERATED: build star-index -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1233,9 +1233,9 @@ the row not estimable.
 
 <!-- END GENERATED -->
 
-### viralscan doctor
+### viralscan check env
 
-<!-- BEGIN GENERATED: doctor -->
+<!-- BEGIN GENERATED: check env -->
 
 | Flag | Default | Help |
 |------|---------|------|
@@ -1258,9 +1258,9 @@ the row not estimable.
 
 <!-- END GENERATED -->
 
-### viralscan validate-run
+### viralscan check run
 
-<!-- BEGIN GENERATED: validate-run -->
+<!-- BEGIN GENERATED: check run -->
 
 | Flag | Default | Help |
 |------|---------|------|

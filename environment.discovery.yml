@@ -1,6 +1,6 @@
-# Optional add-on for `viralscan discover` (DISC-01). Layer it on the main env:
+# Optional add-on for `viralscan discover run` (DISC-01). Layer it on the main env:
 #   conda env update -n viralscan -f environment.discovery.yml
-# or `pixi install -e discovery`. Check with `viralscan doctor --profile discovery`.
+# or `pixi install -e discovery`. Check with `viralscan check env --profile discovery`.
 name: viralscan
 channels:
   - conda-forge

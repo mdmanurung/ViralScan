@@ -88,8 +88,8 @@ planted junction; vignette executes.
 | # | Item | Tag | Deliverable / gate |
 |---|------|-----|--------------------|
 | 4.1 | **G1** reference-annotation provenance in outputs | 🟢 | record + surface the exact viral accessions/GTF version used (manuscript argues for explicit annotation reporting). |
-| 4.2 | **A4** combined-genome D-list specificity mode | 🟡 | `build-ref --genome-dlist genome.fa` code is AUTO + a small-genome test; the *real* human-genome D-list build is COMPUTE (~64 GB / ~8 h on a cluster). |
-| 4.3 | **G2** mouse host support (`build-ref --host mouse`) | 🟢 | Ensembl mouse cDNA path + test. |
+| 4.2 | **A4** combined-genome D-list specificity mode | 🟡 | `build ref --genome-dlist genome.fa` code is AUTO + a small-genome test; the *real* human-genome D-list build is COMPUTE (~64 GB / ~8 h on a cluster). |
+| 4.3 | **G2** mouse host support (`build ref --host mouse`) | 🟢 | Ensembl mouse cDNA path + test. |
 
 **Gate:** D-list masks a planted host-homologous k-mer on a toy genome; mouse ref builds.
 

@@ -64,7 +64,7 @@ from viralscan.run_safety import (
     write_run_complete,
 )
 from viralscan.runconfig import RunConfig
-from viralscan.utils import configure_logging, split_comma_paths
+from viralscan.utils import configure_logging, deprecation_message, split_comma_paths
 
 log = logging.getLogger("viralscan")
 
@@ -1384,7 +1384,7 @@ def _run_star_index(args: argparse.Namespace) -> None:
 
     if missing_tools(("STAR",)):
         _die(
-            "'viralscan star-index' requires 'STAR' on PATH. See https://github.com/alexdobin/STAR"
+            "'viralscan build star-index' requires 'STAR' on PATH. See https://github.com/alexdobin/STAR"
         )
     try:
         index = star_hostvirus.star_index(
@@ -1816,7 +1816,14 @@ def _main() -> None:
     verb = getattr(args, "_subcommand", None)
     from viralscan import posthoc_record
 
-    if verb in posthoc_record.VERBS:
+    alias_for = getattr(args, "_alias_for", None)
+    if alias_for:  # old top-level name (CMDGROUP-01): same handler, one warning
+        print(
+            "viralscan: warning: "
+            + deprecation_message(f"viralscan {verb}", f"viralscan {alias_for}"),
+            file=sys.stderr,
+        )
+    if verb in posthoc_record.VERBS:  # keyed on the canonical (old) verb name, never the group path
         # every post-hoc invocation leaves a record (PLAN EVID-01), whatever its outcome
         with posthoc_record.attempt(verb, args):
             _dispatch(args)
@@ -1857,6 +1864,12 @@ def _run_subcommand(args: argparse.Namespace) -> None:
 
     if getattr(args, "_subcommand", None) == "data":
         _die("Missing data command. Use `viralscan data fetch`.")
+
+    from viralscan.cli.parsers import COMMAND_GROUPS
+
+    group = getattr(args, "_missing_group", None)
+    if group and getattr(args, "_subcommand", None) is None:
+        _die(f"Missing {group} command. Use one of: {', '.join(COMMAND_GROUPS[group])}.", 2)
 
     if getattr(args, "_subcommand", None) == "build-ref":
         from viralscan.scripts.build_reference import build_ref_main

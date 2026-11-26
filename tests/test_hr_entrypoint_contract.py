@@ -53,7 +53,16 @@ def test_rerun_inherits_saved_group_settings_and_respects_explicit_zero():
         hostresponse_cv="group", hostresponse_groups="donor", hostresponse_permutations=9
     )
     args = build_parser().parse_args(
-        ["hostresponse", "--run-dir", "out", "--host-h5ad", "host.h5ad", "--permutations", "0"]
+        [
+            "rerun",
+            "hostresponse",
+            "--run-dir",
+            "out",
+            "--host-h5ad",
+            "host.h5ad",
+            "--permutations",
+            "0",
+        ]
     )
     opts = _hostresponse_evaluation_kwargs(args, cfg)
     assert opts["cv_mode"] == "group" and opts["groups_column"] == "donor"
@@ -157,7 +166,7 @@ def test_help_cites_luebbert_2025_and_states_the_differential_family(capsys):
     from viralscan.scripts import hostresponse as hr
 
     texts = []
-    for argv in (["hostresponse", "--help"], ["run", "--help"]):
+    for argv in (["rerun", "hostresponse", "--help"], ["run", "--help"]):
         with pytest.raises(SystemExit):
             build_parser().parse_args(argv)
         texts.append(capsys.readouterr().out)
@@ -222,7 +231,7 @@ def test_cell_types_syntax_is_the_same_on_every_entry_point(tokens):
     want = ["T_cells", "B_cells"]
     parser = build_parser()
     sub = parser.parse_args(
-        ["hostresponse", "--run-dir", "out", "--host-h5ad", "h", "--cell-types", *tokens]
+        ["rerun", "hostresponse", "--run-dir", "out", "--host-h5ad", "h", "--cell-types", *tokens]
     )
     main = parser.parse_args(
         [

@@ -223,7 +223,7 @@ class TestSwapMultimapLayer:
 
 class TestRerunMultimapParser:
     def test_rerun_multimap_help(self) -> None:
-        with patch("sys.argv", ["viralscan", "rerun-multimap", "--help"]):
+        with patch("sys.argv", ["viralscan", "rerun", "multimap", "--help"]):
             from viralscan.menu import create_help
 
             with pytest.raises(SystemExit) as exc:

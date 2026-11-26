@@ -26,7 +26,7 @@ Resolution, in order (the first that applies wins):
    before rule 2. A prefix name that is exactly a catalogue display name takes
    that row's key, taxid, sibling group and risk class (``MECH-A2``).
 
-An index built by ``viralscan build-ref`` or ``viralscan --reference`` also
+An index built by ``viralscan build ref`` or ``viralscan --reference`` also
 carries a **build manifest** (:func:`write_build_manifest`): the host and viral
 gene sets of the index, in ``<index>.build_manifest.json``. When the Run finds
 it, the manifest replaces the ``--gtf`` gene set, and a Run whose ``--gtf``
@@ -915,7 +915,7 @@ def write_identity_table(config: Any, gtf_gene_ids: set[str]) -> Path | None:
     else:
         log.warning(
             "No index build manifest at %s: host and viral genes come from the --gtf "
-            "gene set (the index was built outside `viralscan build-ref`/`--reference`).",
+            "gene set (the index was built outside `viralscan build ref`/`--reference`).",
             manifest or "(no index path)",
         )
         table = build_identity_table(t2g, gtf_gene_ids)

@@ -2,8 +2,8 @@
 
 ViralScan installs in two tiers.
 
-- **pip tier** (`pip install ViralScan`, Python ≥ 3.10): `build-ref`, `evidence`,
-  `validate-run`, `doctor --profile pip`. No Snakemake or native tools needed.
+- **pip tier** (`pip install ViralScan`, Python ≥ 3.10): `build ref`, `evidence`,
+  `check run`, `check env --profile pip`. No Snakemake or native tools needed.
 - **Full tier** (quantification workflow): Python 3.11 on `linux-64` (the canonical,
   tested toolchain), [kb-python](https://www.kallistobus.tools/) (`kb` command) and
   [Snakemake](https://snakemake.readthedocs.io/en/stable/) 9 (`>=9,<10`; it installs on Python 3.11
@@ -20,7 +20,7 @@ ViralScan installs in two tiers.
 conda env create -f environment.yml
 conda activate viralscan
 python -m pip install -e .
-viralscan doctor --profile full
+viralscan check env --profile full
 ```
 
 `environment.yml` pins Python, `kb-python`, `snakemake`, kallisto, bustools, STAR,
@@ -31,7 +31,7 @@ Optional extras, each installed with `python -m pip install -e '.[<extra>]'` in 
 environment: `scautoqc` (SCTK and pybiomart for `--scautoqc`; the first opt-in run
 queries Ensembl and caches the annotations in the sample's
 `results/scautoqc_gene_annotations.tsv`) and `enrichment` (`gget>=0.27` for
-`viralscan hostresponse --enrichment`). Standard quantification and host-response
+`viralscan rerun hostresponse --enrichment`). Standard quantification and host-response
 analysis need neither.
 
 ## Pixi
@@ -43,7 +43,7 @@ repository's `pixi.toml` (linux-64):
 curl -fsSL https://pixi.sh/install.sh | bash   # once
 git clone https://github.com/mdmanurung/ViralScan && cd ViralScan
 pixi install                                    # default environment
-pixi run doctor                                 # viralscan doctor --profile full
+pixi run doctor                                 # viralscan check env --profile full
 pixi run viralscan --help
 ```
 
@@ -63,7 +63,7 @@ not a release artifact. Build and run it from the repository root; the build nee
 ```bash
 export APPTAINER_TMPDIR=/tmp/$USER-apptainer && mkdir -p "$APPTAINER_TMPDIR"
 apptainer build viralscan-pixi.sif Singularity.pixi.def
-apptainer test viralscan-pixi.sif        # runs viralscan doctor --profile full
+apptainer test viralscan-pixi.sif        # runs viralscan check env --profile full
 apptainer run --bind /path/to/data:/data viralscan-pixi.sif run \
   -t /data/t2g.txt -i /data/index.idx -o /data/out --r1 /data/a_1.fastq.gz --r2 /data/a_2.fastq.gz
 ```
@@ -89,7 +89,7 @@ pending.
 pip install ViralScan                 # pip tier
 pip install "viralscan[full]"         # adds snakemake, scanpy, scikit-learn, plotly, seaborn, pyfiglet
 conda install -c bioconda -c conda-forge kb-python kallisto bustools star   # native tools
-viralscan doctor --profile full
+viralscan check env --profile full
 ```
 
 A workflow run stops with an error naming the `full` extra when `snakemake` or `kb`
@@ -101,7 +101,7 @@ conda route for the full workflow.
 
 The default viral GTF annotation panel is the bundled cache (the GTFs in
 `src/viralscan/data/`, read from `~/.cache/viralscan/data/`). A run needs it only when its
-index has no `<index>.build_manifest.json`; every index from `viralscan build-ref` has one and
+index has no `<index>.build_manifest.json`; every index from `viralscan build ref` has one and
 carries its own viral gene list. Custom `--gtf` and `--ncbi-accession` runs do not
 need it either.
 

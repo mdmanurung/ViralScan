@@ -134,9 +134,9 @@ the other records, the same twin cut the curation tools use (`viralscan.kmer_sha
 record are flagged. A flagged pair is a logged warning and the build continues; pairs declared siblings by
 the catalogue `sibling_group` (HSV-1/2, HHV-6A/B, EBV 1/2, KFDV) are not reported.
 
-- `viralscan build-ref --strict-reference` (and `scripts/build_bundled_panel_ref.py --strict-reference`) turn a
+- `viralscan build ref --strict-reference` (and `scripts/build_bundled_panel_ref.py --strict-reference`) turn a
   flagged non-sibling pair into a build failure. `--no-strict-reference` is the default.
-- In `build-ref`, the screen runs once, when the manifest is written, over host cDNA plus viral records and
+- In `build ref`, the screen runs once, when the manifest is written, over host cDNA plus viral records and
   tests only pairs that involve a viral record (host isoforms and paralogs are ignored). It reports the
   top-ranked partner of each flagged record only.
 - **Not screened:** a diverged homologue. A copy with about 8-10% substitutions keeps only about 9% of its 31-mers,

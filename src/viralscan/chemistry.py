@@ -379,7 +379,7 @@ def resolve(requested: Optional[str], detections: list[Detection], force: bool =
     return chemistry
 
 
-# -- barcode whitelist preflight (behind `viralscan check-whitelist`) -------------------
+# -- barcode whitelist preflight (behind `viralscan check whitelist`) -------------------
 # Chemistry/whitelist mismatch is a silent failure: with the wrong whitelist (or the
 # wrong --technology) `bustools correct` drops nearly every read and kb writes an
 # all-empty matrix with no error (finding F-005: a GEM-X 5' library labelled 10xv3 lost

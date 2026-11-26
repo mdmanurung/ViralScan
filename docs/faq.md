@@ -18,7 +18,7 @@ pip install ViralScan
 ```
 
 A plain `pip install ViralScan` no longer pulls in `snakemake` (pip tier:
-`build-ref`, `evidence`, `validate-run`, `doctor --profile pip`). The workflow
+`build ref`, `evidence`, `check run`, `check env --profile pip`). The workflow
 dependencies live in the `full` extra, `pip install "viralscan[full]"`; `kb`,
 `kallisto`, `bustools` and `STAR` always come from conda. Python 3.11 on
 `linux-64` is the supported full-workflow platform.
@@ -55,7 +55,7 @@ A fast, direct check is the built-in whitelist preflight, which reports the
 fraction of R1 barcodes that match the whitelist for a given chemistry:
 
 ```bash
-viralscan check-whitelist --r1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
+viralscan check whitelist --r1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
 ```
 
 A low match rate confirms a chemistry/whitelist mismatch — the single most common
@@ -244,7 +244,7 @@ only a small part of the 31-mer space of the 2,042 real human anellovirus genome
 panel as measured; one duplicate has since been dropped, leaving 2,041), and
 most of those genomes share *zero* 31-mers with it (single measurement, exact shares not registered). A TTV negative from that
 panel is not a statement about the sample. Build with
-`viralscan build-ref --anellovirus` and the panel captures the whole anellovirus
+`viralscan build ref --anellovirus` and the panel captures the whole anellovirus
 sequence space (1.21x index inflation, 6 MB).
 
 ### My `hostresponse` model AUC is high — is the host-response signal real?
@@ -309,7 +309,7 @@ continues to use its existing reference identifiers and tables. The
 ### How do I evaluate host response across donors or samples?
 
 For an evaluation that holds out whole biological groups, add
-`--cv group --groups donor_id --cv-folds 5` to `viralscan hostresponse`.
+`--cv group --groups donor_id --cv-folds 5` to `viralscan rerun hostresponse`.
 The default is `--cv auto`: with `--groups COL` it is exactly `--cv group --groups COL`; without
 `--groups` it uses the one obs column whose name contains donor/sample/subject/patient/individual
 (and has more than one value but fewer than one per cell), logging which column it chose. With no such
@@ -398,7 +398,7 @@ cccDNA pool produce no reads, so they are **invisible, not latent**. And
 `indeterminate` is not a negative — it means the virus was detected but no
 programme met its threshold, which is a statement about breadth, not virology.
 
-Already have a run? `viralscan rerun-programs --run-dir <run root>` writes its tables under
+Already have a run? `viralscan rerun programs --run-dir <run root>` writes its tables under
 `<run root>/<sample>/posthoc/programs/` (add `--sample NAME` when the run has several samples),
 because layer 2 only reads the counts and layer 1's summary.
 The [Output reference](output_reference.md) lists every state, field and caveat.
@@ -459,7 +459,7 @@ viral feature. The main culprits are:
   homology (for example viral IL-10).
 
 The recommended mitigation is a combined host + virus reference built with
-`viralscan build-ref` (competitive mapping). By default, multimapping uses the
+`viralscan build ref` (competitive mapping). By default, multimapping uses the
 `host-conservative` method: if a multi-gene equivalence class is compatible with
 both host and viral genes, its molecule mass is allocated only among the
 compatible host genes. This prevents that mixed ambiguity from creating viral

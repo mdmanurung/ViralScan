@@ -263,7 +263,7 @@ from viralscan.scripts.build_reference import fetch_host_cdna
 host_fasta, host_gtf = fetch_host_cdna("human", "refs/human")
 ```
 
-Run `viralscan build-ref --list-species` for supported names.
+Run `viralscan build ref --list-species` for supported names.
 
 ### `build_combined_reference`
 
@@ -280,7 +280,7 @@ def build_combined_reference(
 ) -> dict[str, pathlib.Path | None]: ...
 ```
 
-Builds a host + virus reference in the same way as `viralscan build-ref`.
+Builds a host + virus reference in the same way as `viralscan build ref`.
 When `run_kb_ref=True` and `kb` is on `PATH`, the returned dictionary includes
 the kallisto index and `t2g.txt` paths. `include_anellovirus` defaults to `False`;
 set it to `True` to add the packaged Anelloviridae accession table (explicit

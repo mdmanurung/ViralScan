@@ -73,7 +73,7 @@ Cadence enforcement is a maintainer process, not code.
 
 New reference builds record `reference_manifest.json` and
 `reference_reproducibility.json`. The production `--reference` path applies the
-same default viral masking and low-complexity gate as `build-ref`: dustmasker
+same default viral masking and low-complexity gate as `build ref`: dustmasker
 windows 64 and 30 at level 30, followed by the targeted k-mer mask. Host cDNA is
 identified from its GTF transcript rows and is preserved; GTF coordinates remain
 unchanged. Raw and prepared FASTAs both undergo duplicate ID/sequence checks.

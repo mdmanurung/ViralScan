@@ -273,7 +273,7 @@ def _build_translated_parser(subparsers: Any) -> None:
         help="Translated (protein-level) kallisto search of a completed run, summarised per virus.",
         description=(
             "kb count --aa --parity single on the run's FASTQ pair (six-frame search, no strand) "
-            "against a `viralscan translated-index`, then a per-virus/protein UMI summary over all "
+            "against a `viralscan build translated-index`, then a per-virus/protein UMI summary over all "
             "barcodes and over the run's called cells. Writes <run-dir>/<sample>/posthoc/translated/ "
             "(counts/, summary.all.json, summary.cells.json, barcode_check.json, "
             "translated_receipt.json, translated_complete.json). --counts-dir summarises an existing "
@@ -329,10 +329,10 @@ def _build_ref_parser(subparsers: Any) -> None:
             "concatenate them, and optionally run 'kb ref' to build a kallisto index. "
             "This is the recommended host-aware reference setup for ViralScan.\n\n"
             "Example:\n"
-            "  viralscan build-ref --host human \\\n"
+            "  viralscan build ref --host human \\\n"
             "      --virus-accessions NC_045512.2 NC_002021.1 \\\n"
             "      --output ref_human_covid/ --ncbi-email you@example.org\n\n"
-            "  viralscan build-ref --list-species"
+            "  viralscan build ref --list-species"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -707,8 +707,8 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
             "Methods: conservative (default; keeps host-virus ambiguous mass off viral\n"
             "genes), em (iterated, cell-local allocation), equal (equal split).\n\n"
             "Examples:\n"
-            "  viralscan rerun-multimap --run-dir out/ --multimap-method conservative\n"
-            "  viralscan rerun-multimap --run-dir out/ -o out_em/ "
+            "  viralscan rerun multimap --run-dir out/ --multimap-method conservative\n"
+            "  viralscan rerun multimap --run-dir out/ -o out_em/ "
             "--multimap-method em --cores 8\n\n"
             "The new result directory is <run-dir>/posthoc/multimap_<method>/ unless --output is given."
         ),
@@ -792,7 +792,7 @@ def _build_discover_parser(subparsers: Any) -> None:
             "them to cells. The source run is never modified; results are candidate taxonomic\n"
             "observations, not infection calls, and never change viral counts or detection.\n\n"
             "Example:\n"
-            "  viralscan discover --run-dir out/ --sample S1 -o out_discovery/S1/ "
+            "  viralscan discover run --run-dir out/ --sample S1 -o out_discovery/S1/ "
             "--kraken2-db /shared/k2db/"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -912,7 +912,7 @@ def _build_discover_collapse_parser(subparsers: Any) -> None:
             "published taxonomy.tsv. Taxa above the rank stay as themselves (above_rank = True);\n"
             "nothing is reclassified and every cell's total is conserved.\n\n"
             "Example:\n"
-            "  viralscan discover-collapse out_discovery/S1/ --rank genus"
+            "  viralscan discover collapse out_discovery/S1/ --rank genus"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -993,7 +993,7 @@ def _build_discover_states_parser(subparsers: Any) -> None:
             "runs only with --minimap2. States never change the primary run, detected or tiers.\n"
             "Cut-offs are documented constants, not calibrated.\n\n"
             "Example:\n"
-            "  viralscan discover-states run/S1/posthoc/discovery --run-dir run/"
+            "  viralscan discover states run/S1/posthoc/discovery --run-dir run/"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1239,8 +1239,8 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
             "completed multimap step (log/multimap.done).  Results are written to\n"
             "<run-dir>/<sample>/posthoc/hostresponse/ unless --output is given.\n\n"
             "Examples:\n"
-            "  viralscan hostresponse --run-dir out/ --sample S1 --host-h5ad host.h5ad\n"
-            "  viralscan hostresponse --run-dir out/ --sample S1 --host-h5ad host.h5ad \\\n"
+            "  viralscan rerun hostresponse --run-dir out/ --sample S1 --host-h5ad host.h5ad\n"
+            "  viralscan rerun hostresponse --run-dir out/ --sample S1 --host-h5ad host.h5ad \\\n"
             "    --n-stab-iter 200 --enrichment"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1377,7 +1377,7 @@ def _build_check_whitelist_parser(subparsers: Any) -> None:
             "A low match rate means --technology/--whitelist do not match the library\n"
             "chemistry, which makes bustools silently discard most reads (finding F-005).\n\n"
             "Example:\n"
-            "  viralscan check-whitelist --r1 R1.fastq.gz -w 3M-february-2018.txt -x 10xv3"
+            "  viralscan check whitelist --r1 R1.fastq.gz -w 3M-february-2018.txt -x 10xv3"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1424,7 +1424,7 @@ def _build_check_chemistry_parser(subparsers: Any) -> None:
             "Prints the -x/-w/--strand to use. Exit 1 when the chemistry is unresolved or\n"
             "the evidence conflicts.\n\n"
             "Example:\n"
-            "  viralscan check-chemistry --r1 R1.fq.gz --r2 R2.fq.gz -i index.idx -t t2g.txt"
+            "  viralscan check chemistry --r1 R1.fq.gz --r2 R2.fq.gz -i index.idx -t t2g.txt"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1443,6 +1443,108 @@ def _build_check_chemistry_parser(subparsers: Any) -> None:
     _add_tchem_args(p)
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="check-chemistry")
+
+
+# CMDGROUP-01: grouped verbs. Each entry is group -> {new word: canonical verb}. The canonical
+# verb is the name the handler, ``rundir.SAMPLE_VERBS`` and ``posthoc_record.VERBS`` key on
+# (it is ``args._subcommand``); the old top-level name equals it and stays as a hidden alias.
+COMMAND_GROUPS: dict[str, dict[str, str]] = {
+    "check": {
+        "chemistry": "check-chemistry",
+        "run": "validate-run",
+        "env": "doctor",
+        "whitelist": "check-whitelist",
+    },
+    "discover": {"run": "discover", "collapse": "discover-collapse", "states": "discover-states"},
+    "rerun": {
+        "multimap": "rerun-multimap",
+        "programs": "rerun-programs",
+        "hostresponse": "hostresponse",
+    },
+    "build": {
+        "ref": "build-ref",
+        "star-index": "star-index",
+        "translated-index": "translated-index",
+    },
+    "dev": {"host-loss": "host-loss"},
+}
+_GROUP_HELP = {
+    "check": "Check chemistry, a finished run, the environment or a barcode whitelist.",
+    "discover": "Kraken2 taxonomic discovery on a completed run.",
+    "rerun": "Redo a post-hoc step on a completed run.",
+    "build": "Build a reference or an index.",
+    "dev": "Developer and benchmark verbs; not part of the supported interface.",
+}
+
+
+class _Slot:
+    """Hands a verb's builder a parser name of our choosing; an alias is hidden from the help."""
+
+    def __init__(self, subparsers: Any, name: str, alias_of: str | None = None) -> None:
+        self._subparsers, self._name, self._alias_of = subparsers, name, alias_of
+
+    def add_parser(self, _canonical: str, **kwargs: Any) -> Any:
+        if self._alias_of:
+            kwargs.pop("help", None)  # no help= means argparse lists no entry for the alias
+        p = self._subparsers.add_parser(self._name, **kwargs)
+        if self._alias_of:
+            p.set_defaults(_alias_for=self._alias_of)
+        return p
+
+
+def _build_command_groups(subparsers: Any) -> None:
+    """Register the check/discover/rerun/build/dev groups and the old top-level names (aliases)."""
+    builders = {
+        "check-chemistry": _build_check_chemistry_parser,
+        "validate-run": _build_validate_run_parser,
+        "doctor": _build_doctor_parser,
+        "check-whitelist": _build_check_whitelist_parser,
+        "discover": _build_discover_parser,
+        "discover-collapse": _build_discover_collapse_parser,
+        "discover-states": _build_discover_states_parser,
+        "rerun-multimap": _build_rerun_multimap_parser,
+        "rerun-programs": _build_rerun_programs_parser,
+        "hostresponse": _build_hostresponse_parser,
+        "build-ref": _build_ref_parser,
+        "star-index": _build_star_index_parser,
+        "translated-index": _build_translated_index_parser,
+        "host-loss": _build_host_loss_parser,
+    }
+    for group, words in COMMAND_GROUPS.items():
+        g = subparsers.add_parser(
+            group,
+            help=_GROUP_HELP[group],
+            description=_GROUP_HELP[group]
+            if group != "dev"
+            else "Developer and benchmark verbs; not part of the supported interface.",
+        )
+        g.set_defaults(_subcommand=None, _missing_group=group)  # a child sets _subcommand
+        gsub = g.add_subparsers(
+            dest="_group_command", metavar="<command>", parser_class=_NoAbbrevParser
+        )
+        for word, verb in words.items():
+            builders[verb](_Slot(gsub, word))
+    for group, words in COMMAND_GROUPS.items():
+        for word, verb in words.items():
+            if verb == group:  # `discover` is also the group name: see the legacy parser below
+                continue
+            builders[verb](_Slot(subparsers, verb, alias_of=f"{group} {word}"))
+    # `viralscan discover --run-dir ...` (before CMDGROUP-01) shares its name with the group.
+    legacy = _NoAbbrevParser(prog="viralscan discover", allow_abbrev=False)
+    legacy_sub = legacy.add_subparsers(dest="_legacy")
+    builders["discover"](_Slot(legacy_sub, "discover", alias_of="discover run"))
+    legacy_parser = legacy_sub.choices["discover"]
+    legacy_parser.prog = "viralscan discover"
+    discover_group = subparsers.choices["discover"]
+    group_parse = discover_group.parse_known_args
+
+    def parse_discover(args: Any = None, namespace: Any = None) -> Any:
+        words = COMMAND_GROUPS["discover"]
+        if args and args[0] not in words and args[0] not in ("-h", "--help"):
+            return legacy_parser.parse_known_args(args, namespace)
+        return group_parse(args, namespace)
+
+    discover_group.parse_known_args = parse_discover
 
 
 def _usage() -> str:
@@ -1464,25 +1566,26 @@ def build_parser() -> argparse.ArgumentParser:
             "Subcommands:\n"
             "  run             Quantify viral load from FASTQ samples.\n"
             "  data fetch      Download the viral annotation panel from Zenodo.\n"
-            "  build-ref       Build a combined host + virus kallisto reference.\n"
-            "  star-index      Build the STAR host + viral-panel index.\n"
-            "  translated-index Build the kallisto translated-search protein index.\n"
+            "  build ref       Build a combined host + virus kallisto reference.\n"
+            "  build star-index  Build the STAR host + viral-panel index.\n"
+            "  build translated-index  Build the kallisto translated-search protein index.\n"
             "  translated      Protein-level kallisto search of a completed run (posthoc).\n"
             "  evidence        Trace/extract the reads behind viral calls.\n"
             "  evidence-plot   Plot molecule-level host versus virus alignments.\n"
-            "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
-            "  rerun-programs  Re-score gene programmes on a completed run.\n"
-            "  host-loss       Truth-read loss at the STAR host filter (lower bound).\n"
-            "  discover        Kraken2 taxonomic discovery on a completed run.\n"
-            "  discover-collapse  Project a discovery to species/genus/family.\n"
-            "  discover-states    Assign candidate states to a published discovery.\n"
-            "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
-            "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
-            "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n"
-            "  doctor          Check Python and full-workflow dependencies.\n"
-            "  validate-run    Validate v3 schemas and count invariants.\n"
+            "  rerun multimap  Switch multimapping method without redoing kb count.\n"
+            "  rerun programs  Re-score gene programmes on a completed run.\n"
+            "  rerun hostresponse  Run host-response analysis on a completed run.\n"
+            "  discover run    Kraken2 taxonomic discovery on a completed run.\n"
+            "  discover collapse  Project a discovery to species/genus/family.\n"
+            "  discover states    Assign candidate states to a published discovery.\n"
+            "  check chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n"
+            "  check whitelist Check barcode whitelist/chemistry compatibility.\n"
+            "  check env       Check Python and full-workflow dependencies.\n"
+            "  check run       Validate v3 schemas and count invariants.\n"
             "  status          List the post-hoc steps run on a completed run.\n\n"
-            "Recommended host-aware workflow: run 'viralscan build-ref' once, "
+            "The old names (build-ref, doctor, validate-run, discover-collapse, ...) still work "
+            "and warn; they may be removed in 3.1.0 or later.\n\n"
+            "Recommended host-aware workflow: run 'viralscan build ref' once, "
             "then quantify with the generated -i/-t files.\n\n"
             "There are 3 ways to run quantification:\n"
             "  1. Provide a pre-built kallisto index (-t / -i).\n"
@@ -1490,7 +1593,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  3. Provide NCBI accession numbers (--ncbi-accession ...) — ViralScan fetches + builds.\n\n"
             "Examples:\n"
             "  viralscan run -t t2g.txt -i index.idx -o out/ --r1 R1.fastq.gz --r2 R2.fastq.gz\n"
-            "  viralscan build-ref --host human --virus-accessions NC_045512.2 -o ref/\n\n"
+            "  viralscan build ref --host human --virus-accessions NC_045512.2 -o ref/\n\n"
             "Run 'viralscan <subcommand> --help' for full options."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1508,24 +1611,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _build_run_parser(subparsers)
     _build_data_parser(subparsers)
-    _build_ref_parser(subparsers)
-    _build_star_index_parser(subparsers)
-    _build_translated_index_parser(subparsers)
     _build_translated_parser(subparsers)
     _build_evidence_parser(subparsers)
     _build_evidence_plot_parser(subparsers)
-    _build_rerun_multimap_parser(subparsers)
-    _build_rerun_programs_parser(subparsers)
-    _build_host_loss_parser(subparsers)
-    _build_discover_parser(subparsers)
-    _build_discover_collapse_parser(subparsers)
-    _build_discover_states_parser(subparsers)
-    _build_doctor_parser(subparsers)
-    _build_validate_run_parser(subparsers)
     _build_status_parser(subparsers)
-    _build_hostresponse_parser(subparsers)
-    _build_check_whitelist_parser(subparsers)
-    _build_check_chemistry_parser(subparsers)
+    _build_command_groups(subparsers)
     return parser
 
 
@@ -1829,7 +1919,7 @@ def _build_run_parser(subparsers: Any) -> None:
         default=DEFAULTS["anellovirus_gene_ids"],
         help=(
             "Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. "
-            "Required for any reference built with `viralscan build-ref "
+            "Required for any reference built with `viralscan build ref "
             "--reference-panel anellovirus` (or the bundled-panel builder), because "
             "those GTFs are materialized into the index rather than the panel "
             "directory. Off means 2,021 of 2,041 anellovirus genomes are counted but "
@@ -1884,7 +1974,7 @@ def _build_run_parser(subparsers: Any) -> None:
         default=None,
         metavar="PATH",
         help=(
-            "Directory of a finished `viralscan star-index` index (must hold "
+            "Directory of a finished `viralscan build star-index` index (must hold "
             "star_hostvirus_index.json). Required by --star-confirm."
         ),
     )
@@ -1893,7 +1983,7 @@ def _build_run_parser(subparsers: Any) -> None:
         action="store_true",
         default=False,
         help=(
-            "After the run completes, run `viralscan discover` on every sample (Kraken2 on the "
+            "After the run completes, run `viralscan discover run` on every sample (Kraken2 on the "
             "host-unmapped reads, defaults --confidence 0.05 --minimum-hit-groups 4 --polya-trim), "
             "writing <output>/<sample>/posthoc/discovery/ (PLAN DISC-14). Requires --host-filter "
             "and --kraken2-db; kraken2 and k2 on PATH. Never changes the primary results."
@@ -2145,7 +2235,7 @@ def _build_run_parser(subparsers: Any) -> None:
             "(recommended for combined host+virus references); "
             "'em' iterates the allocation using cell-local evidence; "
             "'equal' splits reads equally (fast, unbiased first pass). "
-            "Use 'viralscan rerun-multimap' to switch methods after the run without "
+            "Use 'viralscan rerun multimap' to switch methods after the run without "
             "redoing the pseudoalignment. Default: conservative."
         ),
     )
@@ -2407,11 +2497,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         )
         argv.insert(0, "run")
     sub = argv[0] if argv else None
+    typed, first = sub, 1  # `typed` names the verb in messages; `sub` is its canonical name
+    if sub in COMMAND_GROUPS and len(argv) > 1 and argv[1] in COMMAND_GROUPS[sub]:
+        typed, sub, first = f"{sub} {argv[1]}", COMMAND_GROUPS[sub][argv[1]], 2
     removed = REMOVED_OPTIONS.get(sub or "", {})
-    for i, token in enumerate(argv[1:], start=1):
+    for i, token in enumerate(argv[first:], start=first):
         option = token.split("=", 1)[0]
         if option in removed:
-            parser.exit(2, f"viralscan {sub}: error: {option} was removed; use {removed[option]}\n")
+            parser.exit(
+                2, f"viralscan {typed}: error: {option} was removed; use {removed[option]}\n"
+            )
         nxt = argv[i + 1] if i + 1 < len(argv) else ""
         if (
             sub == "run"

@@ -7,7 +7,7 @@
 | 2.x and earlier | Scientific-output unsupported | Source remains archived; corrected counts must be rebuilt |
 
 Use GitHub Issues for reproducible bugs and feature requests. Include
-`viralscan --version`, `viralscan doctor --profile full`, the redacted
-`run_manifest.json`, and `viralscan validate-run` output. Never upload restricted
+`viralscan --version`, `viralscan check env --profile full`, the redacted
+`run_manifest.json`, and `viralscan check run` output. Never upload restricted
 human-subject data. Reference panels are reviewed independently of code releases;
 their manifests and checksums define their support status.

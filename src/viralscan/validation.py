@@ -37,7 +37,7 @@ FULL_TOOLS = (
     "Rscript",
     "snakemake",
 )
-#: Extra tools for ``viralscan discover`` (DISC-01); not part of ``FULL_TOOLS``.
+#: Extra tools for ``viralscan discover run`` (DISC-01); not part of ``FULL_TOOLS``.
 DISCOVERY_TOOLS = ("kraken2", "k2", "bustools")
 #: Optional coverage-map tools (COVMAP-01, ``environment.coverage.yml``); they do not co-solve with the main env.
 COVERAGE_TOOLS = ("bamCoverage", "pyGenomeTracks", "gtf2bed")

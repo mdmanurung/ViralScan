@@ -118,7 +118,7 @@ DEFAULTS: dict[str, Any] = {
     # re-enable once the filters are recalibrated (pre-registered user decision,
     # grill 2026-10-03).
     "anello_align": False,
-    # STARsolo confirmation arm on host-filtered reads against a `viralscan star-index`
+    # STARsolo confirmation arm on host-filtered reads against a `viralscan build star-index`
     # host+virus index (PLAN STAR-04). Adds star_* columns to viral_summary.tsv; changes no call.
     "star_confirm": False,
     # Read-level host confirmation (viralscan evidence) for each detected

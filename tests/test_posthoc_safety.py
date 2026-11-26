@@ -88,7 +88,7 @@ def test_guard_ignores_a_project_config_yaml(tmp_path):
 
 
 def test_em_tol_zero_rejected_by_parser():
-    argv = ["rerun-multimap", "--run-dir", "r", "--multimap-method", "em-global"]
+    argv = ["rerun", "multimap", "--run-dir", "r", "--multimap-method", "em-global"]
     with pytest.raises(SystemExit):
         parse_args([*argv, "--multimap-em-tol", "0"])
 
@@ -138,7 +138,7 @@ def test_v2_source_loses_legacy_files(tmp_path, stubbed, monkeypatch):
 
 
 def _hostresponse_args(root: Path, out: Path, force: bool):
-    argv = ["hostresponse", "--run-dir", str(root / "S1"), "--host-h5ad", "h.h5ad"]
+    argv = ["rerun", "hostresponse", "--run-dir", str(root / "S1"), "--host-h5ad", "h.h5ad"]
     args = parse_args([*argv, "--output", str(out)])
     args.force, args.quiet = force, True
     return args

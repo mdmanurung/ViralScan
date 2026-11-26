@@ -35,7 +35,7 @@ is built with Sphinx from `docs/` (`pip install ".[docs]"`, then
 
 - **195 pre-bundled viral reference annotations** (GTF) covering common
   human-infecting viruses, kept as the bundled cache (a Zenodo archive follows once its DOI is registered)
-- **Host-aware reference building** with `viralscan build-ref` for combined
+- **Host-aware reference building** with `viralscan build ref` for combined
   host + virus kallisto indexes
 - **Molecule-aware multimapping** uses `host-conservative` by default so
   host–virus ambiguity does not create viral evidence; `equal`,
@@ -46,9 +46,9 @@ is built with Sphinx from `docs/` (`pip install ".[docs]"`, then
   BH correction for each virus × cell-type combination
 - **NCBI auto-fetch + local cache** (`--ncbi-accession`) — downloads FASTA +
   GTF via E-utilities and caches under `~/.cache/viralscan/ncbi/`
-- **`viralscan build-ref`** — builds a combined host + virus kallisto index
+- **`viralscan build ref`** — builds a combined host + virus kallisto index
   in one command
-- **Host-response analysis** (`viralscan hostresponse` or `--host-h5ad`) —
+- **Host-response analysis** (`viralscan rerun hostresponse` or `--host-h5ad`) —
   associates per-virus presence with host gene expression via L2 logistic
   regression + randomized-Lasso selection frequency (uncalibrated), with optional gget pathway enrichment
   (default `--cv auto`: group-disjoint CV when a donor/sample column is found or named, otherwise cell-level CV with a donor-leakage warning)
@@ -63,7 +63,7 @@ ViralScan can be installed using `pip` in a Python environment:
 
 ```bash
 pip install ViralScan            # pip tier: no Snakemake
-viralscan doctor --profile pip
+viralscan check env --profile pip
 ```
 
 A conda environment is recommended. It provides `snakemake`, `kb-python` and the
@@ -90,12 +90,12 @@ track the source tree (v3 development); if `pip install ViralScan` installs an
 older release that lacks them, install from the checkout instead
 (`python -m pip install .` in a clone).
 
-The pip tier covers `build-ref`, `evidence`, `validate-run` and `doctor --profile pip`.
+The pip tier covers `build ref`, `evidence`, `check run` and `check env --profile pip`.
 It does not run the quantification workflow. `pip install "viralscan[full]"` adds
 the Python workflow dependencies (`snakemake`, `scanpy`, ...), but `kb`, `kallisto`,
 `bustools` and `STAR` are native binaries that pip does not provide: use the Conda
 flow above (or the container) for the full workflow, then check it with
-`viralscan doctor --profile full`. Without `snakemake`/`kb` on `PATH`, a workflow
+`viralscan check env --profile full`. Without `snakemake`/`kb` on `PATH`, a workflow
 run stops with an error naming the `full` extra.
 
 ### Container
@@ -120,7 +120,7 @@ There are 2 options:
 
 - provide your own pre-built index and transcript-to-gene map, or
 - let ViralScan create the index for you from FASTA + GTF files, or from NCBI
-  accessions (`viralscan build-ref` builds a combined host + virus index).
+  accessions (`viralscan build ref` builds a combined host + virus index).
 
 The standard 195-virus GTF annotation panel is hosted on Zenodo
 (`10.5281/zenodo.20112332`); see "Viral annotation panel cache" below.
@@ -192,8 +192,8 @@ viralscan run --ncbi-accession NC_002021.3,NC_001512.1 -o output/ --r1 sample_1.
 The standard 195-virus GTF panel is hosted on Zenodo
 (`10.5281/zenodo.20112332`). It is required only for an index that has no
 `<index>.build_manifest.json` (an index built by another tool, or by an older
-`build-ref`): such a run reads its viral gene list from this panel. An index built
-by `viralscan build-ref` carries its own gene list in that manifest and does not
+`build ref`): such a run reads its viral gene list from this panel. An index built
+by `viralscan build ref` carries its own gene list in that manifest and does not
 need the panel. When it is needed, fetch it once:
 
 ```bash
@@ -215,13 +215,13 @@ You can also set `VIRALSCAN_CACHE=/shared/viralscan-cache` for both commands.
 
 ### Recommended — Build a combined host + virus reference
 
-`viralscan build-ref` downloads a host transcriptome and one or more viral
+`viralscan build ref` downloads a host transcriptome and one or more viral
 sequences from NCBI, then builds a single kallisto index. This is the preferred
 host-aware workflow because reads compete against host and viral targets in the
 same alignment space:
 
 ```bash
-viralscan build-ref \
+viralscan build ref \
   --host human \
   --virus-accessions NC_002021.3 NC_045512.2 \
   --output viralscan_ref/ \
@@ -260,7 +260,7 @@ exact read IDs and CB–UMI-wide deletion can remove unrelated fragments.
 
 ### Associate viral presence with host gene expression
 
-After a completed run, `viralscan hostresponse` trains per-virus L2 logistic
+After a completed run, `viralscan rerun hostresponse` trains per-virus L2 logistic
 regression models predicting candidate-positive vs. candidate-negative molecule-
 support labels from host gene expression, then runs a randomized-Lasso selection-frequency ranking (uncalibrated: it does
 not control an error rate, and with hundreds of positives noise genes pass the threshold)
@@ -268,7 +268,7 @@ to rank associated genes. Metrics use `--cv auto` by default: group-disjoint CV 
 the viralscan run):
 
 ```bash
-viralscan hostresponse \
+viralscan rerun hostresponse \
   --run-dir output/ \
   --host-h5ad host_genes.h5ad
 ```
@@ -289,7 +289,7 @@ Optional pathway enrichment via gget requires the `[enrichment]` extra:
 
 ```bash
 pip install "viralscan[enrichment]"
-viralscan hostresponse --run-dir output/ --host-h5ad host_genes.h5ad --enrichment
+viralscan rerun hostresponse --run-dir output/ --host-h5ad host_genes.h5ad --enrichment
 ```
 
 **Chemistry preflight.** If a run yields near-zero viral (or host) counts,
@@ -297,7 +297,7 @@ verify the barcode chemistry before re-running — a wrong `--technology`/`--whi
 makes `bustools` silently discard most reads:
 
 ```bash
-viralscan check-whitelist --r1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
+viralscan check whitelist --r1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
 ```
 
 ---

@@ -115,11 +115,11 @@ jobs:
           viralscan --version
           viralscan --help
           viralscan data fetch --help
-          viralscan build-ref --help
+          viralscan build ref --help
           viralscan evidence --help
-          viralscan check-whitelist --help
-          viralscan doctor --help
-          viralscan validate-run --help
+          viralscan check whitelist --help
+          viralscan check env --help
+          viralscan check run --help
 
   snakemake9-dryrun:
     name: Snakemake 9 dry-run (DEF-08)

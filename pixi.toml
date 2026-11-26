@@ -61,6 +61,6 @@ docs = ["docs"]
 discovery = ["discovery"]
 
 [tasks]
-doctor = "viralscan doctor --profile full"
+doctor = "viralscan check env --profile full"
 test = { cmd = "python -m pytest tests -q", env = { PYTHONPATH = "src" } }
 docs = "python -m sphinx -b html docs docs/_build/html"

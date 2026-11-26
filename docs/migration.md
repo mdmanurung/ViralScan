@@ -40,6 +40,30 @@ See the [output reference](output_reference.md) for the v3 schema and the
   `viralscan: warning:` line that names the replacement, and is removed in 3.1.0. A root without
   `run_complete.json` is refused. Outputs and their default locations (`<sample>/posthoc/<verb>/`)
   are unchanged.
+- **Commands are grouped (PLAN `CMDGROUP-01`).** The post-hoc, check and build verbs moved under
+  five groups. The old names still run the same handler and print a `viralscan: warning:` line that
+  names the new one. They are removed in 3.1.0. Options, outputs and exit codes are unchanged.
+
+  | Old | New |
+  |-----|-----|
+  | `check-chemistry` | `check chemistry` |
+  | `check-whitelist` | `check whitelist` |
+  | `validate-run` | `check run` |
+  | `doctor` | `check env` |
+  | `discover` | `discover run` |
+  | `discover-collapse` | `discover collapse` |
+  | `discover-states` | `discover states` |
+  | `rerun-multimap` | `rerun multimap` |
+  | `rerun-programs` | `rerun programs` |
+  | `hostresponse` | `rerun hostresponse` |
+  | `build-ref` | `build ref` |
+  | `star-index` | `build star-index` |
+  | `translated-index` | `build translated-index` |
+  | `host-loss` | `dev host-loss` (hidden group, not a supported interface) |
+
+  `run`, `evidence`, `evidence-plot`, `translated`, `status` and `data fetch` stay as they are.
+  The post-hoc record (`posthoc/records/`) keeps the old verb name in its `verb` field, whichever
+  spelling you typed, so existing records and `viralscan status` read the same.
 - **Output files.** `adata_multimap.h5ad` always carries `uns["multimap_diagnostics"]`; the layout
   (version 3) and the schema (3.0.0) are unchanged.
 

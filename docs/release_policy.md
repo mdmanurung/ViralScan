@@ -84,7 +84,7 @@ The mapping of change types to version parts below is accepted. Releases use
 `viralscan run --resume` continues a run only when the run was made by the same ViralScan version and
 the same options and inputs. The version is part of the run fingerprint, so a patch release also
 refuses a resume, with a message that names both versions. Start the run again in a new output
-directory, or finish it with the version that began it. `validate-run` reads output written by any
+directory, or finish it with the version that began it. `check run` reads output written by any
 3.x version, because the layout and schema versions above do not change within a MAJOR line.
 
 An unset option takes its documented default, so `--detection-min-cells 1` and leaving the flag out
@@ -110,7 +110,7 @@ result; an installation break on a supported platform.
 
 Every patch release must:
 
-1. Pass the same gates as a minor release (lint, tests, `viralscan doctor`,
+1. Pass the same gates as a minor release (lint, tests, `viralscan check env`,
    docs-consistency tests); no gate is skipped for urgency.
 2. Add a `CHANGELOG.md` entry stating the affected versions and, for a
    correctness fix, whether previously produced results should be re-run.

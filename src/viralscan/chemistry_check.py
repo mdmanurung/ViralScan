@@ -2,7 +2,7 @@
 
 Builds on :mod:`viralscan.chemistry` (barcode on-list, read structure) and
 :mod:`viralscan.strand` (1M-pair pilot). Three pure helpers plus one entry point
-for the ``viralscan check-chemistry`` subcommand (PLAN ``DEF-02`` / ``CHEM-01``):
+for the ``viralscan check chemistry`` subcommand (PLAN ``DEF-02`` / ``CHEM-01``):
 
 * :func:`library_kind`: bulk vs single-cell from the barcode repeat rate;
 * :func:`infer_end`: 3' vs 5' from R1 structure, else from the strand pilot (F-020);
@@ -134,7 +134,7 @@ def sanity_gate(
                 "check": "p_pseudoaligned",
                 "message": f"only {p:.1f}% of reads pseudoalign to a host-containing index. "
                 f"{cause}suspect the wrong -x/-w (F-005) or the wrong index. "
-                "Run `viralscan check-chemistry`.",
+                "Run `viralscan check chemistry`.",
             }
         )
     elif not host_in_index and strand == "forward":
@@ -146,7 +146,7 @@ def sanity_gate(
                 "cannot be judged here (host-filtered or virus-only index). On a 5' library "
                 "forward keeps only 6.5-8.9% of reads (F-020, silent loss); ignore this for a "
                 "3' library, otherwise rerun with --strand reverse, unstranded or auto. "
-                "Run `viralscan check-chemistry`.",
+                "Run `viralscan check chemistry`.",
             }
         )
     return findings

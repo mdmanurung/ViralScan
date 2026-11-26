@@ -334,7 +334,7 @@ def _run_verb(monkeypatch, tmp_path, *extra, which="/usr/bin/STAR"):
     from viralscan import menu
 
     ins = _inputs(tmp_path)
-    argv = ["viralscan", "star-index", "--out-dir", str(tmp_path / "out"), *extra]
+    argv = ["viralscan", "build", "star-index", "--out-dir", str(tmp_path / "out"), *extra]
     for key, path in ins.items():
         argv += ["--" + key.replace("_", "-"), path]
     monkeypatch.setattr("sys.argv", argv)
@@ -365,7 +365,7 @@ def test_star_index_parser_options():
     assert (ns.threads, ns.force) == (8, False)
     assert ns.ram_bytes == star_hostvirus.DEFAULT_RAM_BYTES
     with pytest.raises(SystemExit):
-        build_parser().parse_args(["star-index", "--out-dir", "o"])
+        build_parser().parse_args(["build", "star-index", "--out-dir", "o"])
 
 
 def test_star_index_verb_writes_manifest(monkeypatch, tmp_path):

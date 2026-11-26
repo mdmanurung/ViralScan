@@ -17,7 +17,7 @@ def definition(oci: str) -> str:
         "%runscript\n"
         '    exec /opt/conda/envs/viralscan/bin/viralscan "$@"\n\n'
         "%test\n"
-        "    /opt/conda/envs/viralscan/bin/viralscan doctor --profile full\n"
+        "    /opt/conda/envs/viralscan/bin/viralscan check env --profile full\n"
     )
 
 

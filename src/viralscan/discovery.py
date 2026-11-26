@@ -143,7 +143,7 @@ def check_tools() -> None:
     missing = [tool for tool in REQUIRED_TOOLS if shutil.which(tool) is None]
     if missing:
         raise DiscoveryError(
-            f"viralscan discover requires {', '.join(missing)} on PATH (Kraken2 >= 2.17). "
+            f"viralscan discover run requires {', '.join(missing)} on PATH (Kraken2 >= 2.17). "
             "Kraken2 is optional and not part of the main ViralScan environment."
         )
 

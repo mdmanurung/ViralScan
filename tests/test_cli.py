@@ -21,7 +21,8 @@ from viralscan.defaults import DEFAULTS
 
 _SUBCOMMANDS = {"run", "data", "build-ref", "evidence", "evidence-plot", "rerun-multimap",
                 "rerun-programs", "doctor", "validate-run", "hostresponse", "check-whitelist",
-                "check-chemistry", "star-index", "--help"}  # fmt: skip
+                "check-chemistry", "star-index", "check", "build", "rerun", "discover", "dev",
+                "--help"}  # fmt: skip
 # `run` requires these; a test that passes its own -o/--r1/--r2 overrides them (last wins).
 _RUN_REQUIRED = ["run", "-o", "out", "--r1", "s_R1.fastq.gz", "--r2", "s_R2.fastq.gz"]
 
@@ -52,7 +53,7 @@ class TestHelpFlag:
 
     def test_build_ref_help_exits_zero(self) -> None:
         with pytest.raises(SystemExit) as exc:
-            _parse(["build-ref", "--help"])
+            _parse(["build", "ref", "--help"])
         assert exc.value.code == 0
 
 
@@ -487,40 +488,40 @@ class TestBuildKbRefInputs:
 
 class TestBuildRefSubcommand:
     def test_subcommand_detected(self) -> None:
-        args = _parse(["build-ref"])
+        args = _parse(["build", "ref"])
         assert args._subcommand == "build-ref"
 
     def test_host_parsed(self) -> None:
-        args = _parse(["build-ref", "--host", "human"])
+        args = _parse(["build", "ref", "--host", "human"])
         assert args.host == "human"
 
     def test_virus_accessions_parsed(self) -> None:
-        args = _parse(["build-ref", "--virus-accessions", "NC_045512.2", "NC_002021.1"])
+        args = _parse(["build", "ref", "--virus-accessions", "NC_045512.2", "NC_002021.1"])
         assert args.virus_accessions == ["NC_045512.2", "NC_002021.1"]
 
     def test_no_kb_ref_flag(self) -> None:
-        args = _parse(["build-ref", "--no-kb-ref"])
+        args = _parse(["build", "ref", "--no-kb-ref"])
         assert args.no_kb_ref is True
 
     def test_no_kb_ref_defaults_false(self) -> None:
-        args = _parse(["build-ref"])
+        args = _parse(["build", "ref"])
         assert args.no_kb_ref is False
 
     def test_list_species_flag(self) -> None:
-        args = _parse(["build-ref", "--list-species"])
+        args = _parse(["build", "ref", "--list-species"])
         assert args.list_species is True
 
     def test_expanded_anellovirus_is_opt_in(self) -> None:
-        assert _parse(["build-ref"]).anellovirus is False
-        assert _parse(["build-ref", "--anellovirus"]).anellovirus is True
+        assert _parse(["build", "ref"]).anellovirus is False
+        assert _parse(["build", "ref", "--anellovirus"]).anellovirus is True
 
     def test_partial_panel_is_opt_in(self) -> None:
-        assert _parse(["build-ref"]).allow_partial_panel is False
-        assert _parse(["build-ref", "--allow-partial-panel"]).allow_partial_panel is True
+        assert _parse(["build", "ref"]).allow_partial_panel is False
+        assert _parse(["build", "ref", "--allow-partial-panel"]).allow_partial_panel is True
 
     def test_genome_dlist_is_explicit(self) -> None:
-        assert _parse(["build-ref"]).genome_dlist is None
-        assert _parse(["build-ref", "--genome-dlist", "GRCh38.fa"]).genome_dlist == "GRCh38.fa"
+        assert _parse(["build", "ref"]).genome_dlist is None
+        assert _parse(["build", "ref", "--genome-dlist", "GRCh38.fa"]).genome_dlist == "GRCh38.fa"
 
 
 # ── data subcommand ───────────────────────────────────────────────────────────
@@ -883,8 +884,8 @@ def test_build_ref_cores_defaults_to_legacy_and_parses() -> None:
     from viralscan.cli.parsers import build_parser
 
     parser = build_parser()
-    assert parser.parse_args(["build-ref", "-o", "x"]).cores is None
-    assert parser.parse_args(["build-ref", "-o", "x", "--cores", "3"]).cores == 3
+    assert parser.parse_args(["build", "ref", "-o", "x"]).cores is None
+    assert parser.parse_args(["build", "ref", "-o", "x", "--cores", "3"]).cores == 3
 
 
 # ── DISC-14: `run --discover` ───────────────────────────────────────────────

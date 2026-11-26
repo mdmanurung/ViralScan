@@ -10,7 +10,7 @@ uniquely-placing layer. This rewrites the gene column of the index's ``t2g.txt``
 
 Caveat: the t2g is fingerprinted. A run made with the old t2g records its sha256 in
 ``run_manifest.json``, so ``validate-run`` reports ``input_fingerprint_mismatch`` for it once the
-t2g is rewritten, and an index built by ``viralscan build-ref`` records ``content_files.t2g`` in
+t2g is rewritten, and an index built by ``viralscan build ref`` records ``content_files.t2g`` in
 its manifest, which no longer matches. Rewrite a copy, or accept that earlier runs must be
 re-counted (``kb count`` with the new t2g) rather than re-validated.
 

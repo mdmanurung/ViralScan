@@ -450,7 +450,7 @@ def write_read_fates(reads: Mapping[str, Mapping[str, object]], path: str | Path
     """One row per viral read (STAR-FATE-01): ``READ_FATE_COLUMNS``, sorted by read id.
 
     ponytail: only reads with at least one ``VIRUS|`` record appear; a spiked read STAR placed on
-    the host alone is invisible here and needs a truth list (``viralscan host-loss``).
+    the host alone is invisible here and needs a truth list (``viralscan dev host-loss``).
     """
     path = Path(path)
     with gzip.open(path, "wt", encoding="utf-8", newline="") as handle:

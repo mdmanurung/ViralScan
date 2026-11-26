@@ -1,4 +1,4 @@
-"""DISC-10: `viralscan discover` end to end with real Kraken2 on a hand-built taxonomy database.
+"""DISC-10: `viralscan discover run` end to end with real Kraken2 on a hand-built taxonomy database.
 
 The database, the reads and the barcodes (real 10x v3 on-list) are generated at test time, seeded and
 offline; every per-UMI outcome is designed, so the published outputs are compared to truth.
@@ -171,7 +171,17 @@ def discovered(tmp_path_factory):
     out = work / "out"
     from viralscan.menu import main
 
-    argv = ["viralscan", "discover", "--run-dir", str(run), "-o", str(out), "--kraken2-db", str(db)]
+    argv = [
+        "viralscan",
+        "discover",
+        "run",
+        "--run-dir",
+        str(run),
+        "-o",
+        str(out),
+        "--kraken2-db",
+        str(db),
+    ]
     argv += ["--confidence", str(CONFIDENCE), "--minimum-hit-groups", "2", "--threads", "2"]
     with patch("sys.argv", argv):
         try:

@@ -207,7 +207,7 @@ def _recording_native_run(commands):
 
 @pytest.mark.parametrize("panel", ["anellovirus", "combined"])
 def test_build_ref_main_threads_cores_to_every_native_tool(tmp_path, monkeypatch, panel):
-    """viralscan build-ref --cores 2: kb, minimap2 and cd-hit-est all get 2 (not 8/3/all)."""
+    """viralscan build ref --cores 2: kb, minimap2 and cd-hit-est all get 2 (not 8/3/all)."""
     from viralscan import data_fetch
     from viralscan.scripts import ncbi_fetch
 

@@ -196,7 +196,7 @@ def run_tiny(args: argparse.Namespace) -> dict:
     report_path = work / "validate_run.json"
     execute(
         runner,
-        [*viralscan, "validate-run", "--run-dir", str(out), "--json", str(report_path)],
+        [*viralscan, "check", "run", "--run-dir", str(out), "--json", str(report_path)],
         work,
         log,
     )
