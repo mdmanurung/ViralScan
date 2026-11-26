@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from viralscan.runconfig import RunConfig
+
 # ── Parser tests (no heavy deps) ──────────────────────────────────────────────
 
 
@@ -275,11 +277,10 @@ class TestReplayFastqs:
     """
 
     def test_uses_host_filtered_reads_when_present(self) -> None:
-        from types import SimpleNamespace
 
         from viralscan.scripts.evidence_run import replay_fastqs
 
-        config = SimpleNamespace(
+        config = RunConfig(
             sample1="raw_R1.fq.gz",
             sample2="raw_R2.fq.gz",
             kb_r1="out/host_filtered/R1.fastq.gz",
@@ -291,11 +292,10 @@ class TestReplayFastqs:
         )
 
     def test_falls_back_to_raw_reads_for_configs_without_kb_paths(self) -> None:
-        from types import SimpleNamespace
 
         from viralscan.scripts.evidence_run import replay_fastqs
 
-        config = SimpleNamespace(sample1="raw_R1.fq.gz", sample2="raw_R2.fq.gz", kb_r1="", kb_r2="")
+        config = RunConfig(sample1="raw_R1.fq.gz", sample2="raw_R2.fq.gz", kb_r1="", kb_r2="")
         assert replay_fastqs(config) == ("raw_R1.fq.gz", "raw_R2.fq.gz")
 
     def _run_stubbed_evidence(
@@ -326,7 +326,7 @@ class TestReplayFastqs:
 
         index_path = tmp_path / "index.idx"
         index_path.write_bytes(b"")
-        config = SimpleNamespace(
+        config = RunConfig(
             sample1="raw_R1.fq.gz",
             sample2="raw_R2.fq.gz",
             kb_r1=str(kb_r1),

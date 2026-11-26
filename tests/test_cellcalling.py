@@ -503,7 +503,7 @@ class TestHostOnlyCellCalling:
             Path(cmd[3]).write_text("barcode\ttotal\tis_cell\nAAA\t900\tTRUE\n")
 
         monkeypatch.setattr(cellcalling.subprocess, "run", fake_run)
-        config = SimpleNamespace(
+        config = RunConfig(
             output=str(tmp_path), host_index="idx", cell_calling="auto", emptydrops_seed=20260727002
         )
         cellcalling.host_called_cells(config, cellcalling.solo_raw_dir(config), 200)
@@ -537,7 +537,7 @@ class TestHostOnlyCellCalling:
             Path(cmd[3]).write_text("barcode\ttotal\tis_cell\nAAA\t900\tTRUE\n")
 
         monkeypatch.setattr(cellcalling.subprocess, "run", fake_run)
-        config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+        config = RunConfig(output=str(tmp_path), host_index="idx", cell_calling="auto")
         cells = cellcalling.host_called_cells(config, cellcalling.solo_raw_dir(config), 200)
         assert cells["called"] == {"AAA"}
         listed = tmp_path / "cells.txt"
@@ -663,25 +663,25 @@ class TestFailClosedContract:
     """SW-11: no failure path may silently turn every barcode into a cell."""
 
     def test_unknown_method_is_a_cell_calling_error(self):
-        cfg = SimpleNamespace(cell_calling="magic")
+        cfg = RunConfig(cell_calling="magic")
         adata = ad.AnnData(np.ones((2, 2)))
         with pytest.raises(CellCallingError, match="Unknown cell_calling method"):
             call_cells(adata, cfg)
 
     def test_external_without_a_list_is_a_cell_calling_error(self):
-        cfg = SimpleNamespace(cell_calling="external", called_cells_file=None)
+        cfg = RunConfig(cell_calling="external", called_cells_file=None)
         adata = ad.AnnData(np.ones((2, 2)))
         with pytest.raises(CellCallingError, match="requires config.called_cells_file"):
             call_cells(adata, cfg)
 
     def test_emptydrops_without_a_matrix_dir_is_a_cell_calling_error(self):
-        cfg = SimpleNamespace(cell_calling="emptydrops")
+        cfg = RunConfig(cell_calling="emptydrops")
         adata = ad.AnnData(np.ones((2, 2)))
         with pytest.raises(CellCallingError, match="counts_unfiltered"):
             call_cells(adata, cfg)
 
     def test_zero_barcodes_is_a_cell_calling_error(self):
-        cfg = SimpleNamespace(cell_calling="knee")
+        cfg = RunConfig(cell_calling="knee")
         adata = ad.AnnData(np.zeros((0, 3)))
         with pytest.raises(CellCallingError, match="at least one barcode"):
             call_cells(adata, cfg)
@@ -689,7 +689,7 @@ class TestFailClosedContract:
     def test_knee_warns_that_it_is_sensitivity_only(self, caplog):
         # SW-23: knee lands at knee_min_umi on real libraries; decided
         # 2026-10-01 that reported numbers come from emptyDrops.
-        cfg = SimpleNamespace(cell_calling="knee")
+        cfg = RunConfig(cell_calling="knee")
         adata = ad.AnnData(np.vstack([np.full((20, 2), 2500.0), np.ones((200, 2))]))
         with caplog.at_level(logging.WARNING, logger="viralscan"):
             call_cells(adata, cfg)
@@ -697,7 +697,7 @@ class TestFailClosedContract:
 
     def test_none_remains_the_explicit_way_to_use_every_barcode(self):
         """The escape hatch stays, but it must be asked for."""
-        cfg = SimpleNamespace(cell_calling="none")
+        cfg = RunConfig(cell_calling="none")
         adata = ad.AnnData(np.ones((4, 2)))
 
         mask = call_cells(adata, cfg)
@@ -751,7 +751,7 @@ class TestCalledCellsFile:
         adata = self._named()
         mask = np.array([True, False, True, False])
         cellcalling.write_called_cells(adata.obs_names, mask, tmp_path)
-        got = cellcalling.load_called_mask(adata, SimpleNamespace(), tmp_path)
+        got = cellcalling.load_called_mask(adata, RunConfig(), tmp_path)
         assert got.tolist() == mask.tolist()
 
     def test_a_list_from_another_matrix_is_fatal(self, tmp_path):
@@ -759,7 +759,7 @@ class TestCalledCellsFile:
         (tmp_path / "results").mkdir()
         (tmp_path / "results" / "called_cells.tsv").write_text("barcode\nAAA\nNOT_HERE\n")
         with pytest.raises(CellCallingError, match="another run"):
-            cellcalling.load_called_mask(adata, SimpleNamespace(), tmp_path)
+            cellcalling.load_called_mask(adata, RunConfig(), tmp_path)
 
     def test_pre_prog17_emptydrops_run_reuses_its_own_output(self, tmp_path, monkeypatch):
         adata = self._named()
@@ -769,7 +769,7 @@ class TestCalledCellsFile:
             "barcode\tis_cell\nAAA\tTRUE\nCCC\tFALSE\nTTT\tTRUE\n"
         )
         monkeypatch.setattr(cellcalling, "call_cells", lambda *a, **k: pytest.fail("re-called"))
-        config = SimpleNamespace(cell_calling="auto", called_cells_file=None)
+        config = RunConfig(cell_calling="auto", called_cells_file=None)
         got = cellcalling.load_called_mask(adata, config, tmp_path)
         assert got.tolist() == [True, False, False, True]
 
@@ -780,7 +780,7 @@ class TestCalledCellsFile:
         (counts / "emptydrops_cells.tsv").write_text("barcode\tis_cell\nAAA\tTRUE\n")
         listed = tmp_path / "cells.txt"
         listed.write_text("GGG-1\nTTT-1\n")
-        config = SimpleNamespace(cell_calling="auto", called_cells_file=str(listed))
+        config = RunConfig(cell_calling="auto", called_cells_file=str(listed))
         got = cellcalling.load_called_mask(adata, config, tmp_path)
         assert got.tolist() == [False, False, True, True]
 
@@ -816,8 +816,8 @@ def _host_raw_fixture(tmp_path, layer="GeneFull"):
 def test_solo_raw_dir_only_for_twostep_runs(tmp_path):
     # DEF-05 replaces the old test that enshrined the audited Gene/raw reader.
     raw = _host_raw_fixture(tmp_path)
-    assert cellcalling.solo_raw_dir(SimpleNamespace(output=str(tmp_path), host_index=None)) is None
-    assert cellcalling.solo_raw_dir(SimpleNamespace(output=str(tmp_path), host_index="idx")) == raw
+    assert cellcalling.solo_raw_dir(RunConfig(output=str(tmp_path), host_index=None)) is None
+    assert cellcalling.solo_raw_dir(RunConfig(output=str(tmp_path), host_index="idx")) == raw
 
 
 @pytest.mark.parametrize("layer", [None, "Gene"])
@@ -827,7 +827,7 @@ def test_twostep_missing_genefull_is_fatal_even_with_viral_counts(tmp_path, laye
     viral = tmp_path / "kb-python" / "counts_unfiltered"
     viral.mkdir(parents=True)
     (viral / "matrix.mtx").write_text("viral matrix must never be used")
-    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    config = RunConfig(output=str(tmp_path), host_index="idx", cell_calling="auto")
     with pytest.raises(CellCallingError, match="GeneFull/raw"):
         cellcalling.solo_raw_dir(config)
 
@@ -836,14 +836,14 @@ def test_twostep_missing_genefull_is_fatal_even_with_viral_counts(tmp_path, laye
 def test_twostep_incomplete_host_matrix_is_fatal(tmp_path, missing):
     raw = _host_raw_fixture(tmp_path)
     (raw / missing).unlink()
-    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    config = RunConfig(output=str(tmp_path), host_index="idx", cell_calling="auto")
     with pytest.raises(CellCallingError, match=missing):
         cellcalling.solo_raw_dir(config)
 
 
 @pytest.mark.parametrize("method", ["auto", "external", "none", "knee"])
 def test_twostep_override_does_not_require_host_matrix(tmp_path, method):
-    config = SimpleNamespace(
+    config = RunConfig(
         output=str(tmp_path),
         host_index="idx",
         cell_calling=method,
@@ -854,7 +854,7 @@ def test_twostep_override_does_not_require_host_matrix(tmp_path, method):
 
 def test_host_emptydrops_uses_genefull_fixture_and_records_input(tmp_path, monkeypatch):
     raw = _host_raw_fixture(tmp_path)
-    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    config = RunConfig(output=str(tmp_path), host_index="idx", cell_calling="auto")
     seen = []
 
     def fake_run(cmd, check):
@@ -884,7 +884,7 @@ def test_cell_calling_receipt_pins_inputs_by_digest(tmp_path, monkeypatch):
     import hashlib
 
     raw = _host_raw_fixture(tmp_path)
-    config = SimpleNamespace(
+    config = RunConfig(
         output=str(tmp_path), host_index="idx", cell_calling="auto", emptydrops_seed=7
     )
 
@@ -903,7 +903,7 @@ def test_cell_calling_receipt_pins_inputs_by_digest(tmp_path, monkeypatch):
     listed = tmp_path / "cells.txt"
     listed.write_text("AAA\n")
     cellcalling.external_host_cells(
-        SimpleNamespace(output=str(tmp_path), called_cells_file=str(listed)), 200
+        RunConfig(output=str(tmp_path), called_cells_file=str(listed)), 200
     )
     receipt = json.loads((tmp_path / "results" / "cell_calling_input.json").read_text())
     assert receipt["called_cells_sha256"]["cells.txt"] == hashlib.sha256(b"AAA\n").hexdigest()
@@ -916,7 +916,7 @@ def test_external_twostep_keeps_cells_absent_from_viral_matrix(tmp_path, with_ho
         _host_raw_fixture(tmp_path)
     listed = tmp_path / "cells.txt"
     listed.write_text("AAA-1\nCCC-1\nTTT-1\n")
-    config = SimpleNamespace(output=str(tmp_path), called_cells_file=str(listed))
+    config = RunConfig(output=str(tmp_path), called_cells_file=str(listed))
     host_cells = cellcalling.external_host_cells(config, 200)
     assert host_cells["called"] == {"AAA", "CCC", "TTT"}
     assert host_cells["comparable"] == ({"AAA"} if with_host_matrix else None)
@@ -1014,9 +1014,7 @@ def _detection_fixture(tmp_path, monkeypatch, config):
 
 
 def test_detection_missing_host_matrix_never_calls_viral_emptydrops(tmp_path, monkeypatch):
-    config = SimpleNamespace(
-        output=str(tmp_path), host_index="idx", visual=False, cell_calling="auto"
-    )
+    config = RunConfig(output=str(tmp_path), host_index="idx", visual=False, cell_calling="auto")
     _detection_fixture(tmp_path, monkeypatch, config)
 
     def forbidden(*args, **kwargs):
@@ -1033,7 +1031,7 @@ def test_legacy_twostep_scoring_rejects_viral_emptydrops_fallback(tmp_path):
     counts = tmp_path / "kb-python" / "counts_unfiltered"
     counts.mkdir(parents=True)
     (counts / "emptydrops_cells.tsv").write_text("barcode\tis_cell\nAAA\tTRUE\n")
-    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    config = RunConfig(output=str(tmp_path), host_index="idx", cell_calling="auto")
     with pytest.raises(CellCallingError, match="GeneFull/raw"):
         cellcalling.load_called_mask(a, config, tmp_path)
 
@@ -1045,14 +1043,14 @@ def test_legacy_twostep_scoring_uses_host_emptydrops_output(tmp_path):
     )
     a = ad.AnnData(X=sp.csr_matrix([[5], [1]]))
     a.obs_names = ["AAA", "GGG"]
-    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    config = RunConfig(output=str(tmp_path), host_index="idx", cell_calling="auto")
     assert cellcalling.load_called_mask(a, config, tmp_path).tolist() == [True, False]
 
 
 def test_detection_external_override_preserves_full_universe(tmp_path, monkeypatch):
     cells = tmp_path / "cells.txt"
     cells.write_text("AAA-1\nCCC-1\nTTT-1\n")
-    config = SimpleNamespace(
+    config = RunConfig(
         output=str(tmp_path),
         host_index="idx",
         visual=False,
@@ -1145,7 +1143,7 @@ def test_comparable_floor_has_one_definition():
 def test_host_called_cells_rejects_corrupt_matrix_before_starting_r(tmp_path, monkeypatch, corrupt):
     raw = _host_raw_fixture(tmp_path)
     (raw / corrupt[0]).write_text(corrupt[1])
-    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    config = RunConfig(output=str(tmp_path), host_index="idx", cell_calling="auto")
 
     def no_r(*args, **kwargs):
         raise AssertionError("R must not start on a corrupt matrix")

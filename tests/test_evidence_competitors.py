@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from viralscan import evidence as ev
+from viralscan.runconfig import RunConfig
 from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
 
 
@@ -296,7 +297,7 @@ def stub_run(tmp_path, monkeypatch, *, zero=True):
     (kb / "counts_unfiltered/cells_x_genes.genes.txt").write_text("g\n")
     for file in ["R1.fq", "R2.fq", "index.idx"]:
         (tmp_path / file).write_text("")
-    cfg = SimpleNamespace(
+    cfg = RunConfig(
         technology="10xv3",
         index=str(tmp_path / "index.idx"),
         transcripts=str(kb / "transcripts.txt"),
