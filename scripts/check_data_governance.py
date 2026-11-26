@@ -36,6 +36,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SYNTHETIC_FIXTURE_SHA256 = {
     "tests/data/evidence_tiny/R1.fastq": "6053ca877786db8730fd87b2a4616702410e4e1aa9ee5ee46309f34c9a138919",
     "tests/data/evidence_tiny/R2.fastq": "05d6b421d286dce208c9d9f6fb6782b65d0d5fd20415d4064cb7da2036b2bf5e",
+    # DEMO-01: the 2-read synthetic demo inputs (copy of the tiny integration fixture).
+    "src/viralscan/data/demo/R1.fastq": "6053ca877786db8730fd87b2a4616702410e4e1aa9ee5ee46309f34c9a138919",
+    "src/viralscan/data/demo/R2.fastq": "05d6b421d286dce208c9d9f6fb6782b65d0d5fd20415d4064cb7da2036b2bf5e",
 }
 
 
