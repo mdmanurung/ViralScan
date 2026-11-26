@@ -8,6 +8,7 @@ import json
 import re
 import shutil
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
@@ -68,6 +69,14 @@ def kb_tools() -> dict[str, tuple[str, str]]:
         for name, version, path in _KB_TOOL_RE.findall(out)
         if Path(path).is_file()
     }
+
+
+def missing_tools(tools: Iterable[str]) -> list[str]:
+    """The names in *tools* that are not on PATH, in the order given (TOOLCHECK-01).
+
+    The one ``shutil.which`` preflight; callers keep their own error message.
+    """
+    return [tool for tool in tools if shutil.which(tool) is None]
 
 
 def tool_path(name: str) -> str | None:

@@ -22,7 +22,7 @@ These paths are pre-registered in config["kb_r1"] / config["kb_r2"] by
 ``menu._build_run_config``, so the downstream ``kb_count`` rule consumes them
 transparently with no further changes.
 
-CB/UMI geometry is resolved via ``viralscan.evidence.cb_umi_geometry``, which
+CB/UMI geometry is resolved via ``viralscan.chemistry.cb_umi_geometry`` (through ``star_run.starsolo_barcode_args``), which
 handles 10x v1/v2/v3, Drop-seq, and explicit kallisto ``bc:umi:seq`` triplets,
 and raises ``ValueError`` for unknown chemistries instead of silently
 mis-slicing barcodes (fixes PLAN S1/S6).
@@ -36,11 +36,11 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from viralscan.evidence import cb_umi_geometry
 from viralscan.runconfig import RunConfig
 from viralscan.star_hostvirus import resolve_whitelist
-from viralscan.star_run import plain_whitelist
+from viralscan.star_run import plain_whitelist, starsolo_barcode_args  # noqa: F401  (re-exported)
 from viralscan.utils import open_maybe_gzip, setup_script_logging
+from viralscan.validation import missing_tools
 
 log = setup_script_logging()
 
@@ -60,7 +60,7 @@ def required_host_filter_tools(aligner: str) -> tuple[str, ...]:
 
 def check_host_filter_tools(aligner: str) -> None:
     """Fail before launching Snakemake work if native tools are unavailable."""
-    missing = [tool for tool in required_host_filter_tools(aligner) if shutil.which(tool) is None]
+    missing = missing_tools(required_host_filter_tools(aligner))
     if missing:
         tools = ", ".join(missing)
         raise RuntimeError(
@@ -341,38 +341,6 @@ STAR_FILTER_PARAM_SETS: dict[str, tuple[str, ...]] = {
     "pinned": STAR_FILTER_ARGS,
     "star-default": STAR_DEFAULT_FILTER_ARGS,
 }
-
-
-def starsolo_barcode_args(technology: str, whitelist: Optional[str]) -> list[str]:
-    """STARsolo barcode/UMI arguments for the host-filter pass (pure; SW-15).
-
-    ``--soloBarcodeReadLength 0`` disables STAR's check that the barcode read is
-    exactly CB+UMI long. 10x 5' libraries ship a 150 bp R1 (barcode, UMI, TSO,
-    then cDNA), and without it STAR aborts with "barcode read length 150 not
-    equal to expected 28". *whitelist* must already be plain text; ``None``
-    passes STAR's literal ``None`` (accept every barcode). ``_starsolo_filter``
-    resolves named 10x chemistries to the bundled on-list first (user decision
-    2026-11-09), so ``None`` reaches STAR only for Drop-seq and custom geometries.
-    """
-    cb_len, umi_len = cb_umi_geometry(technology)
-    return [
-        "--soloType",
-        "CB_UMI_Simple",
-        "--soloCBstart",
-        "1",
-        "--soloCBlen",
-        str(cb_len),
-        "--soloUMIstart",
-        str(cb_len + 1),
-        "--soloUMIlen",
-        str(umi_len),
-        "--soloBarcodeReadLength",
-        "0",
-        "--soloCBwhitelist",
-        whitelist or "None",
-    ]
-
-
 
 
 # ── STARsolo mode ─────────────────────────────────────────────────────────────
