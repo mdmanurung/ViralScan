@@ -1358,7 +1358,10 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         "--host-h5ad",
         required=True,
         metavar="PATH",
-        help="Host gene-expression h5ad (cells × genes, matched to the viralscan run).",
+        help=(
+            "Host gene-expression h5ad (cells × genes, matched to the viralscan run). Only the "
+            "run's called cells (results/called_cells.tsv) are used; other barcodes are ignored."
+        ),
     )
     p.add_argument(
         "--n-seeds",
@@ -2476,7 +2479,7 @@ def _build_run_parser(subparsers: Any, *, essential_help: bool = False) -> None:
             "Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). "
             "When provided, ViralScan trains per-virus logistic regression models predicting virus "
             "presence from host gene expression (Luebbert et al. 2025 approach) and writes results "
-            "to <output>/results/hostresponse/."
+            "to <output>/results/hostresponse/. Only the run's called cells (results/called_cells.tsv) are used."
         ),
     )
     _add_hostresponse_evaluation_args(parser, "hostresponse-")
