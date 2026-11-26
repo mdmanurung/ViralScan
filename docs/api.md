@@ -27,6 +27,8 @@ functions live under `viralscan.scripts` for historical reasons and are stable b
 ## Common imports
 
 ```python
+from viralscan import open_run
+from viralscan.compute import compute_stats, external_cells
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.scripts.ncbi_fetch import fetch_reference
 from viralscan.scripts.build_reference import build_combined_reference, fetch_host_cdna
@@ -123,6 +125,79 @@ print(path)
 ```
 
 Returns the written path as a string, or `None` when the input table is empty.
+
+---
+
+## Reading a finished run
+
+Use this API to load a run's tables and count matrix without knowing the file layout.
+It is read-only: it never writes into the run directory.
+
+### `open_run`
+
+```python
+def open_run(path: str | os.PathLike[str], sample: str | None = None) -> Run: ...
+```
+
+`path` is the run root (the `-o` directory) or one sample directory. `sample` names the
+sample when the root holds several. Raises `ValueError` when the path does not exist, is
+not a finished run (`run_manifest.json` or `run_complete.json` missing), or holds several
+samples and none was named.
+
+```python
+from viralscan import open_run
+
+run = open_run("output")          # or open_run("output/sample")
+run.summary()                     # results/viral_summary.tsv
+run.cells(called_only=True)       # results/per_cell_viral.tsv, called cells only
+adata = run.adata()               # kb-python/counts_unfiltered/adata_multimap.h5ad
+```
+
+### `Run`
+
+| Member | Returns |
+|--------|---------|
+| `root`, `sample_dir`, `sample` | Run root, sample directory and sample name (`Path`, `Path`, `str`). |
+| `manifest()` | `run_manifest.json` as a `dict`. |
+| `summary()` | `results/viral_summary.tsv` as a `pandas.DataFrame`; see [output reference](output_reference.md). |
+| `cells(called_only=False)` | `results/per_cell_viral.tsv` as a `DataFrame`, one row per infected cell and virus. `called_only=True` keeps rows with `is_called_cell` true. |
+| `adata()` | The selected-method `anndata.AnnData` (`adata_multimap.h5ad`); falls back to `adata.h5ad` when no multimapping step wrote one. |
+
+A table or matrix the run did not write raises `FileNotFoundError` with its path.
+
+---
+
+## Compute helpers
+
+`viralscan.compute` re-exports four helpers from the worker modules, so notebooks and
+tests can call them on in-memory matrices without importing `viralscan.scripts.*`. The
+names are the same objects, not copies. Importing the module loads scanpy and matplotlib.
+
+### `compute_stats`
+
+Normalized viral detection statistics per virus for an `AnnData`, over all barcodes and
+over a called-cell mask. Same function as `viralscan.scripts.detection.compute_stats`;
+its docstring lists the parameters.
+
+### `check_sibling_crossmapping`
+
+Returns `{virus_name: note}` for viruses that look like EM bleed from a sibling (for
+example HHV-6A/6B), from the output of `compute_stats`. Same function as
+`viralscan.scripts.detection.check_sibling_crossmapping`.
+
+### `external_cells`
+
+```python
+def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> numpy.ndarray: ...
+```
+
+Boolean mask of the `obs_names` present in an external called-cell list (plain or `.gz`,
+one barcode per line, with or without a `-1` suffix). Raises `CellCallingError` when
+barcodes collide after suffix stripping or none match.
+
+### `CellCallingError`
+
+`RuntimeError` subclass raised when cell calling cannot produce a trustworthy mask.
 
 ---
 
