@@ -12,7 +12,7 @@ to "what this candidate supports". Exact column definitions are in the
 
 | Question | File | First fields to read |
 |---|---|---|
-| What did this run find? | `results/viral_summary.tsv` | `virus_name`, `viral_molecules_total_est`, `infected_called`, `n_called_cells`, `pct_infected_called`, `detected` |
+| What did this run find? | `results/viral_summary_core.tsv` (12 columns; the full table is `results/viral_summary.tsv`) | `virus_name`, `viral_molecules_total_est`, `infected_called_cells`, `n_called_cells`, `pct_infected_called`, `detected` |
 | Which cells carry a candidate? | `results/per_cell_viral.tsv` | `barcode`, `virus_name`, `viral_molecules_total_est`, `viral_fraction`, `is_called_cell` |
 | What is the per-cell denominator? | `results/called_cells.tsv` | `barcode` (one row per called cell) |
 | Could a negative be real? | `results/sensitivity.tsv` | `virus_name`, `observed_molecules`, `detected`, `capture`, `lod95_molecules`, `informative_negative`, `negative_blockers` |
@@ -65,7 +65,7 @@ Passing the gate is candidate evidence, not a confirmed infection.
 
 | Field | Numerator / denominator | Use |
 |---|---|---|
-| `pct_infected` | infected cells over **all barcodes** | Screening view; diluted by empty droplets |
+| `pct_infected_barcodes` | infected cells over **all barcodes** | Screening view; diluted by empty droplets |
 | `pct_infected_called` | infected called cells over `n_called_cells` | Within-run per-cell candidate-support rate |
 | `pct_infected_comparable` | Infected cells within the comparable set over called barcodes clearing an absolute host-UMI floor (200 host molecules) | Comparing runs that used different host-filtering strategies |
 
@@ -88,7 +88,7 @@ schema compatibility.
 
 The values below are **illustrative**, not from a real sample.
 
-| virus_name | viral_molecules_total_est | infected_called | n_called_cells | pct_infected_called | background_umis | detected |
+| virus_name | viral_molecules_total_est | infected_called_cells | n_called_cells | pct_infected_called | background_molecules | detected |
 |---|---:|---:|---:|---:|---:|---|
 | Epstein-Barr virus | 412.0 | 37 | 9,850 | 0.38 | 19.5 | true |
 | Human herpesvirus 6B | 6.0 | 0 | 9,850 | 0.00 | 6.0 | false |
@@ -98,7 +98,7 @@ called cells carry support, over 9,850 called cells (0.38 %), with 19.5 molecule
 outside the called set. It passed the gate, so `detected` is true.
 
 Read the second row as: 6 estimated molecules, all of them in barcodes outside
-the called set (`background_umis = 6.0`), and no infected called cell. It is a
+the called set (`background_molecules = 6.0`), and no infected called cell. It is a
 candidate that failed the called-cell gate. That pattern is consistent with
 ambient RNA, barcode swapping or empty droplets; it does not establish that the
 virus is absent.
@@ -106,7 +106,7 @@ virus is absent.
 For each row you intend to use:
 
 1. Filter on `detected` to separate the detected set from candidates.
-2. Read `n_called_cells` and `background_umis` before any percentage.
+2. Read `n_called_cells` and `background_molecules` before any percentage.
 3. Check `role`, `reference_risk_flags`, `artifact_risk` and
    `sibling_crossmap_note`. These are labels, never filters.
 4. Check `host_homology_status`; `not_measured` is not zero homology.
@@ -179,12 +179,12 @@ a call is infection.
 ### 2. Cell support
 
 **Artifacts.** `results/called_cells.tsv`, `results/viral_summary.tsv`
-(`n_called_cells`, `infected_called`, `pct_infected_called`, `background_umis`),
+(`n_called_cells`, `infected_called_cells`, `pct_infected_called`, `background_molecules`),
 `results/chemistry_sanity.json`, and `results/cell_calling_input.json` for
 two-step runs.
 
 The called-cell list is the denominator. Molecules in barcodes outside it are
-`background_umis` and never count toward the detection gate. That signal is
+`background_molecules` and never count toward the detection gate. That signal is
 consistent with ambient RNA, barcode swapping or empty droplets, and the run
 does not say which. Check that the denominator matches the experiment:
 
@@ -210,7 +210,7 @@ fit no single chemistry, when samples in one run disagree, or when an explicit
 error or an unavailable post-count check into a stop.
 
 **Next action.** If the denominator is wrong, fix the external list or the
-chemistry and re-run. If the signal is only in `background_umis`, treat the row
+chemistry and re-run. If the signal is only in `background_molecules`, treat the row
 as a candidate and continue to checks 3 to 5. The
 [cell-calling and denominators](vignettes/cell_calling_denominators.ipynb)
 notebook shows an external-list example and a wrong-list failure on synthetic

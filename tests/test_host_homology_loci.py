@@ -109,9 +109,9 @@ def test_loci_survive_annotation_manifest_and_report_without_demoting_calls(tmp_
     stats = {
         name: {
             "viral_molecules_total_est": 5,
-            "infected_cells": 1,
-            "total_cells": 10,
-            "pct_infected": 10.0,
+            "infected_barcodes": 1,
+            "n_barcodes": 10,
+            "pct_infected_barcodes": 10.0,
             "viral_molecules_per_10k_est": 1.0,
             "detected": True,
         }

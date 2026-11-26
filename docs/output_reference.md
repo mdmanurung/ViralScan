@@ -99,6 +99,7 @@ output/
     │   ├── virus_identity.tsv
     │   ├── scautoqc_gene_annotations.tsv         # only with --scautoqc
     │   ├── viral_summary.tsv
+    │   ├── viral_summary_core.tsv                # 12 core columns of viral_summary.tsv
     │   ├── viral_summary_by_species.tsv
     │   ├── viral_summary_by_genus.tsv
     │   ├── sensitivity.tsv
@@ -293,6 +294,19 @@ and warn once when viral table genes are absent from the matrix (they cannot car
 
 A run with no viral gene in its index stops at this step.
 
+## Column vocabulary
+
+The same words mean the same thing in every table (COLNAMES-01).
+
+| Word | Meaning |
+|---|---|
+| molecule | One distinct (barcode, UMI) read group after counting. A molecule that several genes or viruses share is split between them by the multimapping step, so a molecule column can hold fractions. Columns named `*_molecules*` count these, summed over a virus's genes. "UMI" names the tag on a read; `viral_summary.tsv` has no `*_umis` column any more |
+| `_est` | Marks the headline molecule totals and rates that include allocated ambiguous molecule mass: `viral_molecules_total_est` and `viral_molecules_per_10k_est`. `background_molecules` comes from the same allocated matrix but keeps its name without the suffix |
+| barcode | Any column of the kb matrix, whether or not it is a cell. `n_barcodes`, `infected_barcodes` and `pct_infected_barcodes` use **all** barcodes, empty droplets included |
+| called cell | A barcode in the called-cell set (`called_cells.tsv`). `n_called_cells`, `infected_called_cells` and `pct_infected_called` use only these |
+| `pct_` | A percentage (0 to 100) of the numerator over the denominator named by its suffix: `_barcodes` over `n_barcodes`, `_called` over `n_called_cells`, `_comparable` over `n_comparable_cells`. It is blank (NA) where its row below says the denominator is unavailable. It is a candidate-support rate, not a biological infection rate |
+| `infected_` | Cells or barcodes whose summed allocated molecules reach `--infected-min-molecules`; not confirmed infection |
+
 ## `viral_summary.tsv`
 
 Tab-separated, one row per candidate virus: every virus with signal in the
@@ -302,31 +316,37 @@ Since ANDET-09 an anellovirus that only the alignment branch saw also gets a row
 (`detection_source = alignment_only`, kallisto counts 0); see the anellovirus
 alignment branch below.
 
+`viral_summary_core.tsv` (same step, same rows, same values) keeps 12 of these columns for a
+first look: `virus_name`, `role`, `detected`, `viral_molecules_total_est`, `infected_called_cells`,
+`n_called_cells`, `pct_infected_called`, `viral_molecules_per_10k_est`, `claim_scope`,
+`host_homology_status`, `ambient_assessment` and `denominator_note`. In Python,
+`run.summary(core=True)` reads it. Both tables are listed in `table_columns.json`.
+
 | Column | Description | Kind |
 |--------|-------------|------|
 | `virus_name` | Human-readable virus name | observation |
 | `role` | Curated reference role from `virus_identity.tsv`: `target`, `contaminant`, `endogenous` or `decoy`. Empty means uncurated/unknown, including legacy runs without role metadata. Shown in the HTML report as Reference role. This label does not filter counts or establish infection; contaminant, endogenous and decoy signals require interpretation in that context. Conflicting nonempty roles within one virus are rejected | diagnostic flag |
 | `reference_risk_flags` | Pipe-separated reference-context cautions for endogenous sequences, vector/reagent contaminants and possible chromosomally integrated HHV-6. Flags do not filter counts or diagnose integration | diagnostic flag |
 | `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass, over all barcodes | model estimate |
-| `infected_cells` | Legacy-named schema field: cells (all barcodes) whose summed allocated molecules across the virus's genes reach `--infected-min-molecules` (default 2.0); not confirmed infection. Cells with less than that are in `infected_subthreshold_cells` | model estimate |
-| `total_cells` | Total cells in the count matrix (**all** barcodes) | observation |
-| `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator; secondary to `pct_infected_called`). **Blank (NA) in a two-step (`--host-filter starsolo`) run**: the viral matrix holds only barcodes with a non-host read, so there is no usable all-barcode denominator; see `denominator_note` | model estimate |
+| `infected_barcodes` | Barcodes (all of them, empty droplets included) whose summed allocated molecules across the virus's genes reach `--infected-min-molecules` (default 2.0); not confirmed infection. Cells with less than that are in `infected_subthreshold_cells` | model estimate |
+| `n_barcodes` | Number of barcodes in the count matrix (**all** barcodes, called or not) | observation |
+| `pct_infected_barcodes` | `infected_barcodes / n_barcodes × 100` (all-barcode denominator; secondary to `pct_infected_called`). **Blank (NA) in a two-step (`--host-filter starsolo`) run**: the viral matrix holds only barcodes with a non-host read, so there is no usable all-barcode denominator; see `denominator_note` | model estimate |
 | `infected_subthreshold_cells` | Cells (all barcodes) with `0 <` summed molecules `<` `--infected-min-molecules`: fractional multimapper or EM weight that does not make a cell infected. Counted, never dropped | model estimate |
 | `infected_subthreshold_called` | The same, restricted to called cells | model estimate |
-| `background_umis` | Viral molecules in barcodes that are **not** called cells (empty droplets), i.e. `viral_molecules_total_est` minus the molecules in called cells. They never count toward the detection gate. Molecules outside called cells can come from ambient RNA, barcode swapping or empty droplets; this column does not tell which. With `--cell-calling none` every barcode is called and it is 0. The `ambient_*` and `soup_*` columns below size and test this signal | model estimate |
+| `background_molecules` | Viral molecules (allocated molecule estimate) in barcodes that are **not** called cells (empty droplets), i.e. `viral_molecules_total_est` minus the molecules in called cells. They never count toward the detection gate. Molecules outside called cells can come from ambient RNA, barcode swapping or empty droplets; this column does not tell which. With `--cell-calling none` every barcode is called and it is 0. The `ambient_*` and `soup_*` columns below size and test this signal | model estimate |
 | `detected` | `true` when the virus passes the called-cell gate: at least `--detection-min-cells` (default 1) called cells are infected, **and** the called cells hold at least `--detection-threshold` of its molecules in total (compared with a relative tolerance of 1e-6, the same as the infected-cell rule, so a molecule split over several genes whose float shares sum to just under 1 still counts as 1). `false` marks a candidate that has signal in the all-barcode screen but misses the called-cell gate (for example, signal only in empty droplets). Passing is candidate evidence, not a confirmed infection, and does not exclude ambient RNA | evidence tier |
 | `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000. **Blank (NA) in a two-step run** (the full matrix is the virus-only matrix, so the ratio would read 10,000 whatever the load) and **blank (NA) when the index has no host genes** (a virus-only index or unavailable gene identity; never a silent virus-only fallback; MECH-F); see `denominator_note` | model estimate |
-| `denominator_note` | Why `pct_infected` and `viral_molecules_per_10k_est` are blank, in a two-step run, or why `viral_molecules_per_10k_est` alone is blank when the index has no host genes (`pct_infected` keeps its barcode denominator); empty otherwise (combined-index runs, values unchanged) | diagnostic flag |
+| `denominator_note` | Why `pct_infected_barcodes` and `viral_molecules_per_10k_est` are blank, in a two-step run, or why `viral_molecules_per_10k_est` alone is blank when the index has no host genes (`pct_infected_barcodes` keeps its barcode denominator); empty otherwise (combined-index runs, values unchanged) | diagnostic flag |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below | observation |
-| `infected_called` | Infected cells (same `--infected-min-molecules` rule) restricted to the called-cell set | model estimate |
-| `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below | model estimate |
+| `infected_called_cells` | Infected called cells (same `--infected-min-molecules` rule) restricted to the called-cell set | model estimate |
+| `pct_infected_called` | `infected_called_cells / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below | model estimate |
 | `infected_comparable` | Candidate-support cells over the strategy-independent denominator | model estimate |
 | `n_comparable_cells` | Barcodes clearing an absolute host-UMI floor (200 molecules), intersected with the called set | observation |
 | `pct_infected_comparable` | `infected_comparable / n_comparable_cells × 100`. Use this to compare runs that used different host-filtering strategies. **Blank (unavailable), not 0, when `n_comparable_cells` is 0 or blank**: no cell cleared the floor, or host depth is unavailable, so the rate is undefined | model estimate |
 | `sibling_crossmap_note` | Text note when the virus has near-identical siblings that allocation can move molecules between; empty otherwise | diagnostic flag |
-| `molecules_unique_to_virus` | All-barcode molecules compatible only with genes of this virus (two genes of one virus still count). Larger than the gene-level `viral_molecules_unique` of `multimap_evidence.tsv`. Blank without multimapping or an identity table | observation |
-| `molecules_compatible` | All-barcode molecules compatible with any gene of this virus, each counted whole (also those shared with another virus or the host). `molecules_unique_to_virus` ≤ `viral_molecules_total_est` ≤ `molecules_compatible` under every method | observation |
-| `unique_fraction` | `molecules_unique_to_virus / molecules_compatible`: how much of the signal reads can place on this virus alone | observation |
+| `molecules_unique` | All-barcode molecules compatible only with genes of this virus (two genes of one virus still count). Larger than the gene-level `viral_molecules_unique` of `multimap_evidence.tsv`. Blank without multimapping or an identity table | observation |
+| `molecules_compatible` | All-barcode molecules compatible with any gene of this virus, each counted whole (also those shared with another virus or the host). `molecules_unique` ≤ `viral_molecules_total_est` ≤ `molecules_compatible` under every method | observation |
+| `unique_fraction` | `molecules_unique / molecules_compatible`: how much of the signal reads can place on this virus alone | observation |
 | `aggregate_note` | When `unique_fraction` < 0.05 (`ASSIGNMENT_UNIQUE_FRACTION_MIN`), the total is mostly an allocation: the note names the species and, if needed, genus row of `viral_summary_by_species.tsv` / `viral_summary_by_genus.tsv` and their unique fractions. A label only; it changes no count or `detected` call | diagnostic flag |
 | `accession_breadth` | Fraction of the virus's **index** genes with ≥1 molecule in any barcode (endogenous-element artefact check: an EVE concentrates on 1–2 loci, a genuine infection spreads across its genes). Before 2026-10-04 it was computed over the detected genes only and was always 1.0 (`ANDET-01`). Gene-level breadth, not genome-coverage breadth | diagnostic flag |
 | `n_features_supported`, `n_index_genes` | Tier measure F and its ceiling (`calibration.freeze_scope`, Q135): the number of the virus's index genes whose summed `adata.X` over the **called cells** is ≥1 molecule (fractions kept; ≥1, not >0, so 0.5 + 0.5 over two cells counts and a 0.5/0.5 split over two genes does not), and the number of index genes. A virus with fewer index genes than the cutoff `f` cannot reach `probable` | observation |
@@ -343,7 +363,7 @@ alignment branch below.
 | `n_ambient_barcodes_with_virus` | Ambient barcodes with any viral molecule mass (`> 0` on the detection layer) | observation |
 | `soup_expected_cells_max` | `E1`: the expected number of called cells that ambient RNA alone could push over the infected rule (`--infected-min-molecules`), taking the whole droplet to be soup (contamination fraction `rho = 1`, the largest soup any `rho <= 1` gives): the sum over called cells of `P(Poisson(f_U × N) ≥ ceil(rule))`, `N` the cell's total molecules. Called cells absent from the viral matrix (two-step runs) are included | model estimate |
 | `soup_expected_cells_ge2_max` | `E2`: the same with at least two molecules (soup rarely puts two in one cell, infection often does) | model estimate |
-| `soup_tail_p_cells` | Upper Poisson tail `P(X ≥ infected_called)` with mean `E1`. A small value means ambient RNA at any `rho <= 1` would rarely give this many infected called cells. It assumes independent soup counts, so over-dispersed soup or PCR duplicates make it optimistic | model estimate |
+| `soup_tail_p_cells` | Upper Poisson tail `P(X ≥ infected_called_cells)` with mean `E1`. A small value means ambient RNA at any `rho <= 1` would rarely give this many infected called cells. It assumes independent soup counts, so over-dispersed soup or PCR duplicates make it optimistic | model estimate |
 | `viral_depth_spearman` | Spearman correlation of viral molecules with total molecules over the called cells (zeros included). Soup scales with droplet size, but infected cells may also be larger. Blank below 3 infected called cells | diagnostic flag |
 | `ambient_assessment` | `soup_rejected_rho1` (`soup_tail_p_cells` below 0.05), `soup_sufficient` (at or above 0.05, including when no called cell is infected) or `not_assessed`. **Descriptive: `detected` and every tier ignore it** (decision 2026-10-12, M-03). It is a weak necessary screen: `soup_rejected_rho1` does not show infection, replication, or that the cells are the source (doublets, uptake), and `soup_sufficient` means "not separable from soup", not "absent" or "soup". `not_assessed` for `--cell-calling none`/`knee`, no ambient barcode, no called cell, a virus-only index with no host depth, a two-step run without STARsolo `GeneFull/raw` totals, and alignment-only rows | diagnostic flag |
 | `ambient_basis` | One sentence: the level and tail used, or the reason it is `not_assessed`. It always says that swapping between libraries is not assessed in a single run (see `scripts/swap_check.py` below) | diagnostic flag |
@@ -396,7 +416,7 @@ virome, so a call is biologically expected, and every homopolymer-based filter
 removes precisely the genuine 3′-end reads it would take to prove one — such
 evidence *bounds* a real infection, it never excludes one (user, 2026-10-04).
 
-**Two denominators.** The all-barcode `pct_infected` field is diluted by empty
+**Two denominators.** The all-barcode `pct_infected_barcodes` field is diluted by empty
 droplets; `pct_infected_called` uses only the declared called-cell set and is the
 appropriate denominator for a per-cell candidate-support rate. The field names
 are retained for schema compatibility and do not establish infection. The v3
@@ -408,7 +428,7 @@ equal the all-barcode values.
 
 **Two-step runs.** With `--host-filter starsolo` the kallisto matrix holds only barcodes
 that carry a non-host read (host-filtered barcodes), so dividing by it gives 100 %
-and 10,000 molecules per 10k for any virus present. `pct_infected` and
+and 10,000 molecules per 10k for any virus present. `pct_infected_barcodes` and
 `viral_molecules_per_10k_est` are therefore written as NA (blank in the TSV, `NA` in
 `summary.txt` and the HTML report), with the reason in `denominator_note`. Use
 `pct_infected_called` (denominator: the host called cells) or `pct_infected_comparable`.
@@ -430,7 +450,7 @@ runs after host subtraction, so the denominator moves with the strategy. Host fi
 figure second, labelled as such; they also report the sub-threshold and background counts
 when nonzero. The gene table is headed "Candidate viral Gene IDs" because it is the
 all-barcode screen. A virus that fails the called-cell gate is marked `CANDIDATE ONLY`
-(with "no infected called cell" when `infected_called` is 0), and a closing "Detection gate:"
+(with "no infected called cell" when `infected_called_cells` is 0), and a closing "Detection gate:"
 paragraph states the rule in force (`--detection-min-cells`, `--infected-min-molecules`,
 `--detection-threshold`) and lists the candidate-only viruses. "Official name of viral load
 detected" lists only viruses with `detected` true. A parser of the old "cells infected (x%)"
@@ -456,7 +476,7 @@ a zero otherwise cannot: *is there nothing there, or did we not look hard enough
 |--------|-------------|------|
 | `virus_name` | Virus the row describes | observation |
 | `observed_molecules` | Molecules attributed to the virus. For an undetected virus: the count in the detection matrix below the gate (`0` when there is none), so a nonzero value here with `detected = false` is a count below the gate, not an inferred absence | observation |
-| `detection_threshold` | The sample-level gate that decided the call, applied to the virus's molecules summed over all its genes and, for the final call, over the **called cells** only (`--detection-min-cells` also applies; empty-droplet molecules are `background_umis` in `viral_summary.tsv`). Before 2026-10-04 it was applied per gene, which could miss a virus spread thinly across genes | observation |
+| `detection_threshold` | The sample-level gate that decided the call, applied to the virus's molecules summed over all its genes and, for the final call, over the **called cells** only (`--detection-min-cells` also applies; empty-droplet molecules are `background_molecules` in `viral_summary.tsv`). Before 2026-10-04 it was applied per gene, which could miss a virus spread thinly across genes | observation |
 | `detected` | The actual detection decision: the virus cleared the gate. Not inferred from the count, so a nonzero `observed_molecules` with `detected = false` is a count below the gate (a negative, not an absence) | observation |
 | `capture` | Measured recovery of the positive control, only on rows that control certifies; **empty** otherwise (the depth-only floor is not printed as a measurement) | observation |
 | `capture_measured` | `true` only if the capture term came from a valid positive control whose scope covers this virus: never a default, another virus's control, a failed control or an over-recovered one | diagnostic flag |
@@ -720,7 +740,7 @@ latent**.
 Tab-separated, one row per infected cell × virus combination, for every candidate
 virus of `viral_summary.tsv` (`detected` true or false). A cell is listed for a virus only
 when its summed allocated molecules reach `--infected-min-molecules` (the rule behind
-`infected_cells`); sub-threshold cells are counted in `viral_summary.tsv`
+`infected_barcodes`); sub-threshold cells are counted in `viral_summary.tsv`
 (`infected_subthreshold_cells`) and are not listed here. Rows with `is_called_cell` false
 are barcodes outside the called-cell set.
 

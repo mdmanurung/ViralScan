@@ -186,9 +186,9 @@ def test_reference_role_survives_identity_tsv_summary_and_html(tmp_path, role) -
     stats = {
         "V": {
             "viral_molecules_total_est": 5,
-            "infected_cells": 1,
-            "total_cells": 10,
-            "pct_infected": 10.0,
+            "infected_barcodes": 1,
+            "n_barcodes": 10,
+            "pct_infected_barcodes": 10.0,
             "viral_molecules_per_10k_est": 1.0,
         }
     }
@@ -197,7 +197,7 @@ def test_reference_role_survives_identity_tsv_summary_and_html(tmp_path, role) -
         row = next(csv.DictReader(fh, delimiter="\t"))
     assert row["role"] == role
     assert float(row["viral_molecules_total_est"]) == 5
-    assert row["infected_cells"] == "1"
+    assert row["infected_barcodes"] == "1"
     generate_html_report(stats, pd.DataFrame(), None, None, {}, [], str(tmp_path), facts=facts)
     html = (tmp_path / "report.html").read_text()
     assert "<th>Reference role</th>" in html
@@ -346,9 +346,9 @@ def test_write_tsv_outputs_eve_risk_comes_from_facts(tmp_path: Path) -> None:
     stats = {
         "Risky": {
             "viral_molecules_total_est": 5,
-            "infected_cells": 1,
-            "total_cells": 10,
-            "pct_infected": 10.0,
+            "infected_barcodes": 1,
+            "n_barcodes": 10,
+            "pct_infected_barcodes": 10.0,
             "viral_molecules_per_10k_est": 1.0,
         }
     }
@@ -433,9 +433,9 @@ def test_write_tsv_outputs_reports_host_homology_or_not_measured(tmp_path: Path)
 
     stat = {
         "viral_molecules_total_est": 5,
-        "infected_cells": 1,
-        "total_cells": 10,
-        "pct_infected": 10.0,
+        "infected_barcodes": 1,
+        "n_barcodes": 10,
+        "pct_infected_barcodes": 10.0,
         "viral_molecules_per_10k_est": 1.0,
     }
     homology = {

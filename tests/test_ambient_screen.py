@@ -71,7 +71,7 @@ def test_zero_ambient_viral_molecules_give_a_bound_that_cannot_reject_soup():
     assert s["ambient_assessment"] == "soup_sufficient"
     assert s["viral_depth_spearman"] is None  # needs >= 3 infected called cells
     # Descriptive only: the gate is untouched by the screen.
-    assert s["detected"] is True and s["infected_called"] == 1
+    assert s["detected"] is True and s["infected_called_cells"] == 1
 
 
 def test_many_deep_infected_cells_over_a_deep_ambient_set_reject_soup():
@@ -194,7 +194,7 @@ def test_detected_does_not_depend_on_the_screen():
     off = _stats(a, called, cell_calling_method="none")
     assert on["ambient_assessment"] == "soup_sufficient"
     assert off["ambient_assessment"] == "not_assessed"
-    for key in ("detected", "infected_called", "background_umis", "pct_infected_called"):
+    for key in ("detected", "infected_called_cells", "background_molecules", "pct_infected_called"):
         assert on[key] == off[key]
 
 
@@ -212,7 +212,7 @@ def test_columns_reach_viral_summary_tsv_and_blank_where_undefined(tmp_path):
 
 
 def test_alignment_only_rows_are_not_assessed():
-    row = {c: "" for c in ("virus_name", "n_called_cells", "n_comparable_cells", "total_cells")}
+    row = {c: "" for c in ("virus_name", "n_called_cells", "n_comparable_cells", "n_barcodes")}
     template = D._alignment_only_template([row])
     assert template["ambient_assessment"] == "not_assessed"
     assert template["soup_tail_p_cells"] is None
