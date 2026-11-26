@@ -15,6 +15,19 @@ RUN apt-get update \
     && apt-get install -y --only-upgrade libbrotli1 \
     && rm -rf /var/lib/apt/lists/*
 
+# tchem v0.1.0 (Tussl-Co/TusslChemistry, Apache-2.0), the chemistry second opinion `run` needs to confirm a 3'
+# library (PLAN TCHEM-SOURCE-01). No conda package exists. The digest is the release's published .sha256 for
+# this asset, copied here on 2026-11-26; the build never trusts a digest it downloaded. The archive's LICENSE and
+# NOTICE stay in /opt/tchem. Barcode lists are not bundled: mount them and set VIRALSCAN_TCHEM_WHITELISTS
+# (docs/installation.md).
+RUN python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/Tussl-Co/TusslChemistry/releases/download/v0.1.0/tchem-v0.1.0-x86_64-unknown-linux-musl.tar.gz', '/tmp/tchem.tar.gz')" \
+    && echo "9112e5018c26868317fa6547490094b59915927ef1482bb361f0b60ce5fe488e  /tmp/tchem.tar.gz" | sha256sum -c - \
+    && mkdir -p /opt/tchem \
+    && tar -xzf /tmp/tchem.tar.gz -C /opt/tchem --strip-components=1 \
+    && ln -s /opt/tchem/bin/tchem /usr/local/bin/tchem \
+    && rm /tmp/tchem.tar.gz \
+    && tchem --version
+
 COPY environment.explicit.txt /tmp/environment.explicit.txt
 RUN conda install --yes --name base 'python>=3.14.10,<3.15' 'py-rattler>=0.28.1' \
     && mamba create --yes --name viralscan --file /tmp/environment.explicit.txt \

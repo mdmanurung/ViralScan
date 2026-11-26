@@ -24,6 +24,10 @@ dependencies:
   - minimap2=2.31
   - blast=2.17.0  # provides dustmasker/blastn/makeblastdb
   - cd-hit=4.8.1
+  # tchem v0.1.0 (Apache-2.0) is not on conda-forge, bioconda or PyPI, so it cannot be listed here.
+  # Install it after `conda activate viralscan` (PLAN TCHEM-SOURCE-01; sha256-checked release asset):
+  #   python scripts/install_tchem.py --prefix "$CONDA_PREFIX"
+  # See docs/installation.md. Without it `run` needs an explicit --strand.
   - r-base=4.5.3
   - bioconductor-dropletutils=1.30.0
 

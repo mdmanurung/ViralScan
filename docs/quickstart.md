@@ -12,7 +12,7 @@ Check the toolchain before starting a long job:
 
 ```bash
 viralscan --help
-viralscan check env --profile full
+viralscan check env --profile full      # also prints the tchem version; 0.1.0 expected
 kb info
 snakemake --version
 ```
@@ -81,16 +81,20 @@ viralscan run \
   -i ref_human_virus/index.idx \
   -o output/ \
   --r1 sample_R1.fastq.gz \
-  --r2 sample_R2.fastq.gz
+  --r2 sample_R2.fastq.gz \
+  --kb-params auto
 ```
+
+`--kb-params auto` fills `-x` and `--strand` from the built-in detector, tchem and the strand pilot, and
+stops when they disagree. tchem is a separate download
+([Installation](installation.md#tchem-chemistry-second-opinion)); without it, pass `-x` and `--strand` yourself.
 
 The sample directory is inferred from the R1 filename before the first
 underscore, so this run writes to `output/sample/`.
 
-`run` stops with exit code 2 unless the library chemistry is confirmed as 3' (10x 3', Drop-seq). For
-10x 5' or an unconfirmed library, add `--strand forward|reverse|unstranded|auto`, or add
-`--kb-params auto` to let the built-in detector, tchem and the strand pilot choose and stop when they
-disagree. `viralscan check chemistry` shows what each signal sees.
+Without `--kb-params auto`, `run` stops with exit code 2 unless tchem confirms the library as 3' (10x 3',
+Drop-seq). For 10x 5' or an unconfirmed library, pass `--strand forward|reverse|unstranded|auto`.
+`viralscan check chemistry` shows what each signal sees.
 
 Defaults worth knowing:
 

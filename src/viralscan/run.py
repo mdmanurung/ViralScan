@@ -44,11 +44,15 @@ class Run:
         )
         return manifest
 
-    def summary(self) -> pandas.DataFrame:
-        """``results/viral_summary.tsv``: one row per candidate virus, as a DataFrame."""
+    def summary(self, core: bool = False) -> pandas.DataFrame:
+        """``results/viral_summary.tsv``: one row per candidate virus, as a DataFrame.
+
+        ``core=True`` reads the 12-column ``results/viral_summary_core.tsv`` instead.
+        """
         from viralscan.outputs import V3Outputs  # lazy: keeps `import viralscan` light
 
-        return self._read_tsv(V3Outputs(self.sample_dir).viral_summary)
+        outputs = V3Outputs(self.sample_dir)
+        return self._read_tsv(outputs.viral_summary_core if core else outputs.viral_summary)
 
     def cells(self, called_only: bool = False) -> pandas.DataFrame:
         """``results/per_cell_viral.tsv``: one row per infected cell and virus.

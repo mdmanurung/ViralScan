@@ -1914,7 +1914,7 @@ def _build_run_parser(subparsers: Any, *, essential_help: bool = False) -> None:
             "Minimum selected-method viral molecule estimate, summed over the called cells, "
             "required for a virus to pass the called-cell detection gate (see "
             "--detection-min-cells). Molecules in non-called barcodes (empty droplets) do not "
-            "count and are reported as background_umis. "
+            "count and are reported as background_molecules. "
             f"Default: {DEFAULTS['detection_threshold']}."
         ),
     )

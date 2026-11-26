@@ -27,7 +27,7 @@ See the [output reference](output_reference.md) for the v3 schema and the
 - **Pass `--strand` for 5' and unconfirmed chemistries.** `run` without `--strand` exits 2 unless
   tchem confirms a 3' chemistry. Use `--strand forward|reverse|unstranded|auto`, or `--kb-params auto`
   to let the built-in detector, tchem and the strand pilot choose and stop on disagreement.
-- **The infected-cell rule is stricter.** `--infected-min-molecules` defaults to 2.0, so `pct_infected`
+- **The infected-cell rule is stricter.** `--infected-min-molecules` defaults to 2.0, so `pct_infected_barcodes`
   and the infected-cell counts fall for cells with a single molecule. To reproduce an earlier run, pass
   `--infected-min-molecules 1`. The new default has not been validated against the truth panel.
 - **`--host-filter starsolo` uses the barcode on-list** for named 10x chemistries. Rerun a host-filtered
@@ -94,6 +94,23 @@ See the [output reference](output_reference.md) for the v3 schema and the
   `run`, `evidence`, `evidence-plot`, `translated`, `status` and `data fetch` stay as they are.
   The post-hoc record (`posthoc/records/`) keeps the old verb name in its `verb` field, whichever
   spelling you typed, so existing records and `viralscan status` read the same.
+- **Six `viral_summary.tsv` columns have new names (PLAN `COLNAMES-01`), and `combined_summary.tsv`
+  follows.** Values, order and every other column are unchanged. A TSV cannot carry an alias, so
+  scripts that read the old names must change. The same keys changed in `compute_stats` output.
+
+  | Old | New |
+  |-----|-----|
+  | `background_umis` | `background_molecules` |
+  | `infected_called` | `infected_called_cells` |
+  | `infected_cells` | `infected_barcodes` |
+  | `total_cells` | `n_barcodes` |
+  | `pct_infected` | `pct_infected_barcodes` |
+  | `molecules_unique_to_virus` | `molecules_unique` |
+
+  For an old script: `df = df.rename(columns={"background_umis": "background_molecules", "infected_called": "infected_called_cells", "infected_cells": "infected_barcodes", "total_cells": "n_barcodes", "pct_infected": "pct_infected_barcodes", "molecules_unique_to_virus": "molecules_unique"})`.
+  New: `results/viral_summary_core.tsv` holds 12 core columns of the same table;
+  `Run.summary(core=True)` reads it. The word rules are in the
+  [column vocabulary](output_reference.md#column-vocabulary).
 - **Output files.** `adata_multimap.h5ad` always carries `uns["multimap_diagnostics"]`; the layout
   (version 3) and the schema (3.0.0) are unchanged.
 

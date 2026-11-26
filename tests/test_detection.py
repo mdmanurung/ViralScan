@@ -634,7 +634,7 @@ def test_default_infected_rule_needs_two_molecules():
     )
     stats, _ = compute_stats(a, {}, {"V": ["v1"]}, [])
     assert DEFAULTS["infected_min_molecules"] == 2.0
-    assert stats["V"]["infected_cells"] == 1  # C2 only
+    assert stats["V"]["infected_barcodes"] == 1  # C2 only
     assert stats["V"]["infected_subthreshold_cells"] == 1  # C1 (1 molecule)
     stats1, _ = compute_stats(a, {}, {"V": ["v1"]}, [], infected_min_molecules=1.0)
-    assert stats1["V"]["infected_cells"] == 2
+    assert stats1["V"]["infected_barcodes"] == 2

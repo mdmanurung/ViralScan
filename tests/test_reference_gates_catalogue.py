@@ -115,7 +115,7 @@ def test_cli_writes_report_and_exit_code(tmp_path: Path) -> None:
 
 def _summary(path: Path, rows: list[tuple[str, str, str]]) -> Path:
     path.write_text(
-        "virus_name\tdetected\tinfected_called\n" + "".join("\t".join(r) + "\n" for r in rows)
+        "virus_name\tdetected\tinfected_called_cells\n" + "".join("\t".join(r) + "\n" for r in rows)
     )
     return path
 
@@ -128,6 +128,9 @@ def test_host_only_negative_reports_no_call(tmp_path: Path) -> None:
     assert gates.host_only_calls(dirty) == ["HHV-6B"]
     assert gates.main(["host-only", str(dirty)]) == 1
     assert gates.host_only_calls(_summary(tmp_path / "c.tsv", [("X", "False", "2")])) == ["X"]
+    old = tmp_path / "pre_colnames.tsv"
+    old.write_text("virus_name\tdetected\tinfected_called\nY\tFalse\t2\n")
+    assert gates.host_only_calls(old) == ["Y"]  # pre-COLNAMES-01 header still read
 
 
 # --- CAT-15 ---

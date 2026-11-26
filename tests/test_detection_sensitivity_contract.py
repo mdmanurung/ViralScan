@@ -63,9 +63,9 @@ def _adata(n_cells: int, spike: float = 50.0) -> sc.AnnData:
 CALLED_STATS = {
     CALLED: {
         "viral_molecules_total_est": 20.0,
-        "infected_cells": 1,
-        "total_cells": 10,
-        "pct_infected": 10.0,
+        "infected_barcodes": 1,
+        "n_barcodes": 10,
+        "pct_infected_barcodes": 10.0,
         "viral_molecules_per_10k_est": 1.0,
     }
 }

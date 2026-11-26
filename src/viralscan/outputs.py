@@ -97,6 +97,11 @@ RESULT_FILES = (
     ("summary.txt", "Plain-text summary (legacy, human-readable)", None),
     ("results/viral_summary.tsv", "Per-virus statistics table (TSV)", None),
     (
+        "results/viral_summary_core.tsv",
+        "Per-virus statistics, 12 core columns of viral_summary.tsv (TSV)",
+        None,
+    ),
+    (
         "results/sensitivity.tsv",
         "Per-virus detection limit (LOD95) and negative-certifiability (TSV)",
         None,
@@ -262,6 +267,10 @@ class V3Outputs:
     @property
     def viral_summary(self) -> Path:
         return self.results_dir / "viral_summary.tsv"
+
+    @property
+    def viral_summary_core(self) -> Path:
+        return self.results_dir / "viral_summary_core.tsv"
 
     @property
     def count_audit(self) -> Path:

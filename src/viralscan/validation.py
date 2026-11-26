@@ -17,6 +17,7 @@ from typing import Any
 import numpy as np
 from scipy import sparse
 
+from viralscan import tchem
 from viralscan.contract import COUNT_SCHEMA_VERSION, SCHEMA_VERSION, SUPPORTED_LAYOUT_VERSIONS
 from viralscan.errors import ViralScanError
 from viralscan.outputs import is_posthoc
@@ -297,6 +298,8 @@ def doctor_report(profile: str = "full") -> dict[str, Any]:
         "tools": tools,
         "schemas": schemas,
         "schema_errors": schema_errors,
+        # Informational (never changes ``ok``): tchem is optional but pinned (TCHEM-SOURCE-01).
+        "tchem": tchem.environment_status(),
     }
     if profile == "full":
         # Informational (never changes ``ok``): the translated-search index needs kallisto >= 0.51.1.

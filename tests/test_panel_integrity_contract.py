@@ -205,9 +205,9 @@ def test_reference_flags_are_shared_by_tsv_and_html_without_filtering(tmp_path):
     stats = {
         name: {
             "viral_molecules_total_est": 4,
-            "infected_cells": 1,
-            "total_cells": 2,
-            "pct_infected": 50,
+            "infected_barcodes": 1,
+            "n_barcodes": 2,
+            "pct_infected_barcodes": 50,
             "viral_molecules_per_10k_est": 3,
         }
         for name in facts

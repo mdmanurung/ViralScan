@@ -1,7 +1,7 @@
 """AUD3-03: report headline denominators (P3-03) and two-step all-barcode rates (P4-02).
 
 ``pct_infected_called`` is the primary rate everywhere it is shown. In two-step mode the
-kb matrix holds only barcodes with a non-host read, so ``pct_infected`` and
+kb matrix holds only barcodes with a non-host read, so ``pct_infected_barcodes`` and
 ``viral_molecules_per_10k_est`` have no meaningful denominator and are written as NA.
 """
 
@@ -78,7 +78,7 @@ def test_report_headlines_called_cell_rate(tmp_path):
     )
 
     row = next(csv.DictReader((run / "results" / "viral_summary.tsv").open(), delimiter="\t"))
-    assert float(row["pct_infected_called"]) == 10.0 and float(row["pct_infected"]) == 9.0
+    assert float(row["pct_infected_called"]) == 10.0 and float(row["pct_infected_barcodes"]) == 9.0
     txt = _text((run / "report.html").read_text())
     summary = txt[txt.index("Run Summary") : txt.index("Per-Virus Statistics")]
     # headline: called-cell rate first, all-barcode rate present but labelled secondary
@@ -96,11 +96,11 @@ def test_report_headlines_called_cell_rate(tmp_path):
 def _row(pct_called, pct_all=0.5, **extra):
     return {
         "viral_molecules_total_est": 3,
-        "infected_cells": 5,
-        "total_cells": 1000,
-        "pct_infected": pct_all,
+        "infected_barcodes": 5,
+        "n_barcodes": 1000,
+        "pct_infected_barcodes": pct_all,
         "viral_molecules_per_10k_est": 1.0,
-        "infected_called": 5,
+        "infected_called_cells": 5,
         "n_called_cells": 100,
         "pct_infected_called": pct_called,
         "detected": True,
@@ -178,7 +178,7 @@ def _combined_and_two_step():
 
 def test_two_step_all_barcode_rates_are_na():
     a, b = _combined_and_two_step()
-    assert b["pct_infected"] is None and b["viral_molecules_per_10k_est"] is None
+    assert b["pct_infected_barcodes"] is None and b["viral_molecules_per_10k_est"] is None
     assert "host-filtered" in b["denominator_note"]
     # the defended fields still agree across strategies
     assert a["pct_infected_called"] == b["pct_infected_called"] == 0.2
@@ -187,7 +187,7 @@ def test_two_step_all_barcode_rates_are_na():
 
 def test_combined_mode_numbers_unchanged():
     a, _ = _combined_and_two_step()
-    assert a["pct_infected"] == pytest.approx(2 / 5000 * 100)  # 0.04
+    assert a["pct_infected_barcodes"] == pytest.approx(2 / 5000 * 100)  # 0.04
     assert a["viral_molecules_per_10k_est"] == pytest.approx(8 / 5_124_008 * 10_000, abs=1e-3)
     assert a.get("denominator_note", "") == ""
     line = detection._virus_summary_line("VirusX", a)
@@ -198,7 +198,7 @@ def test_two_step_tsv_summary_and_report_render_na(tmp_path):
     _, b = _combined_and_two_step()
     write_tsv_outputs({"VirusX": b}, pd.DataFrame(), str(tmp_path))
     row = next(csv.DictReader((tmp_path / "results" / "viral_summary.tsv").open(), delimiter="\t"))
-    assert row["pct_infected"] == "" and row["viral_molecules_per_10k_est"] == ""
+    assert row["pct_infected_barcodes"] == "" and row["viral_molecules_per_10k_est"] == ""
     assert "host-filtered" in row["denominator_note"]
     assert float(row["pct_infected_called"]) == 0.2
     line = detection._virus_summary_line("VirusX", b)
@@ -238,7 +238,7 @@ def test_no_host_genes_makes_the_per_10k_burden_na_with_a_reason():
         assert s["viral_molecules_per_10k_est"] is None
         assert s["denominator_note"] == detection.NO_HOST_DENOMINATOR_NOTE
         assert "no host genes" in s["denominator_note"]
-        assert s["pct_infected"] is not None  # the barcode-based rate has a denominator
+        assert s["pct_infected_barcodes"] is not None  # the barcode-based rate has a denominator
         line = detection._virus_summary_line("VirusX", s)
         assert "NA" in line and "all barcodes" in line and "host-filtered" not in line
 

@@ -25,7 +25,8 @@ viralscan check env --profile full
 
 `environment.yml` pins Python, `kb-python`, `snakemake`, kallisto, bustools, STAR,
 samtools, minimap2, BLAST, CD-HIT and R/DropletUtils. The last two commands install
-the checkout and check that every full-workflow tool is on `PATH`.
+the checkout and check that every full-workflow tool is on `PATH`. tchem is not on conda, so install it
+with the [tchem section](#tchem-chemistry-second-opinion) below.
 
 Optional extras, each installed with `python -m pip install -e '.[<extra>]'` in that
 environment: `scautoqc` (SCTK and pybiomart for `--scautoqc`; the first opt-in run
@@ -33,6 +34,64 @@ queries Ensembl and caches the annotations in the sample's
 `results/scautoqc_gene_annotations.tsv`) and `enrichment` (`gget>=0.27` for
 `viralscan rerun hostresponse --enrichment`). Standard quantification and host-response
 analysis need neither.
+
+## tchem (chemistry second opinion)
+
+[tchem](https://github.com/Tussl-Co/TusslChemistry) (Apache-2.0, a Rust binary) reads the first reads
+of a sample and names its chemistry. `run` uses it to confirm a 3' library: without tchem, `run` stops
+(exit 2) unless you pass `--strand`, and `--kb-params auto` has one signal fewer. ViralScan was
+validated against **v0.1.0**, the only release, and the container images pin it. No conda or PyPI
+package exists, so install the release asset and check it against the digest printed here. These
+digests were copied from the release's published `.sha256` files on 2026-11-26; do not replace them
+with a digest downloaded next to the archive.
+
+| Asset (`tchem-v0.1.0-<target>.tar.gz`) | sha256 |
+|---|---|
+| `x86_64-unknown-linux-musl` | `9112e5018c26868317fa6547490094b59915927ef1482bb361f0b60ce5fe488e` |
+| `aarch64-unknown-linux-musl` | `df31fd49bfdc3c8ec64cdc54b4cf1c0e62e5078cb9a909234600891d7a19159f` |
+| `x86_64-apple-darwin` | `98478f308a8bdbbc3472fdd625ef3cbc833bf1623fde01dac1975ca3a3802a09` |
+| `aarch64-apple-darwin` | `05e3ed8c74a477b9ea9330cd1b69af1b914ece131b9cac49c01f8c7a432ca639` |
+
+Linux x86_64, into the active conda environment (use `$HOME/.local` or `/usr/local` for a pip install):
+
+```bash
+T=x86_64-unknown-linux-musl
+curl -fsSLO https://github.com/Tussl-Co/TusslChemistry/releases/download/v0.1.0/tchem-v0.1.0-$T.tar.gz
+echo "9112e5018c26868317fa6547490094b59915927ef1482bb361f0b60ce5fe488e  tchem-v0.1.0-$T.tar.gz" | sha256sum -c -
+mkdir -p "$CONDA_PREFIX/opt/tchem" && tar -xzf tchem-v0.1.0-$T.tar.gz -C "$CONDA_PREFIX/opt/tchem" --strip-components=1
+ln -sf "$CONDA_PREFIX/opt/tchem/bin/tchem" "$CONDA_PREFIX/bin/tchem"
+```
+
+macOS (Apple silicon shown; for Intel use `x86_64-apple-darwin` and its digest). macOS has `shasum`, not `sha256sum`:
+
+```bash
+T=aarch64-apple-darwin
+curl -fsSLO https://github.com/Tussl-Co/TusslChemistry/releases/download/v0.1.0/tchem-v0.1.0-$T.tar.gz
+echo "05e3ed8c74a477b9ea9330cd1b69af1b914ece131b9cac49c01f8c7a432ca639  tchem-v0.1.0-$T.tar.gz" | shasum -a 256 -c -
+mkdir -p "$HOME/.local/opt/tchem" && tar -xzf tchem-v0.1.0-$T.tar.gz -C "$HOME/.local/opt/tchem" --strip-components=1
+mkdir -p "$HOME/.local/bin" && ln -sf "$HOME/.local/opt/tchem/bin/tchem" "$HOME/.local/bin/tchem"
+```
+
+From a checkout, `python scripts/install_tchem.py --prefix "$CONDA_PREFIX"` does the same for any of the four
+assets and checks the same digests; `pixi run install-tchem` runs it in the pixi environment.
+`viralscan check env` prints the tchem path and version it finds and warns when the version is not 0.1.0
+or tchem is missing. The warning never changes the exit code.
+
+**Barcode lists.** tchem needs the vendors' barcode lists, which are not bundled here (they belong to
+their vendors and 10x's are about 315 MB). The archive holds the fetch script, so download them once:
+
+```bash
+"$CONDA_PREFIX/opt/tchem/scripts/fetch_whitelists.sh" "$HOME/tchem_whitelists"
+# 10x Flex lists ship only inside Cell Ranger: add --cellranger <install dir> to copy them
+```
+
+Then point ViralScan at the directory with `--tchem-whitelists DIR` on `run` and `check chemistry`, or set
+`VIRALSCAN_TCHEM_WHITELISTS=DIR` (tchem's own `TUSSL_CHEMISTRY_WHITELISTS` also works). The binary is found
+through `--tchem-bin`, then `VIRALSCAN_TCHEM`, then `PATH`. In a container, mount the directory and set the
+variable: `docker run -v "$HOME/tchem_whitelists":/whitelists -e VIRALSCAN_TCHEM_WHITELISTS=/whitelists ...`.
+The Docker image and `Singularity.pixi.def` download the same asset with this digest at build time and keep
+tchem's `LICENSE` and `NOTICE` in `/opt/tchem`; `Singularity.def` inherits it from the OCI image and its `%test`
+fails on any other version. Docker images are linux/amd64 only.
 
 ## Pixi
 

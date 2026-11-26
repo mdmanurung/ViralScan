@@ -73,7 +73,14 @@ external tools (the **full tier**):
 conda env create -f environment.yml
 conda activate viralscan
 python -m pip install .          # use "-e ." for a development checkout
+python scripts/install_tchem.py --prefix "$CONDA_PREFIX"   # tchem v0.1.0, see below
+viralscan check env --profile full
 ```
+
+tchem is the chemistry second opinion that lets `run` confirm a 3' library. It has no conda or PyPI
+package, so it is a sha256-checked download; the commands, the barcode lists it needs and the
+container images are in [docs/installation.md](docs/installation.md#tchem-chemistry-second-opinion).
+`viralscan check env` prints the tchem version it finds and warns when it is not 0.1.0.
 
 The minimal original-style environment is
 `conda create -n bioenv -c conda-forge -c bioconda snakemake kb-python`, but only
@@ -105,7 +112,7 @@ docker run --rm -v "$PWD":/data ghcr.io/mdmanurung/viralscan:latest \
     --help
 ```
 
-Release container builds require the tested wheel and committed runtime lock.
+The Docker image and `Singularity.pixi.def` include tchem v0.1.0. Release container builds require the tested wheel and committed runtime lock.
 For HPC, generate the Apptainer definition from the tested OCI digest; see
 [installation](docs/installation.md).
 
@@ -144,11 +151,14 @@ single-dash spellings (`-s1 -s2 -gtf -fasta -ref ...`) were removed in 3.0 (see
 ### Option 1 - You already have a reference index
 
 ```bash
-viralscan run -t transcripts.txt -i index.idx -o output/ --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz
+viralscan run -t transcripts.txt -i index.idx -o output/ --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --kb-params auto
 ```
 
-`run` stops (exit 2) unless the chemistry is confirmed as 3'. For 10x 5' or an unconfirmed library,
-add `--strand forward|reverse|unstranded|auto` or `--kb-params auto`.
+`--kb-params auto` fills `-x` and `--strand` from the built-in detector, tchem and the strand pilot, and
+stops (exit 2) when they disagree. Without it, `run` stops unless tchem confirms a 3' chemistry; pass
+`--strand forward|reverse|unstranded|auto` (and `-x`) to choose yourself. For 10x 5' or an unconfirmed
+library, read `viralscan check chemistry` first. tchem is a separate download, see
+[Installation](docs/installation.md#tchem-chemistry-second-opinion).
 
 ### Option 2 - ViralScan creates the index from FASTA + GTF
 
@@ -156,7 +166,7 @@ Provide the GTF and FASTA file(s). The index is placed in the output directory, 
 a subfolder called `index`:
 
 ```bash
-viralscan run -o output/ --reference --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --fasta fasta.fasta --gtf gtf.gtf
+viralscan run -o output/ --reference --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --fasta fasta.fasta --gtf gtf.gtf --kb-params auto
 ```
 
 `--reference`, `--visual` and `--multimapping` take no value; turn the last two off with
@@ -168,10 +178,10 @@ Split the names with a comma (without a space in between):
 
 ```bash
 # multiple samples
-viralscan run -t transcripts.txt -i index.idx -o output/ --r1 sample1_1.fastq.gz,sample2_1.fastq.gz --r2 sample1_2.fastq.gz,sample2_2.fastq.gz
+viralscan run -t transcripts.txt -i index.idx -o output/ --r1 sample1_1.fastq.gz,sample2_1.fastq.gz --r2 sample1_2.fastq.gz,sample2_2.fastq.gz --kb-params auto
 
 # multiple FASTA and GTF files
-viralscan run -o output/ --reference --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --fasta fasta1.fasta,fasta2.fasta --gtf gtf1.gtf,gtf2.gtf
+viralscan run -o output/ --reference --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --fasta fasta1.fasta,fasta2.fasta --gtf gtf1.gtf,gtf2.gtf --kb-params auto
 ```
 
 ### Option 3 - NCBI accession auto-fetch
@@ -184,7 +194,7 @@ are all in the local cache (`~/.cache/viralscan/ncbi/`) needs no email:
 
 ```bash
 export NCBI_EMAIL=you@example.org
-viralscan run --ncbi-accession NC_002021.3,NC_001512.1 -o output/ --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz
+viralscan run --ncbi-accession NC_002021.3,NC_001512.1 -o output/ --r1 sample_1.fastq.gz --r2 sample_2.fastq.gz --kb-params auto
 ```
 
 ### Viral annotation panel cache
@@ -250,7 +260,8 @@ viralscan run \
   --transcripts viralscan_ref/t2g.txt \
   --output output/ \
   --r1 sample_R1.fastq.gz \
-  --r2 sample_R2.fastq.gz
+  --r2 sample_R2.fastq.gz \
+  --kb-params auto
 ```
 
 Optional host pre-subtraction is available with `--host-filter starsolo`, but
@@ -265,7 +276,8 @@ regression models predicting candidate-positive vs. candidate-negative molecule-
 support labels from host gene expression, then runs a randomized-Lasso selection-frequency ranking (uncalibrated: it does
 not control an error rate, and with hundreds of positives noise genes pass the threshold)
 to rank associated genes. Metrics use `--cv auto` by default: group-disjoint CV on `--groups <column>`, or on the one donor/sample-like obs column if exactly one exists; otherwise cell-level CV with a donor-leakage warning (`--cv cell` forces the legacy cell-level scheme, where a donor can span train and test). Provide a matched host-gene h5ad (same barcodes as
-the viralscan run):
+the viralscan run). `--run-dir` is the run root (the `-o` directory of `viralscan run`); add
+`--sample NAME` when the run has several samples:
 
 ```bash
 viralscan rerun hostresponse \

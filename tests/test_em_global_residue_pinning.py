@@ -82,7 +82,7 @@ def test_em_global_residue_does_not_reach_detected_true():
     )
     stats, _ = compute_stats(adata, found, {"V": ["viral"]}, list(found))
     assert stats["V"]["detected"] is False  # CANDIDATE ONLY, not a detection
-    assert stats["V"]["infected_called"] == 0
+    assert stats["V"]["infected_called_cells"] == 0
 
 
 # --- P3-05: tier cut-offs carry a 1e-6 relative slack ------------------------------------------
