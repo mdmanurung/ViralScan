@@ -62,7 +62,7 @@ from viralscan.molecule_verdict import (
     write_umi_query_fasta,
 )
 from viralscan.contract import SCHEMA_VERSION
-from viralscan.outputs import analysis_genes_path, posthoc_dir
+from viralscan.outputs import V3Outputs, analysis_genes_path, posthoc_dir
 from viralscan.read_support import write_molecule_support
 from viralscan.run_safety import RunSafetyError, refuse_primary_tree, sha256_file, software_identity
 from viralscan.runconfig import RunConfig
@@ -472,7 +472,7 @@ def run_evidence(args: argparse.Namespace) -> None:
             )
         with open(analysis) as fh:
             viral_ids = {line.strip() for line in fh}
-    summary_path = run_dir / "results" / "viral_summary.tsv"
+    summary_path = V3Outputs(run_dir).viral_summary
     summary_rows: list[dict[str, str]] = []
     if summary_path.exists():
         with summary_path.open(newline="") as handle:

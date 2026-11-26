@@ -25,13 +25,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from viralscan import validation
 from viralscan.errors import ViralScanError
 from viralscan.run_safety import RunSafetyError, require_fresh_output, sha256_file
 from viralscan.utils import open_maybe_gzip, strip_gem_group
+from viralscan.validation import MIN_KALLISTO
+from viralscan.validation import kallisto_translated_ok as kallisto_translated_ok
 
 log = logging.getLogger(__name__)
 
-MIN_KALLISTO = (0, 51, 1)
 PALMDB_RAW = "https://raw.githubusercontent.com/pachterlab/LSCHWCP_2023/main/PalmDB/"
 #: sha256 of the files the tutorial downloads (fetched 2026-10-14).
 PALMDB_SHA256 = {
@@ -201,9 +203,7 @@ def summarize(
 
 def bus_text_rows(bus: Path) -> Iterable[list[str]]:
     """Stream ``bustools text`` rows with the bustools that ``kb`` runs (REL-16)."""
-    from viralscan.validation import tool_path
-
-    bustools = tool_path("bustools")
+    bustools = validation.tool_path("bustools")
     if bustools is None:
         raise TranslatedError("bustools (via kb) is not available.")
     with subprocess.Popen(
@@ -428,22 +428,6 @@ def combine_palmdb(annotated_dir: Path, palmdb_dir: Path, output: Path) -> dict[
 # ── index and count (kb --aa) ────────────────────────────────────────────────
 
 
-def _version_tuple(text: str) -> tuple[int, ...]:
-    found = re.search(r"(\d+)\.(\d+)\.(\d+)", text)
-    return tuple(int(x) for x in found.groups()) if found else ()
-
-
-def kallisto_translated_ok() -> tuple[bool, str]:
-    """``(ok, version)``: the kallisto that ``kb`` runs translates the D-list (>= 0.51.1)."""
-    from viralscan.validation import kb_tools
-
-    tools = kb_tools()
-    if "kallisto" not in tools:
-        return False, ""
-    version = tools["kallisto"][0]
-    return _version_tuple(version) >= MIN_KALLISTO, version
-
-
 def _kb() -> str:
     kb = shutil.which("kb")
     if kb is None:
@@ -455,15 +439,13 @@ def build_translated_index(
     proteins_faa: Path, host_mask_fa: Path, index: Path, threads: int = 4
 ) -> list[str]:
     """``kb ref --aa`` with a plain nucleotide D-list; returns the command run. Fails closed on old kallisto."""
-    from viralscan.validation import kb_tools
-
     ok, version = kallisto_translated_ok()
     if not ok:
         raise TranslatedError(
             f"kallisto {version or 'missing'} does not translate the D-list; "
             f">= {'.'.join(map(str, MIN_KALLISTO))} is required (Q155)."
         )
-    kallisto = kb_tools()["kallisto"][1]
+    kallisto = validation.kb_tools()["kallisto"][1]
     cmd = [
         _kb(), "ref", "--kallisto", kallisto, "--aa", "-k", "31", "--workflow", "custom",
         "--d-list", str(host_mask_fa), "-t", str(threads), "-i", str(index), str(proteins_faa),

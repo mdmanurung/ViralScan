@@ -19,10 +19,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from viralscan import __version__
+from viralscan import __version__, virus_catalog, virus_identity
 from viralscan.contract import LAYOUT_VERSION, SCHEMA_VERSION
 from viralscan.defaults import DEFAULTS
 from viralscan.errors import ViralScanError
+from viralscan.manifest_io import (
+    RUN_MANIFEST as RUN_MANIFEST,
+)
+from viralscan.manifest_io import (
+    record_manifest_block as record_manifest_block,
+)
+from viralscan.manifest_io import (
+    sha256_file as sha256_file,
+)
+from viralscan.manifest_io import (
+    sha256_path as sha256_path,
+)
+from viralscan.manifest_io import write_manifest_atomic as _write_manifest_atomic
+from viralscan.outputs import POSTHOC_DIRNAME, V3Outputs
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +77,6 @@ def run_in_group(
     return subprocess.CompletedProcess(command, proc.returncode, stdout, stderr)
 
 
-RUN_MANIFEST = "run_manifest.json"
 RUN_COMPLETE = "run_complete.json"
 LOCK_NAME = ".viralscan.lock"
 COMBINED_SUMMARY = "combined_summary.tsv"
@@ -88,26 +101,6 @@ class RunSafetyError(ViralScanError, RuntimeError):
 
 #: "provisional" until G5 validates the detection defaults; "final" from rc (DEF-09).
 DEFAULTS_STATUS = "provisional"
-
-
-def sha256_file(path: str | Path, block_size: int = 1024 * 1024) -> str:
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for block in iter(lambda: handle.read(block_size), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def sha256_path(path: str | Path) -> str:
-    """sha256 of a file, or of a directory (sorted relative paths + file hashes)."""
-    path = Path(path)
-    if not path.is_dir():
-        return sha256_file(path)
-    digest = hashlib.sha256()
-    for child in sorted(p for p in path.rglob("*") if p.is_file()):
-        digest.update(child.relative_to(path).as_posix().encode() + b"\0")
-        digest.update(bytes.fromhex(sha256_file(child)))
-    return digest.hexdigest()
 
 
 def software_identity() -> dict[str, Any]:
@@ -286,9 +279,6 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     payload["input_paths"] = input_paths
     payload["defaults_status"] = DEFAULTS_STATUS
     payload["software_identity"] = software_identity()
-    from viralscan import virus_catalog
-    from viralscan.virus_identity import load_build_manifest, manifest_path_for_index
-
     catalogue = virus_catalog.catalogue_path()
     observed = sha256_file(catalogue) if catalogue.is_file() else None
     expected = None
@@ -296,7 +286,9 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     if index:
         # Analysis validates the build manifest; absence cannot establish a match.
         with suppress(OSError, ValueError):
-            expected = load_build_manifest(manifest_path_for_index(index)).catalogue_sha256
+            expected = virus_identity.load_build_manifest(
+                virus_identity.manifest_path_for_index(index)
+            ).catalogue_sha256
     payload["reference_catalogue"] = {
         "expected_sha256": expected,
         "observed_sha256": observed,
@@ -339,7 +331,7 @@ def write_combined_summary(run_root: Path) -> bool:
     seen = False
     for config in sorted(run_root.glob("*/config.yaml")):
         sample = config.parent.name
-        path = config.parent / "results" / "viral_summary.tsv"
+        path = V3Outputs(config.parent).viral_summary
         if not path.is_file():
             continue
         seen = True
@@ -375,7 +367,6 @@ def write_run_complete(run_root: Path) -> None:
 
 def refuse_primary_tree(output: Path) -> None:
     """Refuse an ``output`` inside a run's or sample's tree unless it sits under ``posthoc/``."""
-    from viralscan.outputs import POSTHOC_DIRNAME
 
     out = Path(output).resolve()
     for root in (out, *out.parents):
@@ -417,13 +408,6 @@ def restamp_run_complete(run_root: Path) -> bool:
     return True
 
 
-def _write_manifest_atomic(output_dir: Path, manifest: dict[str, Any]) -> None:
-    target = output_dir / RUN_MANIFEST
-    staging = output_dir / f".{RUN_MANIFEST}.tmp"
-    staging.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    staging.replace(target)
-
-
 def recorded_strand_inference(output_dir: Path, sample: str) -> Optional[dict[str, Any]]:
     """Return the recorded ``--strand auto`` block for a sample, if any."""
     path = Path(output_dir) / RUN_MANIFEST
@@ -433,14 +417,6 @@ def recorded_strand_inference(output_dir: Path, sample: str) -> Optional[dict[st
     if (manifest.get("options") or {}).get("strand") != "auto":
         return None
     return (manifest.get("strand_inference") or {}).get(sample)
-
-
-def record_manifest_block(output_dir: Path, key: str, sample: str, block: dict[str, Any]) -> None:
-    """Add a sample's ``key`` block to the manifest, outside the run fingerprint."""
-    output_dir = Path(output_dir)
-    manifest = json.loads((output_dir / RUN_MANIFEST).read_text(encoding="utf-8"))
-    manifest.setdefault(key, {})[sample] = block
-    _write_manifest_atomic(output_dir, manifest)
 
 
 def record_resume_attempt(output_dir: Path, blocks: dict[str, dict[str, Any]]) -> None:

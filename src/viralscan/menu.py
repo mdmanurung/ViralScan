@@ -258,7 +258,7 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
     _require_fresh(gp_script_out, args)
     gp_script.main(
         str(adata_path),
-        str(run_dir / "results" / "viral_summary.tsv"),
+        str(V3Outputs(run_dir).viral_summary),
         "",  # the run's own log/gene_programs.done and run_complete.json stay untouched
         results_root=str(gp_script_out),
     )

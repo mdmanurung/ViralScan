@@ -43,6 +43,7 @@ from viralscan.gene_programs import (
     write_program_outputs,
 )
 from viralscan.defaults import DEFAULTS
+from viralscan.outputs import V3Outputs
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.cellcalling import load_called_mask
@@ -470,7 +471,7 @@ def run(ctx: RunContext, done_file: str) -> None:
     outputs = KbCountOutputs.from_config_output(config.output)
     main(
         str(outputs.adata_multimap),
-        os.path.join(config.output, "results", "viral_summary.tsv"),
+        str(V3Outputs.from_config_output(config.output).viral_summary),
         done_file,
     )
 

@@ -16,6 +16,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Union
 
+from viralscan.outputs import V3Outputs
 from viralscan.reads import extract_virus_reads
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
@@ -82,7 +83,7 @@ def review_candidates(
     identity = load_run_identity(run_dir)
     if identity is None:
         raise ValueError("Candidate review requires results/virus_identity.tsv")
-    summary = run_dir / "results" / "viral_summary.tsv"
+    summary = V3Outputs(run_dir).viral_summary
     names = set(candidate_genera(summary, identity, True, True))
     with summary.open(newline="") as handle:
         candidates = [r for r in csv.DictReader(handle, delimiter="\t") if r["virus_name"] in names]
@@ -181,7 +182,7 @@ def run(ctx: RunContext, done_file: str) -> None:
             f"No results/virus_identity.tsv in {run_dir}; cannot tell which detected viruses "
             "are Anelloviridae."
         )
-    genera = anello_genera(run_dir / "results" / "viral_summary.tsv", identity)
+    genera = anello_genera(V3Outputs(run_dir).viral_summary, identity)
     log.info("auto_evidence: %d detected anellovirus genera: %s", len(genera), genera)
     # ponytail: one `evidence` run per genus, each copying the host genome into its own
     # competitive FASTA and re-reading the FASTQs; share one index across genera if slow.
