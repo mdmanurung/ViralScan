@@ -28,6 +28,7 @@ functions live under `viralscan.scripts` for historical reasons and are stable b
 
 ```python
 from viralscan import open_run
+from viralscan.compute import compute_stats, external_cells
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.scripts.ncbi_fetch import fetch_reference
 from viralscan.scripts.build_reference import build_combined_reference, fetch_host_cdna
@@ -162,6 +163,40 @@ adata = run.adata()               # kb-python/counts_unfiltered/adata_multimap.h
 | `adata()` | The selected-method `anndata.AnnData` (`adata_multimap.h5ad`); falls back to `adata.h5ad` when no multimapping step wrote one. |
 
 A table or matrix the run did not write raises `FileNotFoundError` with its path.
+
+---
+
+## Compute helpers
+
+`viralscan.compute` re-exports four helpers from the worker modules, so notebooks and
+tests can call them on in-memory matrices without importing `viralscan.scripts.*`. The
+names are the same objects, not copies. Importing the module loads scanpy and matplotlib.
+
+### `compute_stats`
+
+Normalized viral detection statistics per virus for an `AnnData`, over all barcodes and
+over a called-cell mask. Same function as `viralscan.scripts.detection.compute_stats`;
+its docstring lists the parameters.
+
+### `check_sibling_crossmapping`
+
+Returns `{virus_name: note}` for viruses that look like EM bleed from a sibling (for
+example HHV-6A/6B), from the output of `compute_stats`. Same function as
+`viralscan.scripts.detection.check_sibling_crossmapping`.
+
+### `external_cells`
+
+```python
+def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> numpy.ndarray: ...
+```
+
+Boolean mask of the `obs_names` present in an external called-cell list (plain or `.gz`,
+one barcode per line, with or without a `-1` suffix). Raises `CellCallingError` when
+barcodes collide after suffix stripping or none match.
+
+### `CellCallingError`
+
+`RuntimeError` subclass raised when cell calling cannot produce a trustworthy mask.
 
 ---
 
