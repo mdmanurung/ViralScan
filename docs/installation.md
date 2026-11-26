@@ -11,6 +11,8 @@ ViralScan installs in two tiers.
   `DropletUtils`. `pip install "ViralScan[full]"` adds the Python packages of this tier, not the native
   tools: on Python 3.10 it installs no Snakemake, and `kb`, kallisto, bustools and STAR always come
   from conda. `evidence-plot` coverage tracks also need `pyBigWig` (`conda install -c bioconda pybigwig`).
+- **Python versions:** 3.10, 3.11 and 3.12 are tested in CI. Python 3.13 is not tested and not
+  declared in the package classifiers, so it is unsupported for 3.0 (decision D-PY).
 
 ## Conda (recommended)
 
