@@ -309,7 +309,7 @@ def stub_run(tmp_path, monkeypatch, *, zero=True):
         strand=None,
         multimap_method="equal",
     )
-    monkeypatch.setattr(runner.RunConfig, "from_yaml", lambda p: cfg)
+    monkeypatch.setattr(runner.RunConfig, "load", lambda p: cfg)
     monkeypatch.setattr(runner, "load_transcripts", lambda *a: (["tx"], {"tx": "g"}))
     monkeypatch.setattr(runner, "have_tools", lambda _tools: [])
     monkeypatch.setattr(runner, "load_run_identity", lambda *a: kw["identity"])
