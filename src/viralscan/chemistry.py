@@ -26,12 +26,11 @@ of v2, close to the 9.3 % seen on v2 reads).
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from typing import IO, Any, Optional
 
-from viralscan.utils import open_maybe_gzip
+from viralscan.utils import open_maybe_gzip, strip_gem_group
 
 
 @dataclass(frozen=True)
@@ -208,8 +207,11 @@ def sample_r1(path: str, n: int = SAMPLE_READS) -> list[str]:
 
 
 def _barcode(line: str) -> str:
-    """An on-list line as a bare barcode: Cell Ranger's ``-1`` GEM-well suffix dropped (B-27)."""
-    return line.strip().split("-", 1)[0]
+    """An on-list line as a bare barcode: one trailing GEM-group ``-N`` dropped (B-27).
+
+    Same rule as the preflight ``load_whitelist`` (``utils.strip_gem_group``, PLAN WHITELIST-RULE-01).
+    """
+    return strip_gem_group(line.strip())
 
 
 def match_rates(samples: list[list[str]], lists: dict[str, str]) -> list[dict[str, float]]:
@@ -388,19 +390,19 @@ DEFAULT_SAMPLE = SAMPLE_READS
 DEFAULT_MIN_MATCH_RATE = 0.5
 #: Cell Ranger's terminal GEM-well suffix (``AAAC...-1``); R1 carries the bare barcode.
 #: Separate from :func:`_barcode`, which splits at the first ``-`` (PLAN WHITELIST-FOLD-01).
-_GEM_GROUP = re.compile(r"-[1-9][0-9]*$")
 
 
 def load_whitelist(path: str) -> set[str]:
     """Read a barcode whitelist (one barcode per line; optionally gzipped).
 
-    A Cell Ranger ``-<n>`` GEM-group suffix is dropped, as the main-run chemistry check does
-    (``chemistry._barcode``), so a suffixed list is not diagnosed as the wrong chemistry (P4-04).
+    One trailing GEM-group ``-N`` is dropped (``utils.strip_gem_group``), the same rule as the
+    main-run chemistry check (``chemistry._barcode``), so a suffixed list is not diagnosed as the
+    wrong chemistry (P4-04, PLAN WHITELIST-RULE-01).
     """
     wl: set[str] = set()
     with _open(path) as fh:
         for line in fh:
-            bc = _GEM_GROUP.sub("", line.strip())
+            bc = strip_gem_group(line.strip())
             if bc:
                 wl.add(bc)
     return wl

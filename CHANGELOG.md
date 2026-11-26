@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed since 3.0.0rc1
 
+- **One gem-group rule for barcode on-lists (PLAN `WHITELIST-RULE-01`).** The `check-whitelist` preflight and the chemistry check both drop one trailing all-digit `-N` (`utils.strip_gem_group`). Before, the chemistry check split at the first `-` and the preflight kept `-0`. Lines such as `GGGG-1-2` or `TTTT-0` can now change the preflight match rate and its pass or fail. Counts are unchanged.
 - **One SAM layer (PLAN `SAM-01`).** CIGAR parsing, `AS`/`NH` tag reads and the `samtools view` stream live in `viralscan/sam.py` instead of five copies each. No output change. `strand_qc` and `competitive_plot` raise `CalledProcessError` when samtools fails.
 - **The barcode-whitelist preflight moved into `chemistry` (PLAN `WHITELIST-FOLD-01`).** `viralscan check-whitelist` output is unchanged; `viralscan.whitelist_preflight` re-exports the same functions.
 - **One barcode rule: a trailing `-N` gem-group suffix is dropped everywhere (PLAN `BARCODE-01`).** Multimap and enrichment dropped only `-1`, so barcodes ending `-2` or higher did not join to cell calling. Output changes only for such multi-lane runs; `-1` and bare barcodes are unchanged.
