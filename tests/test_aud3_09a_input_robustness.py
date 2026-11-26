@@ -57,7 +57,8 @@ def test_suffixed_whitelist_matches_like_plain(tmp_path: Path) -> None:
 def test_load_whitelist_strips_only_terminal_gem_group(tmp_path: Path) -> None:
     p = tmp_path / "wl.txt"
     p.write_text("AAAA-1\nCCCC-12\nGGGG\nTTTT-0\n")
-    assert chemistry.load_whitelist(str(p)) == {"AAAA", "CCCC", "GGGG", "TTTT-0"}
+    # WHITELIST-RULE-01: `utils.strip_gem_group` drops any trailing all-digit `-N`, `-0` included.
+    assert chemistry.load_whitelist(str(p)) == {"AAAA", "CCCC", "GGGG", "TTTT"}
 
 
 # P4-06 ---------------------------------------------------------------------

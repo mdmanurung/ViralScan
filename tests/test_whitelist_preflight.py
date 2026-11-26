@@ -126,13 +126,24 @@ class TestFoldedIntoChemistry:
         assert chemistry.DEFAULT_SAMPLE == chemistry.SAMPLE_READS == 100_000
         assert chemistry.DEFAULT_MIN_MATCH_RATE == 0.5
 
-    def test_gem_group_rule_differs_from_onlist_barcode_rule(self, tmp_path):
-        # Pinned on purpose: `load_whitelist` drops a trailing -N only, `_barcode` splits at the
-        # first "-". They agree on "-1"; a merge needs a maintainer decision (WHITELIST-FOLD-01).
+
+class TestOneGemGroupRule:
+    """PLAN WHITELIST-RULE-01: the preflight and the chemistry check read a list line alike."""
+
+    @pytest.mark.parametrize(
+        "line, bare",
+        [
+            ("ACGT", "ACGT"),
+            ("ACGT-1", "ACGT"),
+            ("ACGT-10", "ACGT"),
+            ("GGGG-1-2", "GGGG-1"),
+            ("ACGT-T", "ACGT-T"),
+        ],
+    )
+    def test_preflight_and_chemistry_agree(self, tmp_path, line, bare):
         from viralscan import chemistry
 
-        p = tmp_path / "wl.txt"
-        p.write_text("AAAA-1\nCCCC-2\nGGGG-1-2\n")
-        assert chemistry.load_whitelist(str(p)) == {"AAAA", "CCCC", "GGGG-1"}
-        names = ("AAAA-1", "CCCC-2", "GGGG-1-2")
-        assert [chemistry._barcode(x) for x in names] == ["AAAA", "CCCC", "GGGG"]
+        path = tmp_path / "wl.txt"
+        path.write_text(line + "\n")
+        assert chemistry.load_whitelist(str(path)) == {bare}
+        assert chemistry._barcode(line + "\n") == bare
