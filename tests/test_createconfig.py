@@ -44,8 +44,6 @@ def _minimal_cfg_in(**overrides) -> dict[str, Any]:
         "gtf": None,
         "fasta": None,
         "visual": True,
-        "f1": None,
-        "reference": False,
         "umap": False,
         "technology": "10xv3",
         "whitelist": None,
@@ -76,7 +74,6 @@ class TestBooleanFields:
             ("visual", True),
             ("visual", 1),
             ("visual", "True"),  # string "True" is truthy — must become Python True
-            ("reference", True),
             ("umap", True),
             ("multimapping", True),
         ],
@@ -95,10 +92,8 @@ class TestBooleanFields:
             # --no-visual as the literal "False", and bool("False") is True.
             # This guards the regression that the asymmetric old test missed.
             ("visual", "False"),
-            ("reference", "False"),
             ("umap", "False"),
             ("multimapping", "False"),
-            ("reference", False),
             ("umap", False),
             ("multimapping", False),
         ],
@@ -117,12 +112,12 @@ class TestBooleanFields:
 class TestNoneNormalisation:
     """Empty strings and falsy values in optional fields must become None."""
 
-    @pytest.mark.parametrize("field", ["gtf", "fasta", "f1", "whitelist"])
+    @pytest.mark.parametrize("field", ["gtf", "fasta", "whitelist"])
     def test_none_stays_none(self, field) -> None:
         cfg = _build_cfg(_minimal_cfg_in(**{field: None}))
         assert cfg[field] is None
 
-    @pytest.mark.parametrize("field", ["gtf", "fasta", "f1", "whitelist"])
+    @pytest.mark.parametrize("field", ["gtf", "fasta", "whitelist"])
     def test_empty_string_becomes_none(self, field) -> None:
         cfg = _build_cfg(_minimal_cfg_in(**{field: ""}))
         assert cfg[field] is None
@@ -292,12 +287,9 @@ class TestYamlRoundTrip:
             "sample1",
             "sample2",
             "cores",
-            "overwrite",
             "gtf",
             "fasta",
             "visual",
-            "f1",
-            "reference",
             "umap",
             "technology",
             "whitelist",

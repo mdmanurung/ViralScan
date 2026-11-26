@@ -2071,6 +2071,44 @@ def _build_run_parser(subparsers: Any) -> None:
         ),
     )
     parser.add_argument(
+        "--emptydrops-fdr",
+        type=float,
+        default=DEFAULTS["emptydrops_fdr"],
+        help=(
+            "FDR cut-off for DropletUtils::emptyDrops: a barcode is a called cell when its "
+            "adjusted p-value is at or below it. Must be in (0, 1). Only used with "
+            f"emptyDrops cell calling. Default: {DEFAULTS['emptydrops_fdr']}."
+        ),
+    )
+    parser.add_argument(
+        "--emptydrops-lower",
+        type=int,
+        default=DEFAULTS["emptydrops_lower"],
+        help=(
+            "Total-UMI ceiling below which a barcode is taken as ambient RNA by "
+            "DropletUtils::emptyDrops (its `lower` argument). Only used with emptyDrops "
+            f"cell calling. Default: {DEFAULTS['emptydrops_lower']}."
+        ),
+    )
+    parser.add_argument(
+        "--knee-min-umi",
+        type=float,
+        default=DEFAULTS["knee_min_umi"],
+        help=(
+            "Lowest total UMI count a barcode needs to enter the barcode-rank knee estimate. "
+            "Must be > 0. Only used with --cell-calling knee, which is sensitivity-only. "
+            f"Default: {DEFAULTS['knee_min_umi']}."
+        ),
+    )
+    parser.add_argument(
+        "--cell-caller-rscript",
+        default=DEFAULTS["cell_caller_rscript"],
+        help=(
+            "Rscript executable that runs emptyDrops (needs R and DropletUtils). Only used "
+            f"with emptyDrops cell calling. Default: {DEFAULTS['cell_caller_rscript']}."
+        ),
+    )
+    parser.add_argument(
         "--multimap-method",
         type=_multimap_method,
         metavar=_MULTIMAP_METHOD_METAVAR,

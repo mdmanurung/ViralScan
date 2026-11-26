@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added since 3.0.0rc1
 
+- **Cell-calling flags on `run` (PLAN `CONFIG-KEYS-01`):** `--emptydrops-fdr` (0.01), `--emptydrops-lower` (100), `--knee-min-umi` (10.0) and `--cell-caller-rscript` (`Rscript`) set the config keys that had no flag. The defaults are unchanged, so outputs are unchanged. The run manifest records them, and a changed value changes the run fingerprint. `RunConfig.overwrite`, `RunConfig.f1` and `RunConfig.reference` are removed (nothing read them); `config.yaml` no longer carries those keys.
 - **`viralscan.compute` (PLAN `API-FACADE-02`)** is the stable import path for `compute_stats`, `check_sibling_crossmapping`, `external_cells` and `CellCallingError`. It re-exports the worker-module objects, so output is unchanged. Four CI vignettes import from it instead of `viralscan.scripts.*`.
 - **`viralscan.open_run(path)` (PLAN `API-FACADE-01`)** opens a finished run read-only: `.summary()` (`viral_summary.tsv`), `.cells()` (`per_cell_viral.tsv`) and `.adata()` (`adata_multimap.h5ad`). It accepts a run root or a sample directory and writes nothing. Documented in `docs/api.md`.
 - **`run --kb-params auto` (PLAN `KBPARAMS-01`)** fills `-x` (when absent) and `--strand` (when absent or `auto`) from the built-in detector, tchem and the strand pilot, and stops the run unless every signal agrees.

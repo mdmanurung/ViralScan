@@ -50,7 +50,7 @@ def test_scautoqc_cli_is_opt_in_and_recorded_in_run_config():
     default_args = build_parser().parse_args(base)
     assert default_args.scautoqc is False
     enabled_args = build_parser().parse_args([*base, "--scautoqc"])
-    cfg = _build_run_config(enabled_args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
+    cfg = _build_run_config(enabled_args, "out/", "index.idx", "t2g.txt", "R1.fq", "R2.fq")
     assert cfg.scautoqc is True
     assert cfg.to_dict()["scautoqc"] is True
 
@@ -75,7 +75,7 @@ def test_flag_off_adds_no_config_key_and_no_rule(tmp_path):
     from viralscan.runconfig import RunConfig
 
     base = ["run", "--r1", "R1.fq", "--r2", "R2.fq", "-o", "out", "-x", "10xv3"]
-    cfg = _build_run_config(build_parser().parse_args(base), "out/", "i", "t", None, "a", "b")
+    cfg = _build_run_config(build_parser().parse_args(base), "out/", "i", "t", "a", "b")
     assert "scautoqc" not in cfg.to_dict()
     cfg.to_yaml(tmp_path / "config.yaml")
     assert RunConfig.from_yaml(tmp_path / "config.yaml").scautoqc is False

@@ -274,6 +274,6 @@ def test_build_run_config_carries_star_arm(tmp_path):
     args = TestBuildRunConfig()._make_args(
         host_filter="starsolo", host_index="/h", star_confirm=True, star_hostvirus_index="/idx"
     )
-    rc = _build_run_config(args, str(tmp_path) + "/", "/i.idx", "/t2g", None, "R1", "R2")
+    rc = _build_run_config(args, str(tmp_path) + "/", "/i.idx", "/t2g", "R1", "R2")
     loaded = yaml.safe_load(_write_run_config(rc).read_text())
     assert loaded["star_confirm"] is True and loaded["star_hostvirus_index"] == "/idx"
