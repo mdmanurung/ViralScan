@@ -9,10 +9,10 @@ LABEL maintainer="emma.vonk@hotmail.nl" \
       version="3.0.0rc1" \
       description="ViralScan — viral load quantification from single-cell RNA-seq"
 
-# Security updates for the base layers (PLAN REL-11): the Ubuntu libbrotli1 deb and the
+# Security updates for the base layers (PLAN REL-11, IMAGE-CVE-01): the Ubuntu libbrotli1, apt and libapt-pkg6.0t64 debs and the
 # Miniforge base-env Python and py-rattler (bundled rust zip crate), neither of which the locked viralscan env replaces.
 RUN apt-get update \
-    && apt-get install -y --only-upgrade libbrotli1 \
+    && apt-get install -y --only-upgrade libbrotli1 apt libapt-pkg6.0t64 \
     && rm -rf /var/lib/apt/lists/*
 
 # tchem v0.1.0 (Tussl-Co/TusslChemistry, Apache-2.0), the chemistry second opinion `run` needs to confirm a 3'

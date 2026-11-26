@@ -579,7 +579,7 @@ https://conda.anaconda.org/conda-forge/noarch/smart_open-7.7.1-pyhcf101f3_0.cond
 https://conda.anaconda.org/conda-forge/noarch/smmap-5.0.3-pyhcf101f3_1.conda#b899f1195be56d8215ed1973a8f409c3
 https://conda.anaconda.org/conda-forge/noarch/snowballstemmer-3.1.1-pyhd8ed1ab_0.conda#46b6abe31482f6bca064b965696ae807
 https://conda.anaconda.org/conda-forge/noarch/sortedcontainers-2.4.0-pyhd8ed1ab_1.conda#0401a17ae845fa72c7210e206ec5647d
-https://conda.anaconda.org/conda-forge/noarch/soupsieve-2.10-pyhd8ed1ab_0.conda#6c2382c11f0c0486f3300a761e5c1205
+https://conda.anaconda.org/conda-forge/noarch/soupsieve-4.0.1-pyhd8ed1ab_0.conda#412131ebf3dab087701ff0ca7b408e02
 https://conda.anaconda.org/conda-forge/noarch/sphinx-9.0.4-pyhd8ed1ab_0.conda#950eae33376107d143a529d48c363832
 https://conda.anaconda.org/conda-forge/noarch/sphinx-autodoc-typehints-3.6.0-pyhd8ed1ab_0.conda#af320f2408a621fad5ce2186f20c9644
 https://conda.anaconda.org/conda-forge/noarch/sphinx-book-theme-1.4.0-pyhc364b38_0.conda#e307ff5cc407bb90cf4cbaed1f611fa6
