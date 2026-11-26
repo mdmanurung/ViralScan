@@ -419,7 +419,7 @@ https://conda.anaconda.org/conda-forge/noarch/slack-sdk-3.45.0-pyh5ded981_0.cond
 https://conda.anaconda.org/conda-forge/noarch/slack_sdk-3.45.0-pyh488d6b2_0.conda#f55af243fe1669c6974f07155a5d524f
 https://conda.anaconda.org/conda-forge/noarch/smart_open-7.7.1-pyhcf101f3_0.conda#fd2e276dbbd1a2ae15ffdbdbabd908f1
 https://conda.anaconda.org/conda-forge/noarch/smmap-5.0.3-pyhcf101f3_1.conda#b899f1195be56d8215ed1973a8f409c3
-https://conda.anaconda.org/conda-forge/noarch/soupsieve-2.10-pyhd8ed1ab_0.conda#6c2382c11f0c0486f3300a761e5c1205
+https://conda.anaconda.org/conda-forge/noarch/soupsieve-4.0.1-pyhd8ed1ab_0.conda#412131ebf3dab087701ff0ca7b408e02
 https://conda.anaconda.org/conda-forge/noarch/sqlmodel-0.0.37-pyhcf101f3_0.conda#00e6147bef9a85139099c9861c3b976b
 https://conda.anaconda.org/conda-forge/noarch/stack_data-0.6.3-pyhd8ed1ab_1.conda#b1b505328da7a6b246787df4b5a49fbc
 https://conda.anaconda.org/conda-forge/noarch/sysroot_linux-64-2.28-h4ee821c_9.conda#13dc3adbc692664cd3beabd216434749
