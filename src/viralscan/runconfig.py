@@ -143,12 +143,9 @@ class RunConfig:
     sample1: str = ""
     sample2: str = ""
     cores: int = DEFAULTS["cores"]
-    overwrite: str = "yes"
     gtf: Union[str, None] = None
     fasta: Union[str, None] = None
     visual: bool = True
-    f1: Union[str, None] = None
-    reference: bool = False
     umap: bool = False
     scautoqc: bool = False
     technology: str = "10xv3"
@@ -586,12 +583,9 @@ class RunConfig:
             sample1=cfg_in["sample1"],
             sample2=cfg_in["sample2"],
             cores=cores,
-            overwrite="yes",
             gtf=_opt(cfg_in["gtf"]),
             fasta=_opt(cfg_in["fasta"]),
             visual=_coerce_bool(cfg_in["visual"]),
-            f1=_opt(cfg_in["f1"]),
-            reference=_coerce_bool(cfg_in["reference"]),
             umap=_coerce_bool(cfg_in["umap"]),
             scautoqc=_coerce_bool(cfg_in.get("scautoqc", False)),
             technology=cfg_in["technology"],

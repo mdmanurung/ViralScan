@@ -35,7 +35,7 @@ def make_run(root: Path, sample: str = "S1") -> Path:
     _write_manifest_atomic(root, manifest)
     out = root / sample
     argv = ["-i", "i", "-t", "t", "--r1", "a_R1.fastq", "--r2", "b_R2.fastq", "-o", "o"]
-    cfg = menu._build_run_config(parse_args(argv), str(out) + "/", "i", "t", None, "a", "b")
+    cfg = menu._build_run_config(parse_args(argv), str(out) + "/", "i", "t", "a", "b")
     menu._write_run_config(cfg)
     files = {
         "results/viral_summary.tsv": "virus\tn\nEBV\t3\n",

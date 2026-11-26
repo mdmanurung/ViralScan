@@ -38,7 +38,7 @@ def test_group_options_roundtrip_into_worker_config(tmp_path):
             "group",
         ]
     )
-    cfg = _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
+    cfg = _build_run_config(args, "out/", "index.idx", "t2g.txt", "R1.fq", "R2.fq")
     restored = RunConfig.from_snakemake_config(cfg.to_dict())
     assert restored.hostresponse_cv == "group"
     assert restored.hostresponse_groups == "donor"
@@ -146,7 +146,7 @@ def test_a_declared_group_null_passes_the_config():
         + ["--hostresponse-cv", "group", "--hostresponse-groups", "donor"]
         + ["--hostresponse-permutations", "5", "--hostresponse-permutation-unit", "group"]
     )
-    cfg = _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
+    cfg = _build_run_config(args, "out/", "index.idx", "t2g.txt", "R1.fq", "R2.fq")
     assert cfg.hostresponse_permutations == 5
 
 
@@ -190,7 +190,7 @@ def test_panel_in_fold_without_group_cv_fails_before_kb_count():
         ]
     )
     with pytest.raises(ValueError, match="panel_in_fold requires group CV"):
-        _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
+        _build_run_config(args, "out/", "index.idx", "t2g.txt", "R1.fq", "R2.fq")
     ok = build_parser().parse_args(
         [
             "run",
@@ -206,7 +206,7 @@ def test_panel_in_fold_without_group_cv_fails_before_kb_count():
         ]
         + ["--hostresponse-cv", "group", "--hostresponse-groups", "donor"]
     )
-    cfg = _build_run_config(ok, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
+    cfg = _build_run_config(ok, "out/", "index.idx", "t2g.txt", "R1.fq", "R2.fq")
     assert cfg.hostresponse_panel_in_fold is True
 
 
@@ -263,4 +263,4 @@ def test_cell_types_without_a_column_fail_before_kb_count():
         ]
     )
     with pytest.raises(ValueError, match="cell_type_column"):
-        _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
+        _build_run_config(args, "out/", "index.idx", "t2g.txt", "R1.fq", "R2.fq")

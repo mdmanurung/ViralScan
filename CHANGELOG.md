@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added since 3.0.0rc1
 
+- **Cell-calling flags on `run` (PLAN `CONFIG-KEYS-01`):** `--emptydrops-fdr` (0.01), `--emptydrops-lower` (100), `--knee-min-umi` (10.0) and `--cell-caller-rscript` (`Rscript`) set the config keys that had no flag. The defaults are unchanged, so outputs are unchanged. The run manifest records them, and a changed value changes the run fingerprint. `RunConfig.overwrite`, `RunConfig.f1` and `RunConfig.reference` are removed (nothing read them); `config.yaml` no longer carries those keys.
 - **`run --kb-params auto` (PLAN `KBPARAMS-01`)** fills `-x` (when absent) and `--strand` (when absent or `auto`) from the built-in detector, tchem and the strand pilot, and stops the run unless every signal agrees.
 - **EM non-convergence is visible (PLAN `CONTRACT-DIAG-01`).** A run whose EM allocation stops at `--multimap-em-max-iter` logs a warning and writes it into `summary.txt`.
 - **`viralscan.contract`** holds the schema, count-schema, layout and inventory versions in one module (PLAN `CONTRACT-VERSIONS-01`); defaults are one table in `viralscan.defaults` (PLAN `CONTRACT-DEFAULTS-01`).

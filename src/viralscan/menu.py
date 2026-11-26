@@ -1104,9 +1104,17 @@ def _warn_ignored_flags(args: argparse.Namespace) -> None:
     )
     if resolved != "emptydrops":
         warn(
-            changed("emptydrops_seed", "emptydrops_niters"),
+            changed(
+                "emptydrops_seed",
+                "emptydrops_niters",
+                "emptydrops_fdr",
+                "emptydrops_lower",
+                "cell_caller_rscript",
+            ),
             f"cell calling is {resolved}, not emptydrops",
         )
+    if resolved != "knee":
+        warn(changed("knee_min_umi"), f"cell calling is {resolved}, not knee")
 
 
 def validate_run_request(args: argparse.Namespace) -> None:
@@ -1130,7 +1138,7 @@ def _precheck_run_config(args: argparse.Namespace) -> None:
     probe = argparse.Namespace(**{**vars(args), "anello_align": False, "auto_evidence": None})
     s1, s2 = split_comma_paths(args.sample1)[0], split_comma_paths(args.sample2)[0]
     try:
-        _build_run_config(probe, "", args.index or "", args.transcripts or "", args.f1, s1, s2)
+        _build_run_config(probe, "", args.index or "", args.transcripts or "", s1, s2)
     except ValueError as exc:
         _die(str(exc), 2)
 
@@ -1476,7 +1484,6 @@ def _build_run_config(
     outs: str,
     index: str,
     transcripts: str,
-    f1: Optional[str],
     s1: str,
     s2: str,
 ) -> RunConfig:
@@ -1499,8 +1506,6 @@ def _build_run_config(
             "gtf": args.gtf,
             "fasta": args.fasta,
             "visual": args.visual,
-            "f1": f1,
-            "reference": args.reference,
             "umap": args.umap,
             "scautoqc": getattr(args, "scautoqc", False),
             "technology": args.technology,
@@ -1605,10 +1610,10 @@ def _build_run_config(
             "called_cells_file": getattr(args, "called_cells_file", None),
             "emptydrops_seed": getattr(args, "emptydrops_seed", None),
             "emptydrops_niters": getattr(args, "emptydrops_niters", None),
-            # The `run` parser has no flag for these two; kept so a caller that sets them is
-            # still range-checked (errorhandler did, before VALIDATE-ONCE-01).
             "emptydrops_fdr": getattr(args, "emptydrops_fdr", None),
+            "emptydrops_lower": getattr(args, "emptydrops_lower", None),
             "knee_min_umi": getattr(args, "knee_min_umi", None),
+            "cell_caller_rscript": getattr(args, "cell_caller_rscript", None),
         }
     )
 
@@ -2073,7 +2078,7 @@ def _dispatch(args: argparse.Namespace) -> None:
         log.info("Fetched NCBI reference for: %s", ", ".join(accessions))
 
     if args.reference:
-        transcripts, index, f1 = _build_kb_ref(
+        transcripts, index, _cdna_fasta = _build_kb_ref(
             output_dir,
             args.fasta,
             args.gtf,
@@ -2083,7 +2088,6 @@ def _dispatch(args: argparse.Namespace) -> None:
     else:
         transcripts = args.transcripts
         index = args.index
-        f1 = args.f1
 
     snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
     samples2 = split_comma_paths(args.sample2)
@@ -2115,7 +2119,7 @@ def _dispatch(args: argparse.Namespace) -> None:
                 _kb_params_require(rec, ("strand",), out)
                 chosen = str(rec.strand.value)
             sample_args = argparse.Namespace(**{**vars(args), "strand": chosen})
-        run_config = _build_run_config(sample_args, outs, index, transcripts, f1, s1, s2)
+        run_config = _build_run_config(sample_args, outs, index, transcripts, s1, s2)
         config_file = _write_run_config(run_config)
         if args.resume:
             _migrate_gene_list(Path(outs))
