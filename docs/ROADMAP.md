@@ -1,17 +1,18 @@
 # ViralScan roadmap to 3.0.0 stable
 
-Status as of 2026-11-17. Status words come from `PLAN.md`, the reproducibility repo's tracker and its gate dashboard. This page makes no analysis claim, so it cites no figure. Rows named `LIKE-THIS-01` are `PLAN.md` rows.
+Status as of 2026-11-26. Status words come from `PLAN.md`, the reproducibility repo's tracker and its gate dashboard. This page makes no analysis claim, so it cites no figure. Rows named `LIKE-THIS-01` are `PLAN.md` rows.
 
 ## 1. Where we are
 
 **Merged to `main`:**
 - Run contract: one defaults table (`CONTRACT-DEFAULTS-01`), one fingerprint rule with `--resume` refused across versions (`CONTRACT-FP-01`), version constants and a stricter manifest schema (`CONTRACT-VERSIONS-01`), a visible EM non-convergence warning (`CONTRACT-DIAG-01`).
 - Interfaces: deprecation helper, exit-code table, API stability section and release policy (Phase 2); packaging fixes, the CHANGELOG breaking block, a migration section and `docs/limitations.md` (Phase 3).
-- Safety net: golden digests of the tiny run's deterministic outputs (`GOLDEN-01`).
+- Consolidation Phases A to F (`API-CONSOLIDATE-01`, every unit `[x]` in `PLAN.md`): table schemas, one helper per job, one data flow through a run, the command groups and `--run-dir`/`--sample`, the flag clean-up, the tchem v0.1.0 install, the happy-path page, the column renames and `viral_summary_core.tsv`, `viralscan.open_run`, and `viralscan demo` with the tester packet.
+- The release docs pass with the read-level evidence guide (`DOCS-RELEASE-01`) and the version bump to `3.0.0b1` (`RELEASE-B1-01`).
 
-**Open:** `TABLE-SCHEMA-01` (column registry for the 12 default tables). Older pull requests from 2026-11-04: the G3 amendment schema (#195), the version bump for outside laboratories (#197) and the 2026-11-04 decisions (#206).
+**Open, owner steps before the `3.0.0b1` tag:** section 5 (`REL-15`, `RC-02`, `REL-11` including the CVE-2026-119170 base-image finding, `RC-03`), and one re-pin of the reproducibility repo. The G3 amendment schema (#195) waits for G3.
 
-**Not started:** consolidation Phases B to F, the first public tag, outside-laboratory testing, G3 to G5, the stable release.
+**Not started:** outside-laboratory testing, G3 to G5, the stable release.
 
 ## 2. Release line
 
