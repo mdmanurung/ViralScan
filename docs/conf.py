@@ -92,6 +92,8 @@ linkcheck_ignore = [
     r"https://doi\.org/10\.7326/.*",
     r"https://www\.ensembl\.org/info/.*",
     r"https://www\.10xgenomics\.com/.*",
+    # Badge images: shields.io times out on the PyPI badge while the package is unpublished.
+    r"https://img\.shields\.io/.*",
 ]
 
 # -- Options for HTML output ---------------------------------------------------
