@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 3.0.0b1 (beta for outside laboratories on TestPyPI; date set when tagged)
+
+A beta of the 3.0.0 series for outside laboratories (user decisions 2026-11-04 and 2026-11-25). It carries no validation claim: gates G3 to G8 are open and the defaults stay provisional until G5. The rc1 entries below were never published; rc1 is cut only after laboratory testing, G5 and the defaults approval (`docs/ROADMAP.md`).
 
 ### Breaking since 3.0.0rc1
 

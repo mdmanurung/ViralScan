@@ -2,7 +2,7 @@
 
 Run `viralscan --help` or `viralscan <subcommand> --help` to see options for
 the installed version. This page documents the public CLI as of ViralScan
-**3.0.0rc1**. Verbs sit in groups (`check`, `discover`, `rerun`, `build`, and a hidden `dev`); `viralscan check --help` lists a group's commands. The old top-level names (`build-ref`, `doctor`, `validate-run`, `hostresponse`, ...) still work and print a deprecation warning; they are removed in 3.1.0 (PLAN `CMDGROUP-01`, table in [migration](migration.md)). Available subcommands:
+**3.0.0b1**. Verbs sit in groups (`check`, `discover`, `rerun`, `build`, and a hidden `dev`); `viralscan check --help` lists a group's commands. The old top-level names (`build-ref`, `doctor`, `validate-run`, `hostresponse`, ...) still work and print a deprecation warning; they are removed in 3.1.0 (PLAN `CMDGROUP-01`, table in [migration](migration.md)). Available subcommands:
 
 <!-- BEGIN GENERATED: subcommands -->
 
