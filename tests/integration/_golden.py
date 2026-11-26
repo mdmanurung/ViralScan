@@ -8,33 +8,20 @@ the result tables and gene lists, ``combined_summary.tsv`` and ``summary.txt`` w
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
+
+from viralscan.demo import output_digests
 
 GOLDEN_FILE = Path(__file__).parent / "golden" / "tiny_run.json"
 
 
-def _digest(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
 def golden_digests(run: Path) -> dict[str, str]:
-    """Map ``<sample>/<relative path>`` (and ``combined_summary.tsv``) to a sha256."""
-    samples = sorted(p.parent for p in run.glob("*/config.yaml"))
-    assert len(samples) == 1, f"expected one sample directory, found {samples}"
-    sample = samples[0]
-    digests: dict[str, str] = {}
-    combined = run / "combined_summary.tsv"
-    if combined.is_file():
-        digests["combined_summary.tsv"] = _digest(combined.read_bytes())
-    for path in sorted((sample / "results").iterdir()):
-        if path.is_file() and path.suffix in {".tsv", ".txt"}:
-            digests[f"results/{path.name}"] = _digest(path.read_bytes())
-    summary = (sample / "summary.txt").read_text(encoding="utf-8").splitlines(keepends=True)
-    kept = "".join(line for line in summary if not line.startswith("Runtime:"))
-    digests["summary.txt"] = _digest(kept.encode("utf-8"))
-    return digests
+    """Map ``<sample>/<relative path>`` (and ``combined_summary.tsv``) to a sha256.
+
+    The function ``viralscan demo`` uses (PLAN DEMO-01), so the demo and this test cannot drift.
+    """
+    return output_digests(run)
 
 
 def load_golden() -> dict[str, str]:

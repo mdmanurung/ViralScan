@@ -1196,6 +1196,40 @@ def _build_doctor_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="doctor")
 
 
+def _build_demo_parser(subparsers: Any) -> None:
+    p = subparsers.add_parser(
+        "demo",
+        help="Run the bundled tiny dataset and check it against pinned digests (PLAN DEMO-01).",
+        description=(
+            "Copy the bundled two-read-pair demo into a new directory, run it through "
+            "`viralscan run`, run `check run` on it and compare the deterministic outputs with "
+            "the pinned sha256 digests. Prints PASS or FAIL per file. Exit 0 when all pass, 1 on "
+            "a mismatch or a failed step, 2 when a tool is missing or the output exists. Needs "
+            "the full tier (`viralscan check env --profile full`). The demo names --strand "
+            "unstranded and --tchem off; a real run chooses its own."
+        ),
+    )
+    p.add_argument(
+        "--output",
+        default="viralscan_demo",
+        help="New directory for the demo; an existing non-empty one is refused without --force.",
+    )
+    p.add_argument("--cores", type=int, default=2, help="CPU budget passed to `viralscan run`.")
+    p.add_argument(
+        "--keep",
+        action="store_true",
+        default=False,
+        help="Keep the inputs and the run after a PASS. Without it only demo_report.json stays.",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Write into an existing output; its inputs/ and run/ are replaced.",
+    )
+    p.set_defaults(_subcommand="demo")
+
+
 def _build_validate_run_parser(subparsers: Any) -> None:
     p = subparsers.add_parser("validate-run", help="Validate v3 schemas and count invariants.")
     p.add_argument(
@@ -1646,7 +1680,8 @@ def build_parser(*, essential_help: bool = False) -> argparse.ArgumentParser:
             "  check whitelist Check barcode whitelist/chemistry compatibility.\n"
             "  check env       Check Python and full-workflow dependencies.\n"
             "  check run       Validate v3 schemas and count invariants.\n"
-            "  status          List the post-hoc steps run on a completed run.\n\n"
+            "  status          List the post-hoc steps run on a completed run.\n"
+            "  demo            Run the bundled tiny dataset and check it (needs the full tier).\n\n"
             "The old names (build-ref, doctor, validate-run, discover-collapse, ...) still work "
             "and warn; they may be removed in 3.1.0 or later.\n\n"
             "Recommended host-aware workflow: run 'viralscan build ref' once, "
@@ -1679,6 +1714,7 @@ def build_parser(*, essential_help: bool = False) -> argparse.ArgumentParser:
     _build_evidence_parser(subparsers)
     _build_evidence_plot_parser(subparsers)
     _build_status_parser(subparsers)
+    _build_demo_parser(subparsers)
     _build_command_groups(subparsers)
     return parser
 

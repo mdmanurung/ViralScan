@@ -22,6 +22,7 @@ include docs/output_reference.md
 include docs/quickstart.md
 include docs/results.md
 include docs/reference_panel.md
+include docs/tester_packet.md
 include docs/requirements.txt
 include docs/v3_counting_contract.md
 include scripts/check_data_governance.py
@@ -38,6 +39,8 @@ exclude docs/PUBLICATION_READINESS_2026-07-17.md
 exclude docs/ROADMAP.md
 exclude docs/IMPLEMENTATION_PLAN.md
 global-exclude __pycache__ *.py[cod] *.h5ad *.bam *.cram *.fastq *.fastq.gz
+# DEMO-01: the two synthetic demo FASTQs ship (pinned by sha256 in scripts/check_data_governance.py).
+include src/viralscan/data/demo/R1.fastq src/viralscan/data/demo/R2.fastq
 include src/viralscan/data/anellovirus_accessions.tsv
 include src/viralscan/data/anellovirus_genes.tsv
 include src/viralscan/data/gene_programs.tsv

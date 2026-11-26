@@ -1,0 +1,18 @@
+{
+  "combined_summary.tsv": "041bb74e41b0741c50eb7a3536e76ccf91d418568cd729dd4f3ef95854da6896",
+  "results/analysis_genes.txt": "fdd0a48bb64ffab900901a61be51d7ee53141b8254aa1351c4d88ca807fc90ee",
+  "results/called_cells.tsv": "f7633e1467e06d41b0d93eb5b5d2558ae233128293bbe81dd425468c58b7ac21",
+  "results/count_audit.tsv": "d61c70f3bd6dc4ba918e9aa91b12817d67971ad9d2816d4b5b84157fae038d60",
+  "results/found_genes.txt": "4f6b070c49286a79111d7ac32f868d6813968a3ffb0c1cbfb9c7efe083b951de",
+  "results/host_homology_loci.tsv": "3d983ac48981a856dbd2fe4fdf3954eb61c83f3209333a26125d37c556139a2c",
+  "results/multimap_evidence.tsv": "bd2233b2775652cfd95262e86f964e994cd6772d45c19f00ffd24abbc7aeeb96",
+  "results/per_cell_viral.tsv": "3fef597a7859656b8810392a6a76f650738f0d35c77ea5f7386d3dedb80d5331",
+  "results/sensitivity.tsv": "ed7c82b998d2de2fe276e4f0bc953639ab6b62b7ef328405025fa34e6ceb510b",
+  "results/viral_loci.tsv": "538fff5986b284a24c5c58e83fdaac544bff6bca036265f55f37eea9109d65b0",
+  "results/viral_summary.tsv": "3e417e9cdebdf54c4dd225a65e78478b8fbe3e7132efb8e8e3b5e62e775304c7",
+  "results/viral_summary_by_genus.tsv": "0501abe29b08345324d43a61f07bb289edca724857b1a2832b2c62f4a417f71a",
+  "results/viral_summary_by_species.tsv": "9ccebf4f5b0682b39151c397ea23650e7c415d2c078d363a7697012a34d97f00",
+  "results/viral_summary_core.tsv": "3199acf26dabcba263c0256eb7aa15e94c563d34975b7e1636154c12a003e4d7",
+  "results/virus_identity.tsv": "e01e8ed95759cda105d7bfec0d894a46f57029df9d940d9de0f81f83759b4f20",
+  "summary.txt": "055f8717a87b512fab85884dfc677d741b71bc41190ea983e6e52cd9d8c333c8"
+}
