@@ -242,8 +242,9 @@ def read_structure(seqs: list[str]) -> tuple[int, Optional[str], Optional[int]]:
     """``(modal R1 length, end, umi_len)`` from the R1 sequences.
 
     *end* is ``"5p"`` (TSO after the UMI), ``"3p"`` (poly-T) or None when R1
-    was trimmed to barcode + UMI. The UMI length comes from where the adapter
-    starts, else from a trimmed length of 26 or 28.
+    carries no adapter. The UMI length comes from where the adapter starts, else
+    from a trimmed length of 26 or 28. That length is only a guess: :func:`classify`
+    ignores it for a chemistry the on-list has already named (CHEM-R1LEN-01).
     """
     r1_len = Counter(len(s) for s in seqs).most_common(1)[0][0] if seqs else 0
     for start in ADAPTER_STARTS:
@@ -264,6 +265,9 @@ class Detection:
     umi_len: Optional[int]
     n_sampled: int
     match_rates: dict[str, float] = field(default_factory=dict)
+    #: R1 bases after cell barcode + UMI of the called chemistry that kb does not read
+    #: (a 28-cycle R1 on 10xv2 leaves 2). None when no chemistry was called (CHEM-R1LEN-01).
+    trailing_bases: Optional[int] = None
 
     def as_block(self) -> dict[str, Any]:
         return asdict(self)
@@ -307,14 +311,32 @@ def classify(
         return out(None, "ambiguous", f"R1 barcodes match several on-lists: {hits}")
     if hits:
         chem = get(hits[0])
-        if umi is not None and umi != chem.umi_len:
+        need = chem.cb_len + chem.umi_len
+        # Only an adapter (TSO or poly-T) at a fixed offset is evidence of another UMI length.
+        # A bare R1 length is not: a 28-cycle R1 on 10xv2 is 26 bp of read plus 2 unread
+        # bases, and kb's 10xv2 geometry ignores them (CHEM-R1LEN-01).
+        if end is not None and umi is not None and umi != chem.umi_len:
             return out(
                 None,
                 "ambiguous",
-                f"barcodes match the {chem.name} on-list but R1 implies a {umi} bp "
-                f"UMI, not {chem.umi_len}",
+                f"barcodes match the {chem.name} on-list but the {end} adapter starts at base "
+                f"{umi + chem.cb_len}, which implies a {umi} bp UMI, not {chem.umi_len}",
             )
-        return out(chem.name, "bundled on-list", f"{rates[chem.name]:.1%} on the {chem.name} list")
+        if r1_len < need:
+            return out(
+                None,
+                "ambiguous",
+                f"barcodes match the {chem.name} on-list but R1 is {r1_len} bp, shorter than "
+                f"the {need} bp (barcode {chem.cb_len} + UMI {chem.umi_len}) it needs",
+            )
+        trailing = r1_len - need
+        reason = f"{rates[chem.name]:.1%} on the {chem.name} list"
+        if trailing:
+            reason += f"; R1 is {r1_len} bp, kb ignores the {trailing} bp after the UMI"
+        det = out(chem.name, "bundled on-list", reason)
+        det.trailing_bases = trailing
+        det.umi_len = chem.umi_len  # a bare R1 length says nothing about the UMI
+        return det
     if r1_len == DROPSEQ_R1_LENGTH:
         return out("dropseq", "R1 length", "no 10x on-list matches and R1 is 20 bp")
     best = max(rates.items(), key=lambda kv: kv[1], default=("none", 0.0))
