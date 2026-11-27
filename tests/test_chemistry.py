@@ -112,7 +112,9 @@ class TestR1Length:
         d = classify(_reads(umi=10, tail=ch.TSO + "G" * 111), V3)
         assert d.chemistry is None and "implies a 10 bp UMI, not 12" in d.reason
 
-    @pytest.mark.parametrize(("rates", "umi", "r1_len"), [(EBV, 10, 24), (V3, 12, 26)])
+    @pytest.mark.parametrize(
+        ("rates", "umi", "r1_len"), [(EBV, 10, 24), (EBV, 10, 25), (V3, 12, 26), (V3, 12, 27)]
+    )
     def test_r1_shorter_than_barcode_plus_umi_is_refused(self, rates, umi, r1_len):
         d = classify(_reads(umi=umi, r1_len=r1_len), rates)
         assert d.chemistry is None and "shorter than" in d.reason
