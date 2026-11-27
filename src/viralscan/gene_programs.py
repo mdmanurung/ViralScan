@@ -839,6 +839,35 @@ def call_cell_programme(
     return calls
 
 
+#: Columns of ``summarise_programs``; ``tests/test_optional_table_columns.py`` pins the order.
+SUMMARY_COLUMNS = (
+    "virus_name",
+    "n_cells_with_evidence",
+    "n_cells_productive",
+    "n_cells_latent",
+    "n_cells_reactivating",
+    "n_cells_mixed",
+    "n_cells_lytic_programme",
+    "n_cells_indeterminate_with_evidence",
+    "n_cells_productive_selected_layer",
+    "n_cells_latent_selected_layer",
+    "productive_breadth_median",
+    "latent_breadth_median",
+    "selected_productive_breadth_median",
+    "selected_latent_breadth_median",
+    "panel_completeness",
+    "latency_observable_in_rna",
+    "evidence_layer",
+    "min_breadth",
+    "latent_min_breadth",
+    "marker_min_umi",
+    "productive_min_molecules",
+    "n_markers_resolved",
+    "n_markers_unresolved",
+    "caveat",
+)
+
+
 def summarise_programs(
     cells_df: pd.DataFrame | None,
     catalogue: list[Row],
@@ -1011,7 +1040,8 @@ def summarise_programs(
                 "caveat": caveat,
             }
         )
-    return pd.DataFrame(rows)
+    # ``columns=`` keeps the schema when no virus was detected (PROGRAMS-EMPTY-01).
+    return pd.DataFrame(rows, columns=list(SUMMARY_COLUMNS))
 
 
 def _fill_median(group: pd.DataFrame, column: str) -> float:
