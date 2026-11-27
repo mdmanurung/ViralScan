@@ -82,7 +82,8 @@ def _detected_viruses(path: str) -> tuple[list[str], str]:
     with open(path, newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
     if not rows:
-        raise ValueError(f"layer-1 summary is empty: {path}")
+        # No row at all (header-only or empty file): nothing was detected.
+        return [], _MOLECULE_COLUMNS[0]
     column = next((c for c in _MOLECULE_COLUMNS if c in rows[0]), None)
     if column is None:
         raise ValueError(
@@ -361,6 +362,8 @@ def main(
         raise ValueError("gene-programme catalogue is invalid:\n  " + "\n  ".join(problems))
     viruses, molecule_column = _detected_viruses(summary_path)
     log.info("layer 1 detected %d virus row(s): %s", len(viruses), ", ".join(viruses))
+    if not viruses:
+        log.info("no virus detected by layer 1: writing empty gene-programme tables")
 
     adata = sc.read_h5ad(adata_path)
     # Score the called cells only, the denominator layer 1 reports over; the
@@ -456,6 +459,8 @@ def _attach_layer1_totals(summary: pd.DataFrame, layer1_path: str, molecule_colu
     joining it here keeps the two layers from being compared by hand.
     """
     if summary.empty:
+        summary["layer1_molecules"] = pd.Series(dtype=object)
+        summary["layer1_molecule_column"] = pd.Series(dtype=object)
         return
     with open(layer1_path, newline="", encoding="utf-8") as handle:
         totals = {
