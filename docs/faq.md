@@ -74,7 +74,9 @@ Since 2026-10-03 (PLAN `DEF-02`) the main run checks this itself before
 anything is counted. It reads the first 100k R1 reads of each sample, scores
 them against kb's on-lists (and your `-w` list), and reads the UMI length from
 where the TSO (5′) or poly-T (3′) starts. Without `-x` it uses the detected
-chemistry. It stops the run when:
+chemistry. An R1 longer than barcode + UMI is fine (a 28-cycle R1 on 10x v2 leaves 2
+bases that kb ignores); the report lists them as `trailing_bases`. An adapter that
+contradicts the on-list's UMI length, or an R1 shorter than barcode + UMI, stops the run. It stops the run when:
 - the reads fit no single chemistry (for example GEM-X 5′ without its Cell
   Ranger on-list, which kb does not ship);
 - samples in one run disagree;

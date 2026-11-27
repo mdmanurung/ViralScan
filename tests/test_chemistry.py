@@ -67,6 +67,61 @@ class TestMeasuredLibraries:
         assert classify(seqs, HSV1).chemistry == "dropseq"
 
 
+V3 = {"10xv2": 0.093, "10xv3": 0.96, "10xv4": 0.05}
+
+
+class TestR1Length:
+    """CHEM-R1LEN-01: an R1 longer than barcode + UMI is fine; only an adapter or a short R1 refuses."""
+
+    @pytest.mark.parametrize(("r1_len", "trailing"), [(26, 0), (28, 2), (150, 124)])
+    def test_10xv2_with_any_r1_at_least_26(self, r1_len, trailing):
+        # BC-1 (GSE154900): 10xv2 with a 28-cycle R1; the bases after the UMI are random.
+        d = classify(_reads(umi=10, tail=_bc(124), r1_len=r1_len), EBV)
+        assert (d.chemistry, d.basis, d.trailing_bases) == ("10xv2", "bundled on-list", trailing)
+        assert resolve(None, [d]) == "10xv2" and resolve("10xv2", [d]) == "10xv2"
+        assert d.as_block()["trailing_bases"] == trailing
+
+    def test_trailing_bases_are_in_the_reason(self):
+        d = classify(_reads(umi=10, tail=_bc(2)), EBV)
+        assert "ignores the 2 bp" in d.reason
+
+    @pytest.mark.parametrize(("r1_len", "trailing"), [(28, 0), (90, 62), (150, 122)])
+    def test_10xv3_with_any_r1_at_least_28(self, r1_len, trailing):
+        d = classify(_reads(umi=12, tail=_bc(122), r1_len=r1_len), V3)
+        assert (d.chemistry, d.trailing_bases) == ("10xv3", trailing)
+
+    def test_10xv3_polyt_after_the_umi_is_accepted(self):
+        d = classify(_reads(umi=12, tail="T" * 62), V3)
+        assert (d.chemistry, d.end, d.trailing_bases) == ("10xv3", "3p", 62)
+
+    def test_10xv2_with_a_polyt_at_26_is_accepted(self):
+        d = classify(_reads(umi=10, tail="T" * 62), EBV)
+        assert (d.chemistry, d.end, d.trailing_bases) == ("10xv2", "3p", 62)
+
+    def test_hhv6b_tso_at_26_still_passes(self):
+        # SRR20710641: 150 bp R1, the TSO at base 26 fixes the UMI at 10.
+        d = classify(_reads(umi=10, tail=ch.TSO + "G" * 111), HHV6B)
+        assert (d.chemistry, d.end, d.umi_len, d.trailing_bases) == ("10xv2", "5p", 10, 124)
+
+    def test_v2_list_with_a_tso_at_28_is_refused(self):
+        # 12 bp UMI evidence from the adapter contradicts the v2 geometry.
+        d = classify(_reads(umi=12, tail=ch.TSO + "G" * 111), EBV)
+        assert d.chemistry is None and "implies a 12 bp UMI, not 10" in d.reason
+
+    def test_v3_list_with_a_tso_at_26_is_refused(self):
+        d = classify(_reads(umi=10, tail=ch.TSO + "G" * 111), V3)
+        assert d.chemistry is None and "implies a 10 bp UMI, not 12" in d.reason
+
+    @pytest.mark.parametrize(
+        ("rates", "umi", "r1_len"), [(EBV, 10, 24), (EBV, 10, 25), (V3, 12, 26), (V3, 12, 27)]
+    )
+    def test_r1_shorter_than_barcode_plus_umi_is_refused(self, rates, umi, r1_len):
+        d = classify(_reads(umi=umi, r1_len=r1_len), rates)
+        assert d.chemistry is None and "shorter than" in d.reason
+        with pytest.raises(ChemistryError, match="Chemistry check failed"):
+            resolve(None, [d])
+
+
 class TestResolve:
     def test_mech_d_10xv2_run_as_10xv3_is_refused(self):
         d = classify(_reads(umi=10), EBV)
